@@ -1,0 +1,376 @@
+import prisma from '../lib/prisma';
+import LeadPost from '../models/lead-post.model';
+import User from '../models/user.model';
+import Claim from '../models/claim.model';
+import ErrorResponse from '../utils/error-response.utils';
+import { getSetting } from './setting.service';
+import { getUserPermissions, hasPermission as checkPermission } from '../utils/rbac.utils';
+import { generateLeadIntelligence } from './intelligence.service';
+// import LeadIntelligence from '../models/lead-intelligence.model';
+import { findLeadEmail } from './contact-compass.service';
+
+export const getAllPosts = async (currentUser: any, query: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    search?: string;
+    keyword?: string;
+    platform?: string;
+}) => {
+    // Check for lead access enabled (feature flag)
+    if (!currentUser.lead_access_enabled) {
+        const perms = await getUserPermissions(currentUser.id, currentUser.organization?.toString());
+        if (!checkPermission(perms, 'lead:read')) {
+            throw new ErrorResponse('Not authorized to access leads.', 403);
+        }
+    }
+
+    const permissions = await getUserPermissions(currentUser.id, currentUser.organization?.toString());
+    const isInternal = checkPermission(permissions, '*') || checkPermission(permissions, 'system:admin');
+
+    const page = Number(query.page) || 1;
+    const limit = Number(query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    const filter: any = { is_deleted: false };
+
+    // Security Filter: External users only see qualified leads (relevant + intelligence generated)
+    if (!isInternal) {
+        filter.status = 'relevant';
+        filter.intelligence = { $ne: null };
+    } else if (query.status && query.status !== 'all') {
+        // Internal users can filter by any status
+        filter.status = query.status;
+    }
+
+    // Keyword filter
+    if (query.keyword) {
+        filter.keyword = query.keyword;
+    }
+
+    // Platform filter
+    if (query.platform && query.platform !== 'all') {
+        const platforms = query.platform.split(',').map(p => p.trim());
+        if (platforms.length > 0) {
+            filter.platform = { $in: platforms };
+        }
+    }
+
+    // Search logic (author name, content, or keyword)
+    if (query.search) {
+        filter.$or = [
+            { 'author.name': { $regex: query.search, $options: 'i' } },
+            { 'author.handle': { $regex: query.search, $options: 'i' } },
+            { content: { $regex: query.search, $options: 'i' } },
+            { keyword: { $regex: query.search, $options: 'i' } }
+        ];
+    }
+
+    const posts = await LeadPost.find(filter, {
+        sort: { created_at: -1 },
+        skip,
+        limit,
+        lean: true,
+    });
+
+    // Check which posts are claimed by the current user
+    const userClaims = await Claim.find({ userId: currentUser.id, leadId: { $in: posts.map(p => p._id) } });
+    const claimedIds = new Set(userClaims.map(c => c.leadId.toString()));
+
+    const postsWithClaimed = posts.map(post => {
+        const isClaimed = claimedIds.has(post._id.toString());
+        const shouldShowSensitive = isClaimed || isInternal;
+
+        // Base redaction
+        const redactedPost = {
+            ...post,
+            is_claimed: isClaimed,
+            // Redact original scraped post content if not claimed/internal
+            content: shouldShowSensitive ? post.content : "Original signal locked. This high-relevance lead has been verified by the Intelligence Engine. Claim this lead to unlock the full original post and contact data.",
+            // Redact contact info
+            email: shouldShowSensitive ? post.email : null,
+            contact_info: shouldShowSensitive ? post.contact_info : null,
+            // Redact author details to prevent direct outreach bypass
+            author: shouldShowSensitive ? post.author : {
+                name: `Strategic Lead [${post.platform.toUpperCase()}]`,
+                handle: "locked",
+                url: "#",
+                avatar: { url: "" }
+            },
+            // Redact all direct outbound URLs
+            url: shouldShowSensitive ? post.url : "#"
+        };
+
+        // Deep redaction for any other direct links (like course URLs or profile links in raw data)
+        if (!shouldShowSensitive) {
+            delete redactedPost.raw_result; // Never show raw scraped data to external users for unclaimed leads
+            if (redactedPost.source_profile) redactedPost.source_profile = "locked";
+        }
+
+        return redactedPost;
+    });
+
+    const total = await LeadPost.countDocuments(filter);
+    
+    // For status counts, always use the base filter but respect isInternal for showing pending counts
+    const baseFilter = { ...filter };
+    delete baseFilter.status;
+    delete baseFilter.intelligence; // Intelligence filter only for external listing
+
+    const [allCount, pendingCount, relevantCount, irrelevantCount] = await Promise.all([
+        LeadPost.countDocuments(baseFilter),
+        LeadPost.countDocuments({ ...baseFilter, status: 'pending' }),
+        LeadPost.countDocuments({ ...baseFilter, status: 'relevant' }),
+        LeadPost.countDocuments({ ...baseFilter, status: 'irrelevant' })
+    ]);
+
+    return {
+        posts: postsWithClaimed,
+        total,
+        page,
+        pages: Math.ceil(total / limit),
+        counts: {
+            all: allCount,
+            pending: isInternal ? pendingCount : 0, // External users shouldn't even know pending counts exist
+            relevant: relevantCount,
+            irrelevant: isInternal ? irrelevantCount : 0
+        }
+    };
+};
+
+export const getPostById = async (id: string) => {
+    const post = await LeadPost.findOne({ _id: id, is_deleted: false }, { lean: true });
+    if (!post) {
+        throw new ErrorResponse(`Post not found with id of ${id}`, 404);
+    }
+
+    return post;
+};
+
+export const getPostForUser = async (currentUser: any, id: string) => {
+    const post = await getPostById(id);
+    
+    // Check if claimed
+    const isClaimed = await Claim.exists({ userId: currentUser.id, leadId: id });
+    
+    const permissions = await getUserPermissions(currentUser.id, currentUser.organization?.toString());
+    const isInternal = checkPermission(permissions, '*') || checkPermission(permissions, 'system:admin');
+    const shouldShowSensitive = !!isClaimed || isInternal;
+
+    const redactedPost = {
+        ...post,
+        is_claimed: !!isClaimed,
+        content: shouldShowSensitive ? post.content : "Original signal locked. This high-relevance lead has been verified by the Intelligence Engine. Claim this lead to unlock the full original post and contact data.",
+        email: shouldShowSensitive ? post.email : null,
+        contact_info: shouldShowSensitive ? post.contact_info : null,
+        author: shouldShowSensitive ? post.author : {
+            name: `Strategic Lead [${post.platform.toUpperCase()}]`,
+            handle: "locked",
+            url: "#",
+            avatar: { url: "" }
+        },
+        url: shouldShowSensitive ? post.url : "#"
+    };
+
+    if (!shouldShowSensitive) {
+        delete redactedPost.raw_result;
+        if (redactedPost.source_profile) redactedPost.source_profile = "locked";
+    }
+
+    return redactedPost;
+};
+export const updatePostLabel = async (id: string, data: { status?: string; is_training_data?: boolean }) => {
+    const post = await LeadPost.findOneAndUpdate(
+        { _id: id, is_deleted: false },
+        data,
+        { returnDocument: 'after', runValidators: true }
+    );
+
+    if (!post) {
+        throw new ErrorResponse(`Post not found with id of ${id}`, 404);
+    }
+
+    // Trigger Lead Intelligence and Contact Enrichment if marked as relevant
+    if (data.status === 'relevant') {
+        generateLeadIntelligence(post).catch(err => console.error('Background Intelligence Gen Error:', err));
+
+        // Only try to find email for LinkedIn/Threads as supported by the service
+        if (post.platform === 'linkedin' || post.platform === 'threads') {
+            findLeadEmail(post._id.toString()).catch(err => console.error('Background Contact Enrichment Error:', err));
+        }
+    }
+
+    return post;
+};
+
+export const updatePost = async (id: string, data: any) => {
+    const post = await LeadPost.findOneAndUpdate(
+        { _id: id, is_deleted: false },
+        data,
+        { returnDocument: 'after', runValidators: true }
+    );
+
+    if (!post) {
+        throw new ErrorResponse(`Post not found with id of ${id}`, 404);
+    }
+
+    return post;
+};
+
+export const createManualPost = async (data: {
+    content: string;
+    keyword: string;
+    authorName?: string;
+    imageUrl?: string;
+    platform?: 'linkedin' | 'twitter' | 'reddit' | 'manual';
+}) => {
+    // Generate a unique ID for manual posts
+    const postId = `manual-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+
+    const post = await LeadPost.create({
+        post_id: postId,
+        url: 'manual://' + postId, // Mock URL for manual entries
+        content: data.content,
+        platform: data.platform || 'manual',
+        author: {
+            name: data.authorName || 'Manual Entry',
+            id: 'manual',
+            url: '#'
+        },
+        posted_at: {
+            timestamp: Date.now(),
+            date: new Date(),
+            posted_ago_short: 'Just now',
+            posted_ago_text: 'Manually added'
+        },
+        engagement: {
+            likes: 0,
+            comments: 0,
+            shares: 0
+        },
+        keyword: data.keyword,
+        status: 'pending',
+        source: 'manual',
+        image_url: data.imageUrl,
+        is_training_data: true, // Default to true for manual high-quality leads
+        ai_score: 100 // Manual leads are considered 100% relevant by default
+    });
+
+    return post;
+};
+
+export const deletePost = async (id: string) => {
+    const post = await LeadPost.findById(id);
+
+    if (!post) {
+        throw new ErrorResponse(`Post not found with id of ${id}`, 404);
+    }
+
+    // Soft delete - explicitly cast to any to avoid Mongoose/TS hydration issues in this specific environment
+    const postDoc = post as any;
+    postDoc.is_deleted = true;
+    postDoc.deleted_at = new Date();
+    await postDoc.save();
+
+    return post;
+};
+
+export const claimPost = async (postId: string, userId: string) => {
+    const post = await LeadPost.findOne({ _id: postId, is_deleted: false });
+    if (!post) {
+        throw new ErrorResponse('Lead not found.', 404);
+    }
+
+    const permissions = await getUserPermissions(userId);
+    const isInternal = checkPermission(permissions, '*') || checkPermission(permissions, 'system:admin');
+
+    // Ensure it's actually a lead (qualified post)
+    if (post.status !== 'relevant' || (!isInternal && !post.intelligence)) {
+        throw new ErrorResponse('Only qualified leads with generated intelligence can be claimed.', 400);
+    }
+
+    // 1. Check if lead already claimed by this user
+    const existingClaim = await Claim.findOne({ userId, leadId: postId });
+    if (existingClaim) {
+        throw new ErrorResponse('You have already claimed this lead.', 400);
+    }
+
+    // 2. Check claim limit
+    const limitSetting = await getSetting('max_claims_per_lead');
+    const maxClaims = limitSetting ? Number(limitSetting) : 25;
+
+    if (post.claimed_count >= maxClaims) {
+        throw new ErrorResponse(`This lead has reached its maximum claim limit (${maxClaims} users).`, 400);
+    }
+
+    // 3. Check user roles and tokens
+    const user = await User.findById(userId);
+    if (!user) {
+        throw new ErrorResponse('User not found.', 404);
+    }
+
+    // Token deduction logic
+    const tokenCost = isInternal ? 0 : 1; 
+    
+    if (user.tokens < tokenCost) {
+        throw new ErrorResponse('Insufficient tokens to claim this lead.', 403);
+    }
+
+    // 4. Perform atomic-ish operations
+    if (tokenCost > 0) {
+        user.tokens -= tokenCost;
+        await user.save();
+    }
+
+    // Create claim
+    const claim = await Claim.create({
+        userId: userId as any,
+        leadId: postId as any,
+        token_cost: tokenCost
+    } as any);
+
+    // Update lead claim count
+    post.claimed_count += 1;
+    await post.save();
+
+    return {
+        post,
+        claim,
+        remaining_tokens: user.tokens
+    };
+};
+
+export const getClaimedPosts = async (userId: string, query: { page?: number; limit?: number; orgId?: string }) => {
+    const page = Number(query.page) || 1;
+    const limit = Number(query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    const filter: any = { userId };
+    
+    // If orgId is provided, show all claims for that organization
+    if (query.orgId) {
+        const orgUsers = await prisma.user.findMany({
+            where: { organizationId: query.orgId },
+            select: { id: true },
+        });
+        const userIds = orgUsers.map((u) => u.id);
+        delete filter.userId;
+        filter.userId = { $in: userIds };
+    }
+
+    const claims = await Claim.find(filter, {
+        sort: { createdAt: -1 },
+        skip,
+        limit,
+        populate: 'leadId',
+    });
+
+    const total = await Claim.countDocuments({ userId });
+    
+    return {
+        posts: claims,
+        total,
+        page,
+        pages: Math.ceil(total / limit)
+    };
+};

@@ -1,0 +1,287 @@
+// Local SQLite file storage (development)
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                  String    @id @default(uuid())
+  name                String
+  email               String    @unique
+  password            String
+  organizationId      String?
+  organization        Organization? @relation(fields: [organizationId], references: [id])
+  status              String    @default("active")
+  lead_access_enabled Boolean   @default(true)
+  is_active           Boolean   @default(true)
+  is_deleted          Boolean   @default(false)
+  deleted_at          DateTime?
+  plan                String    @default("free")
+  tokens              Int       @default(10)
+  referral_count      Int       @default(0)
+  points              Int       @default(0)
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  ownedOrganizations Organization[] @relation("OrganizationOwner")
+  roleAssignments    RoleAssignment[] @relation("UserRoleAssignments")
+  assignedRoles      RoleAssignment[] @relation("AssignedByUser")
+  claims             Claim[]
+  auditLogs          AuditLog[]
+
+  @@map("users")
+}
+
+model Organization {
+  id         String   @id @default(uuid())
+  name       String
+  ownerId    String
+  owner      User     @relation("OrganizationOwner", fields: [ownerId], references: [id])
+  status     String   @default("active")
+  is_active  Boolean  @default(true)
+  is_deleted Boolean  @default(false)
+  deleted_at DateTime?
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  members User[]
+
+  @@map("organizations")
+}
+
+model Role {
+  id           String   @id @default(uuid())
+  name         String   @unique
+  slug         String   @unique
+  description  String?
+  permissions  Json      @default("[]")
+  scopeType    String   @default("organization") @map("scope_type")
+  isSystemRole Boolean  @default(false) @map("is_system_role")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  assignments RoleAssignment[]
+
+  @@map("roles")
+}
+
+model RoleAssignment {
+  id             String    @id @default(uuid())
+  userId         String
+  user           User      @relation("UserRoleAssignments", fields: [userId], references: [id])
+  roleId         String
+  role           Role      @relation(fields: [roleId], references: [id])
+  scopeType      String    @map("scope_type")
+  organizationId String?
+  assignedById   String?
+  assignedBy     User?     @relation("AssignedByUser", fields: [assignedById], references: [id])
+  expiresAt      DateTime?
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  @@index([userId, scopeType, organizationId])
+  @@map("role_assignments")
+}
+
+model Permission {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  slug        String    @unique
+  description String?
+  module      String
+  is_deleted  Boolean   @default(false)
+  deleted_at  DateTime?
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+
+  @@map("permissions")
+}
+
+model Keyword {
+  id         String    @id @default(uuid())
+  text       String    @unique
+  platforms  Json      @default("[\"linkedin\"]")
+  is_active  Boolean   @default(true)
+  is_deleted Boolean   @default(false)
+  deleted_at DateTime?
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+
+  leadPosts LeadPost[]
+
+  @@map("keywords")
+}
+
+model LeadPost {
+  id               String    @id @default(uuid())
+  post_id          String
+  url              String
+  content          String
+  platform         String    @default("linkedin")
+  author           Json?
+  posted_at        Json?
+  engagement       Json?
+  keyword          String
+  keyword_id       String?
+  keywordRef       Keyword?  @relation(fields: [keyword_id], references: [id])
+  status           String    @default("pending")
+  source           String    @default("scraped")
+  image_url        String?
+  ai_score         Float     @default(0)
+  is_training_data Boolean   @default(false)
+  is_deleted       Boolean   @default(false)
+  deleted_at       DateTime?
+  email            String?
+  contact_info     Json?
+  raw_result       Json?
+  source_type      String    @default("keyword")
+  source_profile   String?
+  intelligence     String?
+  claimed_count    Int       @default(0)
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
+
+  claims             Claim[]
+  intelligenceRecord LeadIntelligence?
+  scrapedPosts       ScrapedPost[]
+
+  @@unique([post_id, platform])
+  @@index([status])
+  @@index([keyword])
+  @@index([platform])
+  @@index([is_deleted])
+  @@map("lead_posts")
+}
+
+model Claim {
+  id             String    @id @default(uuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id])
+  leadId         String
+  lead           LeadPost  @relation(fields: [leadId], references: [id])
+  token_cost     Int       @default(1)
+  status         String    @default("new")
+  notes          String    @default("")
+  last_contacted DateTime?
+  timestamp      DateTime  @default(now())
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  @@unique([userId, leadId])
+  @@map("claims")
+}
+
+model ApifyKey {
+  id         String    @id @default(uuid())
+  key        String    @unique
+  label      String?
+  is_active  Boolean   @default(true)
+  is_deleted Boolean   @default(false)
+  deleted_at DateTime?
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+
+  @@map("apify_keys")
+}
+
+model Setting {
+  id          String    @id @default(uuid())
+  key         String    @unique
+  value       Json
+  description String?
+  is_deleted  Boolean   @default(false)
+  deleted_at  DateTime?
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+
+  @@map("settings")
+}
+
+model AuditLog {
+  id             String   @id @default(uuid())
+  actorId        String
+  actor          User     @relation(fields: [actorId], references: [id])
+  action         String
+  resource       String
+  resourceId     String?
+  organizationId String?
+  details        Json?
+  status         String
+  ipAddress      String?
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@index([actorId])
+  @@index([action])
+  @@index([resource])
+  @@map("audit_logs")
+}
+
+model CronLog {
+  id              String    @id @default(uuid())
+  job_name        String
+  start_time      DateTime  @default(now())
+  end_time        DateTime?
+  status          String    @default("running")
+  items_scraped   Int       @default(0)
+  total_processed Int       @default(0)
+  new_leads       Int       @default(0)
+  duplicate_count Int       @default(0)
+  error           String?
+  details         String?
+  is_deleted      Boolean   @default(false)
+  deleted_at      DateTime?
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+
+  scrapedPosts ScrapedPost[]
+
+  @@index([job_name, start_time])
+  @@map("cron_logs")
+}
+
+model ScrapedPost {
+  id           String   @id @default(uuid())
+  log_id       String
+  log          CronLog  @relation(fields: [log_id], references: [id])
+  post_id      String
+  post         LeadPost @relation(fields: [post_id], references: [id])
+  is_duplicate Boolean  @default(false)
+  scraped_at   DateTime @default(now())
+  is_deleted   Boolean  @default(false)
+  deleted_at   DateTime?
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  @@index([log_id])
+  @@index([post_id])
+  @@map("scraped_posts")
+}
+
+model LeadIntelligence {
+  id         String   @id @default(uuid())
+  post_id    String   @unique
+  post       LeadPost @relation(fields: [post_id], references: [id])
+  content    String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("lead_intelligence")
+}
+
+model SourceProfile {
+  id              String    @id @default(uuid())
+  name            String
+  url             String    @unique
+  platform        String    @default("linkedin")
+  notes           String?
+  is_active       Boolean   @default(true)
+  last_scraped_at DateTime?
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+
+  @@map("source_profiles")
+}

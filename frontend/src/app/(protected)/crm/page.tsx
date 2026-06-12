@@ -1,0 +1,267 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { LayoutDashboard, MessageSquare, Mail, Phone, Calendar, ArrowRight, Save, Clock, User, ExternalLink, ChevronDown, CheckCircle2, XCircle, MoreVertical } from "lucide-react";
+import { Button, Input } from "@/components/ui/HunterUI";
+import api from "@/lib/api";
+import { cn } from "@/components/ui/HunterUI";
+import { toast } from "sonner";
+import { LinkedinLogo, XLogo, RedditLogo, ThreadsLogo } from "@/components/BrandIcons";
+
+interface ClaimedLead {
+  _id: string;
+  status: string;
+  notes: string;
+  last_contacted: string | null;
+  timestamp: string;
+  leadId: {
+    _id: string;
+    author: {
+      name: string;
+      handle?: string;
+      avatar?: { url: string };
+    };
+    content: string;
+    platform: string;
+    url: string;
+    email?: string;
+    contact_info?: {
+       phone_numbers?: { number: string; type: string }[];
+    };
+  };
+}
+
+export default function CRMPage() {
+  const [claims, setClaims] = useState<ClaimedLead[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [savingIds, setSavingIds] = useState<string[]>([]);
+  const [sendingEmailIds, setSendingEmailIds] = useState<string[]>([]);
+
+  const fetchClaimedLeads = async () => {
+    try {
+      setLoading(true);
+      const { data } = await api.get("/posts/claimed");
+      setClaims(data.data || []);
+    } catch (error) {
+      console.error("Failed to fetch claimed leads", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchClaimedLeads();
+  }, []);
+
+  const updateStatus = async (claimId: string, status: string) => {
+    try {
+      setSavingIds(prev => [...prev, claimId]);
+      await api.put(`/crm/claims/${claimId}`, { status });
+      setClaims(prev => prev.map(c => c._id === claimId ? { ...c, status } : c));
+      toast.success("Status updated");
+    } catch (error) {
+      toast.error("Failed to update status");
+    } finally {
+      setSavingIds(prev => prev.filter(id => id !== claimId));
+    }
+  };
+
+  const updateNotes = async (claimId: string, notes: string) => {
+    try {
+      setSavingIds(prev => [...prev, claimId]);
+      await api.put(`/crm/claims/${claimId}`, { notes });
+      setClaims(prev => prev.map(c => c._id === claimId ? { ...c, notes } : c));
+      toast.success("Notes saved");
+    } catch (error) {
+      toast.error("Failed to save notes");
+    } finally {
+      setSavingIds(prev => prev.filter(id => id !== claimId));
+    }
+  };
+
+  const sendMockEmail = async (leadId: string, claimId: string) => {
+     try {
+       setSendingEmailIds(prev => [...prev, claimId]);
+       await api.post("/crm/send-email", {
+         leadId,
+         subject: "Strategic Partnership Inquiry",
+         body: "Hi, I saw your post and thought we could collaborate."
+       });
+       toast.success("Email sent successfully");
+       fetchClaimedLeads(); // Refresh to see status update and timestamp
+     } catch (error: any) {
+       toast.error(error.response?.data?.message || "Failed to send email");
+     } finally {
+       setSendingEmailIds(prev => prev.filter(id => id !== claimId));
+     }
+  };
+
+  const statusColors: any = {
+    new: "text-blue-400 bg-blue-400/10 border-blue-400/20",
+    contacted: "text-orange-400 bg-orange-400/10 border-orange-400/20",
+    replied: "text-purple-400 bg-purple-400/10 border-purple-400/20",
+    converted: "text-green-400 bg-green-400/10 border-green-400/20",
+    rejected: "text-red-400 bg-red-400/10 border-red-400/20",
+    archived: "text-zinc-500 bg-zinc-500/10 border-zinc-500/20",
+  };
+
+  if (loading) {
+    return (
+      <div className="p-8 flex justify-center py-40">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-hunter-orange"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-8 max-w-6xl mx-auto">
+      <header className="mb-12">
+        <h1 className="text-5xl font-display font-black uppercase tracking-tighter mb-2 italic">
+          Bounty <span className="text-hunter-orange underline">CRM.</span>
+        </h1>
+        <p className="text-zinc-500 font-display font-bold uppercase text-[10px] tracking-widest">
+          Managing your claimed strategic assets and pipeline
+        </p>
+      </header>
+
+      {claims.length === 0 ? (
+        <div className="text-center py-32 bg-hunter-grey neo-border border-zinc-800 border-dashed">
+          <LayoutDashboard size={48} className="mx-auto text-zinc-700 mb-6" />
+          <p className="text-zinc-500 font-display font-black uppercase tracking-widest mb-4">
+            No leads claimed yet.
+          </p>
+          <Button onClick={() => window.location.href = '/leads'} variant="primary" size="sm">
+             Go Hunting
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {claims.map((claim) => (
+            <motion.div
+              key={claim._id}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="bg-hunter-grey neo-border border-zinc-800 p-6 group hover:border-hunter-orange transition-all"
+            >
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                {/* Lead Profile Info */}
+                <div className="lg:col-span-4">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 bg-zinc-800 rounded-lg overflow-hidden flex items-center justify-center">
+                       {claim.leadId.author.avatar?.url ? (
+                         <img src={claim.leadId.author.avatar.url} className="w-full h-full object-cover" />
+                       ) : (
+                         <User size={24} className="text-zinc-600" />
+                       )}
+                    </div>
+                    <div>
+                       <h3 className="font-display font-black uppercase text-sm tracking-tight flex items-center gap-2">
+                         {claim.leadId.author.name}
+                         {claim.leadId.platform === 'linkedin' && <LinkedinLogo className="w-3 h-3 text-[#0A66C2]" />}
+                         {claim.leadId.platform === 'twitter' && <XLogo className="w-3 h-3 text-white" />}
+                       </h3>
+                       <div className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">
+                         {claim.leadId.platform} Lead
+                       </div>
+                    </div>
+                  </div>
+                  
+                  <div className="p-3 bg-hunter-black rounded border border-zinc-800 text-[11px] text-zinc-400 italic font-display mb-4 line-clamp-3">
+                    "{claim.leadId.content}"
+                  </div>
+
+                  <div className="space-y-2">
+                    {claim.leadId.email && (
+                      <div className="flex items-center gap-2 text-[10px] font-bold text-hunter-orange uppercase tracking-tight">
+                        <Mail size={12} /> {claim.leadId.email}
+                      </div>
+                    )}
+                    {claim.leadId.contact_info?.phone_numbers?.[0] && (
+                      <div className="flex items-center gap-2 text-[10px] font-bold text-zinc-400 uppercase tracking-tight">
+                        <Phone size={12} /> {claim.leadId.contact_info.phone_numbers[0].number}
+                      </div>
+                    )}
+                    <a href={claim.leadId.url} target="_blank" className="flex items-center gap-2 text-[10px] font-bold text-zinc-500 hover:text-white transition-colors uppercase tracking-tight">
+                      <ExternalLink size={12} /> View Source Thread
+                    </a>
+                  </div>
+                </div>
+
+                {/* Pipeline Controls */}
+                <div className="lg:col-span-4 flex flex-col gap-4">
+                  <div>
+                    <label className="text-[8px] font-black uppercase text-zinc-500 mb-1 block">Pipeline Stage</label>
+                    <div className="grid grid-cols-2 gap-2">
+                       {['new', 'contacted', 'replied', 'converted', 'rejected', 'archived'].map((s) => (
+                         <button
+                           key={s}
+                           onClick={() => updateStatus(claim._id, s)}
+                           className={cn(
+                             "px-3 py-1.5 text-[9px] font-black uppercase tracking-widest neo-border-sm transition-all",
+                             claim.status === s 
+                               ? statusColors[s] 
+                               : "bg-zinc-900 text-zinc-600 border-zinc-800 hover:border-zinc-700"
+                           )}
+                         >
+                           {s}
+                         </button>
+                       ))}
+                    </div>
+                  </div>
+
+                  <div className="mt-auto">
+                    <Button
+                      className="w-full h-10 text-[10px] font-black uppercase tracking-widest gap-2"
+                      onClick={() => sendMockEmail(claim.leadId._id, claim._id)}
+                      disabled={!claim.leadId.email || sendingEmailIds.includes(claim._id)}
+                      isLoading={sendingEmailIds.includes(claim._id)}
+                    >
+                      <Mail size={14} /> Send Outreach
+                    </Button>
+                    {!claim.leadId.email && (
+                      <p className="text-[8px] text-red-500/50 font-black uppercase text-center mt-1">Email address required</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Activity & Notes */}
+                <div className="lg:col-span-4 flex flex-col">
+                  <label className="text-[8px] font-black uppercase text-zinc-500 mb-1 block">Private Intelligence Notes</label>
+                  <textarea
+                    className="flex-1 w-full bg-hunter-black neo-border border-zinc-800 p-3 text-[11px] text-white outline-none focus:border-hunter-orange transition-colors min-h-[100px]"
+                    placeholder="Strategy notes, contact history..."
+                    defaultValue={claim.notes}
+                    onBlur={(e) => updateNotes(claim._id, e.target.value)}
+                  />
+                  
+                  <div className="mt-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3 text-zinc-500">
+                      <div className="flex items-center gap-1">
+                        <Clock size={10} />
+                        <span className="text-[8px] font-black uppercase tracking-tighter">
+                          Claimed {new Date(claim.timestamp).toLocaleDateString()}
+                        </span>
+                      </div>
+                      {claim.last_contacted && (
+                        <div className="flex items-center gap-1 text-hunter-orange">
+                          <CheckCircle2 size={10} />
+                          <span className="text-[8px] font-black uppercase tracking-tighter">
+                            Last Outbound: {new Date(claim.last_contacted).toLocaleDateString()}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    {savingIds.includes(claim._id) && (
+                      <span className="text-[8px] font-black text-hunter-orange uppercase animate-pulse">Syncing...</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

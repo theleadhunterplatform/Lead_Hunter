@@ -1,0 +1,93 @@
+import { Request, Response, NextFunction } from 'express';
+import asyncHandler from '../middleware/async';
+import * as authService from '../services/auth.service';
+
+// @desc    Register user
+// @route   POST /api/auth/register
+// @access  Public
+export const register = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+    const result = await authService.registerUser(req.body);
+
+    res.status(201).json({
+        success: true,
+        data: result
+    });
+});
+
+// @desc    Login user
+// @route   POST /api/auth/login
+// @access  Public
+export const login = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+    const result = await authService.loginUser(req.body);
+
+    res.status(200).json({
+        success: true,
+        data: result
+    });
+});
+
+// @desc    Get current logged in user
+// @route   GET /api/auth/me
+// @access  Private
+export const getMe = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+    // req.user is populated by protect middleware
+    res.status(200).json({
+        success: true,
+        data: req.user
+    });
+});
+
+// @desc    Refresh token
+// @route   POST /api/auth/refresh
+// @access  Public
+export const refresh = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+    const result = await authService.refreshUserToken(req.body.refresh_token);
+    res.status(200).json({
+        success: true,
+        data: result
+    });
+});
+
+// @desc    Get organization users
+// @route   GET /api/auth/organization/users
+// @access  Private (Org Admin/System Owner/Admin)
+export const getOrganizationUsers = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+    const orgId = req.headers['x-org-id'] as string;
+    const result = await authService.getOrgUsers(req.user as any, orgId);
+    res.status(200).json({
+        success: true,
+        data: result
+    });
+});
+
+// @desc    Add user to organization
+// @route   POST /api/auth/organization/users
+// @access  Private (Org Admin/System Owner/Admin)
+export const addOrganizationUser = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+    const result = await authService.addOrgUser(req.user as any, req.body);
+    res.status(201).json({
+        success: true,
+        data: result
+    });
+});
+// @desc    Toggle user access
+// @route   PUT /api/auth/organization/users/:id/access
+// @access  Private (Org Admin/System Owner/Admin)
+export const toggleUserAccess = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+    const result = await authService.updateUserAccess(req.user as any, req.params.id as string, req.body.lead_access_enabled);
+    res.status(200).json({
+        success: true,
+        data: result
+    });
+});
+
+// @desc    Get authorized organizations
+// @route   GET /api/auth/organizations
+// @access  Private
+export const getOrganizations = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+    const result = await authService.getUserOrganizations(req.user as any);
+    res.status(200).json({
+        success: true,
+        data: result
+    });
+});
