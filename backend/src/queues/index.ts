@@ -29,11 +29,35 @@ export const intelligenceQueue = new Queue('intelligence-queue', {
     }
 });
 
-// 3. OCR Queue - Handles local AI service calls (OCR/Classification)
+// 3. OCR Queue - Handles lead qualification
 export const ocrQueue = new Queue('ocr-queue', {
     connection: redisConnection,
     defaultJobOptions: {
         attempts: 2,
+        removeOnComplete: true,
+        removeOnFail: false,
+    }
+});
+
+// 4. AI Train Queue - Auto-retrains local model from labeled leads
+export const aiTrainQueue = new Queue('ai-train-queue', {
+    connection: redisConnection,
+    defaultJobOptions: {
+        attempts: 2,
+        removeOnComplete: true,
+        removeOnFail: false,
+    }
+});
+
+// 5. Enrichment Queue - Finds email/phone for qualified leads
+export const enrichmentQueue = new Queue('enrichment-queue', {
+    connection: redisConnection,
+    defaultJobOptions: {
+        attempts: 3,
+        backoff: {
+            type: 'exponential',
+            delay: 2000,
+        },
         removeOnComplete: true,
         removeOnFail: false,
     }

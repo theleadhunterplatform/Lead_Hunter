@@ -1,13 +1,14 @@
 import express from 'express';
 import {
-    getTargets,
-    getTarget,
     addTarget,
-    updateTarget,
     deleteTarget,
+    getTarget,
+    getTargets,
+    scrapeAllTargets,
     scrapeTarget,
+    updateTarget,
 } from '../controllers/target.controller';
-import { protect, authorize } from '../middleware/auth';
+import { authorize, protect } from '../middleware/auth';
 import { validate } from '../middleware/validate';
 import { createTargetSchema, updateTargetSchema } from '../schemas/target.schema';
 
@@ -19,6 +20,7 @@ router.route('/')
     .get(authorize('target:read'), getTargets)
     .post(authorize('target:create'), validate(createTargetSchema), addTarget);
 
+router.post('/scrape-all', authorize('target:update'), scrapeAllTargets);
 router.post('/:id/scrape', authorize('target:update'), scrapeTarget);
 
 router.route('/:id')

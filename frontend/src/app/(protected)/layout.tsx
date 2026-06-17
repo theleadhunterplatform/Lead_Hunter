@@ -60,7 +60,12 @@ export default function ProtectedLayout({
 
   const navItems = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-    { name: "Lead Intelligence", href: "/leads", icon: MessageSquare, permission: 'lead:read' },
+    {
+      name: permissions.has('*') ? "Lead Intelligence" : "Strategic Leads",
+      href: permissions.has('*') ? "/lead-intelligence" : "/leads/relevant",
+      icon: MessageSquare,
+      permission: 'lead:read',
+    },
     { name: "My CRM", href: "/crm", icon: LayoutDashboard, permission: 'lead:read' },
     { name: "Hall of Hunters", href: "/leaderboard", icon: Trophy },
     { name: "Organization Team", href: "/team", icon: Users, permission: 'user:read' },
@@ -111,7 +116,10 @@ export default function ProtectedLayout({
 
         <nav className="flex-1 p-4 space-y-2">
           {filteredNavItems.map((item) => {
-            const isActive = pathname === item.href;
+            const isActive =
+              pathname === item.href ||
+              (item.href === '/lead-intelligence' && pathname.startsWith('/lead-intelligence')) ||
+              (item.href === '/leads/relevant' && pathname.startsWith('/leads/relevant'));
             return (
               <Link
                 key={item.href}

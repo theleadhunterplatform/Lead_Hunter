@@ -12,9 +12,12 @@ import {
     reExtractPost,
     bulkIngestPosts,
     claimPost,
-    getClaimedPosts
+    getClaimedPosts,
+    qualifyPost,
+    verifyEmailPost,
 } from '../controllers/post.controller';
 import { findLeadEmail } from '../controllers/contact.controller';
+import { getLeadIntelligenceStats } from '../controllers/dashboard.controller';
 import { protect, authorize } from '../middleware/auth';
 import { validate } from '../middleware/validate';
 import { labelPostSchema } from '../schemas/post.schema';
@@ -133,15 +136,18 @@ router.route('/')
  *         description: Post removed
  */
 router.get('/claimed', authorize('lead:read'), getClaimedPosts);
+router.get('/stats', authorize('lead:read'), getLeadIntelligenceStats);
 
 router.route('/:id')
     .get(authorize('lead:read'), getPost)
     .delete(authorize('lead:delete'), deletePost);
 
 router.post('/:id/claim', authorize('lead:read'), claimPost);
+router.post('/:id/qualify', authorize('lead:hunt'), qualifyPost);
 router.put('/:id/label', authorize('lead:hunt'), validate(labelPostSchema), labelPost);
 router.put('/:id', authorize('lead:hunt'), updatePost);
 router.post('/:id/re-extract', authorize('lead:hunt'), reExtractPost);
 router.post('/:id/find-email', authorize('lead:hunt'), findLeadEmail);
+router.post('/:id/verify-email', authorize('lead:hunt'), verifyEmailPost);
 
 export default router;

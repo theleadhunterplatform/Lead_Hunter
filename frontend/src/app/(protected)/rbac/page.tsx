@@ -48,7 +48,7 @@ export default function RBACPage() {
   useEffect(() => {
     if (!authLoading) {
       if (!hasPermission('role:read')) {
-        router.push("/leads");
+        router.push("/dashboard");
         return;
       }
       fetchData();

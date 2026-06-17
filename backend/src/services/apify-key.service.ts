@@ -1,9 +1,47 @@
 import prisma from '../lib/prisma';
 import ApifyKey from '../models/apify-key.model';
 import ErrorResponse from '../utils/error-response.utils';
+import config from '../config';
+import { toApiDocs } from '../utils/serialize.utils';
+
+function currentUsageMonth(): string {
+    return new Date().toISOString().slice(0, 7);
+}
+
+async function syncMonthlyUsage(keys: any[]) {
+    const month = currentUsageMonth();
+
+    await Promise.all(
+        keys
+            .filter((key) => key.usage_month !== month)
+            .map((key) =>
+                prisma.apifyKey.update({
+                    where: { id: key.id },
+                    data: { comments_used: 0, usage_month: month },
+                })
+            )
+    );
+
+    return keys.map((key) => ({
+        ...key,
+        comments_used: key.usage_month !== month ? 0 : key.comments_used,
+        usage_month: month,
+        comments_remaining: Math.max(
+            0,
+            (key.comments_limit || config.apify.monthlyCommentLimit) -
+                (key.usage_month !== month ? 0 : key.comments_used)
+        ),
+    }));
+}
 
 export const getAllApifyKeys = async () => {
-    return await ApifyKey.find({ is_deleted: false }, { sort: { created_at: -1 } });
+    const keys = await prisma.apifyKey.findMany({
+        where: { is_deleted: false },
+        orderBy: { created_at: 'desc' },
+    });
+
+    const synced = await syncMonthlyUsage(keys);
+    return toApiDocs(synced);
 };
 
 export const getApifyKeyById = async (id: string) => {
@@ -32,7 +70,9 @@ export const addApifyKey = async (data: { key: string; label?: string }) => {
 
     return await ApifyKey.create({
         key: key.trim(),
-        label
+        label,
+        comments_limit: config.apify.monthlyCommentLimit,
+        usage_month: currentUsageMonth(),
     });
 };
 

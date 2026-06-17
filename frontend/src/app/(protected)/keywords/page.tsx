@@ -39,7 +39,7 @@ export default function KeywordsPage() {
   useEffect(() => {
     if (!authLoading) {
       if (!hasPermission('keyword:read')) {
-        router.push("/leads");
+        router.push("/dashboard");
         return;
       }
       fetchKeywords();

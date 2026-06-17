@@ -131,7 +131,7 @@ export default function CRMPage() {
           <p className="text-zinc-500 font-display font-black uppercase tracking-widest mb-4">
             No leads claimed yet.
           </p>
-          <Button onClick={() => window.location.href = '/leads'} variant="primary" size="sm">
+          <Button onClick={() => window.location.href = '/leads/relevant'} variant="primary" size="sm">
              Go Hunting
           </Button>
         </div>

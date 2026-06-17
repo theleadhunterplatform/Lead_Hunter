@@ -18,30 +18,54 @@ import settingRoutes from './routes/setting.routes';
 import leaderboardRoutes from './routes/leaderboard.routes';
 import crmRoutes from './routes/crm.routes';
 import targetRoutes from './routes/target.routes';
+import dashboardRoutes from './routes/dashboard.routes';
 import errorHandler from './middleware/error';
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './config/swagger';
 import { initWorkers } from './workers';
 import rateLimit from 'express-rate-limit';
+import { verifyRedisConnection } from './utils/redis-health.utils';
 
 const app = express();
 
 // Trust proxy for production environments (required for express-rate-limit)
 app.set('trust proxy', 1);
 
+const allowedOrigins = [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    process.env.FRONTEND_URL,
+].filter(Boolean) as string[];
+
+app.use(cors({
+    origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin) || config.env === 'development') {
+            callback(null, true);
+        } else {
+            callback(new Error(`CORS blocked for origin: ${origin}`));
+        }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-org-id'],
+}));
+
+app.use(express.json());
+app.use(helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+}));
+app.use(morgan('dev'));
+
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    limit: 100,
-    message: { success: false, message: 'Too many requests, please try again later.' }
+    limit: config.env === 'production' ? 100 : 2000,
+    standardHeaders: true,
+    legacyHeaders: false,
+    skip: (req) => req.method === 'OPTIONS' || config.env !== 'production',
+    message: { success: false, message: 'Too many requests, please try again later.' },
 });
 
 app.use(limiter);
-app.use(express.json());
-app.use(cors());
-app.use(helmet({
-    crossOriginResourcePolicy: { policy: "cross-origin" }
-}));
-app.use(morgan('dev'));
 
 // Static Folders
 const uploadsPath = path.join(__dirname, '../uploads');
@@ -74,6 +98,7 @@ app.use('/api/settings', settingRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
 app.use('/api/crm', crmRoutes);
 app.use('/api/targets', targetRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 // 404 Handler
 app.use((_req: Request, res: Response) => {
@@ -89,6 +114,7 @@ app.use(errorHandler);
 const startServer = async () => {
     await connectDB();
     await seedRBAC(); // Seed the Scoped RBAC System on first run
+    await verifyRedisConnection();
     initWorkers(); // Start background workers
     
     if (config.appEnv === 'production' || process.env.ENABLE_CRON_DEV === 'true') {

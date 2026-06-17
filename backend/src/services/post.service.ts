@@ -5,9 +5,11 @@ import Claim from '../models/claim.model';
 import ErrorResponse from '../utils/error-response.utils';
 import { getSetting } from './setting.service';
 import { getUserPermissions, hasPermission as checkPermission } from '../utils/rbac.utils';
-import { generateLeadIntelligence } from './intelligence.service';
-// import LeadIntelligence from '../models/lead-intelligence.model';
-import { findLeadEmail } from './contact-compass.service';
+import { scheduleAutoTrain } from '../utils/auto-train.utils';
+import { enqueueLeadQualification } from '../utils/qualification-queue.utils';
+import { enqueueContactEnrichment } from '../utils/enrichment-queue.utils';
+import { sanitizeContactFields } from '../utils/contact-redaction.utils';
+import { verifyLeadEmailManually } from './lead-enrichment.service';
 
 export const getAllPosts = async (currentUser: any, query: {
     page?: number;
@@ -80,16 +82,15 @@ export const getAllPosts = async (currentUser: any, query: {
     const postsWithClaimed = posts.map(post => {
         const isClaimed = claimedIds.has(post._id.toString());
         const shouldShowSensitive = isClaimed || isInternal;
+        const contact = sanitizeContactFields(post, { isInternal, isClaimed });
 
         // Base redaction
         const redactedPost = {
             ...post,
             is_claimed: isClaimed,
-            // Redact original scraped post content if not claimed/internal
             content: shouldShowSensitive ? post.content : "Original signal locked. This high-relevance lead has been verified by the Intelligence Engine. Claim this lead to unlock the full original post and contact data.",
-            // Redact contact info
-            email: shouldShowSensitive ? post.email : null,
-            contact_info: shouldShowSensitive ? post.contact_info : null,
+            email: contact.email,
+            contact_info: contact.contact_info,
             // Redact author details to prevent direct outreach bypass
             author: shouldShowSensitive ? post.author : {
                 name: `Strategic Lead [${post.platform.toUpperCase()}]`,
@@ -156,13 +157,14 @@ export const getPostForUser = async (currentUser: any, id: string) => {
     const permissions = await getUserPermissions(currentUser.id, currentUser.organization?.toString());
     const isInternal = checkPermission(permissions, '*') || checkPermission(permissions, 'system:admin');
     const shouldShowSensitive = !!isClaimed || isInternal;
+    const contact = sanitizeContactFields(post, { isInternal, isClaimed: !!isClaimed });
 
     const redactedPost = {
         ...post,
         is_claimed: !!isClaimed,
         content: shouldShowSensitive ? post.content : "Original signal locked. This high-relevance lead has been verified by the Intelligence Engine. Claim this lead to unlock the full original post and contact data.",
-        email: shouldShowSensitive ? post.email : null,
-        contact_info: shouldShowSensitive ? post.contact_info : null,
+        email: contact.email,
+        contact_info: contact.contact_info,
         author: shouldShowSensitive ? post.author : {
             name: `Strategic Lead [${post.platform.toUpperCase()}]`,
             handle: "locked",
@@ -180,9 +182,22 @@ export const getPostForUser = async (currentUser: any, id: string) => {
     return redactedPost;
 };
 export const updatePostLabel = async (id: string, data: { status?: string; is_training_data?: boolean }) => {
+    const updateData: any = { ...data };
+
+    if (data.status === 'relevant') {
+        updateData.qualification_reason = 'Manually marked as a good lead by admin.';
+        updateData.is_training_data = true;
+    } else if (data.status === 'irrelevant') {
+        updateData.qualification_reason = 'Manually marked as not a lead by admin.';
+        updateData.is_training_data = true;
+    } else if (data.status === 'pending') {
+        updateData.qualification_reason = null;
+        updateData.ai_score = 0;
+    }
+
     const post = await LeadPost.findOneAndUpdate(
         { _id: id, is_deleted: false },
-        data,
+        updateData,
         { returnDocument: 'after', runValidators: true }
     );
 
@@ -190,17 +205,30 @@ export const updatePostLabel = async (id: string, data: { status?: string; is_tr
         throw new ErrorResponse(`Post not found with id of ${id}`, 404);
     }
 
-    // Trigger Lead Intelligence and Contact Enrichment if marked as relevant
-    if (data.status === 'relevant') {
-        generateLeadIntelligence(post).catch(err => console.error('Background Intelligence Gen Error:', err));
+    if (data.status === 'relevant' || data.status === 'irrelevant') {
+        scheduleAutoTrain().catch((err) => console.error('[AutoTrain] Schedule failed:', err.message));
+    }
 
-        // Only try to find email for LinkedIn/Threads as supported by the service
-        if (post.platform === 'linkedin' || post.platform === 'threads') {
-            findLeadEmail(post._id.toString()).catch(err => console.error('Background Contact Enrichment Error:', err));
-        }
+    if (data.status === 'relevant') {
+        await enqueueContactEnrichment(post._id.toString(), {
+            status: 'relevant',
+            platform: post.platform,
+        });
     }
 
     return post;
+};
+
+export const requalifyPost = async (id: string) => {
+    const post = await LeadPost.findOne({ _id: id, is_deleted: false });
+    if (!post) {
+        throw new ErrorResponse(`Post not found with id of ${id}`, 404);
+    }
+
+    await LeadPost.findByIdAndUpdate(id, { status: 'pending', qualification_reason: null, ai_score: 0 });
+    await enqueueLeadQualification(id);
+
+    return { message: 'Lead queued for AI qualification' };
 };
 
 export const updatePost = async (id: string, data: any) => {
@@ -216,6 +244,8 @@ export const updatePost = async (id: string, data: any) => {
 
     return post;
 };
+
+export const verifyLeadEmail = async (id: string) => verifyLeadEmailManually(id);
 
 export const createManualPost = async (data: {
     content: string;
@@ -252,9 +282,13 @@ export const createManualPost = async (data: {
         status: 'pending',
         source: 'manual',
         image_url: data.imageUrl,
-        is_training_data: true, // Default to true for manual high-quality leads
-        ai_score: 100 // Manual leads are considered 100% relevant by default
+        is_training_data: true,
+        ai_score: 0,
     });
+
+    if (post?._id) {
+        await enqueueLeadQualification(post._id.toString());
+    }
 
     return post;
 };

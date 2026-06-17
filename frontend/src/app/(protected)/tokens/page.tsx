@@ -11,13 +11,28 @@ import { useAuth } from "@/context/AuthContext";
 export default function TokensPage() {
   const router = useRouter();
   const { hasPermission, loading: authLoading } = useAuth();
-  const [tokens, setTokens] = useState<{ _id: string; key: string; label: string; is_active: boolean }[]>([]);
+  const [tokens, setTokens] = useState<{
+    _id: string;
+    key: string;
+    label: string;
+    is_active: boolean;
+    comments_used?: number;
+    comments_limit?: number;
+    comments_remaining?: number;
+  }[]>([]);
   const [newToken, setNewToken] = useState({ key: "", label: "" });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   // Contact Compass State
-  const [ccTokenInfo, setCCTokenInfo] = useState<{ token: string | null; is_configured: boolean }>({ token: null, is_configured: false });
+  const [ccTokenInfo, setCCTokenInfo] = useState<{
+    token: string | null;
+    is_configured: boolean;
+    lookups_used?: number;
+    lookups_limit?: number;
+    lookups_remaining?: number;
+    credits_left?: number | null;
+  }>({ token: null, is_configured: false });
   const [newCCToken, setNewCCToken] = useState("");
   const [isUpdatingCC, setIsUpdatingCC] = useState(false);
 
@@ -44,7 +59,7 @@ export default function TokensPage() {
   useEffect(() => {
     if (!authLoading) {
       if (!hasPermission('scraping:manage')) {
-        router.push("/leads");
+        router.push("/dashboard");
         return;
       }
       fetchTokens();
@@ -151,21 +166,40 @@ export default function TokensPage() {
             No keys found. Add a key to start finding leads.
           </div>
         ) : (
-          tokens.map((token) => (
+          tokens.map((token) => {
+            const used = token.comments_used ?? 0;
+            const limit = token.comments_limit ?? 2500;
+            const remaining = token.comments_remaining ?? Math.max(0, limit - used);
+            const usagePct = limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0;
+            const usageColor =
+              usagePct >= 95 ? "bg-red-500" : usagePct >= 80 ? "bg-hunter-orange" : "bg-green-500";
+
+            return (
             <div
               key={token._id}
               className="flex items-center justify-between bg-zinc-900/50 p-4 neo-border border-zinc-800"
             >
-              <div className="flex items-center gap-4">
-                <div className={`w-10 h-10 flex items-center justify-center neo-border ${token.is_active ? 'bg-green-500/10 border-green-500/50' : 'bg-red-500/10 border-red-500/50'}`}>
+              <div className="flex items-center gap-4 flex-1 min-w-0">
+                <div className={`w-10 h-10 flex-shrink-0 flex items-center justify-center neo-border ${token.is_active ? 'bg-green-500/10 border-green-500/50' : 'bg-red-500/10 border-red-500/50'}`}>
                   {token.is_active ? <ShieldCheck className="text-green-500" /> : <ShieldAlert className="text-red-500" />}
                 </div>
-                <div>
+                <div className="flex-1 min-w-0">
                   <div className="font-display font-bold text-lg">{token.label || "Unnamed Key"}</div>
-                  <div className="text-zinc-600 font-mono text-xs">••••••••{token.key.slice(-4)}</div>
+                  <div className="text-zinc-600 font-mono text-xs mb-2">••••••••{token.key.slice(-4)}</div>
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                      Comments: <span className="text-white">{used}</span> / {limit}
+                    </span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                      {remaining} left this month
+                    </span>
+                  </div>
+                  <div className="mt-2 h-1.5 w-full max-w-xs bg-zinc-800 rounded-full overflow-hidden">
+                    <div className={`h-full ${usageColor} transition-all`} style={{ width: `${usagePct}%` }} />
+                  </div>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 shrink-0 ml-4">
                 <div className={`px-2 py-1 text-[10px] font-display font-bold uppercase tracking-tighter neo-border ${token.is_active ? 'bg-green-500 text-black border-black' : 'bg-zinc-800 text-zinc-500 border-zinc-700'}`}>
                   {token.is_active ? "Active" : "Disabled"}
                 </div>
@@ -177,7 +211,8 @@ export default function TokensPage() {
                 </button>
               </div>
             </div>
-          ))
+            );
+          })
         )}
       </div>
 
@@ -194,19 +229,50 @@ export default function TokensPage() {
 
         <div className="bg-hunter-grey p-6 neo-border border-zinc-800">
           {ccTokenInfo.is_configured ? (
-            <div className="flex items-center justify-between mb-6 p-4 bg-zinc-900/50 neo-border border-zinc-800">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-hunter-orange/10 flex items-center justify-center neo-border border-hunter-orange/30">
-                  <Mail size={20} className="text-hunter-orange" />
+            <div className="mb-6 p-4 bg-zinc-900/50 neo-border border-zinc-800">
+              <div className="flex items-center justify-between gap-4 mb-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-hunter-orange/10 flex items-center justify-center neo-border border-hunter-orange/30">
+                    <Mail size={20} className="text-hunter-orange" />
+                  </div>
+                  <div>
+                    <div className="font-display font-bold text-lg uppercase tracking-tight">Contact Compass API</div>
+                    <div className="text-zinc-600 font-mono text-xs">{ccTokenInfo.token}</div>
+                  </div>
                 </div>
-                <div>
-                  <div className="font-display font-bold text-lg uppercase tracking-tight">Contact Compass API</div>
-                  <div className="text-zinc-600 font-mono text-xs">{ccTokenInfo.token}</div>
+                <div className="px-3 py-1 bg-hunter-orange text-black text-[10px] font-black uppercase tracking-widest neo-border border-black shrink-0">
+                  Active
                 </div>
               </div>
-              <div className="px-3 py-1 bg-hunter-orange text-black text-[10px] font-black uppercase tracking-widest neo-border border-black">
-                Configured
-              </div>
+              {(() => {
+                const used = ccTokenInfo.lookups_used ?? 0;
+                const limit = ccTokenInfo.lookups_limit ?? 500;
+                const remaining = ccTokenInfo.lookups_remaining ?? Math.max(0, limit - used);
+                const usagePct = limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0;
+                const usageColor =
+                  usagePct >= 95 ? "bg-red-500" : usagePct >= 80 ? "bg-hunter-orange" : "bg-green-500";
+
+                return (
+                  <>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                        Lookups: <span className="text-white">{used}</span> / {limit}
+                      </span>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                        {remaining} left this month
+                      </span>
+                      {ccTokenInfo.credits_left != null && (
+                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                          CC credits: <span className="text-hunter-orange">{ccTokenInfo.credits_left}</span>
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-2 h-1.5 w-full max-w-xs bg-zinc-800 rounded-full overflow-hidden">
+                      <div className={`h-full ${usageColor} transition-all`} style={{ width: `${usagePct}%` }} />
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           ) : (
             <div className="mb-6 p-4 bg-red-500/5 neo-border border-red-500/20 flex items-center gap-3">

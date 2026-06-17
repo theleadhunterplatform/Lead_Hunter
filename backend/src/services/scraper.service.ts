@@ -2,6 +2,7 @@ import LeadPost from '../models/lead-post.model';
 import Keyword from '../models/keyword.model';
 import config from '../config';
 import { getApifyClient, handleApifyLimitError } from '../utils/apify-client.utils';
+import { enqueueLeadQualification } from '../utils/qualification-queue.utils';
 
 export class ScraperService {
     static async scrapeKeyword(keywordId: string, platform: string) {
@@ -110,7 +111,10 @@ export class ScraperService {
             };
         }
 
-        await LeadPost.create(newPostData);
+        const saved = await LeadPost.create(newPostData);
+        if (saved?._id) {
+            await enqueueLeadQualification(saved._id.toString());
+        }
         console.log(`✨ [ScraperService] New ${platform} post saved: ${post_id}`);
     }
 }

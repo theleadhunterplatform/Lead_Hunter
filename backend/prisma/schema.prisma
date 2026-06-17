@@ -140,6 +140,10 @@ model LeadPost {
   raw_result       Json?
   source_type      String    @default("keyword")
   source_profile   String?
+  qualification_reason String?
+  enrichment_status    String?
+  enrichment_message   String?
+  enriched_at          DateTime?
   intelligence     String?
   claimed_count    Int       @default(0)
   created_at       DateTime  @default(now())
@@ -176,14 +180,17 @@ model Claim {
 }
 
 model ApifyKey {
-  id         String    @id @default(uuid())
-  key        String    @unique
-  label      String?
-  is_active  Boolean   @default(true)
-  is_deleted Boolean   @default(false)
-  deleted_at DateTime?
-  created_at DateTime  @default(now())
-  updated_at DateTime  @updatedAt
+  id              String    @id @default(uuid())
+  key             String    @unique
+  label           String?
+  is_active       Boolean   @default(true)
+  is_deleted      Boolean   @default(false)
+  deleted_at      DateTime?
+  comments_used   Int       @default(0)
+  comments_limit  Int       @default(2500)
+  usage_month     String?
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
 
   @@map("apify_keys")
 }
@@ -273,15 +280,18 @@ model LeadIntelligence {
 }
 
 model SourceProfile {
-  id              String    @id @default(uuid())
-  name            String
-  url             String    @unique
-  platform        String    @default("linkedin")
-  notes           String?
-  is_active       Boolean   @default(true)
-  last_scraped_at DateTime?
-  created_at      DateTime  @default(now())
-  updated_at      DateTime  @updatedAt
+  id                   String    @id @default(uuid())
+  name                 String
+  url                  String    @unique
+  platform             String    @default("linkedin")
+  notes                String?
+  is_active            Boolean   @default(true)
+  last_scraped_at      DateTime?
+  last_comments_found  Int       @default(0)
+  monthly_comments_found Int     @default(0)
+  usage_month          String?
+  created_at           DateTime  @default(now())
+  updated_at           DateTime  @updatedAt
 
   @@map("source_profiles")
 }

@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
-import { Activity, Target, Zap, TrendingUp, Users, UserPlus, ChevronRight, Shield, BrainCircuit, Loader2, CheckCircle2, Copy, Gift } from "lucide-react";
 import { Button } from "@/components/ui/HunterUI";
 import api from "@/lib/api";
+import { motion } from "framer-motion";
+import { Activity, BrainCircuit, CheckCircle2, ChevronRight, Copy, Gift, Loader2, Shield, Target, TrendingUp, UserPlus, Users, Zap } from "lucide-react";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import ReactMarkdown from 'react-markdown';
 
 import { useAuth } from "@/context/AuthContext";
@@ -15,8 +15,10 @@ export default function DashboardPage() {
   const { user, refreshUser, hasPermission, permissions, loading: authLoading } = useAuth();
   const [teamCount, setTeamCount] = useState<number>(0);
   const [topLeads, setTopLeads] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [claimingIds, setClaimingIds] = useState<string[]>([]);
+  const [scrapingAll, setScrapingAll] = useState(false);
 
   const handleClaim = async (leadId: string) => {
     try {
@@ -45,14 +47,15 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        // Fetch team count if applicable
+        const { data: statsData } = await api.get("/dashboard/stats");
+        setStats(statsData.data);
+
         if (hasPermission('user:read')) {
           const { data: teamData } = await api.get("/auth/organization/users");
           const members = teamData.data || teamData;
           setTeamCount(Array.isArray(members) ? members.length : 0);
         }
 
-        // Fetch top strategic leads for intelligence display
         const { data: leadsData } = await api.get("/posts?status=relevant&limit=3");
         setTopLeads(leadsData.data || []);
 
@@ -68,9 +71,50 @@ export default function DashboardPage() {
     }
   }, [authLoading, user, hasPermission]);
 
+  const handleScrapeAllTargets = async () => {
+    try {
+      setScrapingAll(true);
+      const { data } = await api.post("/targets/scrape-all");
+      toast.success("Watchlist scrape queued", {
+        description: data.message,
+      });
+    } catch (err: any) {
+      toast.error("Failed to queue scrape", {
+        description: err.response?.data?.error || "Could not start watchlist scrape.",
+      });
+    } finally {
+      setScrapingAll(false);
+    }
+  };
+
   const isInternal = permissions.has('*');
   const isOrgAdmin = hasPermission('org:read');
   const isNormalUser = !isInternal && !isOrgAdmin;
+
+  const weeklyGoal = stats?.weekly_goal ?? 100;
+  const weeklyProgress = stats?.leads?.qualified_this_week ?? 0;
+  const weeklyPercent = Math.min(100, Math.round((weeklyProgress / weeklyGoal) * 100));
+
+  const quickStats = isInternal
+    ? [
+        { label: "Qualified Today", value: stats?.leads?.qualified_today?.toString() ?? "0", icon: Zap, color: "text-hunter-orange" },
+        { label: "Qualified Total", value: stats?.leads?.qualified_total?.toString() ?? "0", icon: Target, color: "text-yellow-400" },
+        { label: "Watchlist Active", value: stats?.leads?.watchlist_active?.toString() ?? "0", icon: Activity, color: "text-blue-400" },
+        { label: "Success Rate", value: `${stats?.success_rate ?? 0}%`, icon: TrendingUp, color: "text-green-400" },
+      ]
+    : isOrgAdmin
+    ? [
+        { label: "Team Members", value: teamCount.toString(), icon: Users, color: "text-hunter-orange" },
+        { label: "Available Leads", value: stats?.leads?.available_to_claim?.toString() ?? "0", icon: Target, color: "text-yellow-400" },
+        { label: "Qualified Today", value: stats?.leads?.qualified_today?.toString() ?? "0", icon: Activity, color: "text-blue-400" },
+        { label: "Success Rate", value: `${stats?.success_rate ?? 0}%`, icon: TrendingUp, color: "text-green-400" },
+      ]
+    : [
+        { label: "Remaining Tokens", value: stats?.user?.tokens?.toString() ?? user?.tokens?.toString() ?? "0", icon: Zap, color: "text-hunter-orange" },
+        { label: "Claimed Leads", value: stats?.user?.claimed_leads?.toString() ?? "0", icon: Target, color: "text-yellow-400" },
+        { label: "Available Leads", value: stats?.leads?.available_to_claim?.toString() ?? "0", icon: Activity, color: "text-blue-400" },
+        { label: "Success Rate", value: `${stats?.success_rate ?? 0}%`, icon: TrendingUp, color: "text-green-400" },
+      ];
 
   if (authLoading || loading) {
     return <div className="flex items-center justify-center min-h-screen">Loading Dashboard...</div>;
@@ -105,19 +149,21 @@ export default function DashboardPage() {
           <div className="mt-6 w-full max-w-md">
             <div className="flex justify-between items-end mb-2">
               <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Weekly Goal Progress</span>
-              <span className="text-[10px] font-black uppercase tracking-widest text-hunter-orange">84 / 100 Leads Found</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-hunter-orange">
+                {weeklyProgress} / {weeklyGoal} Leads Found
+              </span>
             </div>
             <div className="h-4 bg-hunter-grey neo-border border-zinc-800 relative overflow-hidden">
               <motion.div 
                 initial={{ width: 0 }}
-                animate={{ width: "84%" }}
+                animate={{ width: `${weeklyPercent}%` }}
                 className="absolute inset-y-0 left-0 bg-hunter-orange"
               />
             </div>
           </div>
         </div>
         <div className="flex flex-col gap-4">
-          <Button className="md:text-xl px-8" onClick={() => window.location.href = '/leads'}>
+          <Button className="md:text-xl px-8" onClick={() => window.location.href = isInternal ? '/lead-intelligence' : '/leads/relevant'}>
             Find Leads
           </Button>
         </div>
@@ -157,8 +203,17 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="bg-hunter-grey p-8 md:w-80 flex flex-col justify-center gap-4">
-             <Button variant="secondary" className="w-full">System Logs</Button>
-             <Button className="w-full">Trigger Scraper</Button>
+             <Link href="/lead-intelligence">
+               <Button variant="secondary" className="w-full">Lead Intelligence</Button>
+             </Link>
+             <Button
+               className="w-full flex items-center justify-center gap-2"
+               onClick={handleScrapeAllTargets}
+               disabled={scrapingAll}
+             >
+               {scrapingAll ? <Loader2 size={16} className="animate-spin" /> : null}
+               {scrapingAll ? "Queueing..." : "Scrape All Watchlist"}
+             </Button>
           </div>
         </motion.div>
       ) : isOrgAdmin ? (
@@ -201,14 +256,14 @@ export default function DashboardPage() {
                 <UserPlus size={18} className="group-hover:scale-110 transition-transform" />
               </Button>
             </Link>
-            <Link href="/leads" className="w-full text-center py-3 border-2 border-zinc-800 font-display font-black uppercase text-xs tracking-widest hover:bg-zinc-800 transition-colors">
+            <Link href={isInternal ? "/lead-intelligence" : "/leads/relevant"} className="w-full text-center py-3 border-2 border-zinc-800 font-display font-black uppercase text-xs tracking-widest hover:bg-zinc-800 transition-colors">
               View All Posts
             </Link>
           </div>
         </motion.div>
       ) : (
         <div className="mb-10 grid grid-cols-1 md:grid-cols-2 gap-6">
-           <Link href="/leads" className="bg-hunter-grey p-8 neo-border border-zinc-800 hover:border-hunter-orange transition-all group">
+           <Link href={isInternal ? "/lead-intelligence" : "/leads/relevant"} className="bg-hunter-grey p-8 neo-border border-zinc-800 hover:border-hunter-orange transition-all group">
               <h3 className="text-2xl font-display font-black uppercase mb-2">Find Leads</h3>
               <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-6">Explore qualified intelligence</p>
               <div className="flex items-center gap-2 text-hunter-orange font-black text-xs uppercase tracking-widest">
@@ -227,12 +282,7 @@ export default function DashboardPage() {
 
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
-        {[
-          { label: "Remaining Tokens", value: user?.tokens?.toString() || "0", icon: Zap, color: "text-hunter-orange" },
-          { label: "Claimed Leads", value: "24", icon: Target, color: "text-yellow-400" },
-          { label: "Platform Leads", value: "1,284", icon: Activity, color: "text-blue-400" },
-          { label: "Success Rate", value: "84%", icon: TrendingUp, color: "text-green-400" },
-        ].map((stat, i) => (
+        {quickStats.map((stat, i) => (
           <motion.div
             key={i}
             initial={{ opacity: 0, y: 20 }}
@@ -254,7 +304,7 @@ export default function DashboardPage() {
             <h2 className="text-3xl font-display font-black uppercase flex items-center gap-3">
               <BrainCircuit className="text-hunter-orange" /> Top Intelligence
             </h2>
-            <Link href="/leads/relevant" className="text-zinc-500 font-bold uppercase text-[10px] tracking-widest hover:text-hunter-orange transition-colors">
+            <Link href={isInternal ? "/lead-intelligence" : "/leads/relevant"} className="text-zinc-500 font-bold uppercase text-[10px] tracking-widest hover:text-hunter-orange transition-colors">
               View All Reports
             </Link>
           </div>
@@ -275,10 +325,14 @@ export default function DashboardPage() {
                     <span className="text-[10px] font-bold text-zinc-500 uppercase">{lead.platform}</span>
                   </div>
                   <div className="text-[11px] text-zinc-400 leading-relaxed mb-4 line-clamp-3 italic prose prose-invert prose-xs">
-                    <ReactMarkdown>{lead.intelligence}</ReactMarkdown>
+                    {lead.intelligence ? (
+                      <ReactMarkdown>{lead.intelligence}</ReactMarkdown>
+                    ) : (
+                      <span className="text-zinc-600">Intelligence report pending...</span>
+                    )}
                   </div>
                   <div className="flex items-center justify-between gap-4 mt-2">
-                    <Link href="/leads/relevant" className="inline-flex items-center gap-2 text-hunter-orange text-[9px] font-black uppercase tracking-widest group-hover:gap-3 transition-all">
+                    <Link href={isInternal ? "/lead-intelligence" : "/leads/relevant"} className="inline-flex items-center gap-2 text-hunter-orange text-[9px] font-black uppercase tracking-widest group-hover:gap-3 transition-all">
                       Open Full Strategy <ChevronRight size={12} />
                     </Link>
                     

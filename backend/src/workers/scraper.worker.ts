@@ -1,5 +1,5 @@
 import { Worker, Job } from 'bullmq';
-import { redisConnection } from '../queues/connection';
+import { createWorkerOptions } from '../queues/worker-options';
 import { ScraperService } from '../services/scraper.service';
 import { TargetScraperService } from '../services/target-scraper.service';
 
@@ -22,10 +22,7 @@ export const scraperWorker = new Worker(
             throw error;
         }
     },
-    {
-        connection: redisConnection,
-        concurrency: 5, // Process 5 keywords in parallel
-    }
+    createWorkerOptions({ concurrency: 5 })
 );
 
 scraperWorker.on('failed', (job, err) => {

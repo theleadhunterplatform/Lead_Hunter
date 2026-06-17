@@ -6,6 +6,24 @@ configureDatabaseEnv();
 
 const dbMode = resolveDatabaseMode();
 
+function resolveRedisUrl(): string {
+    const explicit = process.env.REDIS_URL?.trim();
+    const isDev = (process.env.NODE_ENV || 'development') !== 'production';
+    const useCloudRedis = process.env.USE_CLOUD_REDIS === 'true';
+
+    if (isDev && !useCloudRedis) {
+        if (explicit?.includes('upstash.io')) {
+            console.warn(
+                '⚠️  Dev: REDIS_URL points to Upstash — using local Redis (redis://localhost:6379) instead.',
+                'Set USE_CLOUD_REDIS=true to keep Upstash in development.'
+            );
+        }
+        return 'redis://localhost:6379';
+    }
+
+    return explicit || 'redis://localhost:6379';
+}
+
 const config = {
     env: process.env.NODE_ENV || 'development',
     appEnv: process.env.ENV || 'development',
@@ -25,6 +43,8 @@ const config = {
         token: process.env.APIFY_API_TOKEN || '',
         linkedinActor: 'harvestapi/linkedin-post-search',
         linkedinProfileCommentsActor: process.env.APIFY_LINKEDIN_PROFILE_COMMENTS_ACTOR || 'harvestapi/linkedin-profile-comments',
+        linkedinProfileActor: process.env.APIFY_LINKEDIN_PROFILE_ACTOR || 'dev_fusion/linkedin-profile-scraper',
+        monthlyCommentLimit: parseInt(process.env.APIFY_MONTHLY_COMMENT_LIMIT || '2500', 10),
     },
     targetScraper: {
         maxItems: parseInt(process.env.TARGET_SCRAPE_MAX_ITEMS || '20', 10),
@@ -43,11 +63,18 @@ const config = {
         apiKey: process.env.OPEN_ROUTER_API || ''
     },
     redis: {
-        url: process.env.REDIS_URL || 'redis://localhost:6379'
+        url: resolveRedisUrl(),
+        useCloud: process.env.USE_CLOUD_REDIS === 'true',
     },
     aiService: {
         url: process.env.AI_SERVICE_URL || 'http://localhost:8000'
-    }
+    },
+    contactCompass: {
+        monthlyLookupLimit: parseInt(process.env.CONTACT_COMPASS_MONTHLY_LOOKUP_LIMIT || '500', 10),
+    },
+    hunter: {
+        apiKey: process.env.HUNTER_API_KEY || '',
+    },
 };
 
 if (dbMode === 'supabase' && !process.env.DATABASE_URL && config.env === 'production') {

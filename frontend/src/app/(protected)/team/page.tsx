@@ -34,7 +34,7 @@ export default function TeamPage() {
   useEffect(() => {
     if (!authLoading) {
       if (!hasPermission('user:read')) {
-        router.push("/leads");
+        router.push("/dashboard");
         return;
       }
       fetchMembers();

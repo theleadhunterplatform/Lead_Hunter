@@ -62,6 +62,20 @@ export default function LoginPage() {
           </p>
         </div>
 
+        {process.env.NODE_ENV === "development" && (
+          <div className="mb-6 p-4 bg-hunter-orange/10 border-2 border-hunter-orange/40 text-center">
+            <p className="text-[10px] font-black uppercase tracking-widest text-hunter-orange mb-2">
+              Dev Admin Login
+            </p>
+            <p className="text-xs text-zinc-300 font-mono">
+              {process.env.NEXT_PUBLIC_DEV_ADMIN_EMAIL || "admin@leadhunter.com"}
+            </p>
+            <p className="text-xs text-zinc-300 font-mono mt-1">
+              {process.env.NEXT_PUBLIC_DEV_ADMIN_PASSWORD || "Admin@12345"}
+            </p>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-6 bg-hunter-grey p-8 neo-border border-zinc-800">
           {error && (
             <div className="bg-red-500/10 border-2 border-red-500 p-4 text-red-500 text-xs font-black uppercase tracking-wider">

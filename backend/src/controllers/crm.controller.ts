@@ -48,6 +48,11 @@ export const sendEmailToLead = asyncHandler(async (req: Request, res: Response) 
         throw new ErrorResponse('Lead email address not found. Use enrichment first.', 400);
     }
 
+    const emailStatus = lead.contact_info?.email_status;
+    if (emailStatus !== 'verified' && emailStatus !== 'valid' && emailStatus !== 'deliverable') {
+        throw new ErrorResponse('Only verified emails can be used for outreach.', 400);
+    }
+
     // 2. Mock Email Sending (Integrate with SendGrid/SMTP in production)
     console.log(`📧 [CRM] Sending email to ${lead.email}`);
     console.log(`Subject: ${subject}`);

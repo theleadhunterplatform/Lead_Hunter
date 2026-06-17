@@ -1,29 +1,26 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { 
-  Shield, 
-  Target, 
-  ExternalLink, 
-  Mail, 
-  Phone, 
-  User, 
-  Loader2, 
-  Sparkles, 
-  BrainCircuit, 
-  ChevronRight, 
-  FileText,
-  Clock,
-  ArrowUpRight,
-  CheckCircle2,
-  AlertCircle,
-  Zap
-} from "lucide-react";
-import api from "@/lib/api";
+import { LinkedinLogo, RedditLogo, ThreadsLogo, XLogo } from "@/components/BrandIcons";
 import { Button } from "@/components/ui/HunterUI";
-import { LinkedinLogo, XLogo, RedditLogo, ThreadsLogo } from "@/components/BrandIcons";
 import { useAuth } from "@/context/AuthContext";
+import api from "@/lib/api";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+    ArrowUpRight,
+    BrainCircuit,
+    CheckCircle2,
+    ChevronRight,
+    FileText,
+    Loader2,
+    Mail,
+    Phone,
+    Shield,
+    Sparkles,
+    Target,
+    User,
+    Zap
+} from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 interface Lead {
@@ -44,11 +41,15 @@ interface Lead {
   keyword: string;
   status: string;
   email?: string;
+  enrichment_status?: 'pending' | 'searching' | 'found' | 'partial' | 'not_found' | 'skipped' | 'failed' | null;
+  enrichment_message?: string | null;
   contact_info?: {
     name?: string;
     title?: string;
     headline?: string;
     company_name?: string;
+    email_status?: string;
+    email_source?: string;
     phone_numbers?: { number: string; type: string }[];
   };
   intelligence?: string;
@@ -90,9 +91,9 @@ export default function StrategicLeadsPage() {
     }
   };
 
-  const fetchStrategicLeads = async () => {
+  const fetchStrategicLeads = async (silent = false) => {
     try {
-      setIsLoading(true);
+      if (!silent) setIsLoading(true);
       const response = await api.get('/posts?status=relevant&limit=50');
       setLeads(response.data.data);
       if (response.data.data.length > 0 && !selectedLeadId) {
@@ -101,15 +102,30 @@ export default function StrategicLeadsPage() {
     } catch (error) {
       console.error("Failed to fetch strategic leads", error);
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
   };
 
   useEffect(() => {
     fetchStrategicLeads();
+    const interval = setInterval(() => fetchStrategicLeads(true), 15000);
+    return () => clearInterval(interval);
   }, []);
 
   const selectedLead = leads.find(l => l._id === selectedLeadId);
+
+  const getEmailLabel = (lead: Lead) => {
+    if (!isInternal && !lead.is_claimed) return "Claim lead to unlock";
+    if (lead.email) {
+      const status = lead.contact_info?.email_status;
+      if (status === 'verified' || status === 'valid' || status === 'deliverable') return lead.email;
+      return "No verified email found yet";
+    }
+    if (lead.enrichment_status === 'searching') return "Searching...";
+    if (lead.enrichment_status === 'not_found' || lead.enrichment_status === 'skipped') return "No email found";
+    if (lead.enrichment_status === 'partial') return lead.enrichment_message || "Profile found — no email";
+    return "Not searched yet";
+  };
 
   // Simple Markdown to HTML parser for the intelligence content
   const formatIntelligence = (content: string) => {
@@ -336,7 +352,7 @@ export default function StrategicLeadsPage() {
                         </div>
                         <div>
                           <p className="text-[8px] font-black text-zinc-500 uppercase tracking-widest mb-0.5">Email Address</p>
-                          <p className="text-sm font-bold text-white">{selectedLead.email || "Searching..."}</p>
+                          <p className="text-sm font-bold text-white">{getEmailLabel(selectedLead)}</p>
                         </div>
                       </div>
 

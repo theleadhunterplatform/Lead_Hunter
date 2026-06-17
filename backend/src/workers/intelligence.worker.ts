@@ -1,5 +1,5 @@
 import { Worker, Job } from 'bullmq';
-import { redisConnection } from '../queues/connection';
+import { createWorkerOptions } from '../queues/worker-options';
 import LeadPost from '../models/lead-post.model';
 import { generateLeadIntelligence } from '../services/intelligence.service';
 
@@ -23,8 +23,5 @@ export const intelligenceWorker = new Worker(
             throw error;
         }
     },
-    {
-        connection: redisConnection,
-        concurrency: 3, // Process 3 reports in parallel
-    }
+    createWorkerOptions({ concurrency: 3 })
 );

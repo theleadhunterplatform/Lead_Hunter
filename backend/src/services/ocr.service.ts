@@ -139,13 +139,17 @@ export const cleanExtractedText = (text: string): string => {
 };
 
 /**
- * Triggers model retraining on the AI service
+ * Triggers model retraining on the AI service using labeled leads from the database
  */
-export const trainModel = async (): Promise<{ success: boolean; message: string; output?: string; error?: string }> => {
+export const trainModel = async (
+    samples: Array<{ content: string; label: string }>
+): Promise<{ success: boolean; message: string; output?: string; error?: string; metrics?: any }> => {
     try {
-        console.log('[AI-Train] Requesting model retrain...');
+        console.log(`[AI-Train] Sending ${samples.length} labeled samples to AI service...`);
         const response = await fetch(`${config.aiService.url}/train`, {
-            method: 'POST'
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data: samples }),
         });
 
         if (!response.ok) {
@@ -162,7 +166,8 @@ export const trainModel = async (): Promise<{ success: boolean; message: string;
             success: result.success,
             message: result.message || 'Training completed',
             output: result.output,
-            error: result.error
+            error: result.error,
+            metrics: result.metrics,
         };
     } catch (error: any) {
         console.error('[AI-Train] Connection error:', error.message);

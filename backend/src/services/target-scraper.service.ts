@@ -1,7 +1,8 @@
 import prisma from '../lib/prisma';
 import LeadPost from '../models/lead-post.model';
 import config from '../config';
-import { getApifyClient, handleApifyLimitError } from '../utils/apify-client.utils';
+import { getApifyClient, handleApifyLimitError, recordApifyCommentUsage } from '../utils/apify-client.utils';
+import { enqueueLeadQualification } from '../utils/qualification-queue.utils';
 
 type ProfileCommentItem = {
     id?: string;
@@ -55,6 +56,7 @@ export class TargetScraperService {
         const { client, activeKey } = await getApifyClient();
         let saved = 0;
         let skipped = 0;
+        let commentsFound = 0;
 
         try {
             const run = await client.actor(config.apify.linkedinProfileCommentsActor).call({
@@ -65,6 +67,7 @@ export class TargetScraperService {
 
             const result = await client.dataset(run.defaultDatasetId).listItems();
             const items = result.items as ProfileCommentItem[];
+            commentsFound = items.length;
 
             console.log(`[TargetScraper] Found ${items.length} comments for "${target.name}"`);
 
@@ -74,10 +77,22 @@ export class TargetScraperService {
                 else skipped++;
             }
 
+            const month = new Date().toISOString().slice(0, 7);
+            const resetMonthly = target.usage_month !== month;
+
             await prisma.sourceProfile.update({
                 where: { id: target.id },
-                data: { last_scraped_at: new Date() },
+                data: {
+                    last_scraped_at: new Date(),
+                    last_comments_found: commentsFound,
+                    usage_month: month,
+                    monthly_comments_found: resetMonthly
+                        ? commentsFound
+                        : { increment: commentsFound },
+                },
             });
+
+            await recordApifyCommentUsage(activeKey, commentsFound);
 
             console.log(`✅ [TargetScraper] "${target.name}": ${saved} new posts, ${skipped} skipped`);
             return { saved, skipped };
@@ -105,7 +120,7 @@ export class TargetScraperService {
 
         const imageUrl = post.postImages?.[0]?.url || null;
 
-        await LeadPost.create({
+        const saved = await LeadPost.create({
             post_id: post.id,
             url: post.linkedinUrl || '',
             content: post.content || '',
@@ -139,6 +154,10 @@ export class TargetScraperService {
                 },
             },
         });
+
+        if (saved?._id) {
+            await enqueueLeadQualification(saved._id.toString());
+        }
 
         console.log(`✨ [TargetScraper] New post from watchlist comment: ${post.id}`);
         return true;

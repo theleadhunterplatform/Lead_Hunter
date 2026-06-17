@@ -77,6 +77,25 @@ export const updatePost = asyncHandler(async (req: Request, res: Response, _next
     });
 });
 
+export const qualifyPost = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+    const result = await postService.requalifyPost(req.params.id as string);
+
+    return res.status(202).json({
+        success: true,
+        message: result.message,
+    });
+});
+
+export const verifyEmailPost = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+    const post = await postService.verifyLeadEmail(req.params.id as string);
+
+    return res.status(200).json({
+        success: true,
+        data: post,
+        message: 'Email marked as verified.',
+    });
+});
+
 // @desc    Re-run OCR extraction using the new AI service
 // @route   POST /api/posts/:id/re-extract
 // @access  Private

@@ -172,11 +172,17 @@ export interface ILeadPost {
         phone_numbers?: Array<{ number: string; type: string }>;
         linkedin_public_id?: string;
         email_status?: string;
+        email_source?: 'post_text' | 'apify_profile' | 'contact_compass' | 'pattern_guess' | 'threads_profile';
+        company_domain?: string;
         credits_left?: number;
     };
     raw_result?: any;
     source_type?: 'keyword' | 'profile_activity';
     source_profile?: string;
+    qualification_reason?: string;
+    enrichment_status?: 'pending' | 'searching' | 'found' | 'partial' | 'not_found' | 'skipped' | 'failed' | null;
+    enrichment_message?: string | null;
+    enriched_at?: Date | null;
     intelligence?: string;
     claimed_count: number;
     createdAt: Date;

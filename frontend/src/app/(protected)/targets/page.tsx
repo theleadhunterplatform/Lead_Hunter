@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { Button, Input } from "@/components/ui/HunterUI";
-import { Plus, Trash2, Edit2, Check, X, UserSearch, ExternalLink, RefreshCw } from "lucide-react";
-import { useRouter } from "next/navigation";
-import api from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import api from "@/lib/api";
+import { Check, Edit2, ExternalLink, Plus, RefreshCw, Trash2, UserSearch, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 type Target = {
   _id: string;
@@ -15,6 +15,8 @@ type Target = {
   notes?: string;
   is_active: boolean;
   last_scraped_at?: string | null;
+  last_comments_found?: number;
+  monthly_comments_found?: number;
 };
 
 export default function TargetsPage() {
@@ -31,6 +33,7 @@ export default function TargetsPage() {
   const [editUrl, setEditUrl] = useState("");
   const [editNotes, setEditNotes] = useState("");
   const [scrapingId, setScrapingId] = useState<string | null>(null);
+  const [scrapingAll, setScrapingAll] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
 
   const canCreate = hasPermission("target:create");
@@ -118,6 +121,27 @@ export default function TargetsPage() {
     }
   };
 
+  const scrapeAllTargets = async () => {
+    if (!canUpdate) return;
+    const activeCount = targets.filter((t) => t.is_active).length;
+    if (activeCount === 0) {
+      setError("No active targets to scrape.");
+      return;
+    }
+    setError("");
+    setSuccessMsg("");
+    setScrapingAll(true);
+    try {
+      const { data } = await api.post("/targets/scrape-all");
+      setSuccessMsg(data.message || `Scrape queued for ${activeCount} targets.`);
+      fetchTargets();
+    } catch (err: any) {
+      setError(err.response?.data?.error || "Failed to queue scrape for all targets.");
+    } finally {
+      setScrapingAll(false);
+    }
+  };
+
   const formatLastChecked = (date?: string | null) => {
     if (!date) return "Never checked";
     return new Date(date).toLocaleString();
@@ -144,13 +168,25 @@ export default function TargetsPage() {
 
   return (
     <div className="p-6 md:p-10 max-w-5xl">
-      <div className="mb-8">
-        <h1 className="font-display font-black text-3xl uppercase tracking-tighter text-white">
-          Watchlist <span className="text-hunter-orange">Targets</span>
-        </h1>
-        <p className="text-zinc-500 text-sm mt-2">
-          Monitor LinkedIn profiles for comment activity — parent posts are captured as leads.
-        </p>
+      <div className="mb-8 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+        <div>
+          <h1 className="font-display font-black text-3xl uppercase tracking-tighter text-white">
+            Watchlist <span className="text-hunter-orange">Targets</span>
+          </h1>
+          <p className="text-zinc-500 text-sm mt-2">
+            Monitor LinkedIn profiles for comment activity — parent posts are captured as leads.
+          </p>
+        </div>
+        {canUpdate && targets.some((t) => t.is_active) && (
+          <Button
+            onClick={scrapeAllTargets}
+            disabled={scrapingAll}
+            className="uppercase font-black text-xs flex items-center gap-2 shrink-0"
+          >
+            <RefreshCw size={14} className={scrapingAll ? "animate-spin" : ""} />
+            {scrapingAll ? "Queueing All..." : "Scrape All Active"}
+          </Button>
+        )}
       </div>
 
       {error && (
@@ -225,6 +261,13 @@ export default function TargetsPage() {
                     <p className="text-zinc-600 text-[10px] mt-1 uppercase font-bold tracking-wider">
                       Last checked: {formatLastChecked(t.last_scraped_at)}
                     </p>
+                    {t.last_scraped_at && (
+                      <p className="text-zinc-500 text-[10px] mt-0.5 uppercase font-bold tracking-wider">
+                        Last run: <span className="text-hunter-orange">{t.last_comments_found ?? 0}</span> comments
+                        {" · "}
+                        This month: <span className="text-white">{t.monthly_comments_found ?? 0}</span> comments
+                      </p>
+                    )}
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <span

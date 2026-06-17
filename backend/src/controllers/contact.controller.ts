@@ -1,18 +1,20 @@
 import { Request, Response, NextFunction } from 'express';
 import asyncHandler from '../middleware/async';
-import * as contactCompassService from '../services/contact-compass.service';
 import * as settingService from '../services/setting.service';
+import { enrichLeadPost } from '../services/enrichment.service';
+import { getContactCompassUsage } from '../utils/contact-compass-usage.utils';
 
 // @desc    Find lead email using Contact Compass
 // @route   POST /api/leads/:id/find-email
 // @access  Private
 export const findLeadEmail = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
-    const result = await contactCompassService.findLeadEmail(req.params.id as string);
+    const result = await enrichLeadPost(req.params.id as string);
 
     return res.status(200).json({
-        success: true,
+        success: result.success,
         data: result.data,
-        message: result.message
+        message: result.message,
+        enrichment_status: result.status,
     });
 });
 
@@ -39,12 +41,14 @@ export const updateToken = asyncHandler(async (req: Request, res: Response, _nex
 // @access  Private
 export const getToken = asyncHandler(async (_req: Request, res: Response, _next: NextFunction) => {
     const token = await settingService.getSetting('contact_compass_token');
+    const usage = await getContactCompassUsage();
 
     return res.status(200).json({
         success: true,
         data: {
             token: token ? `${token.substring(0, 4)}...${token.substring(token.length - 4)}` : null,
-            is_configured: !!token
+            is_configured: !!token,
+            ...usage,
         }
     });
 });

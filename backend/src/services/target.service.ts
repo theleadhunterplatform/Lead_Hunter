@@ -1,8 +1,33 @@
 import prisma from '../lib/prisma';
+import { scraperQueue } from '../queues';
 import ErrorResponse from '../utils/error-response.utils';
 import { isValidLinkedInProfileUrl, normalizeLinkedInUrl } from '../utils/linkedin-url.utils';
 import { toApiDoc, toApiDocs } from '../utils/serialize.utils';
-import { scraperQueue } from '../queues';
+
+function currentUsageMonth(): string {
+    return new Date().toISOString().slice(0, 7);
+}
+
+async function withSyncedUsage(targets: any[]) {
+    const month = currentUsageMonth();
+
+    await Promise.all(
+        targets
+            .filter((t) => t.usage_month && t.usage_month !== month)
+            .map((t) =>
+                prisma.sourceProfile.update({
+                    where: { id: t.id },
+                    data: { monthly_comments_found: 0, usage_month: month },
+                })
+            )
+    );
+
+    return targets.map((t) => ({
+        ...t,
+        monthly_comments_found: t.usage_month !== month ? 0 : t.monthly_comments_found,
+        usage_month: month,
+    }));
+}
 
 export const getAllTargets = async (query?: { active?: string }) => {
     const where: any = {};
@@ -13,7 +38,9 @@ export const getAllTargets = async (query?: { active?: string }) => {
         where,
         orderBy: { created_at: 'desc' },
     });
-    return toApiDocs(targets as any[]);
+
+    const synced = await withSyncedUsage(targets);
+    return toApiDocs(synced as any[]);
 };
 
 export const getTargetById = async (id: string) => {
@@ -122,5 +149,37 @@ export const enqueueTargetScrape = async (id: string) => {
         target: toApiDoc(target),
         jobId: job.id,
         message: `Scrape queued for "${target.name}"`,
+    };
+};
+
+export const enqueueAllTargetScrapes = async () => {
+    const activeTargets = await prisma.sourceProfile.findMany({
+        where: { is_active: true, platform: 'linkedin' },
+        orderBy: { name: 'asc' },
+    });
+
+    if (activeTargets.length === 0) {
+        throw new ErrorResponse('No active watchlist targets to scrape.', 400);
+    }
+
+    const jobs = await Promise.all(
+        activeTargets.map((target) =>
+            scraperQueue.add(
+                `manual-scrape-target-${target.name}-${Date.now()}`,
+                {
+                    type: 'target',
+                    targetId: target.id,
+                    targetName: target.name,
+                    targetUrl: target.url,
+                },
+                { removeOnComplete: true }
+            )
+        )
+    );
+
+    return {
+        count: activeTargets.length,
+        jobIds: jobs.map((j) => j.id),
+        message: `Scrape queued for ${activeTargets.length} active watchlist targets`,
     };
 };

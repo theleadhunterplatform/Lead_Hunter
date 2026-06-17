@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { NextFunction, Request, Response } from 'express';
 import asyncHandler from '../middleware/async';
 import * as targetService from '../services/target.service';
 
@@ -58,5 +58,16 @@ export const scrapeTarget = asyncHandler(async (req: Request, res: Response, _ne
         message: result.message,
         jobId: result.jobId,
         data: result.target,
+    });
+});
+
+export const scrapeAllTargets = asyncHandler(async (_req: Request, res: Response, _next: NextFunction) => {
+    const result = await targetService.enqueueAllTargetScrapes();
+
+    res.status(202).json({
+        success: true,
+        message: result.message,
+        count: result.count,
+        jobIds: result.jobIds,
     });
 });
