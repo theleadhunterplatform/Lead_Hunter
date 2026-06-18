@@ -20,8 +20,10 @@ export interface EnrichmentResult {
 }
 
 function resolveEnrichmentStatus(lead: any): EnrichmentStatus {
+    const emails = lead.contact_info?.emails as Array<{ email_status?: string }> | undefined;
+    if (emails?.some((e) => isVerifiedEmailStatus(e.email_status))) return 'found';
     if (lead.email && isVerifiedEmailStatus(lead.contact_info?.email_status)) return 'found';
-    if (lead.email) return 'partial';
+    if (emails?.length || lead.email) return 'partial';
     if (lead.contact_info?.phone_numbers?.length) return 'partial';
     if (lead.contact_info?.verification_note || lead.contact_info?.name || lead.contact_info?.linkedin_public_id) {
         return 'partial';
@@ -63,7 +65,7 @@ export function shouldEnrichLead(lead: { status?: string; platform?: string }) {
     return lead.status === 'relevant' && (lead.platform === 'linkedin' || lead.platform === 'threads');
 }
 
-export async function enrichLeadPost(postId: string): Promise<EnrichmentResult> {
+export async function enrichLeadPost(postId: string, options?: { force?: boolean }): Promise<EnrichmentResult> {
     const lead = await LeadPost.findById(postId);
     if (!lead) {
         throw new ErrorResponse('Lead not found', 404);
@@ -77,7 +79,7 @@ export async function enrichLeadPost(postId: string): Promise<EnrichmentResult> 
         };
     }
 
-    if (lead.enrichment_status === 'found' && lead.email) {
+    if (!options?.force && lead.enrichment_status === 'found' && lead.email) {
         return {
             success: true,
             status: 'found',
@@ -92,10 +94,10 @@ export async function enrichLeadPost(postId: string): Promise<EnrichmentResult> 
         enrichment_message: null,
     });
 
-    console.log(`📇 [Enrichment] Searching contacts for post: ${lead.post_id}`);
+    console.log(`📇 [Enrichment] Searching contacts for post: ${lead.post_id}${options?.force ? ' (re-enrich)' : ''}`);
 
     try {
-        const result = await findLeadEmail(postId);
+        const result = await findLeadEmail(postId, { force: options?.force });
         const updated = result.data || await LeadPost.findById(postId);
         const status = resolveEnrichmentStatus(updated);
 

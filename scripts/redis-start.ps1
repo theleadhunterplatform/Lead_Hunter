@@ -37,9 +37,14 @@ if (Get-Command docker -ErrorAction SilentlyContinue) {
 $memuraiService = Get-Service -Name "Memurai*" -ErrorAction SilentlyContinue | Select-Object -First 1
 if ($memuraiService) {
     if ($memuraiService.Status -ne "Running") {
-        Start-Service $memuraiService.Name
+        try {
+            Start-Service $memuraiService.Name
+            Write-Host "Starting Memurai service..." -ForegroundColor Cyan
+        } catch {
+            Write-Host "Could not start Memurai service (try Run as Administrator)." -ForegroundColor Yellow
+        }
     }
-    Start-Sleep -Seconds 1
+    Start-Sleep -Seconds 2
     if (Test-RedisPort) {
         Write-Host "Redis started (Memurai) on redis://localhost:6379" -ForegroundColor Green
         exit 0
@@ -49,8 +54,10 @@ if ($memuraiService) {
 Write-Host ""
 Write-Host "Redis is not running. Install one of:" -ForegroundColor Yellow
 Write-Host "  1. Docker Desktop, then run: npm run redis:start"
-Write-Host "  2. Memurai Developer: winget install Memurai.MemuraiDeveloper"
-Write-Host "     Then start the Memurai service and run this script again."
-Write-Host "  3. Upstash (cloud): set REDIS_URL in backend/.env to your Upstash URL"
+Write-Host "  2. Memurai Developer (run installer as Administrator): https://www.memurai.com"
+Write-Host "     Then: npm run redis:check"
+Write-Host "  3. Upstash cloud: set USE_CLOUD_REDIS=true and REDIS_URL in backend/.env"
 Write-Host ""
-exit 1
+Write-Host "Dev API will still start (login works) but scraping/enrichment queues need Redis." -ForegroundColor DarkYellow
+Write-Host ""
+exit 0

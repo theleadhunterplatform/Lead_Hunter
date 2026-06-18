@@ -26,6 +26,7 @@ export async function getTrainingSamples(): Promise<TrainingSample[]> {
     const labeled = await prisma.leadPost.findMany({
         where: {
             is_deleted: false,
+            is_training_data: true,
             status: { in: ['relevant', 'irrelevant'] },
             NOT: { content: '' },
         },
@@ -61,7 +62,7 @@ export async function getLocalAiMetrics(): Promise<LocalAiMetrics> {
             last_trained_at: stored?.last_trained_at ?? null,
             model_ready: false,
             status: 'collecting',
-            message: `Learning from leads: ${samples.length}/${MIN_TRAINING_SAMPLES} labeled examples collected.`,
+            message: `Learning from your labels: ${samples.length}/${MIN_TRAINING_SAMPLES} manually marked leads collected.`,
         };
     }
 

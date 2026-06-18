@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Button as HunterButton, Input as HunterInput } from "@/components/ui/HunterUI";
-import { Key, Plus, Trash2, ShieldCheck, ShieldAlert, Loader2, Mail } from "lucide-react";
+import { Key, Plus, Trash2, ShieldCheck, ShieldAlert, Loader2, Mail, CheckCircle2 } from "lucide-react";
 import api from "@/lib/api";
 
 import { useRouter } from "next/navigation";
@@ -36,6 +36,13 @@ export default function TokensPage() {
   const [newCCToken, setNewCCToken] = useState("");
   const [isUpdatingCC, setIsUpdatingCC] = useState(false);
 
+  const [hunterKeyInfo, setHunterKeyInfo] = useState<{
+    api_key: string | null;
+    is_configured: boolean;
+  }>({ api_key: null, is_configured: false });
+  const [newHunterKey, setNewHunterKey] = useState("");
+  const [isUpdatingHunter, setIsUpdatingHunter] = useState(false);
+
   const fetchTokens = async () => {
     try {
       const response = await api.get("/apify-keys");
@@ -56,6 +63,15 @@ export default function TokensPage() {
     }
   };
 
+  const fetchHunterKey = async () => {
+    try {
+      const response = await api.get("/settings/hunter-api-key");
+      setHunterKeyInfo(response.data.data);
+    } catch (err) {
+      console.error("Failed to fetch Hunter key", err);
+    }
+  };
+
   useEffect(() => {
     if (!authLoading) {
       if (!hasPermission('scraping:manage')) {
@@ -64,6 +80,7 @@ export default function TokensPage() {
       }
       fetchTokens();
       fetchCCToken();
+      fetchHunterKey();
     }
   }, [authLoading, hasPermission, router]);
 
@@ -107,6 +124,21 @@ export default function TokensPage() {
       setError(err.response?.data?.message || "Failed to update Lead Enrichment token.");
     } finally {
       setIsUpdatingCC(false);
+    }
+  };
+
+  const updateHunterKey = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newHunterKey.trim()) return;
+    setIsUpdatingHunter(true);
+    try {
+      await api.post("/settings/hunter-api-key", { api_key: newHunterKey });
+      setNewHunterKey("");
+      fetchHunterKey();
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Failed to update Hunter.io API key.");
+    } finally {
+      setIsUpdatingHunter(false);
     }
   };
 
@@ -295,6 +327,57 @@ export default function TokensPage() {
             <HunterButton type="submit" variant="primary" disabled={isUpdatingCC || !newCCToken.trim()} className="px-8 flex items-center gap-2">
               {isUpdatingCC ? <Loader2 size={20} className="animate-spin" /> : <Plus size={20} />}
               Update Token
+            </HunterButton>
+          </form>
+        </div>
+
+        <div className="bg-hunter-grey p-6 neo-border border-zinc-800 mt-6">
+          <div className="mb-4">
+          <p className="text-zinc-500 font-display uppercase text-[10px] tracking-widest font-bold">
+            Verify emails after enrichment with Hunter.io (finder + verifier).
+          </p>
+          </div>
+
+          {hunterKeyInfo.is_configured ? (
+            <div className="mb-6 p-4 bg-zinc-900/50 neo-border border-zinc-800">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-green-500/10 flex items-center justify-center neo-border border-green-500/30">
+                    <CheckCircle2 size={20} className="text-green-500" />
+                  </div>
+                  <div>
+                    <div className="font-display font-bold text-lg uppercase tracking-tight">Hunter.io API</div>
+                    <div className="text-zinc-600 font-mono text-xs">{hunterKeyInfo.api_key}</div>
+                  </div>
+                </div>
+                <div className="px-3 py-1 bg-green-500 text-black text-[10px] font-black uppercase tracking-widest neo-border border-black shrink-0">
+                  Active
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="mb-6 p-4 bg-red-500/5 neo-border border-red-500/20 flex items-center gap-3">
+              <ShieldAlert className="text-red-500" size={20} />
+              <p className="text-red-500/70 text-[10px] font-black uppercase tracking-widest">
+                Email verification falls back to domain checks only. No Hunter.io key configured.
+              </p>
+            </div>
+          )}
+
+          <form onSubmit={updateHunterKey} className="flex gap-4">
+            <div className="relative flex-1">
+              <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-hunter-orange" size={20} />
+              <HunterInput
+                type="password"
+                placeholder="Enter Hunter.io API Key"
+                value={newHunterKey}
+                onChange={(e) => setNewHunterKey(e.target.value)}
+                className="pl-12"
+              />
+            </div>
+            <HunterButton type="submit" variant="primary" disabled={isUpdatingHunter || !newHunterKey.trim()} className="px-8 flex items-center gap-2">
+              {isUpdatingHunter ? <Loader2 size={20} className="animate-spin" /> : <Plus size={20} />}
+              Update Key
             </HunterButton>
           </form>
         </div>

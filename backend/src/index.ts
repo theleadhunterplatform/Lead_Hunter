@@ -114,8 +114,11 @@ app.use(errorHandler);
 const startServer = async () => {
     await connectDB();
     await seedRBAC(); // Seed the Scoped RBAC System on first run
-    await verifyRedisConnection();
-    initWorkers(); // Start background workers
+
+    const redisReady = await verifyRedisConnection();
+    if (redisReady) {
+        initWorkers(); // Start background workers
+    }
     
     if (config.appEnv === 'production' || process.env.ENABLE_CRON_DEV === 'true') {
         await initCron();

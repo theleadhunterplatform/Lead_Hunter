@@ -1,6 +1,7 @@
 import prisma from '../lib/prisma';
 import { toApiDoc, toApiDocs } from '../utils/serialize.utils';
 import { wrapDoc } from '../db/wrap-doc';
+import { findExistingLeadPost, isDuplicateKeyError } from '../utils/lead-dedup.utils';
 
 const mapPost = (record: any) => {
     if (!record) return null;
@@ -69,7 +70,18 @@ const LeadPost = {
     },
 
     async create(data: any) {
-        const post = await prisma.leadPost.create({
+        const existing = await findExistingLeadPost({
+            post_id: data.post_id,
+            platform: data.platform || 'linkedin',
+            url: data.url,
+            content: data.content,
+        });
+        if (existing) {
+            return existing;
+        }
+
+        try {
+            const post = await prisma.leadPost.create({
             data: {
                 post_id: data.post_id,
                 url: data.url,
@@ -99,6 +111,18 @@ const LeadPost = {
             },
         });
         return mapPost(post);
+        } catch (error) {
+            if (isDuplicateKeyError(error)) {
+                const dup = await findExistingLeadPost({
+                    post_id: data.post_id,
+                    platform: data.platform || 'linkedin',
+                    url: data.url,
+                    content: data.content,
+                });
+                if (dup) return dup;
+            }
+            throw error;
+        }
     },
 
     async findOneAndUpdate(filter: any, data: any, _options?: any) {

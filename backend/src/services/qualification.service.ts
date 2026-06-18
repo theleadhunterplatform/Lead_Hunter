@@ -1,7 +1,12 @@
 import LeadPost from '../models/lead-post.model';
 import { classifyText } from './ocr.service';
-import { scheduleAutoTrain } from '../utils/auto-train.utils';
 import { enqueueContactEnrichment } from '../utils/enrichment-queue.utils';
+import {
+    analyzeFreelanceLeadPatterns,
+    buildFreelanceMatchReason,
+    isFreelanceLeadPattern,
+    isNonLeadPattern,
+} from '../utils/lead-qualification-patterns.utils';
 
 export type QualificationStatus = 'relevant' | 'irrelevant';
 
@@ -9,72 +14,11 @@ export interface QualificationResult {
     status: QualificationStatus;
     reason: string;
     confidence: number;
-    method: 'local-ai' | 'rules';
+    method: 'local-ai' | 'rules' | 'rules+ai';
 }
 
-const HIRING_SIGNALS = [
-    /\bwe(?:'re| are) hiring\b/i,
-    /\bhiring\b/i,
-    /\bjob opening\b/i,
-    /\bopen position\b/i,
-    /\bjoin our team\b/i,
-    /\bfull[- ]time\b/i,
-    /\bapply now\b/i,
-    /\bsend (?:your )?resume\b/i,
-    /\bopen role\b/i,
-    /\bvacancy\b/i,
-    /\blooking for (?:a |an )?(?:candidate|engineer|developer|designer|marketer) to join\b/i,
-];
-
-const PROJECT_SIGNALS = [
-    /\blooking for (?:a |an )?(?:freelancer|contractor|developer|designer|agency|consultant)\b/i,
-    /\bneed (?:a |an )?(?:freelancer|developer|designer|agency|help)\b/i,
-    /\bseeking (?:a |an )?(?:freelancer|contractor|developer|designer)\b/i,
-    /\bproject basis\b/i,
-    /\bfreelance project\b/i,
-    /\boutsource\b/i,
-    /\bneed someone to (?:build|create|develop|design|make)\b/i,
-    /\blooking for someone to\b/i,
-    /\bbudget\b/i,
-    /\bpaid project\b/i,
-];
-
-function qualifyWithRules(content: string): QualificationResult {
-    const text = content.trim();
-    let hiringScore = 0;
-    let projectScore = 0;
-
-    for (const pattern of HIRING_SIGNALS) {
-        if (pattern.test(text)) hiringScore++;
-    }
-    for (const pattern of PROJECT_SIGNALS) {
-        if (pattern.test(text)) projectScore++;
-    }
-
-    if (hiringScore > projectScore) {
-        return {
-            status: 'irrelevant',
-            reason: 'Rule-based check: looks like a hiring post, not a project opportunity.',
-            confidence: Math.min(95, 55 + hiringScore * 15),
-            method: 'rules',
-        };
-    }
-
-    if (projectScore > 0) {
-        return {
-            status: 'relevant',
-            reason: 'Rule-based check: post signals someone needs project or freelance help.',
-            confidence: Math.min(95, 55 + projectScore * 15),
-            method: 'rules',
-        };
-    }
-
-    return {
-        status: 'irrelevant',
-        reason: 'Rule-based check: no clear project need detected.',
-        confidence: 45,
-        method: 'rules',
-    };
+function patternConfidence(analysis: ReturnType<typeof analyzeFreelanceLeadPatterns>): number {
+    return Math.min(92, 58 + analysis.freelanceScore * 8);
 }
 
 export async function qualifyPostContent(content: string, _platform = 'linkedin'): Promise<QualificationResult> {
@@ -87,19 +31,75 @@ export async function qualifyPostContent(content: string, _platform = 'linkedin'
         };
     }
 
+    const patterns = analyzeFreelanceLeadPatterns(content);
+
+    if (isNonLeadPattern(patterns)) {
+        return {
+            status: 'irrelevant',
+            reason: `Not a freelancer lead (${patterns.matchedNonLead.join(', ')}).`,
+            confidence: Math.min(90, 55 + patterns.nonLeadScore * 12),
+            method: 'rules',
+        };
+    }
+
+    if (isFreelanceLeadPattern(patterns)) {
+        return {
+            status: 'relevant',
+            reason: buildFreelanceMatchReason(patterns),
+            confidence: patternConfidence(patterns),
+            method: 'rules',
+        };
+    }
+
     const localResult = await classifyText(content);
     if (localResult) {
+        const aiConfidence = Math.round(localResult.confidence * 100);
+
+        if (localResult.label === 'irrelevant' && patterns.freelanceScore > 0) {
+            return {
+                status: 'relevant',
+                reason: `${buildFreelanceMatchReason(patterns)} Local AI was unsure (${aiConfidence}%).`,
+                confidence: Math.max(60, aiConfidence, patternConfidence(patterns)),
+                method: 'rules+ai',
+            };
+        }
+
+        if (localResult.label === 'relevant') {
+            return {
+                status: 'relevant',
+                reason: patterns.freelanceScore > 0
+                    ? `Local AI and freelance patterns agree this is a freelancer lead.`
+                    : 'Local AI detected a potential freelancer lead.',
+                confidence: aiConfidence,
+                method: 'local-ai',
+            };
+        }
+
         return {
-            status: localResult.label,
-            reason: localResult.label === 'relevant'
-                ? 'Local AI detected a potential project opportunity.'
-                : 'Local AI flagged this as not a project lead.',
-            confidence: Math.round(localResult.confidence * 100),
+            status: 'irrelevant',
+            reason: patterns.freelanceScore > 0
+                ? `Local AI flagged this as not a freelancer lead (${aiConfidence}%). Mark Relevant to teach the model.`
+                : `Local AI flagged this as not a freelancer lead (${aiConfidence}%).`,
+            confidence: aiConfidence,
             method: 'local-ai',
         };
     }
 
-    return qualifyWithRules(content);
+    if (patterns.freelanceScore > 0) {
+        return {
+            status: 'relevant',
+            reason: buildFreelanceMatchReason(patterns),
+            confidence: patternConfidence(patterns),
+            method: 'rules',
+        };
+    }
+
+    return {
+        status: 'irrelevant',
+        reason: 'No freelancer hiring or project signals detected. Mark Relevant if this is a good lead.',
+        confidence: 45,
+        method: 'rules',
+    };
 }
 
 export async function qualifyLeadPost(postId: string): Promise<QualificationResult | null> {
@@ -116,12 +116,9 @@ export async function qualifyLeadPost(postId: string): Promise<QualificationResu
         status: result.status,
         ai_score: result.confidence,
         qualification_reason: result.reason,
-        is_training_data: true,
     });
 
     console.log(`✅ [Qualification] ${post.post_id} → ${result.status} (${result.confidence}%) — ${result.reason}`);
-
-    scheduleAutoTrain().catch((err) => console.error('[Qualification] Auto-train schedule failed:', err.message));
 
     if (result.status === 'relevant') {
         await enqueueContactEnrichment(postId, { status: 'relevant', platform: post.platform });

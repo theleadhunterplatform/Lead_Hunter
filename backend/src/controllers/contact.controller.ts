@@ -8,7 +8,8 @@ import { getContactCompassUsage } from '../utils/contact-compass-usage.utils';
 // @route   POST /api/leads/:id/find-email
 // @access  Private
 export const findLeadEmail = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
-    const result = await enrichLeadPost(req.params.id as string);
+    const force = req.body?.force === true || req.query.force === 'true';
+    const result = await enrichLeadPost(req.params.id as string, { force });
 
     return res.status(200).json({
         success: result.success,
@@ -50,5 +51,38 @@ export const getToken = asyncHandler(async (_req: Request, res: Response, _next:
             is_configured: !!token,
             ...usage,
         }
+    });
+});
+
+// @desc    Update Hunter.io API Key
+// @route   POST /api/settings/hunter-api-key
+// @access  Private
+export const updateHunterKey = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+    const { api_key } = req.body;
+
+    if (!api_key) {
+        return res.status(400).json({ success: false, message: 'API key is required' });
+    }
+
+    await settingService.updateSetting('hunter_api_key', api_key, 'Hunter.io Email Verifier API Key');
+
+    return res.status(200).json({
+        success: true,
+        message: 'Hunter.io API key updated successfully',
+    });
+});
+
+// @desc    Get Hunter.io API Key (Masked)
+// @route   GET /api/settings/hunter-api-key
+// @access  Private
+export const getHunterKey = asyncHandler(async (_req: Request, res: Response, _next: NextFunction) => {
+    const apiKey = await settingService.getSetting('hunter_api_key');
+
+    return res.status(200).json({
+        success: true,
+        data: {
+            api_key: apiKey ? `${apiKey.substring(0, 4)}...${apiKey.substring(apiKey.length - 4)}` : null,
+            is_configured: !!apiKey,
+        },
     });
 });

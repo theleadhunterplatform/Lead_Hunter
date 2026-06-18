@@ -172,7 +172,7 @@ export interface ILeadPost {
         phone_numbers?: Array<{ number: string; type: string }>;
         linkedin_public_id?: string;
         email_status?: string;
-        email_source?: 'post_text' | 'apify_profile' | 'contact_compass' | 'pattern_guess' | 'threads_profile';
+        email_source?: 'post_text' | 'apify_profile' | 'contact_compass' | 'hunter_finder' | 'compass_and_hunter' | 'pattern_guess' | 'threads_profile';
         company_domain?: string;
         credits_left?: number;
     };

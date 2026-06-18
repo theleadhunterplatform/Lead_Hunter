@@ -1,6 +1,5 @@
 import dns from 'dns/promises';
-import axios from 'axios';
-import config from '../config';
+import { verifyEmailWithHunter } from './hunter-api.utils';
 
 const DISPOSABLE_DOMAINS = new Set([
     'mailinator.com', 'guerrillamail.com', 'tempmail.com', 'yopmail.com',
@@ -38,28 +37,6 @@ export async function verifyEmailDomain(email: string): Promise<{
     };
 }
 
-export async function verifyEmailWithHunter(email: string): Promise<{
-    verified: boolean;
-    result?: string;
-} | null> {
-    const apiKey = config.hunter?.apiKey;
-    if (!apiKey) return null;
-
-    try {
-        const response = await axios.get('https://api.hunter.io/v2/email-verifier', {
-            params: { email, api_key: apiKey },
-            timeout: 10000,
-        });
-
-        const result = response.data?.data?.result as string | undefined;
-        const verified = result === 'deliverable' || result === 'valid';
-        return { verified, result };
-    } catch (error: any) {
-        console.warn('[Hunter] Email verification failed:', error.message);
-        return null;
-    }
-}
-
 const SOURCE_LABELS: Record<string, string> = {
     post_text: 'Found in post text',
     contact_compass: 'Contact Compass',
@@ -80,6 +57,9 @@ export async function runEmailVerification(
     const hunter = await verifyEmailWithHunter(email);
     if (hunter?.verified) {
         return { email_status: 'verified', verification_note: `Hunter.io: ${hunter.result}` };
+    }
+    if (hunter?.result && ['undeliverable', 'invalid', 'disposable'].includes(hunter.result)) {
+        return { email_status: 'invalid', verification_note: `Hunter.io: ${hunter.result}` };
     }
 
     const domainCheck = await verifyEmailDomain(email);

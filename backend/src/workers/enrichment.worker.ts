@@ -5,11 +5,11 @@ import { enrichLeadPost } from '../services/enrichment.service';
 export const enrichmentWorker = new Worker(
     'enrichment-queue',
     async (job: Job) => {
-        const { postId } = job.data;
-        console.log(`👷 [EnrichmentWorker] Processing post: ${postId}`);
+        const { postId, force } = job.data;
+        console.log(`👷 [EnrichmentWorker] Processing post: ${postId}${force ? ' (re-enrich)' : ''}`);
 
         try {
-            await enrichLeadPost(postId);
+            await enrichLeadPost(postId, { force });
             console.log(`✅ [EnrichmentWorker] Post ${postId} enriched.`);
         } catch (error: any) {
             console.error(`❌ [EnrichmentWorker] Failed for post ${postId}:`, error.message);

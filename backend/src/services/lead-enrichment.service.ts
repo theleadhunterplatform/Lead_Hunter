@@ -18,9 +18,32 @@ import {
     parsePersonName,
     pickBestGuessedEmail,
 } from '../utils/email-pattern.utils';
-import { runEmailVerification } from '../utils/email-verification.utils';
+import { runDualEmailVerification, getDomainFromEmail, type FindSource } from '../utils/dual-email-verification.utils';
+import { findEmailWithHunterMulti } from '../utils/hunter-api.utils';
+import {
+    buildEmailEntry,
+    pickPrimaryEmailEntry,
+    type LeadEmailEntry,
+} from '../utils/lead-email-entry.utils';
 
-type EmailSource = 'post_text' | 'apify_profile' | 'contact_compass' | 'pattern_guess' | 'threads_profile';
+type EmailSource =
+    | 'post_text'
+    | 'apify_profile'
+    | 'contact_compass'
+    | 'hunter_finder'
+    | 'compass_and_hunter'
+    | 'pattern_guess'
+    | 'threads_profile';
+
+interface EmailCandidate {
+    email: string;
+    sources: Array<'contact_compass' | 'hunter_finder'>;
+    compassStatus?: string;
+    hunterScore?: number;
+    hunterFinderStatus?: string;
+    contactInfo: Record<string, any>;
+    message: string;
+}
 
 async function getActiveApifyKey() {
     const keyRecord = await ApifyKey.findOne({ is_active: true, is_deleted: false });
@@ -102,6 +125,9 @@ async function applyContactUpdate(
         phone?: string | null;
         email_status?: EmailStatus | string;
         email_source?: EmailSource;
+        found_by?: FindSource[];
+        compass_status?: string | null;
+        hunter_finder_status?: string | null;
         contact_info?: Record<string, any>;
         message: string;
     }
@@ -111,19 +137,48 @@ async function applyContactUpdate(
     let message = update.message;
 
     if (email) {
-        const verification = await runEmailVerification(
-            email,
-            String(update.email_status || ''),
-            update.email_source || ''
-        );
+        const verification = await runDualEmailVerification(email, {
+            source: update.email_source,
+            foundBy: update.found_by,
+            compassStatus: update.compass_status,
+            hunterFinderStatus: update.hunter_finder_status,
+        });
         emailStatus = verification.email_status;
-        if (verification.verification_note) {
-            message = verification.verification_note;
-        }
+        const combinedNote = `${verification.find_note} ${verification.verification_note}`.trim();
+        message = combinedNote;
         if (emailStatus === 'invalid') {
             email = null;
-            message = verification.verification_note || 'Email rejected by verification.';
+        } else {
+            const entry = buildEmailEntry(
+                email,
+                verification,
+                update.email_source || 'unknown'
+            );
+            entry.is_primary = true;
+            lead.contact_info = {
+                ...lead.contact_info,
+                ...update.contact_info,
+                emails: [entry],
+                email_conflict: false,
+                found_by: verification.found_by,
+                verified_by: verification.verified_by,
+                find_note: verification.find_note,
+                email_status: emailStatus || lead.contact_info?.email_status,
+                email_source: update.email_source || lead.contact_info?.email_source,
+                verification_note: verification.verification_note,
+                email_verified_at: isVerifiedEmailStatus(String(emailStatus))
+                    ? new Date().toISOString()
+                    : lead.contact_info?.email_verified_at,
+            };
         }
+    } else if (!email) {
+        lead.contact_info = {
+            ...lead.contact_info,
+            ...update.contact_info,
+            email_status: emailStatus || lead.contact_info?.email_status,
+            email_source: update.email_source || lead.contact_info?.email_source,
+            verification_note: message,
+        };
     }
 
     if (email) lead.email = email;
@@ -134,22 +189,219 @@ async function applyContactUpdate(
         };
     }
 
-    lead.contact_info = {
-        ...lead.contact_info,
-        ...update.contact_info,
-        email_status: emailStatus || lead.contact_info?.email_status,
-        email_source: update.email_source || lead.contact_info?.email_source,
-        verification_note: message,
-        email_verified_at: isVerifiedEmailStatus(String(emailStatus)) ? new Date().toISOString() : lead.contact_info?.email_verified_at,
-    };
-
     await lead.save();
 
     return {
         success: !!email || !!update.phone,
         data: lead,
         message,
+        email_rejected: !!update.email && !email,
     };
+}
+
+function resolveEmailSource(sources: EmailCandidate['sources']): EmailSource {
+    if (sources.includes('contact_compass') && sources.includes('hunter_finder')) {
+        return 'compass_and_hunter';
+    }
+    if (sources.includes('contact_compass')) return 'contact_compass';
+    return 'hunter_finder';
+}
+
+function rankCandidates(candidates: EmailCandidate[]): EmailCandidate[] {
+    return [...candidates].sort((a, b) => {
+        const scoreA = a.sources.length * 100 + (a.hunterScore || 0);
+        const scoreB = b.sources.length * 100 + (b.hunterScore || 0);
+        return scoreB - scoreA;
+    });
+}
+
+function addHunterResultToMap(
+    byEmail: Map<string, EmailCandidate>,
+    hunterFound: { email: string; score: number; verificationStatus?: string; position?: string; company?: string },
+    domain?: string,
+    publicId?: string | null
+) {
+    const existing = byEmail.get(hunterFound.email);
+    if (existing) {
+        if (!existing.sources.includes('hunter_finder')) {
+            existing.sources.push('hunter_finder');
+        }
+        existing.hunterScore = hunterFound.score;
+        existing.hunterFinderStatus = hunterFound.verificationStatus;
+        existing.message = 'Same email found by Contact Compass and Hunter.io.';
+        if (hunterFound.position) existing.contactInfo.title = existing.contactInfo.title || hunterFound.position;
+        if (hunterFound.company) existing.contactInfo.company_name = existing.contactInfo.company_name || hunterFound.company;
+        return;
+    }
+
+    byEmail.set(hunterFound.email, {
+        email: hunterFound.email,
+        sources: ['hunter_finder'],
+        hunterScore: hunterFound.score,
+        hunterFinderStatus: hunterFound.verificationStatus,
+        contactInfo: {
+            company_name: hunterFound.company,
+            title: hunterFound.position,
+            company_domain: domain,
+            linkedin_public_id: publicId || undefined,
+        },
+        message: `Email found via Hunter.io (score ${hunterFound.score}).`,
+    });
+}
+
+async function collectDualFindCandidates(options: {
+    publicId?: string | null;
+    profileData?: any;
+    lead: any;
+}): Promise<EmailCandidate[]> {
+    const { publicId, profileData, lead } = options;
+    const byEmail = new Map<string, EmailCandidate>();
+
+    const personName = parsePersonName(
+        profileData?.name || lead.contact_info?.name || lead.author?.name
+    );
+    const domain = profileData?.company_domain || lead.contact_info?.company_domain;
+    const company = profileData?.company_name || lead.contact_info?.company_name;
+
+    const [compassPerson, hunterFound] = await Promise.all([
+        publicId ? lookupContactCompass(publicId).catch((error: any) => {
+            console.error('Contact Compass API Error:', error.response?.data || error.message);
+            if (error.response?.status === 401) throw new ErrorResponse('Invalid Contact Compass API token', 401);
+            return null;
+        }) : Promise.resolve(null),
+        findEmailWithHunterMulti({
+            linkedinHandle: publicId || undefined,
+            domain: domain || undefined,
+            company: !domain ? company || undefined : undefined,
+            firstName: personName?.first,
+            lastName: personName?.last,
+            fullName: personName ? undefined : profileData?.name || lead.contact_info?.name,
+        }),
+    ]);
+
+    if (compassPerson?.email) {
+        const email = String(compassPerson.email).toLowerCase();
+        byEmail.set(email, {
+            email,
+            sources: ['contact_compass'],
+            compassStatus: compassPerson.email_status,
+            contactInfo: {
+                name: compassPerson.name,
+                first_name: compassPerson.first_name,
+                last_name: compassPerson.last_name,
+                title: compassPerson.title,
+                headline: compassPerson.headline,
+                city: compassPerson.city,
+                country: compassPerson.country,
+                state: compassPerson.state,
+                company_name: compassPerson.company_name,
+                phone_numbers: compassPerson.phone_numbers,
+                linkedin_public_id: compassPerson.linkedin_public_id,
+                credits_left: compassPerson.credits_left,
+            },
+            message: 'Email found via Contact Compass.',
+        });
+
+        const compassEmailDomain = getDomainFromEmail(email);
+        const needsHunterRetry =
+            !hunterFound?.email ||
+            hunterFound.email.toLowerCase() !== email;
+
+        if (needsHunterRetry) {
+            const hunterRetry = await findEmailWithHunterMulti({
+                domainFromEmail: compassEmailDomain || undefined,
+                domain: domain || compassEmailDomain || undefined,
+                company: compassPerson.company_name || company || undefined,
+                firstName: compassPerson.first_name || personName?.first,
+                lastName: compassPerson.last_name || personName?.last,
+                fullName: compassPerson.name,
+                linkedinHandle: publicId || undefined,
+            });
+
+            if (hunterRetry?.email) {
+                addHunterResultToMap(byEmail, hunterRetry, domain || compassEmailDomain || undefined, publicId);
+            }
+        }
+    }
+
+    if (hunterFound?.email) {
+        addHunterResultToMap(byEmail, hunterFound, domain, publicId);
+    }
+
+    return rankCandidates([...byEmail.values()]);
+}
+
+async function applyMultipleEmailCandidates(lead: any, candidates: EmailCandidate[]) {
+    const entries: LeadEmailEntry[] = [];
+
+    for (const candidate of candidates) {
+        const verification = await runDualEmailVerification(candidate.email, {
+            foundBy: candidate.sources,
+            compassStatus: candidate.compassStatus,
+            hunterFinderStatus: candidate.hunterFinderStatus,
+        });
+
+        if (verification.email_status === 'invalid') continue;
+
+        entries.push(
+            buildEmailEntry(
+                candidate.email,
+                verification,
+                resolveEmailSource(candidate.sources)
+            )
+        );
+    }
+
+    if (entries.length === 0) {
+        return {
+            success: false,
+            data: lead,
+            message: 'All email candidates were rejected by verification.',
+            email_rejected: true,
+        };
+    }
+
+    const emailConflict = entries.length > 1;
+    const primary = pickPrimaryEmailEntry(entries);
+    primary.is_primary = true;
+
+    const primaryCandidate = candidates.find((c) => c.email === primary.email);
+
+    lead.email = primary.email;
+    lead.contact_info = {
+        ...lead.contact_info,
+        ...(primaryCandidate?.contactInfo || {}),
+        emails: entries,
+        email_conflict: emailConflict,
+        found_by: primary.found_by,
+        verified_by: primary.verified_by,
+        find_note: primary.find_note,
+        email_status: primary.email_status,
+        email_source: primary.email_source,
+        verification_note: emailConflict
+            ? 'Multiple different emails found. Review each candidate below.'
+            : primary.verification_note,
+        email_verified_at: isVerifiedEmailStatus(primary.email_status)
+            ? new Date().toISOString()
+            : lead.contact_info?.email_verified_at,
+    };
+
+    await lead.save();
+
+    const message = emailConflict
+        ? `Found ${entries.length} different emails from Contact Compass and Hunter.io.`
+        : `${primary.find_note} ${primary.verification_note}`.trim();
+
+    return {
+        success: true,
+        data: lead,
+        message,
+        email_rejected: false,
+    };
+}
+
+async function tryDualFindCandidates(lead: any, candidates: EmailCandidate[]) {
+    return applyMultipleEmailCandidates(lead, candidates);
 }
 
 export async function verifyLeadEmailManually(leadId: string) {
@@ -178,7 +430,7 @@ export async function verifyLeadEmailManually(leadId: string) {
     return lead;
 }
 
-export const findLeadEmail = async (leadId: string) => {
+export const findLeadEmail = async (leadId: string, options?: { force?: boolean }) => {
     const lead = await LeadPost.findById(leadId);
     if (!lead) {
         throw new ErrorResponse('Lead not found', 404);
@@ -188,7 +440,7 @@ export const findLeadEmail = async (leadId: string) => {
         throw new ErrorResponse('Email finding only supported for LinkedIn and Threads leads', 400);
     }
 
-    if (lead.email && isVerifiedEmailStatus(lead.contact_info?.email_status)) {
+    if (!options?.force && lead.email && isVerifiedEmailStatus(lead.contact_info?.email_status)) {
         return {
             success: true,
             data: lead,
@@ -205,16 +457,16 @@ export const findLeadEmail = async (leadId: string) => {
     const emailInContent = extractEmailFromText(lead.content);
     const phoneInContent = extractPhoneFromText(lead.content);
     if (emailInContent || phoneInContent) {
-        return applyContactUpdate(lead, {
+        const result = await applyContactUpdate(lead, {
             email: emailInContent,
             phone: phoneInContent,
-            email_status: emailInContent ? 'verified' : undefined,
             email_source: emailInContent ? 'post_text' : undefined,
             contact_info: { linkedin_public_id: publicId || undefined },
             message: emailInContent
-                ? 'Verified email found in post content.'
+                ? 'Email found in post content.'
                 : 'Phone found in post content.',
         });
+        if (result.success || !emailInContent) return result;
     }
 
     // Threads path
@@ -248,10 +500,9 @@ export const findLeadEmail = async (leadId: string) => {
         publicId = publicId || profileData?.linkedin_public_id || null;
 
         if (profileData?.email) {
-            return applyContactUpdate(lead, {
+            const result = await applyContactUpdate(lead, {
                 email: profileData.email,
                 phone: profileData.phone,
-                email_status: 'unverified',
                 email_source: 'apify_profile',
                 contact_info: {
                     name: profileData.name,
@@ -262,8 +513,9 @@ export const findLeadEmail = async (leadId: string) => {
                     linkedin_public_id: publicId || undefined,
                     company_domain: profileData.company_domain,
                 },
-                message: 'Email found on LinkedIn profile via Apify (review recommended).',
+                message: 'Email found on LinkedIn profile via Apify.',
             });
+            if (result.success) return result;
         }
 
         if (profileData) {
@@ -280,44 +532,21 @@ export const findLeadEmail = async (leadId: string) => {
         }
     }
 
-    // Step 3 — Contact Compass (verified business email)
-    if (publicId) {
+    // Steps 3 & 4 — Contact Compass + Hunter.io (dual find), then dual verify
+    if (publicId || profileData || lead.contact_info?.company_domain) {
         try {
-            const person = await lookupContactCompass(publicId);
-            if (person?.email) {
-                const ccStatus = person.email_status?.toLowerCase?.() || 'verified';
-                return applyContactUpdate(lead, {
-                    email: person.email,
-                    email_status: isVerifiedEmailStatus(ccStatus) ? 'verified' : 'unverified',
-                    email_source: 'contact_compass',
-                    contact_info: {
-                        name: person.name,
-                        first_name: person.first_name,
-                        last_name: person.last_name,
-                        title: person.title,
-                        headline: person.headline,
-                        city: person.city,
-                        country: person.country,
-                        state: person.state,
-                        company_name: person.company_name,
-                        phone_numbers: person.phone_numbers,
-                        linkedin_public_id: person.linkedin_public_id,
-                        credits_left: person.credits_left,
-                    },
-                    message: isVerifiedEmailStatus(ccStatus)
-                        ? 'Verified business email found via Contact Compass.'
-                        : 'Email found via Contact Compass (unverified status).',
-                });
+            const candidates = await collectDualFindCandidates({ publicId, profileData, lead });
+            if (candidates.length > 0) {
+                const result = await tryDualFindCandidates(lead, candidates);
+                if (result?.success) return result;
             }
-        } catch (error: any) {
-            console.error('Contact Compass API Error:', error.response?.data || error.message);
-            if (error.response?.status === 401) {
-                throw new ErrorResponse('Invalid Contact Compass API token', 401);
-            }
+        } catch (error) {
+            if (error instanceof ErrorResponse) throw error;
+            console.error('[Enrichment] Dual find failed:', error);
         }
     }
 
-    // Step 4 — pattern guess (last resort)
+    // Step 5 — pattern guess (last resort)
     const domain = profileData?.company_domain || lead.contact_info?.company_domain;
     const personName = parsePersonName(
         profileData?.name || lead.contact_info?.name || lead.author?.name
@@ -332,12 +561,11 @@ export const findLeadEmail = async (leadId: string) => {
             await lead.save();
             return applyContactUpdate(lead, {
                 email: guessed,
-                email_status: 'guessed',
                 email_source: 'pattern_guess',
                 contact_info: {
                     company_domain: domain,
                 },
-                message: `Guessed work email from name + ${domain}. Verify before sending.`,
+                message: `Guessed work email from name + ${domain}.`,
             });
         }
     }

@@ -3,6 +3,7 @@ import LeadPost from '../models/lead-post.model';
 import config from '../config';
 import { getApifyClient, handleApifyLimitError, recordApifyCommentUsage } from '../utils/apify-client.utils';
 import { enqueueLeadQualification } from '../utils/qualification-queue.utils';
+import { findExistingLeadPost, isDuplicateKeyError } from '../utils/lead-dedup.utils';
 
 type ProfileCommentItem = {
     id?: string;
@@ -113,53 +114,65 @@ export class TargetScraperService {
         }
 
         const platform = 'linkedin';
-        const existingPost = await LeadPost.findOne({ post_id: post.id, platform } as any);
+        const existingPost = await findExistingLeadPost({
+            post_id: post.id,
+            platform,
+            url: post.linkedinUrl,
+            content: post.content,
+        });
         if (existingPost) {
             return false;
         }
 
         const imageUrl = post.postImages?.[0]?.url || null;
 
-        const saved = await LeadPost.create({
-            post_id: post.id,
-            url: post.linkedinUrl || '',
-            content: post.content || '',
-            platform,
-            author: {
-                name: post.author?.name,
-                url: post.author?.linkedinUrl,
-                info: post.author?.info,
-            },
-            posted_at: post.postedAt || {},
-            engagement: post.engagement || { likes: 0, comments: 0, shares: 0 },
-            keyword: `watchlist:${target.name}`,
-            keyword_id: null,
-            status: 'pending',
-            source: 'scraped',
-            source_type: 'profile_activity',
-            source_profile: target.url,
-            image_url: imageUrl,
-            raw_result: {
-                comment: {
-                    id: item.id,
-                    text: item.commentary,
-                    createdAt: item.createdAt,
-                    actor: item.actor,
+        try {
+            const saved = await LeadPost.create({
+                post_id: post.id,
+                url: post.linkedinUrl || '',
+                content: post.content || '',
+                platform,
+                author: {
+                    name: post.author?.name,
+                    url: post.author?.linkedinUrl,
+                    info: post.author?.info,
                 },
-                post,
-                watchlist_target: {
-                    id: target.id,
-                    name: target.name,
-                    url: target.url,
+                posted_at: post.postedAt || {},
+                engagement: post.engagement || { likes: 0, comments: 0, shares: 0 },
+                keyword: `watchlist:${target.name}`,
+                keyword_id: null,
+                status: 'pending',
+                source: 'scraped',
+                source_type: 'profile_activity',
+                source_profile: target.url,
+                image_url: imageUrl,
+                raw_result: {
+                    comment: {
+                        id: item.id,
+                        text: item.commentary,
+                        createdAt: item.createdAt,
+                        actor: item.actor,
+                    },
+                    post,
+                    watchlist_target: {
+                        id: target.id,
+                        name: target.name,
+                        url: target.url,
+                    },
                 },
-            },
-        });
+            });
 
-        if (saved?._id) {
-            await enqueueLeadQualification(saved._id.toString());
+            if (saved?._id) {
+                await enqueueLeadQualification(saved._id.toString());
+            }
+
+            console.log(`✨ [TargetScraper] New post from watchlist comment: ${post.id}`);
+            return true;
+        } catch (error) {
+            if (isDuplicateKeyError(error)) {
+                return false;
+            }
+            throw error;
         }
-
-        console.log(`✨ [TargetScraper] New post from watchlist comment: ${post.id}`);
-        return true;
     }
 }

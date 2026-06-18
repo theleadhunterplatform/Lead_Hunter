@@ -18,10 +18,10 @@ function resolveRedisUrl(): string {
                 'Set USE_CLOUD_REDIS=true to keep Upstash in development.'
             );
         }
-        return 'redis://localhost:6379';
+        return 'redis://127.0.0.1:6379';
     }
 
-    return explicit || 'redis://localhost:6379';
+    return explicit || 'redis://127.0.0.1:6379';
 }
 
 const config = {

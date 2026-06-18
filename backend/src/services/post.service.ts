@@ -7,9 +7,117 @@ import { getSetting } from './setting.service';
 import { getUserPermissions, hasPermission as checkPermission } from '../utils/rbac.utils';
 import { scheduleAutoTrain } from '../utils/auto-train.utils';
 import { enqueueLeadQualification } from '../utils/qualification-queue.utils';
+import { findExistingLeadPost, isDuplicateKeyError } from '../utils/lead-dedup.utils';
 import { enqueueContactEnrichment } from '../utils/enrichment-queue.utils';
 import { sanitizeContactFields } from '../utils/contact-redaction.utils';
 import { verifyLeadEmailManually } from './lead-enrichment.service';
+
+function buildLeadListFilter(query: {
+    status?: string;
+    search?: string;
+    keyword?: string;
+    platform?: string;
+}) {
+    const filter: any = { is_deleted: false };
+
+    if (query.status && query.status !== 'all') {
+        filter.status = query.status;
+    }
+
+    if (query.keyword) {
+        filter.keyword = query.keyword;
+    }
+
+    if (query.platform && query.platform !== 'all') {
+        const platforms = query.platform.split(',').map((p) => p.trim()).filter(Boolean);
+        if (platforms.length > 0) {
+            filter.platform = { $in: platforms };
+        }
+    }
+
+    if (query.search) {
+        filter.$or = [
+            { 'author.name': { $regex: query.search, $options: 'i' } },
+            { 'author.handle': { $regex: query.search, $options: 'i' } },
+            { content: { $regex: query.search, $options: 'i' } },
+            { keyword: { $regex: query.search, $options: 'i' } },
+        ];
+    }
+
+    return filter;
+}
+
+export const bulkRequalifyPosts = async (query: {
+    status?: string;
+    search?: string;
+    keyword?: string;
+    platform?: string;
+}) => {
+    const filter = buildLeadListFilter(query);
+    const posts = await LeadPost.find(filter, { lean: true }) as Array<{ _id: string }>;
+
+    if (posts.length === 0) {
+        return { queued: 0, message: 'No leads matched the current filters.' };
+    }
+
+    const ids = posts.map((post) => post._id.toString());
+
+    await prisma.leadPost.updateMany({
+        where: { id: { in: ids } },
+        data: { status: 'pending', qualification_reason: null, ai_score: 0 },
+    });
+
+    for (const id of ids) {
+        await enqueueLeadQualification(id);
+    }
+
+    return {
+        queued: ids.length,
+        message: `${ids.length} lead(s) queued for re-analysis.`,
+    };
+};
+
+export const bulkReEnrichPosts = async (query: {
+    status?: string;
+    search?: string;
+    keyword?: string;
+    platform?: string;
+}) => {
+    const filter = buildLeadListFilter(query);
+    filter.status = 'relevant';
+
+    const enrichablePlatforms = ['linkedin', 'threads'];
+    if (filter.platform?.$in) {
+        filter.platform.$in = filter.platform.$in.filter((platform: string) =>
+            enrichablePlatforms.includes(platform)
+        );
+        if (filter.platform.$in.length === 0) {
+            return { queued: 0, message: 'No enrichable LinkedIn or Threads leads matched the current filters.' };
+        }
+    } else {
+        filter.platform = { $in: enrichablePlatforms };
+    }
+
+    const posts = await LeadPost.find(filter, { lean: true }) as Array<{ _id: string; platform?: string }>;
+
+    if (posts.length === 0) {
+        return { queued: 0, message: 'No enrichable leads matched the current filters.' };
+    }
+
+    let queued = 0;
+    for (const post of posts) {
+        const added = await enqueueContactEnrichment(post._id.toString(), {
+            status: 'relevant',
+            platform: post.platform,
+        }, { force: true });
+        if (added) queued += 1;
+    }
+
+    return {
+        queued,
+        message: `${queued} lead(s) queued for contact re-enrichment.`,
+    };
+};
 
 export const getAllPosts = async (currentUser: any, query: {
     page?: number;
@@ -254,14 +362,26 @@ export const createManualPost = async (data: {
     imageUrl?: string;
     platform?: 'linkedin' | 'twitter' | 'reddit' | 'manual';
 }) => {
+    const platform = data.platform || 'manual';
+
+    const existing = await findExistingLeadPost({
+        platform,
+        url: null,
+        content: data.content,
+    });
+    if (existing) {
+        return existing;
+    }
+
     // Generate a unique ID for manual posts
     const postId = `manual-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
 
-    const post = await LeadPost.create({
+    try {
+        const post = await LeadPost.create({
         post_id: postId,
         url: 'manual://' + postId, // Mock URL for manual entries
         content: data.content,
-        platform: data.platform || 'manual',
+        platform,
         author: {
             name: data.authorName || 'Manual Entry',
             id: 'manual',
@@ -291,6 +411,13 @@ export const createManualPost = async (data: {
     }
 
     return post;
+    } catch (error) {
+        if (isDuplicateKeyError(error)) {
+            const dup = await findExistingLeadPost({ platform, content: data.content });
+            if (dup) return dup;
+        }
+        throw error;
+    }
 };
 
 export const deletePost = async (id: string) => {

@@ -86,6 +86,38 @@ export const qualifyPost = asyncHandler(async (req: Request, res: Response, _nex
     });
 });
 
+export const bulkRequalifyPosts = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+    const { status, search, keyword, platform } = req.body;
+    const result = await postService.bulkRequalifyPosts({
+        status,
+        search,
+        keyword,
+        platform,
+    });
+
+    return res.status(202).json({
+        success: true,
+        queued: result.queued,
+        message: result.message,
+    });
+});
+
+export const bulkReEnrichPosts = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+    const { status, search, keyword, platform } = req.body;
+    const result = await postService.bulkReEnrichPosts({
+        status,
+        search,
+        keyword,
+        platform,
+    });
+
+    return res.status(202).json({
+        success: true,
+        queued: result.queued,
+        message: result.message,
+    });
+});
+
 export const verifyEmailPost = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
     const post = await postService.verifyLeadEmail(req.params.id as string);
 

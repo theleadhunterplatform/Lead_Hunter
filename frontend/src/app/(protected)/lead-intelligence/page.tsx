@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Filter, Search, Download, ExternalLink, MessageSquare, ThumbsUp, Share2, User, Shield, Plus, ImageIcon, Mail, Loader2, BrainCircuit, Zap } from "lucide-react";
+import { Filter, Search, Download, ExternalLink, MessageSquare, ThumbsUp, Share2, User, Shield, Plus, ImageIcon, Mail, Loader2, BrainCircuit, Zap, RefreshCw } from "lucide-react";
 import { Button, Input } from "@/components/ui/HunterUI";
 import { cn } from "@/components/ui/HunterUI";
 import api from "@/lib/api";
@@ -57,14 +57,30 @@ interface Lead {
     company_name?: string;
     email_status?: string;
     email_source?: string;
+    found_by?: string[];
+    verified_by?: string[];
+    find_note?: string;
     verification_note?: string;
     email_verified_at?: string;
     linkedin_public_id?: string;
     phone_numbers?: { number: string; type: string }[];
+    emails?: LeadEmailEntry[];
+    email_conflict?: boolean;
   };
   is_claimed?: boolean;
   claimed_count: number;
   intelligence?: string;
+}
+
+interface LeadEmailEntry {
+  email: string;
+  found_by?: string[];
+  email_status?: string;
+  email_source?: string;
+  find_note?: string;
+  verification_note?: string;
+  verified_by?: string[];
+  is_primary?: boolean;
 }
 
 export default function LeadIntelligencePage() {
@@ -75,9 +91,9 @@ export default function LeadIntelligencePage() {
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [isRefineModalOpen, setIsRefineModalOpen] = useState(false);
   const [refineLead, setRefineLead] = useState<Lead | null>(null);
-  const [findingEmailIds, setFindingEmailIds] = useState<string[]>([]);
   const [claimingIds, setClaimingIds] = useState<string[]>([]);
-  const [qualifyingIds, setQualifyingIds] = useState<string[]>([]);
+  const [bulkReanalysing, setBulkReanalysing] = useState(false);
+  const [bulkReenriching, setBulkReenriching] = useState(false);
   const [aiMetrics, setAiMetrics] = useState<{
     accuracy: number | null;
     samples: number;
@@ -212,37 +228,39 @@ export default function LeadIntelligencePage() {
     }
   };
 
-  const handleFindEmail = async (leadId: string) => {
+  const getBulkFilters = () => ({
+    status: activeTab,
+    search: searchQuery || undefined,
+    platform: selectedPlatforms.length ? selectedPlatforms.join(',') : undefined,
+  });
+
+  const handleBulkReanalyse = async () => {
     try {
-      setFindingEmailIds(prev => [...prev, leadId]);
-      const response = await api.post(`/posts/${leadId}/find-email`);
-      
-      if (response.data.success) {
-        setLeads(prev => prev.map(l => l._id === leadId ? {
-          ...l,
-          ...response.data.data,
-          enrichment_status: response.data.enrichment_status || l.enrichment_status,
-        } : l));
-      } else {
-        alert(response.data.message || 'No contact found for this lead');
-      }
+      setBulkReanalysing(true);
+      const response = await api.post('/posts/bulk-reanalyse', getBulkFilters());
+      toast.success(response.data.message || 'Bulk re-analysis queued.');
+      fetchLeads(currentPage, activeTab, searchQuery, selectedPlatforms, true);
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to find email');
+      toast.error(err.response?.data?.message || 'Failed to queue bulk re-analysis.');
     } finally {
-      setFindingEmailIds(prev => prev.filter(id => id !== leadId));
+      setBulkReanalysing(false);
     }
   };
 
-  const handleRequalify = async (leadId: string) => {
+  const handleBulkReEnrich = async () => {
     try {
-      setQualifyingIds(prev => [...prev, leadId]);
-      await api.post(`/posts/${leadId}/qualify`);
-      toast.success("Lead sent for AI review.");
-      setTimeout(() => fetchLeads(), 3000);
+      setBulkReenriching(true);
+      const response = await api.post('/posts/bulk-re-enrich', getBulkFilters());
+      if (response.data.queued > 0) {
+        toast.success(response.data.message || 'Bulk re-enrichment queued.');
+      } else {
+        toast.info(response.data.message || 'No enrichable leads matched the current filters.');
+      }
+      fetchLeads(currentPage, activeTab, searchQuery, selectedPlatforms, true);
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to re-analyze lead.');
+      toast.error(err.response?.data?.message || 'Failed to queue bulk re-enrichment.');
     } finally {
-      setQualifyingIds(prev => prev.filter(id => id !== leadId));
+      setBulkReenriching(false);
     }
   };
 
@@ -305,17 +323,50 @@ export default function LeadIntelligencePage() {
     fetchLeads(newPage, activeTab, searchQuery, selectedPlatforms);
   };
 
-  const getEmailBadge = (lead: Lead) => {
-    const status = lead.contact_info?.email_status;
-    const source = lead.contact_info?.email_source;
-    if (!lead.email) return null;
+  const getEmailBadge = (status?: string, source?: string) => {
+    if (status === 'invalid') {
+      return <span className="text-[8px] px-1.5 py-0.5 bg-red-500/10 text-red-500 neo-border border-red-500/30 uppercase font-black">Invalid</span>;
+    }
     if (status === 'verified' || status === 'valid' || status === 'deliverable') {
-      return <span className="text-[8px] px-1.5 py-0.5 bg-green-500/10 text-green-500 neo-border border-green-500/30 uppercase font-black ml-2">Verified</span>;
+      return <span className="text-[8px] px-1.5 py-0.5 bg-green-500/10 text-green-500 neo-border border-green-500/30 uppercase font-black">Verified</span>;
     }
     if (status === 'guessed' || source === 'pattern_guess') {
-      return <span className="text-[8px] px-1.5 py-0.5 bg-yellow-500/10 text-yellow-500 neo-border border-yellow-500/30 uppercase font-black ml-2">Guessed</span>;
+      return <span className="text-[8px] px-1.5 py-0.5 bg-yellow-500/10 text-yellow-500 neo-border border-yellow-500/30 uppercase font-black">Guessed</span>;
     }
-    return <span className="text-[8px] px-1.5 py-0.5 bg-zinc-500/10 text-zinc-400 neo-border border-zinc-500/30 uppercase font-black ml-2">Unverified</span>;
+    return <span className="text-[8px] px-1.5 py-0.5 bg-zinc-500/10 text-zinc-400 neo-border border-zinc-500/30 uppercase font-black">Unverified</span>;
+  };
+
+  const formatFoundBy = (foundBy?: string[]) => {
+    if (!foundBy?.length) return null;
+    return foundBy
+      .map((s) =>
+        s === 'contact_compass' ? 'Contact Compass' : s === 'hunter_finder' ? 'Hunter.io' : s
+      )
+      .join(' + ');
+  };
+
+  const isRedundantEmailNote = (note?: string) => {
+    if (!note) return true;
+    return /^Found by /i.test(note) || /^Verified by /i.test(note);
+  };
+
+  const getLeadEmailEntries = (lead: Lead): LeadEmailEntry[] => {
+    if (lead.contact_info?.emails?.length) {
+      return lead.contact_info.emails;
+    }
+    if (lead.email) {
+      return [{
+        email: lead.email,
+        found_by: lead.contact_info?.found_by,
+        email_status: lead.contact_info?.email_status,
+        email_source: lead.contact_info?.email_source,
+        find_note: lead.contact_info?.find_note,
+        verification_note: lead.contact_info?.verification_note,
+        verified_by: lead.contact_info?.verified_by,
+        is_primary: true,
+      }];
+    }
+    return [];
   };
 
   const getEmailSourceLabel = (source?: string) => {
@@ -323,6 +374,8 @@ export default function LeadIntelligencePage() {
       post_text: 'From post',
       apify_profile: 'LinkedIn profile',
       contact_compass: 'Contact Compass',
+      hunter_finder: 'Hunter.io',
+      compass_and_hunter: 'Contact Compass + Hunter.io',
       pattern_guess: 'Pattern guess',
       threads_profile: 'Threads profile',
     };
@@ -403,23 +456,46 @@ export default function LeadIntelligencePage() {
       </header>
 
       {/* Tabs System */}
-      <div className="flex flex-wrap gap-2 mb-4 p-1 bg-zinc-900 neo-border border-zinc-800 w-fit">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
-            className={`px-6 py-2 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${activeTab === tab.id
-              ? "bg-hunter-orange text-black"
-              : "text-zinc-500 hover:text-white hover:bg-zinc-800"
-              }`}
-          >
-            <span>{tab.label}</span>
-            <span className={`px-1.5 py-0.5 text-[8px] rounded-full ${activeTab === tab.id ? "bg-black/20" : "bg-white/10"
-              }`}>
-              {tab.count}
-            </span>
-          </button>
-        ))}
+      <div className="flex flex-col gap-4 mb-4">
+        <div className="flex flex-wrap gap-2 p-1 bg-zinc-900 neo-border border-zinc-800 w-fit">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`px-6 py-2 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${activeTab === tab.id
+                ? "bg-hunter-orange text-black"
+                : "text-zinc-500 hover:text-white hover:bg-zinc-800"
+                }`}
+            >
+              <span>{tab.label}</span>
+              <span className={`px-1.5 py-0.5 text-[8px] rounded-full ${activeTab === tab.id ? "bg-black/20" : "bg-white/10"
+                }`}>
+                {tab.count}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {isInternal && (
+          <div className="flex flex-wrap gap-2">
+            <Button
+              onClick={handleBulkReanalyse}
+              disabled={bulkReanalysing}
+              className="h-10 px-5 text-[10px] uppercase font-black flex items-center gap-2 bg-zinc-800 text-zinc-300 hover:bg-hunter-orange hover:text-black"
+            >
+              {bulkReanalysing ? <Loader2 size={14} className="animate-spin" /> : <BrainCircuit size={14} />}
+              {bulkReanalysing ? 'Queueing...' : 'Re-analyse All'}
+            </Button>
+            <Button
+              onClick={handleBulkReEnrich}
+              disabled={bulkReenriching}
+              className="h-10 px-5 text-[10px] uppercase font-black flex items-center gap-2 bg-hunter-orange/10 text-hunter-orange border border-hunter-orange/30 hover:bg-hunter-orange hover:text-black"
+            >
+              {bulkReenriching ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+              {bulkReenriching ? 'Queueing...' : 'Re-enrich All'}
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Platform Signal Matrix - Unique Filter Concept */}
@@ -529,22 +605,11 @@ export default function LeadIntelligencePage() {
                     )}
 
                     {isInternal && lead.status === 'pending' && (
-                      <div className="mb-4 p-3 bg-zinc-900/50 neo-border border-zinc-800 flex items-center justify-between gap-3">
+                      <div className="mb-4 p-3 bg-zinc-900/50 neo-border border-zinc-800 flex items-center gap-3">
+                        <Loader2 size={14} className="animate-spin text-zinc-500" />
                         <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
                           Waiting for AI review...
                         </span>
-                        <Button
-                          size="sm"
-                          onClick={() => handleRequalify(lead._id)}
-                          disabled={qualifyingIds.includes(lead._id)}
-                          className="h-7 text-[8px] uppercase font-black"
-                        >
-                          {qualifyingIds.includes(lead._id) ? (
-                            <Loader2 size={12} className="animate-spin" />
-                          ) : (
-                            'Analyze Now'
-                          )}
-                        </Button>
                       </div>
                     )}
 
@@ -556,7 +621,7 @@ export default function LeadIntelligencePage() {
                             Enriching Contacts
                           </span>
                           <span className="text-[10px] text-zinc-500 normal-case font-medium">
-                            Searching post text, then LinkedIn profile data...
+                            Contact Compass + Hunter.io find and verify contacts...
                           </span>
                         </div>
                       </div>
@@ -608,32 +673,70 @@ export default function LeadIntelligencePage() {
                       </p>
                     )}
 
-                    {lead.email || (lead.contact_info?.phone_numbers && lead.contact_info.phone_numbers.length > 0) ? (
+                    {getLeadEmailEntries(lead).length > 0 || (lead.contact_info?.phone_numbers && lead.contact_info.phone_numbers.length > 0) ? (
                       <div className="mb-6 p-4 bg-hunter-orange/5 neo-border border-hunter-orange/20 relative overflow-hidden group/email">
                         <div className="absolute top-0 right-0 w-16 h-16 bg-hunter-orange/5 -rotate-45 translate-x-8 -translate-y-8" />
                         <div className="flex items-center gap-2 mb-3">
                           <div className="w-6 h-6 bg-hunter-orange/10 flex items-center justify-center neo-border border-hunter-orange/30">
-                            {lead.email ? <Mail size={12} className="text-hunter-orange" /> : <MessageSquare size={12} className="text-hunter-orange" />}
+                            <Mail size={12} className="text-hunter-orange" />
                           </div>
                           <span className="text-[10px] font-black uppercase tracking-widest text-hunter-orange">
-                            {lead.email ? 'Contact Email' : 'Phone Found'}
+                            {getLeadEmailEntries(lead).length > 1 ? 'Contact Emails' : 'Contact Email'}
                           </span>
-                          {getEmailBadge(lead)}
-                        </div>
-                        <div className="space-y-1">
-                          {lead.email && <p className="text-lg font-display font-black text-white tracking-tight">{lead.email}</p>}
-                          {lead.contact_info?.email_source && (
-                            <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest">
-                              Source: {getEmailSourceLabel(lead.contact_info.email_source)}
-                            </p>
+                          {lead.contact_info?.email_conflict && (
+                            <span className="text-[8px] px-1.5 py-0.5 bg-yellow-500/10 text-yellow-500 neo-border border-yellow-500/30 uppercase font-black">
+                              Conflict
+                            </span>
                           )}
-                          {lead.contact_info?.phone_numbers?.map((p: any, i: number) => (
-                            <p key={i} className="text-sm font-bold text-zinc-400">{p.number}</p>
+                        </div>
+
+                        {lead.contact_info?.email_conflict && (
+                          <p className="text-[10px] text-yellow-500/90 mb-4 normal-case font-medium">
+                            Contact Compass and Hunter.io found different emails. Review both below.
+                          </p>
+                        )}
+
+                        <div className="space-y-4">
+                          {getLeadEmailEntries(lead).map((entry, index) => (
+                            <div
+                              key={`${entry.email}-${index}`}
+                              className={cn(
+                                'p-3 neo-border border-zinc-800 bg-black/20',
+                                entry.is_primary && getLeadEmailEntries(lead).length > 1 && 'border-hunter-orange/40'
+                              )}
+                            >
+                              <div className="flex items-center gap-2 mb-2 flex-wrap">
+                                <p className="text-lg font-display font-black text-white tracking-tight">{entry.email}</p>
+                                {getEmailBadge(entry.email_status, entry.email_source)}
+                                {entry.is_primary && getLeadEmailEntries(lead).length > 1 && (
+                                  <span className="text-[8px] px-1.5 py-0.5 bg-hunter-orange/10 text-hunter-orange neo-border border-hunter-orange/30 uppercase font-black">
+                                    Primary
+                                  </span>
+                                )}
+                              </div>
+                              {formatFoundBy(entry.found_by) && (
+                                <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest">
+                                  Found by: {formatFoundBy(entry.found_by)}
+                                </p>
+                              )}
+                              {entry.verified_by?.length ? (
+                                <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest">
+                                  Verified by: {entry.verified_by.join(' + ')}
+                                </p>
+                              ) : null}
+                              {!isRedundantEmailNote(entry.find_note) && (
+                                <p className="text-[10px] text-zinc-500 mt-1 normal-case font-medium">{entry.find_note}</p>
+                              )}
+                              {!isRedundantEmailNote(entry.verification_note) && (
+                                <p className="text-[10px] text-zinc-400 mt-1 normal-case font-medium">{entry.verification_note}</p>
+                              )}
+                            </div>
                           ))}
-                          {lead.contact_info?.verification_note && (
-                            <p className="text-[10px] text-zinc-500 mt-2 normal-case font-medium">{lead.contact_info.verification_note}</p>
-                          )}
                         </div>
+
+                        {lead.contact_info?.phone_numbers?.map((p: any, i: number) => (
+                          <p key={i} className="text-sm font-bold text-zinc-400 mt-3">{p.number}</p>
+                        ))}
                       </div>
                     ) : isInternal && lead.status === 'relevant' && (lead.platform === 'linkedin' || lead.platform === 'threads') && (
                       <div className="flex flex-col gap-3 mb-6">
@@ -669,25 +772,6 @@ export default function LeadIntelligencePage() {
                             </a>
                           )}
                         </div>
-
-                        <Button
-                          size="sm"
-                          onClick={() => handleFindEmail(lead._id)}
-                          disabled={findingEmailIds.includes(lead._id)}
-                          className="w-full h-11 text-[10px] uppercase font-black bg-hunter-orange/5 text-hunter-orange border-hunter-orange/20 hover:bg-hunter-orange hover:text-black transition-all flex items-center justify-center gap-3 group/hunt"
-                        >
-                          {findingEmailIds.includes(lead._id) ? (
-                            <>
-                              <Loader2 size={16} className="animate-spin" />
-                              <span>Hunting Digital Identity...</span>
-                            </>
-                          ) : (
-                            <>
-                              <Search size={16} className="group-hover/hunt:scale-110 transition-transform" />
-                              <span>Run Email Enrichment</span>
-                            </>
-                          )}
-                        </Button>
                       </div>
                     )}
 

@@ -3,6 +3,7 @@ import Keyword from '../models/keyword.model';
 import config from '../config';
 import { getApifyClient, handleApifyLimitError } from '../utils/apify-client.utils';
 import { enqueueLeadQualification } from '../utils/qualification-queue.utils';
+import { findExistingLeadPost, isDuplicateKeyError } from '../utils/lead-dedup.utils';
 
 export class ScraperService {
     static async scrapeKeyword(keywordId: string, platform: string) {
@@ -69,7 +70,19 @@ export class ScraperService {
         const post_id = item.id || item.entityId || (platform === 'linkedin' ? item.id : null);
         if (!post_id) return;
 
-        const existingPost = await LeadPost.findOne({ post_id, platform } as any);
+        const existingPost = await findExistingLeadPost({
+            post_id,
+            platform,
+            url: platform === 'linkedin' ? item.linkedinUrl : item.url,
+            content:
+                platform === 'linkedin'
+                    ? item.content
+                    : platform === 'twitter'
+                      ? item.text
+                      : platform === 'reddit'
+                        ? item.body || item.title
+                        : item.text,
+        });
         if (existingPost) return;
 
         // Map item to LeadPost model (simplified version of the logic in leadScraper.ts)
@@ -111,10 +124,14 @@ export class ScraperService {
             };
         }
 
-        const saved = await LeadPost.create(newPostData);
-        if (saved?._id) {
-            await enqueueLeadQualification(saved._id.toString());
+        try {
+            const saved = await LeadPost.create(newPostData);
+            if (saved?._id) {
+                await enqueueLeadQualification(saved._id.toString());
+            }
+            console.log(`✨ [ScraperService] New ${platform} post saved: ${post_id}`);
+        } catch (error) {
+            if (!isDuplicateKeyError(error)) throw error;
         }
-        console.log(`✨ [ScraperService] New ${platform} post saved: ${post_id}`);
     }
 }

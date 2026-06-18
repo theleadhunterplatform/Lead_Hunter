@@ -15,6 +15,8 @@ import {
     getClaimedPosts,
     qualifyPost,
     verifyEmailPost,
+    bulkRequalifyPosts,
+    bulkReEnrichPosts,
 } from '../controllers/post.controller';
 import { findLeadEmail } from '../controllers/contact.controller';
 import { getLeadIntelligenceStats } from '../controllers/dashboard.controller';
@@ -137,6 +139,8 @@ router.route('/')
  */
 router.get('/claimed', authorize('lead:read'), getClaimedPosts);
 router.get('/stats', authorize('lead:read'), getLeadIntelligenceStats);
+router.post('/bulk-reanalyse', authorize('lead:hunt'), bulkRequalifyPosts);
+router.post('/bulk-re-enrich', authorize('lead:hunt'), bulkReEnrichPosts);
 
 router.route('/:id')
     .get(authorize('lead:read'), getPost)
