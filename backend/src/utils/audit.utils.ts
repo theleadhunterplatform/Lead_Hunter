@@ -13,6 +13,28 @@ interface LogOptions {
 /**
  * Logs a platform action for audit purposes
  */
+export async function logLeadAction(
+    actorId: string | undefined,
+    options: LogOptions & { organizationId?: string; ipAddress?: string }
+) {
+    if (!actorId) return;
+
+    try {
+        await AuditLog.create({
+            actorId,
+            action: options.action,
+            resource: options.resource,
+            resourceId: options.resourceId,
+            organizationId: options.organizationId,
+            details: options.details,
+            status: options.status || 'success',
+            ipAddress: options.ipAddress || '',
+        });
+    } catch (error) {
+        console.error('Failed to create audit log:', error);
+    }
+}
+
 export async function logAction(req: Request, options: LogOptions) {
     try {
         const user = (req as any).user;

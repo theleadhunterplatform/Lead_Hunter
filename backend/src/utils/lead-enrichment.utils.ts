@@ -37,6 +37,60 @@ export function isVerifiedEmailStatus(status?: string | null): boolean {
     return normalized === 'verified' || normalized === 'valid' || normalized === 'deliverable';
 }
 
+/** Terminal contact-enrichment outcomes shown in the pipeline. */
+export const ENRICHMENT_CONTACT_FOUND_STATUSES = ['partial', 'found'] as const;
+
+export function hasEnrichmentContactFound(status?: string | null): boolean {
+    return status === 'partial' || status === 'found';
+}
+
+export function leadHasDiscoverableContact(lead: {
+    email?: string | null;
+    contact_info?: {
+        emails?: Array<{ email?: string }>;
+        phone_numbers?: Array<{ number?: string }>;
+    } | null;
+}): boolean {
+    if (lead.email?.trim()) return true;
+    if (lead.contact_info?.emails?.some((entry) => entry.email?.trim())) return true;
+    if (lead.contact_info?.phone_numbers?.some((p) => p.number?.trim())) return true;
+    return false;
+}
+
+export function formatEnrichmentStatusLabel(status?: string | null): string {
+    switch (status) {
+        case 'found':
+            return 'Found (verified)';
+        case 'partial':
+            return 'Partial (found, not verified)';
+        case 'not_found':
+            return 'Not found';
+        case 'searching':
+            return 'Searching';
+        case 'pending':
+            return 'Pending';
+        case 'skipped':
+            return 'Skipped';
+        case 'failed':
+            return 'Failed';
+        default:
+            return status?.replace(/_/g, ' ') || 'Unknown';
+    }
+}
+
+/** True when contact enrichment found email or phone (partial or verified). */
+export function leadHasContactDetails(lead: {
+    enrichment_status?: string | null;
+    email?: string | null;
+    contact_info?: {
+        emails?: Array<{ email?: string }>;
+        phone_numbers?: Array<{ number?: string }>;
+    } | null;
+}): boolean {
+    if (!hasEnrichmentContactFound(lead.enrichment_status)) return false;
+    return leadHasDiscoverableContact(lead);
+}
+
 export function formatEmailStatusLabel(status?: string | null, source?: string | null): string {
     if (isVerifiedEmailStatus(status)) return 'Verified';
     if (status === 'guessed' || source === 'pattern_guess') return 'Guessed';

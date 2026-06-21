@@ -129,10 +129,10 @@ async def train_model(request: TrainRequest):
         if item.content and item.label in ("relevant", "irrelevant")
     ]
 
-    if len(samples) < 10:
+    if (len(samples) < 8:
         raise HTTPException(
             status_code=400,
-            detail=f"Need at least 10 labeled leads. Received {len(samples)}.",
+            detail=f"Need at least 8 labeled leads. Received {len(samples)}.",
         )
 
     try:

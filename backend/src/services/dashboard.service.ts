@@ -28,6 +28,8 @@ export async function getLeadStats() {
         scrapedTotal,
         pending,
         withEmail,
+        awaitingReview,
+        withContact,
         watchlistActive,
     ] = await Promise.all([
         prisma.leadPost.count({
@@ -48,6 +50,21 @@ export async function getLeadStats() {
         prisma.leadPost.count({
             where: { ...baseLeadFilter, status: 'relevant', email: { not: null } },
         }),
+        prisma.leadPost.count({
+            where: {
+                ...baseLeadFilter,
+                status: 'relevant',
+                review_status: 'awaiting_review',
+                enrichment_status: { in: ['partial', 'found'] },
+            },
+        }),
+        prisma.leadPost.count({
+            where: {
+                ...baseLeadFilter,
+                status: 'relevant',
+                enrichment_status: { in: ['partial', 'found'] },
+            },
+        }),
         prisma.sourceProfile.count({
             where: { is_active: true, platform: 'linkedin' },
         }),
@@ -60,6 +77,8 @@ export async function getLeadStats() {
         scraped_total: scrapedTotal,
         pending,
         with_email: withEmail,
+        awaiting_review: awaitingReview,
+        with_contact: withContact,
         watchlist_active: watchlistActive,
     };
 }

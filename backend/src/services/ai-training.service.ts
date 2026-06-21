@@ -2,7 +2,7 @@ import prisma from '../lib/prisma';
 import { trainModel } from './ocr.service';
 import { getSetting, updateSetting } from './setting.service';
 
-export const MIN_TRAINING_SAMPLES = 10;
+export const MIN_TRAINING_SAMPLES = 8;
 const METRICS_KEY = 'local_ai_metrics';
 
 export type TrainingSample = {

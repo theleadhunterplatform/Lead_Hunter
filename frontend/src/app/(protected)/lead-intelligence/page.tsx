@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Filter, Search, Download, ExternalLink, MessageSquare, ThumbsUp, Share2, User, Shield, Plus, ImageIcon, Mail, Loader2, BrainCircuit, Zap, RefreshCw } from "lucide-react";
+import { Filter, Search, Download, ExternalLink, MessageSquare, ThumbsUp, Share2, User, Shield, Plus, ImageIcon, Mail, Loader2, BrainCircuit, Zap, RefreshCw, CheckCircle2, XCircle, ClipboardCheck } from "lucide-react";
 import { Button, Input } from "@/components/ui/HunterUI";
 import { cn } from "@/components/ui/HunterUI";
 import api from "@/lib/api";
@@ -70,6 +70,10 @@ interface Lead {
   is_claimed?: boolean;
   claimed_count: number;
   intelligence?: string;
+  review_status?: 'awaiting_review' | 'approved' | 'rejected' | null;
+  reviewed_at?: string | null;
+  reviewed_by_id?: string | null;
+  reviewed_by_name?: string | null;
 }
 
 interface LeadEmailEntry {
@@ -94,6 +98,9 @@ export default function LeadIntelligencePage() {
   const [claimingIds, setClaimingIds] = useState<string[]>([]);
   const [bulkReanalysing, setBulkReanalysing] = useState(false);
   const [bulkReenriching, setBulkReenriching] = useState(false);
+  const [bulkApproving, setBulkApproving] = useState(false);
+  const [bulkRejecting, setBulkRejecting] = useState(false);
+  const [reviewActionIds, setReviewActionIds] = useState<string[]>([]);
   const [aiMetrics, setAiMetrics] = useState<{
     accuracy: number | null;
     samples: number;
@@ -110,6 +117,8 @@ export default function LeadIntelligencePage() {
     scraped_total: number;
     pending: number;
     with_email: number;
+    awaiting_review: number;
+    with_contact: number;
     watchlist_active: number;
   } | null>(null);
   const { user, refreshUser, permissions, loading: authLoading } = useAuth();
@@ -132,10 +141,19 @@ export default function LeadIntelligencePage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'relevant' | 'irrelevant'>(isInternal ? 'all' : 'relevant');
+  const [activeTab, setActiveTab] = useState<'all' | 'irrelevant' | 'relevant' | 'with_contact' | 'approved' | 'pending' | 'review'>('all');
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [counts, setCounts] = useState({ all: 0, pending: 0, relevant: 0, irrelevant: 0 });
+  const [counts, setCounts] = useState({
+    all: 0,
+    irrelevant: 0,
+    relevant: 0,
+    with_contact: 0,
+    approved: 0,
+    pending: 0,
+    review: 0,
+  });
+  const [isTrainingAi, setIsTrainingAi] = useState(false);
 
   const fetchAiMetrics = async () => {
     if (!isInternal) return;
@@ -264,6 +282,82 @@ export default function LeadIntelligencePage() {
     }
   };
 
+  const handleApproveReview = async (leadId: string) => {
+    try {
+      setReviewActionIds((prev) => [...prev, leadId]);
+      const response = await api.post(`/posts/${leadId}/approve`);
+      toast.success(response.data.message || 'Lead approved for release.');
+      fetchLeads(currentPage, activeTab, searchQuery, selectedPlatforms, true);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to approve lead.');
+    } finally {
+      setReviewActionIds((prev) => prev.filter((id) => id !== leadId));
+    }
+  };
+
+  const handleRejectReview = async (leadId: string) => {
+    try {
+      setReviewActionIds((prev) => [...prev, leadId]);
+      const response = await api.post(`/posts/${leadId}/reject-review`);
+      toast.success(response.data.message || 'Lead rejected.');
+      fetchLeads(currentPage, activeTab, searchQuery, selectedPlatforms, true);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to reject lead.');
+    } finally {
+      setReviewActionIds((prev) => prev.filter((id) => id !== leadId));
+    }
+  };
+
+  const handleBulkApprove = async () => {
+    try {
+      setBulkApproving(true);
+      const response = await api.post('/posts/bulk-approve', getBulkFilters());
+      if (response.data.approved > 0) {
+        toast.success(response.data.message || 'Bulk approval complete.');
+      } else if (response.data.skipped > 0) {
+        toast.info(response.data.message || 'No leads with contact details to approve.');
+      } else {
+        toast.info(response.data.message || 'No leads awaiting review matched the current filters.');
+      }
+      fetchLeads(currentPage, activeTab, searchQuery, selectedPlatforms, true);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to bulk approve leads.');
+    } finally {
+      setBulkApproving(false);
+    }
+  };
+
+  const handleBulkReject = async () => {
+    try {
+      setBulkRejecting(true);
+      const response = await api.post('/posts/bulk-reject', getBulkFilters());
+      if (response.data.rejected > 0) {
+        toast.success(response.data.message || 'Bulk rejection complete.');
+      } else {
+        toast.info(response.data.message || 'No leads awaiting review matched the current filters.');
+      }
+      fetchLeads(currentPage, activeTab, searchQuery, selectedPlatforms, true);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to bulk reject leads.');
+    } finally {
+      setBulkRejecting(false);
+    }
+  };
+
+  const handleTrainAi = async () => {
+    try {
+      setIsTrainingAi(true);
+      const response = await api.post('/ai/train-now');
+      setAiMetrics(response.data.data);
+      toast.success(response.data.data?.message || 'AI training complete.');
+      fetchAiMetrics();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'AI training failed. Ensure the Python AI service is running.');
+    } finally {
+      setIsTrainingAi(false);
+    }
+  };
+
   const handleClaim = async (leadId: string) => {
     try {
       setClaimingIds(prev => [...prev, leadId]);
@@ -369,6 +463,30 @@ export default function LeadIntelligencePage() {
     return [];
   };
 
+  const leadHasDiscoverableContact = (lead: Lead) => {
+    if (lead.email?.trim()) return true;
+    if (lead.contact_info?.emails?.some((e) => e.email?.trim())) return true;
+    if (lead.contact_info?.phone_numbers?.some((p) => p.number?.trim())) return true;
+    return false;
+  };
+
+  const leadHasContactDetails = (lead: Lead) =>
+    (lead.enrichment_status === 'found' || lead.enrichment_status === 'partial') &&
+    leadHasDiscoverableContact(lead);
+
+  const getEnrichmentStatusLabel = (status: NonNullable<Lead['enrichment_status']>) => {
+    switch (status) {
+      case 'found':
+        return 'Found (verified)';
+      case 'partial':
+        return 'Partial (found, not verified)';
+      case 'not_found':
+        return 'Not found';
+      default:
+        return status.replace(/_/g, ' ');
+    }
+  };
+
   const getEmailSourceLabel = (source?: string) => {
     const labels: Record<string, string> = {
       post_text: 'From post',
@@ -384,13 +502,16 @@ export default function LeadIntelligencePage() {
 
   const tabs = isInternal 
     ? [
-        { id: "all", label: "Scraped Posts", count: counts.all },
-        { id: "pending", label: "Pending Analysis", count: counts.pending },
-        { id: "relevant", label: "Qualified Leads", count: counts.relevant },
+        { id: "all", label: "All Leads", count: counts.all },
         { id: "irrelevant", label: "Noise", count: counts.irrelevant },
+        { id: "pending", label: "Pending Analysis", count: counts.pending },
+        { id: "relevant", label: "Relevant", count: counts.relevant },
+        { id: "with_contact", label: "Contact Found", count: counts.with_contact },
+        { id: "review", label: "Awaiting Approval", count: counts.review },
+        { id: "approved", label: "Approved", count: counts.approved },
       ]
     : [
-        { id: "relevant", label: "Qualified Leads", count: counts.relevant },
+        { id: "approved", label: "Qualified Leads", count: counts.approved },
       ];
 
   return (
@@ -402,19 +523,39 @@ export default function LeadIntelligencePage() {
           </h1>
 
           {isInternal && leadStats && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 max-w-5xl">
               {[
-                { label: "Qualified Today", value: leadStats.qualified_today, sub: "new leads found" },
-                { label: "Qualified Total", value: leadStats.qualified_total, sub: "all time" },
-                { label: "Captured Today", value: leadStats.scraped_today, sub: "posts ingested" },
-                { label: "Captured Total", value: leadStats.scraped_total, sub: "all time" },
+                { label: "All Leads", value: leadStats.scraped_total ?? counts.all, sub: "total ingested" },
+                { label: "Relevant", value: counts.relevant, sub: "AI-qualified leads" },
+                { label: "Contact Found", value: leadStats.with_contact ?? counts.with_contact, sub: "partial or verified" },
+                { label: "Awaiting Approval", value: leadStats.awaiting_review ?? counts.review, sub: "needs sign-off", highlight: true },
+                { label: "Approved", value: counts.approved, sub: "released to clients" },
               ].map((stat) => (
-                <div key={stat.label} className="p-4 bg-hunter-grey neo-border border-zinc-800">
+                <div key={stat.label} className={cn(
+                  "p-4 bg-hunter-grey neo-border border-zinc-800",
+                  stat.highlight && (stat.value as number) > 0 && "border-hunter-orange/40 border-l-4 border-l-hunter-orange"
+                )}>
                   <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500 mb-1">{stat.label}</p>
                   <p className="text-3xl font-display font-black text-white">{stat.value}</p>
                   <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-600 mt-1">{stat.sub}</p>
                 </div>
               ))}
+            </div>
+          )}
+
+          {isInternal && (
+            <div className="p-4 bg-hunter-grey neo-border border-zinc-800 border-l-4 border-l-blue-500 max-w-4xl">
+              <div className="flex items-center gap-2 mb-2">
+                <ClipboardCheck size={16} className="text-blue-400" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-white">Stage 5 — Admin Review</span>
+              </div>
+              <p className="text-xs text-zinc-400 leading-relaxed">
+                Pipeline: <span className="text-zinc-400 font-bold">Pending Analysis</span> →
+                <span className="text-white font-bold"> Relevant</span> →
+                <span className="text-hunter-orange font-bold"> Contact Found</span> →
+                <span className="text-blue-400 font-bold"> Awaiting Approval</span> →
+                <span className="text-green-400 font-bold"> Approved</span>
+              </p>
             </div>
           )}
 
@@ -440,13 +581,37 @@ export default function LeadIntelligencePage() {
                 <span className="text-red-400">{aiMetrics.irrelevant_count} irrelevant</span>
               </div>
               <p className="text-xs text-zinc-500 mt-2 normal-case font-medium tracking-normal">
-                {aiMetrics.message || 'Every qualified lead is learned automatically — no manual retrain needed.'}
+                {aiMetrics.message || 'Approve, reject, or label leads — each decision trains the model automatically.'}
               </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button
+                  onClick={handleTrainAi}
+                  disabled={isTrainingAi || aiMetrics.samples < 8}
+                  className="h-8 px-4 text-[9px] uppercase font-black bg-hunter-orange text-black hover:bg-hunter-orange/80 disabled:opacity-50"
+                >
+                  {isTrainingAi ? (
+                    <>
+                      <Loader2 size={12} className="animate-spin mr-1" />
+                      Training...
+                    </>
+                  ) : (
+                    <>
+                      <BrainCircuit size={12} className="mr-1" />
+                      Train AI Now
+                    </>
+                  )}
+                </Button>
+                {aiMetrics.samples < 8 && (
+                  <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-500 self-center">
+                    Need {8 - aiMetrics.samples} more labeled leads
+                  </span>
+                )}
+              </div>
               {aiMetrics.samples < 10 && (
                 <div className="mt-3 h-1.5 w-full max-w-md bg-zinc-800 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-hunter-orange transition-all"
-                    style={{ width: `${Math.min(100, (aiMetrics.samples / 10) * 100)}%` }}
+                    style={{ width: `${Math.min(100, (aiMetrics.samples / 8) * 100)}%` }}
                   />
                 </div>
               )}
@@ -478,6 +643,26 @@ export default function LeadIntelligencePage() {
 
         {isInternal && (
           <div className="flex flex-wrap gap-2">
+            {(activeTab === 'review' || activeTab === 'with_contact') && (
+              <>
+                <Button
+                  onClick={handleBulkApprove}
+                  disabled={bulkApproving}
+                  className="h-10 px-5 text-[10px] uppercase font-black flex items-center gap-2 bg-green-500/10 text-green-400 border border-green-500/30 hover:bg-green-500 hover:text-black"
+                >
+                  {bulkApproving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                  {bulkApproving ? 'Approving...' : 'Approve All'}
+                </Button>
+                <Button
+                  onClick={handleBulkReject}
+                  disabled={bulkRejecting}
+                  className="h-10 px-5 text-[10px] uppercase font-black flex items-center gap-2 bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500 hover:text-black"
+                >
+                  {bulkRejecting ? <Loader2 size={14} className="animate-spin" /> : <XCircle size={14} />}
+                  {bulkRejecting ? 'Rejecting...' : 'Reject All'}
+                </Button>
+              </>
+            )}
             <Button
               onClick={handleBulkReanalyse}
               disabled={bulkReanalysing}
@@ -604,12 +789,67 @@ export default function LeadIntelligencePage() {
                       </div>
                     )}
 
+                    {isInternal && lead.status === 'relevant' && lead.review_status === 'awaiting_review' && (
+                      <div className="mb-4 p-3 bg-blue-500/5 neo-border border-blue-500/30 border-l-2 border-l-blue-500 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <ClipboardCheck size={14} className="text-blue-400" />
+                          <span className="text-[10px] font-black uppercase tracking-widest text-blue-300">
+                            {leadHasContactDetails(lead)
+                              ? 'Contact found — ready to approve (verification optional)'
+                              : 'No contact yet — run enrichment before approving'}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {isInternal && lead.review_status === 'approved' && (
+                      <div className="mb-4 p-3 bg-green-500/5 neo-border border-green-500/30 border-l-2 border-l-green-500">
+                        <div className="flex items-center gap-2 mb-1">
+                          <CheckCircle2 size={12} className="text-green-400" />
+                          <span className="text-[10px] font-black uppercase tracking-widest text-green-400">
+                            Approved for release
+                          </span>
+                          {!lead.intelligence && (
+                            <span className="text-[9px] font-black uppercase tracking-widest text-hunter-orange flex items-center gap-1">
+                              <Loader2 size={10} className="animate-spin" /> Generating intel...
+                            </span>
+                          )}
+                        </div>
+                        {lead.reviewed_by_name && (
+                          <p className="text-[10px] text-zinc-500">
+                            Reviewed by {lead.reviewed_by_name}
+                            {lead.reviewed_at ? ` · ${new Date(lead.reviewed_at).toLocaleString()}` : ''}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
                     {isInternal && lead.status === 'pending' && (
-                      <div className="mb-4 p-3 bg-zinc-900/50 neo-border border-zinc-800 flex items-center gap-3">
-                        <Loader2 size={14} className="animate-spin text-zinc-500" />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                          Waiting for AI review...
-                        </span>
+                      <div className={`mb-4 p-3 neo-border border-l-2 flex flex-col gap-2 ${
+                        lead.qualification_reason
+                          ? 'bg-yellow-500/5 border-yellow-500/30 border-l-yellow-500'
+                          : 'bg-zinc-900/50 border-zinc-800 border-l-zinc-600'
+                      }`}>
+                        <div className="flex items-center gap-2">
+                          {lead.qualification_reason ? (
+                            <BrainCircuit size={14} className="text-yellow-400" />
+                          ) : (
+                            <Loader2 size={14} className="animate-spin text-zinc-500" />
+                          )}
+                          <span className={`text-[10px] font-black uppercase tracking-widest ${
+                            lead.qualification_reason ? 'text-yellow-300' : 'text-zinc-500'
+                          }`}>
+                            {lead.qualification_reason ? 'Needs manual qualification' : 'Waiting for AI analysis...'}
+                          </span>
+                        </div>
+                        {lead.qualification_reason && (
+                          <>
+                            <p className="text-xs text-zinc-400">{lead.qualification_reason}</p>
+                            <p className="text-[9px] text-zinc-500 uppercase font-bold tracking-widest">
+                              Mark Relevant or Irrelevant — your label trains the AI
+                            </p>
+                          </>
+                        )}
                       </div>
                     )}
 
@@ -633,7 +873,9 @@ export default function LeadIntelligencePage() {
                           ? 'bg-green-500/5 border-green-500/30 border-l-green-500'
                           : lead.enrichment_status === 'partial'
                             ? 'bg-yellow-500/5 border-yellow-500/30 border-l-yellow-500'
-                            : 'bg-zinc-900/50 border-zinc-800 border-l-zinc-600'
+                            : lead.enrichment_status === 'not_found'
+                              ? 'bg-red-500/5 border-red-500/30 border-l-red-500'
+                              : 'bg-zinc-900/50 border-zinc-800 border-l-zinc-600'
                       }`}>
                         <div className="flex items-center gap-2 mb-1">
                           <Mail size={12} className={
@@ -641,10 +883,12 @@ export default function LeadIntelligencePage() {
                               ? 'text-green-400'
                               : lead.enrichment_status === 'partial'
                                 ? 'text-yellow-400'
-                                : 'text-zinc-500'
+                                : lead.enrichment_status === 'not_found'
+                                  ? 'text-red-400'
+                                  : 'text-zinc-500'
                           } />
                           <span className="text-[10px] font-black uppercase tracking-widest text-white">
-                            Contact Enrichment: {lead.enrichment_status.replace('_', ' ')}
+                            Contact Enrichment: {getEnrichmentStatusLabel(lead.enrichment_status)}
                           </span>
                         </div>
                         {lead.enrichment_message && (
@@ -812,24 +1056,71 @@ export default function LeadIntelligencePage() {
                     </div>
 
                     <div className="flex items-center justify-between gap-4">
-                      <div className="flex gap-1.5">
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => updateLeadLabel(lead._id, { status: 'relevant' })}
-                          className={`h-7 text-[8px] uppercase font-black px-3 ${lead.status === 'relevant' ? 'bg-green-500 text-black border-green-500 hover:bg-green-600' : ''}`}
-                        >
-                          Relevant
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => updateLeadLabel(lead._id, { status: 'irrelevant' })}
-                          className={`h-7 text-[8px] uppercase font-black px-3 ${lead.status === 'irrelevant' ? 'bg-red-500 text-black border-red-500 hover:bg-red-600' : ''}`}
-                        >
-                          Irrelevant
-                        </Button>
-                        {lead.status !== 'pending' && (
+                      <div className="flex gap-1.5 flex-wrap">
+                        {lead.status === 'pending' && (
+                          <>
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => updateLeadLabel(lead._id, { status: 'relevant' })}
+                              className="h-7 text-[8px] uppercase font-black px-3 bg-green-500/10 text-green-400 border-green-500/30 hover:bg-green-500 hover:text-black"
+                            >
+                              Mark Relevant
+                            </Button>
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => updateLeadLabel(lead._id, { status: 'irrelevant' })}
+                              className="h-7 text-[8px] uppercase font-black px-3"
+                            >
+                              Irrelevant
+                            </Button>
+                          </>
+                        )}
+
+                        {lead.status === 'relevant' && lead.review_status === 'awaiting_review' && (
+                          <>
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => handleApproveReview(lead._id)}
+                              disabled={reviewActionIds.includes(lead._id) || !leadHasContactDetails(lead)}
+                              title={!leadHasContactDetails(lead) ? 'Contact details required before approval' : undefined}
+                              className={cn(
+                                "h-7 text-[8px] uppercase font-black px-3",
+                                leadHasContactDetails(lead)
+                                  ? "bg-green-500 text-black border-green-500 hover:bg-green-600"
+                                  : "bg-zinc-800 text-zinc-500 border-zinc-700 cursor-not-allowed"
+                              )}
+                            >
+                              {reviewActionIds.includes(lead._id) ? (
+                                <Loader2 size={12} className="animate-spin" />
+                              ) : (
+                                <CheckCircle2 size={12} className="inline mr-1" />
+                              )}
+                              Approve
+                            </Button>
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => handleRejectReview(lead._id)}
+                              disabled={reviewActionIds.includes(lead._id)}
+                              className="h-7 text-[8px] uppercase font-black px-3 bg-red-500/10 text-red-400 border-red-500/30 hover:bg-red-500 hover:text-black"
+                            >
+                              Reject
+                            </Button>
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => updateLeadLabel(lead._id, { status: 'pending' })}
+                              className="h-7 text-[8px] uppercase font-black px-3"
+                            >
+                              Reset
+                            </Button>
+                          </>
+                        )}
+
+                        {lead.status === 'irrelevant' && (
                           <Button
                             variant="secondary"
                             size="sm"
@@ -841,14 +1132,24 @@ export default function LeadIntelligencePage() {
                         )}
                       </div>
 
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 flex-wrap justify-end">
                         <div className={`px-1.5 py-0.5 text-[7px] font-black uppercase tracking-tighter neo-border ${lead.status === 'relevant' ? 'bg-green-500/10 text-green-500 border-green-500/50' :
                           lead.status === 'irrelevant' ? 'bg-red-500/10 text-red-500 border-red-500/50' :
                             'bg-zinc-800 text-zinc-500 border-zinc-700'
                           }`}>
                           {lead.status || 'pending'}
                         </div>
-                        {lead.status === 'relevant' && (
+                        {lead.review_status === 'awaiting_review' && (
+                          <div className="px-1.5 py-0.5 text-[7px] font-black uppercase tracking-tighter neo-border bg-blue-500/10 text-blue-400 border-blue-500/50">
+                            awaiting approval
+                          </div>
+                        )}
+                        {lead.review_status === 'approved' && (
+                          <div className="px-1.5 py-0.5 text-[7px] font-black uppercase tracking-tighter neo-border bg-green-500/10 text-green-400 border-green-500/50">
+                            approved
+                          </div>
+                        )}
+                        {lead.review_status === 'approved' && lead.intelligence && (
                           <Link href="/leads/relevant">
                             <Button 
                               size="sm" 
@@ -858,7 +1159,7 @@ export default function LeadIntelligencePage() {
                             </Button>
                           </Link>
                         )}
-                        {lead.status === 'relevant' && (
+                        {lead.review_status === 'approved' && (
                           <Button 
                             size="sm" 
                             className={cn(
@@ -868,12 +1169,14 @@ export default function LeadIntelligencePage() {
                                 : "bg-white text-black hover:bg-hunter-orange hover:text-black"
                             )}
                             onClick={() => handleClaim(lead._id)}
-                            disabled={claimingIds.includes(lead._id) || lead.is_claimed}
+                            disabled={claimingIds.includes(lead._id) || lead.is_claimed || !lead.intelligence}
                           >
                             {claimingIds.includes(lead._id) ? (
                               <Loader2 size={12} className="animate-spin" />
                             ) : lead.is_claimed ? (
                               "Claimed"
+                            ) : !lead.intelligence ? (
+                              "Intel pending"
                             ) : (
                               `Claim (${lead.claimed_count || 0}/25)`
                             )}

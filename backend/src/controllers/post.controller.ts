@@ -57,11 +57,81 @@ export const deletePost = asyncHandler(async (req: Request, res: Response, _next
 // @route   PUT /api/posts/:id/label
 // @access  Private
 export const labelPost = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
-    const post = await postService.updatePostLabel(req.params.id as string, req.body);
+    const post = await postService.updatePostLabel(
+        req.params.id as string,
+        req.body,
+        (req.user as any)?.id || (req.user as any)?._id
+    );
 
     return res.status(200).json({
         success: true,
         data: post
+    });
+});
+
+export const approveLeadReview = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+    const user = req.user as any;
+    const orgId = req.headers['x-org-id'] as string | undefined;
+    const post = await postService.approveLeadReview(
+        req.params.id as string,
+        user.id || user._id,
+        { organizationId: orgId, ipAddress: req.ip }
+    );
+
+    return res.status(200).json({
+        success: true,
+        data: post,
+        message: 'Lead approved. Intelligence report generation queued.',
+    });
+});
+
+export const rejectLeadReview = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+    const user = req.user as any;
+    const orgId = req.headers['x-org-id'] as string | undefined;
+    const post = await postService.rejectLeadReview(
+        req.params.id as string,
+        user.id || user._id,
+        { organizationId: orgId, ipAddress: req.ip }
+    );
+
+    return res.status(200).json({
+        success: true,
+        data: post,
+        message: 'Lead rejected and moved to noise.',
+    });
+});
+
+export const bulkApproveLeadReviews = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+    const user = req.user as any;
+    const orgId = req.headers['x-org-id'] as string | undefined;
+    const { status, search, keyword, platform } = req.body;
+    const result = await postService.bulkApproveLeadReviews(
+        { status, search, keyword, platform },
+        user.id || user._id,
+        { organizationId: orgId, ipAddress: req.ip }
+    );
+
+    return res.status(202).json({
+        success: true,
+        approved: result.approved,
+        message: result.message,
+    });
+});
+
+export const bulkRejectLeadReviews = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+    const user = req.user as any;
+    const orgId = req.headers['x-org-id'] as string | undefined;
+    const { status, search, keyword, platform } = req.body;
+    const result = await postService.bulkRejectLeadReviews(
+        { status, search, keyword, platform },
+        user.id || user._id,
+        { organizationId: orgId, ipAddress: req.ip }
+    );
+
+    return res.status(202).json({
+        success: true,
+        rejected: result.rejected,
+        message: result.message,
     });
 });
 

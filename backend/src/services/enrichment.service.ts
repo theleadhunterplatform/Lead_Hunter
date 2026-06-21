@@ -19,16 +19,18 @@ export interface EnrichmentResult {
     data?: any;
 }
 
-function resolveEnrichmentStatus(lead: any): EnrichmentStatus {
-    const emails = lead.contact_info?.emails as Array<{ email_status?: string }> | undefined;
+export function resolveEnrichmentStatus(lead: any): EnrichmentStatus {
+    // Terminal outcomes: not_found | partial (contact found, unverified) | found (verified)
+    const emails = lead.contact_info?.emails as Array<{ email?: string; email_status?: string }> | undefined;
+    const hasEmail = Boolean(lead.email?.trim()) || Boolean(emails?.some((e) => e.email?.trim()));
+    const hasPhone = Boolean(lead.contact_info?.phone_numbers?.some((p: { number?: string }) => p.number?.trim()));
+
+    if (!hasEmail && !hasPhone) return 'not_found';
+
     if (emails?.some((e) => isVerifiedEmailStatus(e.email_status))) return 'found';
     if (lead.email && isVerifiedEmailStatus(lead.contact_info?.email_status)) return 'found';
-    if (emails?.length || lead.email) return 'partial';
-    if (lead.contact_info?.phone_numbers?.length) return 'partial';
-    if (lead.contact_info?.verification_note || lead.contact_info?.name || lead.contact_info?.linkedin_public_id) {
-        return 'partial';
-    }
-    return 'not_found';
+
+    return 'partial';
 }
 
 async function seedAuthorContactInfo(postId: string) {
@@ -143,4 +145,20 @@ export async function enrichLeadPost(postId: string, options?: { force?: boolean
             message,
         };
     }
+}
+
+const RECONCILABLE_STATUSES = new Set(['partial', 'found', 'not_found']);
+
+/** Fix leads stored with stale partial/found when no email or phone exists. */
+export async function reconcileEnrichmentStatusIfStale(postId: string, lead?: any): Promise<EnrichmentStatus | null> {
+    const record = lead || (await LeadPost.findById(postId));
+    if (!record?.enrichment_status || !RECONCILABLE_STATUSES.has(record.enrichment_status)) {
+        return null;
+    }
+
+    const correct = resolveEnrichmentStatus(record);
+    if (correct === record.enrichment_status) return null;
+
+    await LeadPost.findByIdAndUpdate(postId, { enrichment_status: correct });
+    return correct;
 }

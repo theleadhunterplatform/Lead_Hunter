@@ -8,37 +8,60 @@ const mapPost = (record: any) => {
     return wrapDoc(record, async (id, data) => prisma.leadPost.update({ where: { id }, data: data as any }));
 };
 
+function mapSearchOrClause(clause: any) {
+    const part: any = {};
+    if (clause.content?.$regex) {
+        part.content = { contains: clause.content.$regex, mode: 'insensitive' };
+    }
+    if (clause.keyword?.$regex) {
+        part.keyword = { contains: clause.keyword.$regex, mode: 'insensitive' };
+    }
+    if (clause['author.name']?.$regex) {
+        // JSON author search handled via raw query fallback in service if needed
+    }
+    return Object.keys(part).length ? part : clause;
+}
+
+/** Contact Found tab: enrichment partial (unverified) or found (verified). */
+const CONTACT_DETAILS_CLAUSE = {
+    OR: [{ enrichment_status: 'found' }, { enrichment_status: 'partial' }],
+};
+
 const buildWhere = (filter: any = {}) => {
+    const { $or, has_contact, ...rest } = filter;
     const where: any = {};
 
-    if (filter._id || filter.id) where.id = filter._id || filter.id;
-    if (filter.is_deleted !== undefined) where.is_deleted = filter.is_deleted;
-    if (filter.status) where.status = filter.status;
-    if (filter.keyword) where.keyword = filter.keyword;
-    if (filter.post_id) where.post_id = filter.post_id;
-    if (filter.platform) {
-        if (filter.platform.$in) where.platform = { in: filter.platform.$in };
-        else where.platform = filter.platform;
+    if (rest._id || rest.id) where.id = rest._id || rest.id;
+    if (rest.is_deleted !== undefined) where.is_deleted = rest.is_deleted;
+    if (rest.status) where.status = rest.status;
+    if (rest.keyword) where.keyword = rest.keyword;
+    if (rest.post_id) where.post_id = rest.post_id;
+    if (rest.enrichment_status) {
+        if (rest.enrichment_status.$in) {
+            where.enrichment_status = { in: rest.enrichment_status.$in };
+        } else {
+            where.enrichment_status = rest.enrichment_status;
+        }
     }
-    if (filter.intelligence?.$ne === null) where.intelligence = { not: null };
-
-    if (filter.$or) {
-        where.OR = filter.$or.map((clause: any) => {
-            const part: any = {};
-            if (clause.content?.$regex) {
-                part.content = { contains: clause.content.$regex, mode: 'insensitive' };
-            }
-            if (clause.keyword?.$regex) {
-                part.keyword = { contains: clause.keyword.$regex, mode: 'insensitive' };
-            }
-            if (clause['author.name']?.$regex) {
-                // JSON author search handled via raw query fallback in service if needed
-            }
-            return Object.keys(part).length ? part : clause;
-        });
+    if (rest.platform) {
+        if (rest.platform.$in) where.platform = { in: rest.platform.$in };
+        else where.platform = rest.platform;
+    }
+    if (rest.intelligence?.$ne === null) where.intelligence = { not: null };
+    if (rest.review_status !== undefined) {
+        where.review_status = rest.review_status;
     }
 
-    return where;
+    const andClauses: any[] = [];
+    if (Object.keys(where).length > 0) andClauses.push(where);
+    if (has_contact) andClauses.push(CONTACT_DETAILS_CLAUSE);
+    if ($or) {
+        andClauses.push({ OR: $or.map(mapSearchOrClause) });
+    }
+
+    if (andClauses.length === 0) return {};
+    if (andClauses.length === 1) return andClauses[0];
+    return { AND: andClauses };
 };
 
 const LeadPost = {
@@ -107,6 +130,9 @@ const LeadPost = {
                 enrichment_message: data.enrichment_message || null,
                 enriched_at: data.enriched_at || null,
                 intelligence: data.intelligence || null,
+                review_status: data.review_status ?? null,
+                reviewed_at: data.reviewed_at || null,
+                reviewed_by_id: data.reviewed_by_id || null,
                 claimed_count: data.claimed_count ?? 0,
             },
         });

@@ -13,9 +13,9 @@ export const triggerTraining = asyncHandler(async (_req: Request, res: Response,
     console.log('[AI-Controller] Training request received');
 
     const samples = await fetchTrainingSamples();
-    if (samples.length < 10) {
+    if (samples.length < 8) {
         throw new ErrorResponse(
-            `Need at least 10 labeled leads to train. You have ${samples.length}. Mark leads as Relevant/Irrelevant first (use "Use for Training" to prioritize).`,
+            `Need at least 8 labeled leads to train. You have ${samples.length}. Approve/reject in review or mark leads Relevant/Irrelevant.`,
             400
         );
     }

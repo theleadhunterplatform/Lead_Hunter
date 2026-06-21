@@ -17,6 +17,10 @@ import {
     verifyEmailPost,
     bulkRequalifyPosts,
     bulkReEnrichPosts,
+    approveLeadReview,
+    rejectLeadReview,
+    bulkApproveLeadReviews,
+    bulkRejectLeadReviews,
 } from '../controllers/post.controller';
 import { findLeadEmail } from '../controllers/contact.controller';
 import { getLeadIntelligenceStats } from '../controllers/dashboard.controller';
@@ -141,6 +145,8 @@ router.get('/claimed', authorize('lead:read'), getClaimedPosts);
 router.get('/stats', authorize('lead:read'), getLeadIntelligenceStats);
 router.post('/bulk-reanalyse', authorize('lead:hunt'), bulkRequalifyPosts);
 router.post('/bulk-re-enrich', authorize('lead:hunt'), bulkReEnrichPosts);
+router.post('/bulk-approve', authorize('lead:hunt'), bulkApproveLeadReviews);
+router.post('/bulk-reject', authorize('lead:hunt'), bulkRejectLeadReviews);
 
 router.route('/:id')
     .get(authorize('lead:read'), getPost)
@@ -148,6 +154,8 @@ router.route('/:id')
 
 router.post('/:id/claim', authorize('lead:read'), claimPost);
 router.post('/:id/qualify', authorize('lead:hunt'), qualifyPost);
+router.post('/:id/approve', authorize('lead:hunt'), approveLeadReview);
+router.post('/:id/reject-review', authorize('lead:hunt'), rejectLeadReview);
 router.put('/:id/label', authorize('lead:hunt'), validate(labelPostSchema), labelPost);
 router.put('/:id', authorize('lead:hunt'), updatePost);
 router.post('/:id/re-extract', authorize('lead:hunt'), reExtractPost);

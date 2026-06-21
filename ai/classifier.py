@@ -25,8 +25,14 @@ class LeadClassifier:
         sample_count = len(df)
 
         self.pipeline = Pipeline([
-            ('tfidf', TfidfVectorizer(stop_words='english', max_features=5000)),
-            ('clf', LogisticRegression(class_weight='balanced', max_iter=1000))
+            ('tfidf', TfidfVectorizer(
+                stop_words='english',
+                max_features=8000,
+                ngram_range=(1, 2),
+                sublinear_tf=True,
+                min_df=1,
+            )),
+            ('clf', LogisticRegression(class_weight='balanced', max_iter=2000, C=0.75))
         ])
 
         test_size = 0.2 if sample_count >= 20 else 0.0

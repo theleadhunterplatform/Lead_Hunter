@@ -9,8 +9,44 @@ import { scheduleAutoTrain } from '../utils/auto-train.utils';
 import { enqueueLeadQualification } from '../utils/qualification-queue.utils';
 import { findExistingLeadPost, isDuplicateKeyError } from '../utils/lead-dedup.utils';
 import { enqueueContactEnrichment } from '../utils/enrichment-queue.utils';
+import { enqueueLeadIntelligence } from '../utils/intelligence-queue.utils';
 import { sanitizeContactFields } from '../utils/contact-redaction.utils';
+import { logLeadAction } from '../utils/audit.utils';
 import { verifyLeadEmailManually } from './lead-enrichment.service';
+import { reconcileEnrichmentStatusIfStale } from './enrichment.service';
+import {
+    leadHasContactDetails,
+} from '../utils/lead-enrichment.utils';
+
+function applyListTabFilter(filter: any, status?: string) {
+    if (!status || status === 'all') return;
+
+    if (status === 'review') {
+        filter.status = 'relevant';
+        filter.review_status = 'awaiting_review';
+        filter.has_contact = true;
+        return;
+    }
+
+    if (status === 'approved') {
+        filter.status = 'relevant';
+        filter.review_status = 'approved';
+        return;
+    }
+
+    if (status === 'with_contact') {
+        filter.status = 'relevant';
+        filter.has_contact = true;
+        return;
+    }
+
+    if (status === 'relevant') {
+        filter.status = 'relevant';
+        return;
+    }
+
+    filter.status = status;
+}
 
 function buildLeadListFilter(query: {
     status?: string;
@@ -19,10 +55,7 @@ function buildLeadListFilter(query: {
     platform?: string;
 }) {
     const filter: any = { is_deleted: false };
-
-    if (query.status && query.status !== 'all') {
-        filter.status = query.status;
-    }
+    applyListTabFilter(filter, query.status);
 
     if (query.keyword) {
         filter.keyword = query.keyword;
@@ -64,7 +97,14 @@ export const bulkRequalifyPosts = async (query: {
 
     await prisma.leadPost.updateMany({
         where: { id: { in: ids } },
-        data: { status: 'pending', qualification_reason: null, ai_score: 0 },
+        data: {
+            status: 'pending',
+            qualification_reason: null,
+            ai_score: 0,
+            review_status: null,
+            reviewed_at: null,
+            reviewed_by_id: null,
+        },
     });
 
     for (const id of ids) {
@@ -119,6 +159,247 @@ export const bulkReEnrichPosts = async (query: {
     };
 };
 
+async function attachReviewerNames(posts: any[]) {
+    const reviewerIds = [...new Set(
+        posts.map((post) => post.reviewed_by_id).filter(Boolean)
+    )] as string[];
+
+    if (reviewerIds.length === 0) {
+        return posts.map((post) => ({ ...post, reviewed_by_name: null }));
+    }
+
+    const reviewers = await prisma.user.findMany({
+        where: { id: { in: reviewerIds } },
+        select: { id: true, name: true, email: true },
+    });
+    const reviewerMap = new Map(
+        reviewers.map((user) => [user.id, user.name || user.email || 'Admin'])
+    );
+
+    return posts.map((post) => ({
+        ...post,
+        reviewed_by_name: post.reviewed_by_id ? reviewerMap.get(post.reviewed_by_id) || 'Admin' : null,
+    }));
+}
+
+export const approveLeadReview = async (
+    id: string,
+    reviewerId: string,
+    audit?: { ipAddress?: string; organizationId?: string }
+) => {
+    const post = await LeadPost.findOne({ _id: id, is_deleted: false });
+    if (!post) {
+        throw new ErrorResponse(`Post not found with id of ${id}`, 404);
+    }
+
+    if (post.status !== 'relevant') {
+        throw new ErrorResponse('Only AI-qualified relevant leads can be approved for release.', 400);
+    }
+
+    if (post.review_status === 'approved') {
+        throw new ErrorResponse('This lead is already approved.', 400);
+    }
+
+    if (!leadHasContactDetails(post)) {
+        throw new ErrorResponse(
+            'Cannot approve: no contact details found yet. Run enrichment and wait for an email or phone before approving.',
+            400
+        );
+    }
+
+    const updated = await LeadPost.findByIdAndUpdate(id, {
+        review_status: 'approved',
+        reviewed_at: new Date(),
+        reviewed_by_id: reviewerId,
+        is_training_data: true,
+    });
+
+    if (!updated.intelligence) {
+        await enqueueLeadIntelligence(id);
+    }
+
+    scheduleAutoTrain().catch((err) => console.error('[AutoTrain] Schedule failed:', err.message));
+
+    await logLeadAction(reviewerId, {
+        action: 'lead.review.approve',
+        resource: 'lead_post',
+        resourceId: id,
+        organizationId: audit?.organizationId,
+        ipAddress: audit?.ipAddress,
+        details: {
+            post_id: post.post_id,
+            platform: post.platform,
+            keyword: post.keyword,
+        },
+    });
+
+    return updated;
+};
+
+export const rejectLeadReview = async (
+    id: string,
+    reviewerId: string,
+    audit?: { ipAddress?: string; organizationId?: string }
+) => {
+    const post = await LeadPost.findOne({ _id: id, is_deleted: false });
+    if (!post) {
+        throw new ErrorResponse(`Post not found with id of ${id}`, 404);
+    }
+
+    const updated = await LeadPost.findByIdAndUpdate(id, {
+        status: 'irrelevant',
+        review_status: 'rejected',
+        qualification_reason: 'Rejected during admin review.',
+        is_training_data: true,
+        reviewed_at: new Date(),
+        reviewed_by_id: reviewerId,
+    });
+
+    scheduleAutoTrain().catch((err) => console.error('[AutoTrain] Schedule failed:', err.message));
+
+    await logLeadAction(reviewerId, {
+        action: 'lead.review.reject',
+        resource: 'lead_post',
+        resourceId: id,
+        organizationId: audit?.organizationId,
+        ipAddress: audit?.ipAddress,
+        details: {
+            post_id: post.post_id,
+            platform: post.platform,
+            keyword: post.keyword,
+        },
+    });
+
+    return updated;
+};
+
+export const bulkApproveLeadReviews = async (
+    query: {
+        status?: string;
+        search?: string;
+        keyword?: string;
+        platform?: string;
+    },
+    reviewerId: string,
+    audit?: { ipAddress?: string; organizationId?: string }
+) => {
+    const filter = buildLeadListFilter(query);
+    filter.status = 'relevant';
+    filter.review_status = 'awaiting_review';
+    filter.has_contact = true;
+
+    const posts = await LeadPost.find(filter, { lean: true }) as Array<{
+        _id: string;
+        intelligence?: string;
+        email?: string | null;
+        enrichment_status?: string | null;
+        contact_info?: { emails?: Array<{ email?: string }>; phone_numbers?: Array<{ number?: string }> };
+    }>;
+
+    if (posts.length === 0) {
+        return { approved: 0, skipped: 0, message: 'No leads awaiting approval with contact details matched the current filters.' };
+    }
+
+    const withContact = posts.filter((post) => leadHasContactDetails(post));
+    const skipped = posts.length - withContact.length;
+
+    if (withContact.length === 0) {
+        return {
+            approved: 0,
+            skipped,
+            message: `${skipped} lead(s) skipped — none have contact details yet. Run enrichment first.`,
+        };
+    }
+
+    const ids = withContact.map((post) => post._id.toString());
+
+    await prisma.leadPost.updateMany({
+        where: { id: { in: ids } },
+        data: {
+            review_status: 'approved',
+            reviewed_at: new Date(),
+            reviewed_by_id: reviewerId,
+            is_training_data: true,
+        },
+    });
+
+    let approved = 0;
+    for (const post of withContact) {
+        if (!post.intelligence) {
+            await enqueueLeadIntelligence(post._id.toString());
+        }
+        approved += 1;
+    }
+
+    scheduleAutoTrain().catch((err) => console.error('[AutoTrain] Schedule failed:', err.message));
+
+    await logLeadAction(reviewerId, {
+        action: 'lead.review.bulk_approve',
+        resource: 'lead_post',
+        organizationId: audit?.organizationId,
+        ipAddress: audit?.ipAddress,
+        details: { count: approved, skipped, filters: query },
+    });
+
+    const skipNote = skipped > 0 ? ` ${skipped} skipped (no contact details).` : '';
+
+    return {
+        approved,
+        skipped,
+        message: `${approved} lead(s) approved and queued for intelligence reports.${skipNote}`,
+    };
+};
+
+export const bulkRejectLeadReviews = async (
+    query: {
+        status?: string;
+        search?: string;
+        keyword?: string;
+        platform?: string;
+    },
+    reviewerId: string,
+    audit?: { ipAddress?: string; organizationId?: string }
+) => {
+    const filter = buildLeadListFilter(query);
+    filter.status = 'relevant';
+    filter.review_status = 'awaiting_review';
+
+    const posts = await LeadPost.find(filter, { lean: true }) as Array<{ _id: string }>;
+
+    if (posts.length === 0) {
+        return { rejected: 0, message: 'No leads awaiting review matched the current filters.' };
+    }
+
+    const ids = posts.map((post) => post._id.toString());
+
+    await prisma.leadPost.updateMany({
+        where: { id: { in: ids } },
+        data: {
+            status: 'irrelevant',
+            review_status: 'rejected',
+            qualification_reason: 'Rejected during bulk admin review.',
+            is_training_data: true,
+            reviewed_at: new Date(),
+            reviewed_by_id: reviewerId,
+        },
+    });
+
+    scheduleAutoTrain().catch((err) => console.error('[AutoTrain] Schedule failed:', err.message));
+
+    await logLeadAction(reviewerId, {
+        action: 'lead.review.bulk_reject',
+        resource: 'lead_post',
+        organizationId: audit?.organizationId,
+        ipAddress: audit?.ipAddress,
+        details: { count: ids.length, filters: query },
+    });
+
+    return {
+        rejected: ids.length,
+        message: `${ids.length} lead(s) rejected and moved to noise.`,
+    };
+};
+
 export const getAllPosts = async (currentUser: any, query: {
     page?: number;
     limit?: number;
@@ -144,13 +425,13 @@ export const getAllPosts = async (currentUser: any, query: {
 
     const filter: any = { is_deleted: false };
 
-    // Security Filter: External users only see qualified leads (relevant + intelligence generated)
+    // Security Filter: External users only see admin-approved leads with intelligence
     if (!isInternal) {
         filter.status = 'relevant';
+        filter.review_status = 'approved';
         filter.intelligence = { $ne: null };
     } else if (query.status && query.status !== 'all') {
-        // Internal users can filter by any status
-        filter.status = query.status;
+        applyListTabFilter(filter, query.status);
     }
 
     // Keyword filter
@@ -183,11 +464,22 @@ export const getAllPosts = async (currentUser: any, query: {
         lean: true,
     });
 
+    const postsWithReviewers = await attachReviewerNames(posts);
+
+    if (isInternal) {
+        await Promise.all(
+            postsWithReviewers.map(async (post) => {
+                const corrected = await reconcileEnrichmentStatusIfStale(post._id.toString(), post);
+                if (corrected) post.enrichment_status = corrected;
+            })
+        );
+    }
+
     // Check which posts are claimed by the current user
-    const userClaims = await Claim.find({ userId: currentUser.id, leadId: { $in: posts.map(p => p._id) } });
+    const userClaims = await Claim.find({ userId: currentUser.id, leadId: { $in: postsWithReviewers.map(p => p._id) } });
     const claimedIds = new Set(userClaims.map(c => c.leadId.toString()));
 
-    const postsWithClaimed = posts.map(post => {
+    const postsWithClaimed = postsWithReviewers.map(post => {
         const isClaimed = claimedIds.has(post._id.toString());
         const shouldShowSensitive = isClaimed || isInternal;
         const contact = sanitizeContactFields(post, { isInternal, isClaimed });
@@ -224,14 +516,28 @@ export const getAllPosts = async (currentUser: any, query: {
     // For status counts, always use the base filter but respect isInternal for showing pending counts
     const baseFilter = { ...filter };
     delete baseFilter.status;
-    delete baseFilter.intelligence; // Intelligence filter only for external listing
+    delete baseFilter.review_status;
+    delete baseFilter.intelligence;
+    delete baseFilter.enrichment_status;
+    delete baseFilter.has_contact;
 
-    const [allCount, pendingCount, relevantCount, irrelevantCount] = await Promise.all([
-        LeadPost.countDocuments(baseFilter),
-        LeadPost.countDocuments({ ...baseFilter, status: 'pending' }),
-        LeadPost.countDocuments({ ...baseFilter, status: 'relevant' }),
-        LeadPost.countDocuments({ ...baseFilter, status: 'irrelevant' })
-    ]);
+    const reviewFilter = {
+        ...baseFilter,
+        status: 'relevant',
+        review_status: 'awaiting_review',
+        has_contact: true,
+    };
+
+    const [allCount, irrelevantCount, relevantCount, withContactCount, approvedCount, pendingCount, reviewCount] =
+        await Promise.all([
+            LeadPost.countDocuments(baseFilter),
+            LeadPost.countDocuments({ ...baseFilter, status: 'irrelevant' }),
+            LeadPost.countDocuments({ ...baseFilter, status: 'relevant' }),
+            LeadPost.countDocuments({ ...baseFilter, status: 'relevant', has_contact: true }),
+            LeadPost.countDocuments({ ...baseFilter, status: 'relevant', review_status: 'approved' }),
+            LeadPost.countDocuments({ ...baseFilter, status: 'pending' }),
+            LeadPost.countDocuments(reviewFilter),
+        ]);
 
     return {
         posts: postsWithClaimed,
@@ -240,9 +546,12 @@ export const getAllPosts = async (currentUser: any, query: {
         pages: Math.ceil(total / limit),
         counts: {
             all: allCount,
-            pending: isInternal ? pendingCount : 0, // External users shouldn't even know pending counts exist
-            relevant: relevantCount,
-            irrelevant: isInternal ? irrelevantCount : 0
+            irrelevant: isInternal ? irrelevantCount : 0,
+            relevant: isInternal ? relevantCount : 0,
+            with_contact: isInternal ? withContactCount : 0,
+            approved: approvedCount,
+            pending: isInternal ? pendingCount : 0,
+            review: isInternal ? reviewCount : 0,
         }
     };
 };
@@ -289,7 +598,11 @@ export const getPostForUser = async (currentUser: any, id: string) => {
 
     return redactedPost;
 };
-export const updatePostLabel = async (id: string, data: { status?: string; is_training_data?: boolean }) => {
+export const updatePostLabel = async (
+    id: string,
+    data: { status?: string; is_training_data?: boolean },
+    reviewerId?: string
+) => {
     const updateData: any = { ...data };
 
     if (data.status === 'relevant') {
@@ -298,9 +611,15 @@ export const updatePostLabel = async (id: string, data: { status?: string; is_tr
     } else if (data.status === 'irrelevant') {
         updateData.qualification_reason = 'Manually marked as not a lead by admin.';
         updateData.is_training_data = true;
+        updateData.review_status = 'rejected';
+        updateData.reviewed_at = new Date();
+        if (reviewerId) updateData.reviewed_by_id = reviewerId;
     } else if (data.status === 'pending') {
         updateData.qualification_reason = null;
         updateData.ai_score = 0;
+        updateData.review_status = null;
+        updateData.reviewed_at = null;
+        updateData.reviewed_by_id = null;
     }
 
     const post = await LeadPost.findOneAndUpdate(
@@ -313,6 +632,25 @@ export const updatePostLabel = async (id: string, data: { status?: string; is_tr
         throw new ErrorResponse(`Post not found with id of ${id}`, 404);
     }
 
+    if (data.status === 'relevant') {
+        const hasContact = leadHasContactDetails(post);
+        if (hasContact) {
+            await LeadPost.findByIdAndUpdate(post._id.toString(), {
+                review_status: 'approved',
+                reviewed_at: new Date(),
+                reviewed_by_id: reviewerId || null,
+            });
+            post.review_status = 'approved';
+        } else {
+            await LeadPost.findByIdAndUpdate(post._id.toString(), {
+                review_status: 'awaiting_review',
+                reviewed_at: null,
+                reviewed_by_id: null,
+            });
+            post.review_status = 'awaiting_review';
+        }
+    }
+
     if (data.status === 'relevant' || data.status === 'irrelevant') {
         scheduleAutoTrain().catch((err) => console.error('[AutoTrain] Schedule failed:', err.message));
     }
@@ -322,6 +660,10 @@ export const updatePostLabel = async (id: string, data: { status?: string; is_tr
             status: 'relevant',
             platform: post.platform,
         });
+
+        if (leadHasContactDetails(post) && !post.intelligence) {
+            await enqueueLeadIntelligence(post._id.toString());
+        }
     }
 
     return post;
@@ -333,7 +675,14 @@ export const requalifyPost = async (id: string) => {
         throw new ErrorResponse(`Post not found with id of ${id}`, 404);
     }
 
-    await LeadPost.findByIdAndUpdate(id, { status: 'pending', qualification_reason: null, ai_score: 0 });
+    await LeadPost.findByIdAndUpdate(id, {
+        status: 'pending',
+        qualification_reason: null,
+        ai_score: 0,
+        review_status: null,
+        reviewed_at: null,
+        reviewed_by_id: null,
+    });
     await enqueueLeadQualification(id);
 
     return { message: 'Lead queued for AI qualification' };
@@ -445,9 +794,13 @@ export const claimPost = async (postId: string, userId: string) => {
     const permissions = await getUserPermissions(userId);
     const isInternal = checkPermission(permissions, '*') || checkPermission(permissions, 'system:admin');
 
-    // Ensure it's actually a lead (qualified post)
-    if (post.status !== 'relevant' || (!isInternal && !post.intelligence)) {
-        throw new ErrorResponse('Only qualified leads with generated intelligence can be claimed.', 400);
+    // Ensure it's actually a lead approved for release
+    if (
+        post.status !== 'relevant'
+        || post.review_status !== 'approved'
+        || (!isInternal && !post.intelligence)
+    ) {
+        throw new ErrorResponse('Only admin-approved leads with generated intelligence can be claimed.', 400);
     }
 
     // 1. Check if lead already claimed by this user

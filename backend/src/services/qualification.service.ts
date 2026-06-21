@@ -1,105 +1,127 @@
 import LeadPost from '../models/lead-post.model';
 import { classifyText } from './ocr.service';
 import { enqueueContactEnrichment } from '../utils/enrichment-queue.utils';
+import { scheduleAutoTrain } from '../utils/auto-train.utils';
 import {
-    analyzeFreelanceLeadPatterns,
-    buildFreelanceMatchReason,
-    isFreelanceLeadPattern,
-    isNonLeadPattern,
-} from '../utils/lead-qualification-patterns.utils';
+    classifyLeadIntent,
+    confidenceToStatus,
+    buildIntentReason,
+    logQualificationDecision,
+    type IntentClassification,
+} from '../utils/lead-intent-scoring.utils';
 
-export type QualificationStatus = 'relevant' | 'irrelevant';
+export type QualificationStatus = 'relevant' | 'irrelevant' | 'pending';
 
 export interface QualificationResult {
     status: QualificationStatus;
     reason: string;
     confidence: number;
-    method: 'local-ai' | 'rules' | 'rules+ai';
+    method: 'intent-rules' | 'intent+ai' | 'local-ai' | 'uncertain';
+    reasons: string[];
+    label: 'RELEVANT' | 'IRRELEVANT' | 'UNCERTAIN';
 }
 
-function patternConfidence(analysis: ReturnType<typeof analyzeFreelanceLeadPatterns>): number {
-    return Math.min(92, 58 + analysis.freelanceScore * 8);
+const AI_NUDGE_MIN = 0.78;
+
+/**
+ * Local ML is only consulted in the uncertain band (41–70) to nudge precision.
+ * Intent rules always run first.
+ */
+function applyAiNudge(
+    intent: IntentClassification,
+    aiLabel: string,
+    aiConfidencePct: number
+): QualificationResult {
+    const { analysis } = intent;
+    const jobSignals = analysis.employment.length + analysis.fullTime.length;
+    const serviceSignals = analysis.buying.length + analysis.recommendation.length;
+    let confidence = intent.confidence;
+    const reasons = [...intent.reasons];
+    let method: QualificationResult['method'] = 'uncertain';
+
+    const aiProb = aiConfidencePct / 100;
+
+    if (aiLabel === 'irrelevant' && aiProb >= AI_NUDGE_MIN) {
+        confidence = Math.max(0, confidence - 12);
+        reasons.push(`local AI supports irrelevant (${aiConfidencePct}%)`);
+        method = 'intent+ai';
+    } else if (
+        aiLabel === 'relevant'
+        && aiProb >= AI_NUDGE_MIN
+        && jobSignals === 0
+        && serviceSignals >= 1
+    ) {
+        confidence = Math.min(100, confidence + 10);
+        reasons.push(`local AI supports relevant (${aiConfidencePct}%)`);
+        method = 'intent+ai';
+    } else {
+        reasons.push(`local AI inconclusive (${aiLabel} ${aiConfidencePct}%) — manual review recommended`);
+    }
+
+    confidence = Math.round(confidence);
+    const status = confidenceToStatus(confidence);
+    const label = status === 'relevant' ? 'RELEVANT' : status === 'irrelevant' ? 'IRRELEVANT' : 'UNCERTAIN';
+
+    return {
+        status,
+        label,
+        confidence,
+        reasons,
+        method,
+        reason: buildIntentReason({ ...intent, label, status, confidence, reasons }),
+    };
 }
 
-export async function qualifyPostContent(content: string, _platform = 'linkedin'): Promise<QualificationResult> {
+function intentToResult(intent: IntentClassification, method: QualificationResult['method']): QualificationResult {
+    return {
+        status: intent.status,
+        label: intent.label,
+        confidence: intent.confidence,
+        reasons: intent.reasons,
+        method,
+        reason: buildIntentReason(intent),
+    };
+}
+
+export async function qualifyPostContent(content: string, platform = 'linkedin'): Promise<QualificationResult> {
     if (!content?.trim()) {
         return {
             status: 'irrelevant',
-            reason: 'Post has no content to analyze.',
+            label: 'IRRELEVANT',
+            reason: 'IRRELEVANT (0%): post has no content to analyze',
             confidence: 0,
-            method: 'rules',
+            method: 'intent-rules',
+            reasons: ['empty content'],
         };
     }
 
-    const patterns = analyzeFreelanceLeadPatterns(content);
+    const intent = classifyLeadIntent(content);
 
-    if (isNonLeadPattern(patterns)) {
-        return {
-            status: 'irrelevant',
-            reason: `Not a freelancer lead (${patterns.matchedNonLead.join(', ')}).`,
-            confidence: Math.min(90, 55 + patterns.nonLeadScore * 12),
-            method: 'rules',
-        };
+    // High-confidence intent decision — skip ML (precision-first)
+    if (intent.confidence <= 40 || intent.confidence >= 71) {
+        const result = intentToResult(intent, 'intent-rules');
+        logQualificationDecision(content, intent, { method: result.method, platform });
+        return result;
     }
 
-    if (isFreelanceLeadPattern(patterns)) {
-        return {
-            status: 'relevant',
-            reason: buildFreelanceMatchReason(patterns),
-            confidence: patternConfidence(patterns),
-            method: 'rules',
-        };
-    }
-
+    // Uncertain band (41–70): optional ML nudge
     const localResult = await classifyText(content);
     if (localResult) {
-        const aiConfidence = Math.round(localResult.confidence * 100);
-
-        if (localResult.label === 'irrelevant' && patterns.freelanceScore > 0) {
-            return {
-                status: 'relevant',
-                reason: `${buildFreelanceMatchReason(patterns)} Local AI was unsure (${aiConfidence}%).`,
-                confidence: Math.max(60, aiConfidence, patternConfidence(patterns)),
-                method: 'rules+ai',
-            };
-        }
-
-        if (localResult.label === 'relevant') {
-            return {
-                status: 'relevant',
-                reason: patterns.freelanceScore > 0
-                    ? `Local AI and freelance patterns agree this is a freelancer lead.`
-                    : 'Local AI detected a potential freelancer lead.',
-                confidence: aiConfidence,
-                method: 'local-ai',
-            };
-        }
-
-        return {
-            status: 'irrelevant',
-            reason: patterns.freelanceScore > 0
-                ? `Local AI flagged this as not a freelancer lead (${aiConfidence}%). Mark Relevant to teach the model.`
-                : `Local AI flagged this as not a freelancer lead (${aiConfidence}%).`,
-            confidence: aiConfidence,
-            method: 'local-ai',
-        };
+        const aiConfidencePct = Math.round(localResult.confidence * 100);
+        const result = applyAiNudge(intent, localResult.label, aiConfidencePct);
+        logQualificationDecision(content, intent, {
+            method: result.method,
+            platform,
+            aiLabel: localResult.label,
+            aiConfidence: aiConfidencePct,
+        });
+        return result;
     }
 
-    if (patterns.freelanceScore > 0) {
-        return {
-            status: 'relevant',
-            reason: buildFreelanceMatchReason(patterns),
-            confidence: patternConfidence(patterns),
-            method: 'rules',
-        };
-    }
-
-    return {
-        status: 'irrelevant',
-        reason: 'No freelancer hiring or project signals detected. Mark Relevant if this is a good lead.',
-        confidence: 45,
-        method: 'rules',
-    };
+    const result = intentToResult(intent, 'uncertain');
+    result.reasons.push('local AI unavailable — intent score only');
+    logQualificationDecision(content, intent, { method: 'uncertain', platform });
+    return result;
 }
 
 export async function qualifyLeadPost(postId: string): Promise<QualificationResult | null> {
@@ -112,16 +134,34 @@ export async function qualifyLeadPost(postId: string): Promise<QualificationResu
 
     const result = await qualifyPostContent(post.content, post.platform);
 
-    await LeadPost.findByIdAndUpdate(postId, {
+    const updateData: Record<string, unknown> = {
         status: result.status,
         ai_score: result.confidence,
         qualification_reason: result.reason,
-    });
+    };
 
-    console.log(`✅ [Qualification] ${post.post_id} → ${result.status} (${result.confidence}%) — ${result.reason}`);
+    if (result.status === 'relevant') {
+        updateData.review_status = 'awaiting_review';
+        updateData.is_training_data = true;
+    } else {
+        updateData.review_status = null;
+    }
+
+    if (result.status === 'irrelevant') {
+        updateData.is_training_data = true;
+    }
+
+    await LeadPost.findByIdAndUpdate(postId, updateData);
+
+    console.log(
+        `✅ [Qualification] ${post.post_id} → ${result.label} (${result.confidence}%) [${result.method}] — ${result.reasons.slice(0, 3).join('; ')}`
+    );
 
     if (result.status === 'relevant') {
         await enqueueContactEnrichment(postId, { status: 'relevant', platform: post.platform });
+        scheduleAutoTrain().catch((err) => console.error('[AutoTrain] Schedule failed:', err.message));
+    } else if (result.status === 'irrelevant') {
+        scheduleAutoTrain().catch((err) => console.error('[AutoTrain] Schedule failed:', err.message));
     }
 
     return result;
