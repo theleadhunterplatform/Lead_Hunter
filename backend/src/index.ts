@@ -112,6 +112,13 @@ app.use(errorHandler);
 
 // Initialize Database and Cron
 const startServer = async () => {
+    const PORT = config.port;
+
+    // Listen immediately so Render health checks pass while DB/Redis init runs
+    app.listen(PORT, () => {
+        console.log(`Server running on port ${PORT}`);
+    });
+
     await connectDB();
     await seedRBAC(); // Seed the Scoped RBAC System on first run
 
@@ -126,11 +133,6 @@ const startServer = async () => {
     } else {
         console.log('ℹ Non-production environment: Scheduled cron jobs skipped. Use /api/scrapers to trigger manually.');
     }
-    
-    const PORT = config.port;
-    app.listen(PORT, () => {
-        console.log(`Server running on port ${PORT}`);
-    });
 };
 
 // Handle unhandled promise rejections

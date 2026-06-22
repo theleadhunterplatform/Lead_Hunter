@@ -58,7 +58,8 @@ export async function verifyRedisConnection(): Promise<boolean> {
     }
 
     if (config.env === 'production') {
-        throw new Error('Redis is required in production.');
+        console.error('❌ Redis unavailable — API will run but scraping/queues are disabled until REDIS_URL is fixed.');
+        return false;
     }
 
     console.warn('⚠️  Dev mode: starting API without Redis — login works, queues/workers disabled.');
