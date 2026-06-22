@@ -67,7 +67,7 @@ const config = {
         useCloud: process.env.USE_CLOUD_REDIS === 'true',
     },
     aiService: {
-        url: process.env.AI_SERVICE_URL || 'http://localhost:8000'
+        url: (process.env.AI_SERVICE_URL || 'http://localhost:8000').replace(/\/+$/, ''),
     },
     contactCompass: {
         monthlyLookupLimit: parseInt(process.env.CONTACT_COMPASS_MONTHLY_LOOKUP_LIMIT || '500', 10),

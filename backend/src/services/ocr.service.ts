@@ -153,11 +153,18 @@ export const trainModel = async (
         });
 
         if (!response.ok) {
-            const errorData = await response.json() as any;
+            let errorDetail = response.statusText;
+            try {
+                const errorData = await response.json() as any;
+                errorDetail = errorData.detail || errorData.error || errorData.message || errorDetail;
+            } catch {
+                // ignore non-JSON bodies
+            }
+            console.error(`[AI-Train] Failed (${response.status}) at ${config.aiService.url}/train — ${errorDetail}`);
             return { 
                 success: false, 
                 message: 'AI Service failed during training',
-                error: errorData.error || response.statusText
+                error: errorDetail,
             };
         }
 
