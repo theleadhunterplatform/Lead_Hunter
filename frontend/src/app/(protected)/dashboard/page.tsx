@@ -66,6 +66,11 @@ export default function DashboardPage() {
       }
     };
     
+    if (!authLoading && !user) {
+      setLoading(false);
+      return;
+    }
+
     if (!authLoading && user) {
       fetchDashboardData();
     }

@@ -7,9 +7,11 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button, Input } from "@/components/ui/HunterUI";
 import api from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 
 function RegisterForm() {
   const router = useRouter();
+  const { refreshUser } = useAuth();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -37,6 +39,7 @@ function RegisterForm() {
       localStorage.setItem("hunter_token", payload.access_token);
       localStorage.setItem("hunter_refresh_token", payload.refresh_token);
       localStorage.setItem("hunter_user", JSON.stringify(payload.user));
+      await refreshUser();
       router.push("/dashboard");
     } catch (err: any) {
       setError(err.response?.data?.error || err.response?.data?.message || err.message || "Registration failed. Please try again.");

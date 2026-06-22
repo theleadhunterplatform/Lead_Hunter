@@ -8,8 +8,11 @@ import { useRouter } from "next/navigation";
 import { Button, Input } from "@/components/ui/HunterUI";
 import api from "@/lib/api";
 
+import { useAuth } from "@/context/AuthContext";
+
 export default function LoginPage() {
   const router = useRouter();
+  const { refreshUser } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [formData, setFormData] = useState({
@@ -28,6 +31,7 @@ export default function LoginPage() {
       localStorage.setItem("hunter_token", payload.access_token);
       localStorage.setItem("hunter_refresh_token", payload.refresh_token);
       localStorage.setItem("hunter_user", JSON.stringify(payload.user));
+      await refreshUser();
       router.push("/dashboard");
     } catch (err: any) {
       setError(err.response?.data?.error || err.response?.data?.message || err.message || "Login failed. Please check your email and password.");
