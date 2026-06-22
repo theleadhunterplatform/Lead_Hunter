@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node dist/index.js",
     "dev": "nodemon --watch src --ext ts,json --exec ts-node src/index.ts",
-    "build": "cross-env DB_MODE=supabase node scripts/prisma-generate.js && tsc",
+    "build": "node scripts/prisma-generate.js && tsc",
     "postinstall": "node scripts/prisma-generate.js",
     "db:generate": "node scripts/prisma-generate.js",
     "db:migrate": "prisma migrate dev --schema prisma/schema.prisma",
