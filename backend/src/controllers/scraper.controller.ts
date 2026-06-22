@@ -27,6 +27,57 @@ async function queuePlatformScrape(platform: string): Promise<{ platform: string
     return { platform, keywords: activeKeywords.length };
 }
 
+async function queueKeywordScrape(keyword: { _id?: string; id?: string; text: string; platforms?: string[] }) {
+    const keywordId = keyword._id || keyword.id;
+    const platforms = KEYWORD_SCRAPE_PLATFORMS.filter((platform) =>
+        (keyword.platforms || []).includes(platform)
+    );
+
+    for (const platform of platforms) {
+        await scraperQueue.add(
+            `manual-scrape-${platform}-${keywordId}`,
+            {
+                keywordId,
+                platform,
+                keywordText: keyword.text,
+            },
+            { removeOnComplete: true }
+        );
+    }
+
+    return platforms;
+}
+
+// @desc    Trigger scrape for one keyword
+// @route   POST /api/scrapers/keyword/:keywordId
+// @access  Private/Admin
+export const triggerKeywordScrape = asyncHandler(async (req: Request, res: Response) => {
+    const kw = await Keyword.findOne({ _id: req.params.keywordId, is_deleted: false });
+
+    if (!kw) {
+        return res.status(404).json({ success: false, message: 'Keyword not found' });
+    }
+
+    if (!kw.is_active) {
+        return res.status(400).json({ success: false, message: 'Keyword is paused — activate it before scraping' });
+    }
+
+    const platforms = await queueKeywordScrape(kw);
+
+    if (platforms.length === 0) {
+        return res.status(400).json({
+            success: false,
+            message: 'Enable LinkedIn on this keyword to scrape it',
+        });
+    }
+
+    return res.status(200).json({
+        success: true,
+        message: `Scraping queued for "${kw.text}" on ${platforms.join(', ')}`,
+        data: { keywordId: kw._id || kw.id, platforms },
+    });
+});
+
 // @desc    Trigger Scrapers manually for a platform
 // @route   POST /api/scrapers/:platform
 // @access  Private/Admin

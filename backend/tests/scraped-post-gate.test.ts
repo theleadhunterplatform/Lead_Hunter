@@ -7,6 +7,14 @@ describe('scraped-post-gate', () => {
         );
     });
 
+    it('accepts linkedin buyer posts when search phrase is not verbatim in body', () => {
+        const post =
+            'Can anyone recommend a reliable freelancer to rebuild our company website? We have budget approved and need someone who can handle React and Node.';
+        expect(shouldIngestScrapedPost(post, 'can anyone recommend a web developer', 'linkedin').ok).toBe(
+            true
+        );
+    });
+
     it('rejects posts without the search phrase in the text', () => {
         expect(
             shouldIngestScrapedPost(

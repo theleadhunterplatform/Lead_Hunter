@@ -26,6 +26,7 @@ export default function KeywordsPage() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkActionPlatforms, setBulkActionPlatforms] = useState<string[]>(["linkedin"]);
   const [scraping, setScraping] = useState(false);
+  const [scrapingId, setScrapingId] = useState<string | null>(null);
 
   const canScrape = hasPermission('scraper:run');
 
@@ -163,6 +164,28 @@ export default function KeywordsPage() {
     }
   };
 
+  const startScrapingKeyword = async (kw: { _id: string; text: string; is_active: boolean }) => {
+    if (!kw.is_active) {
+      toast.error("Keyword is paused", { description: "Activate this keyword before scraping." });
+      return;
+    }
+
+    setScrapingId(kw._id);
+    setError("");
+    try {
+      const { data } = await api.post(`/scrapers/keyword/${kw._id}`);
+      toast.success("Scraping started", {
+        description: data.message || `Queued LinkedIn scrape for "${kw.text}"`,
+      });
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.response?.data?.error || "Failed to start scraping.";
+      toast.error("Could not start scraping", { description: msg });
+      setError(typeof msg === 'string' ? msg : JSON.stringify(msg));
+    } finally {
+      setScrapingId(null);
+    }
+  };
+
   const startScraping = async () => {
     if (keywords.length === 0) {
       toast.error("Add keywords first", {
@@ -195,7 +218,7 @@ export default function KeywordsPage() {
             Search <span className="text-hunter-orange">Keywords</span>
           </h1>
           <p className="text-zinc-500 font-display uppercase text-xs tracking-widest">
-            Use buyer phrases only (e.g. &quot;looking for web developer&quot;). Start Scraping = LinkedIn only.
+            Use buyer phrases only. Scrape one keyword with ▶ or all with Scrape All (LinkedIn).
           </p>
         </div>
 
@@ -208,7 +231,7 @@ export default function KeywordsPage() {
             className="px-6 flex items-center gap-2 w-full sm:w-auto shrink-0"
           >
             {scraping ? <Loader2 size={18} className="animate-spin" /> : <Play size={18} />}
-            {scraping ? "Queueing..." : "Start Scraping"}
+            {scraping ? "Queueing..." : "Scrape All"}
           </HunterButton>
         )}
       </div>
@@ -405,6 +428,20 @@ export default function KeywordsPage() {
                   </>
                 ) : (
                   <>
+                    {canScrape && (
+                      <button
+                        onClick={() => startScrapingKeyword(kw)}
+                        disabled={scrapingId === kw._id || scraping || !kw.is_active}
+                        className="p-2 text-hunter-orange hover:bg-hunter-orange/10 transition-all rounded-sm disabled:opacity-40"
+                        title={kw.is_active ? "Scrape this keyword" : "Activate keyword to scrape"}
+                      >
+                        {scrapingId === kw._id ? (
+                          <Loader2 size={16} className="animate-spin" />
+                        ) : (
+                          <Play size={16} />
+                        )}
+                      </button>
+                    )}
                     {hasPermission('keyword:update') && (
                       <button
                         onClick={() => startEditing(kw)}

@@ -6,6 +6,7 @@ import {
     triggerReddit,
     triggerThreads,
     triggerAllScrapers,
+    triggerKeywordScrape,
 } from '../controllers/scraper.controller';
 import { protect, authorize } from '../middleware/auth';
 
@@ -15,6 +16,7 @@ router.use(protect);
 router.use(authorize('scraper:run'));
 
 router.post('/all', triggerAllScrapers);
+router.post('/keyword/:keywordId', triggerKeywordScrape);
 router.post('/linkedin', triggerLinkedIn);
 router.post('/linkedin-activity', triggerLinkedInActivity);
 router.post('/twitter', triggerTwitter);

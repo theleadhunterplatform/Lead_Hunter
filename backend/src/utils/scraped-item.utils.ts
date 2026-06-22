@@ -20,7 +20,17 @@ export function extractScrapedPostId(item: any, platform: string): string | null
 export function extractScrapedContent(item: any, platform: string): string {
     switch (platform) {
         case 'linkedin':
-            return pickString(item?.content, item?.text);
+            return pickString(
+                item?.content,
+                item?.text,
+                item?.commentary,
+                item?.article?.title && item?.article?.description
+                    ? `${item.article.title}\n${item.article.description}`
+                    : '',
+                item?.article?.title,
+                item?.resharedPost?.content,
+                item?.repost?.content
+            );
         case 'twitter':
             return pickString(item?.text, item?.full_text, item?.fullText, item?.tweetText, item?.content);
         case 'reddit':

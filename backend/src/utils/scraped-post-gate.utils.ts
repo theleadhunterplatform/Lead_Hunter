@@ -20,8 +20,13 @@ export function shouldIngestScrapedPost(
     const phrase = searchPhrase.toLowerCase().trim();
     const text = trimmed.toLowerCase();
 
-    if (!phraseInContent(text, phrase)) {
+    // LinkedIn keyword results are already filtered by Apify search — post body often won't repeat the exact query string.
+    if (_platform !== 'linkedin' && !phraseInContent(text, phrase)) {
         return { ok: false, reason: 'search phrase not in post text' };
+    }
+
+    if (_platform === 'linkedin' && !phraseInContent(text, phrase) && !EXPLICIT_BUYER_ASK.test(text)) {
+        return { ok: false, reason: 'no buyer ask in post text' };
     }
 
     // Bare keywords like "web developer" match seller/student posts — require an explicit buyer ask in the post.
@@ -58,12 +63,12 @@ function stripArticles(text: string): string {
     return text.replace(/\b(a|an|the)\b/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
-/** Require the search phrase (with optional articles) to appear in the post. */
+/** Require the search phrase (with optional articles / word order) to appear in the post. */
 function phraseInContent(text: string, phrase: string): boolean {
     if (!phrase) return false;
 
-    const normalizedText = text.replace(/\s+/g, ' ');
-    const normalizedPhrase = phrase.replace(/\s+/g, ' ');
+    const normalizedText = normalizeForPhraseMatch(text);
+    const normalizedPhrase = normalizeForPhraseMatch(phrase);
 
     if (normalizedText.includes(normalizedPhrase)) return true;
 
@@ -71,5 +76,26 @@ function phraseInContent(text: string, phrase: string): boolean {
     const strippedPhrase = stripArticles(normalizedPhrase);
     if (strippedPhrase && strippedText.includes(strippedPhrase)) return true;
 
-    return false;
+    return phraseWordsInOrder(strippedText, strippedPhrase);
+}
+
+function normalizeForPhraseMatch(text: string): string {
+    return text
+        .replace(/[#@]/g, ' ')
+        .replace(/[-/]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function phraseWordsInOrder(text: string, phrase: string): boolean {
+    const words = phrase.split(' ').filter((word) => word.length > 1);
+    if (words.length < 2) return false;
+
+    let searchFrom = 0;
+    for (const word of words) {
+        const idx = text.indexOf(word, searchFrom);
+        if (idx === -1) return false;
+        searchFrom = idx + word.length;
+    }
+    return true;
 }
