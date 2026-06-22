@@ -141,7 +141,7 @@ export default function LeadIntelligencePage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  const [activeTab, setActiveTab] = useState<'all' | 'irrelevant' | 'relevant' | 'with_contact' | 'approved' | 'pending' | 'review'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'irrelevant' | 'relevant' | 'with_contact' | 'approved' | 'pending' | 'review'>('relevant');
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [counts, setCounts] = useState({

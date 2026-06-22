@@ -1,5 +1,6 @@
 import Keyword from '../models/keyword.model';
 import ErrorResponse from '../utils/error-response.utils';
+import { normalizeKeywordInput } from '../utils/keyword-phrases.utils';
 
 export const getAllKeywords = async () => {
     return await Keyword.find({ is_deleted: false }, { sort: { created_at: -1 } });
@@ -65,14 +66,14 @@ export const deleteKeyword = async (id: string) => {
     return keyword;
 };
 export const bulkCreateKeywords = async (data: { texts: string[]; platforms: string[] }) => {
+    const phrases = normalizeKeywordInput(data.texts);
     const results = [];
-    for (const text of data.texts) {
+    for (const text of phrases) {
         if (!text.trim()) continue;
         try {
             const kw = await createKeyword({ text: text.trim(), platforms: data.platforms });
             results.push(kw);
         } catch (err) {
-            // Skip duplicates in bulk add
             console.log(`Skipping duplicate: ${text}`);
         }
     }

@@ -70,6 +70,7 @@ export default function ProtectedLayout({
     { name: "Hall of Hunters", href: "/leaderboard", icon: Trophy },
     { name: "Organization Team", href: "/team", icon: Users, permission: 'user:read' },
     { name: "Search Keys", href: "/tokens", icon: Key, permission: 'scraping:manage' },
+    { name: "Search Keywords", href: "/keywords", icon: Hash, permission: 'keyword:read' },
     { name: "Watchlist", href: "/targets", icon: UserSearch, permission: 'target:read' },
   ];
 
@@ -119,7 +120,8 @@ export default function ProtectedLayout({
             const isActive =
               pathname === item.href ||
               (item.href === '/lead-intelligence' && pathname.startsWith('/lead-intelligence')) ||
-              (item.href === '/leads/relevant' && pathname.startsWith('/leads/relevant'));
+              (item.href === '/leads/relevant' && pathname.startsWith('/leads/relevant')) ||
+              (item.href === '/keywords' && pathname.startsWith('/keywords'));
             return (
               <Link
                 key={item.href}

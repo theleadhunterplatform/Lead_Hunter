@@ -1,21 +1,44 @@
-import { parsePhoneNumberFromString } from 'libphonenumber-js';
-
 export function extractEmailFromText(text: string): string | null {
     const emailRegex = /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/gi;
     const match = text.match(emailRegex);
     return match ? match[0].toLowerCase() : null;
 }
 
+function normalizePhoneCandidate(raw: string): string | null {
+    const trimmed = raw.trim().replace(/\s+/g, ' ');
+    const digits = trimmed.replace(/\D/g, '');
+    if (digits.length < 8 || digits.length > 15) return null;
+    return trimmed;
+}
+
+const PHONE_LABEL =
+    '(?:phone|ph\\.?|mobile(?:\\s*no\\.?)?|contact|tel(?:ephone)?\\.?|no\\.?|whatsapp|wa|cell|call)';
+
+const PHONE_NUMBER = '(?:\\+?\\(?\\d[\\d\\s\\-.()]{6,}\\d|\\b0\\d[\\d\\s\\-.()]{7,}\\d)';
+
+/** Matches "Phone:", "Mobile No:", "Phone/No/Mobile No/Contact: 0336 ...", etc. */
+const LABELED_PHONE_REGEX = new RegExp(
+    `${PHONE_LABEL}(?:\\s*[/|,]\\s*${PHONE_LABEL})*\\s*[:\\-]?\\s*(${PHONE_NUMBER})`,
+    'gi'
+);
+
+const GENERIC_PHONE_REGEX = /(?:\+?\(?\d[\d\s\-.()]{6,}\d|\b0\d[\d\s\-.()]{7,}\d)/g;
+
 export function extractPhoneFromText(text: string): string | null {
-    const phoneRegex = /(\+?\d[\d\s\-\(\)]{7,}\d)/g;
-    const matches = text.match(phoneRegex);
+    // Strip emails first so digits inside addresses are not treated as phones.
+    const withoutEmails = text.replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/gi, ' ');
+
+    for (const match of withoutEmails.matchAll(LABELED_PHONE_REGEX)) {
+        const normalized = normalizePhoneCandidate(match[1]);
+        if (normalized) return normalized;
+    }
+
+    const matches = withoutEmails.match(GENERIC_PHONE_REGEX);
     if (!matches) return null;
 
     for (const match of matches) {
-        const phoneNumber = parsePhoneNumberFromString(match);
-        if (phoneNumber?.isValid()) {
-            return phoneNumber.formatInternational();
-        }
+        const normalized = normalizePhoneCandidate(match);
+        if (normalized) return normalized;
     }
     return null;
 }

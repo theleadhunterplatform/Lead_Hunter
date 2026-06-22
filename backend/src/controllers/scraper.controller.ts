@@ -4,38 +4,66 @@ import { scraperQueue } from '../queues';
 import Keyword from '../models/keyword.model';
 import prisma from '../lib/prisma';
 
-// @desc    Trigger Scrapers manually for a platform
-// @route   POST /api/scrapers/:platform
-// @access  Private/Admin
-const triggerScraper = async (platform: string, res: Response) => {
+/** Keyword scrape: LinkedIn only — best buyer signal; social search is too noisy. */
+const KEYWORD_SCRAPE_PLATFORMS = ['linkedin'] as const;
+
+async function queuePlatformScrape(platform: string): Promise<{ platform: string; keywords: number }> {
     const activeKeywords = await Keyword.find({
         is_active: true,
         is_deleted: false,
-        platforms: platform
+        platforms: platform,
     });
-
-    if (activeKeywords.length === 0) {
-        return res.status(200).json({
-            success: true,
-            message: `No active keywords found for ${platform}`
-        });
-    }
 
     for (const kw of activeKeywords) {
         await scraperQueue.add(`manual-scrape-${platform}-${kw.text}`, {
             keywordId: kw._id,
-            platform: platform,
-            keywordText: kw.text
+            platform,
+            keywordText: kw.text,
         }, {
-            removeOnComplete: true
+            removeOnComplete: true,
+        });
+    }
+
+    return { platform, keywords: activeKeywords.length };
+}
+
+// @desc    Trigger Scrapers manually for a platform
+// @route   POST /api/scrapers/:platform
+// @access  Private/Admin
+const triggerScraper = async (platform: string, res: Response) => {
+    const result = await queuePlatformScrape(platform);
+
+    if (result.keywords === 0) {
+        return res.status(200).json({
+            success: true,
+            message: `No active keywords found for ${platform}`,
         });
     }
 
     return res.status(200).json({
         success: true,
-        message: `${platform} scraper triggered for ${activeKeywords.length} keywords`
+        message: `${platform} scraper triggered for ${result.keywords} keywords`,
     });
 };
+
+export const triggerAllScrapers = asyncHandler(async (_req: Request, res: Response) => {
+    const results = await Promise.all(
+        KEYWORD_SCRAPE_PLATFORMS.map((platform) => queuePlatformScrape(platform))
+    );
+    const totalJobs = results.reduce((sum, r) => sum + r.keywords, 0);
+    const summary = results
+        .filter((r) => r.keywords > 0)
+        .map((r) => `${r.platform}: ${r.keywords}`)
+        .join(', ');
+
+    return res.status(200).json({
+        success: true,
+        message: totalJobs === 0
+            ? 'No active keywords found for any platform'
+            : `Scraping queued for ${totalJobs} keyword jobs (${summary || 'none'})`,
+        data: { totalJobs, platforms: results },
+    });
+});
 
 export const triggerLinkedIn = asyncHandler(async (_req: Request, res: Response) => {
     return triggerScraper('linkedin', res);

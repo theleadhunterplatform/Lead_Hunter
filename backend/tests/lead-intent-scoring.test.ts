@@ -20,6 +20,9 @@ describe('lead-intent-scoring', () => {
         'Thrilled to announce our product launch today!',
         'Excited to share that I just joined Google as a PM',
         '5 career advice tips for junior developers',
+        'Looking for web developer agency? Hire our verified freelancers ready to deliver!',
+        'Available for freelance AI agent projects — DM me for details',
+        'Hello I LOVE U ❤️',
     ];
 
     it.each(relevantExamples)('classifies buying intent as RELEVANT: %s', (text) => {

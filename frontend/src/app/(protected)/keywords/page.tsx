@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { Button as HunterButton, Input as HunterInput } from "@/components/ui/HunterUI";
-import { Plus, Trash2, Search, Hash, Edit2, Check, X } from "lucide-react";
+import { Plus, Trash2, Search, Hash, Edit2, Check, X, Play, Loader2 } from "lucide-react";
 import { LinkedinLogo, XLogo, RedditLogo, ThreadsLogo } from "@/components/BrandIcons";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api";
+import { toast } from "sonner";
 
 import { useAuth } from "@/context/AuthContext";
 
@@ -14,7 +15,7 @@ export default function KeywordsPage() {
   const { hasPermission, loading: authLoading } = useAuth();
   const [keywords, setKeywords] = useState<{ _id: string; text: string; platforms: string[]; is_active: boolean }[]>([]);
   const [newKeyword, setNewKeyword] = useState("");
-  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(["linkedin", "twitter", "reddit", "threads"]);
+  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(["linkedin"]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -23,7 +24,10 @@ export default function KeywordsPage() {
   const [isBulkAdd, setIsBulkAdd] = useState(false);
   const [bulkText, setBulkText] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [bulkActionPlatforms, setBulkActionPlatforms] = useState<string[]>(["linkedin", "twitter", "reddit", "threads"]);
+  const [bulkActionPlatforms, setBulkActionPlatforms] = useState<string[]>(["linkedin"]);
+  const [scraping, setScraping] = useState(false);
+
+  const canScrape = hasPermission('scraper:run');
 
   const fetchKeywords = async () => {
     try {
@@ -49,46 +53,36 @@ export default function KeywordsPage() {
   const addKeyword = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (isBulkAdd) {
-      const texts = bulkText.split('\n').map(t => t.trim()).filter(t => t.length > 0);
-      if (texts.length === 0) return;
-      if (selectedPlatforms.length === 0) {
-        setError("Please select at least one platform.");
-        return;
-      }
-      setError("");
+    if (selectedPlatforms.length === 0) {
+      setError("Please select at least one platform.");
+      return;
+    }
+    setError("");
 
-      try {
-        await api.post("/keywords/bulk", {
-          texts,
-          platforms: selectedPlatforms
-        });
+    const texts = isBulkAdd
+      ? bulkText.split('\n').map(t => t.trim()).filter(t => t.length > 0)
+      : newKeyword.trim()
+        ? [newKeyword.trim()]
+        : [];
+
+    if (texts.length === 0) return;
+
+    try {
+      await api.post("/keywords/bulk", {
+        texts,
+        platforms: selectedPlatforms
+      });
+      if (isBulkAdd) {
         setBulkText("");
         setIsBulkAdd(false);
-        fetchKeywords();
-      } catch (err: any) {
-        setError("Failed to add bulk keywords.");
-      }
-    } else {
-      if (!newKeyword.trim()) return;
-      if (selectedPlatforms.length === 0) {
-        setError("Please select at least one platform.");
-        return;
-      }
-      setError("");
-
-      try {
-        await api.post("/keywords", {
-          text: newKeyword,
-          platforms: selectedPlatforms
-        });
+      } else {
         setNewKeyword("");
-        fetchKeywords();
-      } catch (err: any) {
-        const msg = err.response?.data?.error || err.response?.data?.message || err.message || "Failed to add keyword.";
-        setError(typeof msg === 'string' ? msg : JSON.stringify(msg));
-        console.error("Failed to add keyword", err);
       }
+      fetchKeywords();
+    } catch (err: any) {
+      const msg = err.response?.data?.error || err.response?.data?.message || err.message || "Failed to add keyword.";
+      setError(typeof msg === 'string' ? msg : JSON.stringify(msg));
+      console.error("Failed to add keyword", err);
     }
   };
 
@@ -169,15 +163,54 @@ export default function KeywordsPage() {
     }
   };
 
+  const startScraping = async () => {
+    if (keywords.length === 0) {
+      toast.error("Add keywords first", {
+        description: "You need at least one active search keyword before scraping.",
+      });
+      return;
+    }
+
+    setScraping(true);
+    setError("");
+    try {
+      const { data } = await api.post("/scrapers/all");
+      toast.success("Scraping started", {
+        description: data.message || "Jobs queued for LinkedIn keyword search (strict buyer filter).",
+      });
+    } catch (err: any) {
+      const msg = err.response?.data?.error || err.response?.data?.message || "Failed to start scraping.";
+      toast.error("Could not start scraping", { description: msg });
+      setError(typeof msg === 'string' ? msg : JSON.stringify(msg));
+    } finally {
+      setScraping(false);
+    }
+  };
+
   return (
     <div className="p-8 max-w-4xl relative min-h-screen">
-      <div className="mb-10">
-        <h1 className="font-display font-black text-4xl uppercase tracking-tighter mb-2">
-          Search <span className="text-hunter-orange">Keywords</span>
-        </h1>
-        <p className="text-zinc-500 font-display uppercase text-xs tracking-widest">
-          Add phrases to help us find the right clients for you.
-        </p>
+      <div className="mb-10 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+        <div>
+          <h1 className="font-display font-black text-4xl uppercase tracking-tighter mb-2">
+            Search <span className="text-hunter-orange">Keywords</span>
+          </h1>
+          <p className="text-zinc-500 font-display uppercase text-xs tracking-widest">
+            Use buyer phrases only (e.g. &quot;looking for web developer&quot;). Start Scraping = LinkedIn only.
+          </p>
+        </div>
+
+        {canScrape && (
+          <HunterButton
+            type="button"
+            variant="primary"
+            onClick={startScraping}
+            disabled={scraping || loading}
+            className="px-6 flex items-center gap-2 w-full sm:w-auto shrink-0"
+          >
+            {scraping ? <Loader2 size={18} className="animate-spin" /> : <Play size={18} />}
+            {scraping ? "Queueing..." : "Start Scraping"}
+          </HunterButton>
+        )}
       </div>
 
       {error && (

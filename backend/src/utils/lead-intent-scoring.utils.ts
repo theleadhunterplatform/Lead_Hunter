@@ -47,7 +47,6 @@ const INTENT_PATTERNS: IntentPattern[] = [
     { label: 'looking for agency', category: 'buying', pattern: /\blooking\s+for\s+(?:a\s+|an\s+)?agency\b/i },
     { label: 'outsource work', category: 'buying', pattern: /\b(?:outsource|outsourcing)\b/i },
     { label: 'contract basis', category: 'buying', pattern: /\b(?:contract|project)[- ]basis\b/i },
-    { label: 'freelance role', category: 'buying', pattern: /\b(?:freelanc(?:e|er|ing)|contractor)\b/i },
     { label: 'paid project', category: 'buying', pattern: /\b(?:paid|paying)\s+project\b/i },
     { label: 'project budget', category: 'buying', pattern: /\b(?:fixed|project)\s+budget\b/i },
     { label: 'hiring freelancer', category: 'buying', pattern: /\b(?:hiring|need|seeking).{0,35}\b(?:freelanc|contractor|agency|consultant)\b/i },
@@ -66,6 +65,7 @@ const INTENT_PATTERNS: IntentPattern[] = [
 
     // ── B. Employment intent (IRRELEVANT) ──
     { label: 'we are hiring', category: 'employment', pattern: /\bwe(?:'re|\s+are)\s+hiring\b/i },
+    { label: 'hashtag hiring', category: 'employment', pattern: /#hiring\b/i },
     { label: 'now hiring', category: 'employment', pattern: /\bnow\s+hiring\b/i },
     { label: 'join our team', category: 'employment', pattern: /\bjoin\s+(?:our|the)\s+(?:team|company|growing\s+team)\b/i },
     { label: 'growing our team', category: 'employment', pattern: /\b(?:growing|expanding)\s+our\s+team\b/i },
@@ -102,6 +102,20 @@ const INTENT_PATTERNS: IntentPattern[] = [
     { label: 'personal celebration', category: 'non_lead', pattern: /\b(?:just\s+joined|excited\s+to\s+share\s+that\s+i|started\s+my\s+new\s+role)\b/i },
     { label: 'self promotion', category: 'non_lead', pattern: /\b(?:follow\s+me|subscribe\s+to|my\s+newsletter)\b/i },
     { label: 'motivation post', category: 'non_lead', pattern: /\b(?:monday\s+motivation|success\s+mindset)\b/i },
+    { label: 'offering services', category: 'non_lead', pattern: /\b(?:available\s+for\s+(?:freelance|contract|projects?)|offering\s+(?:web|app|development|design|marketing)\s+services?)\b/i },
+    { label: 'hire our team', category: 'non_lead', pattern: /\b(?:hire\s+(?:us|me|our)|we\s+build\s+(?:websites|apps|products)\s+for)\b/i },
+    { label: 'agency pitching', category: 'non_lead', pattern: /\b(?:our\s+agency\s+(?:specializes|helps|builds)|verified\s+freelancers\s+ready\s+to\s+deliver)\b/i },
+    { label: 'looking for clients', category: 'non_lead', pattern: /\blooking\s+for\s+(?:clients?|projects?\s+to\s+work\s+on)\b/i },
+    { label: 'dm for services', category: 'non_lead', pattern: /\b(?:dm\s+(?:me|us)\s+for|contact\s+us\s+for\s+(?:a\s+)?(?:quote|project))\b/i },
+    { label: 'personal social', category: 'non_lead', pattern: /\b(?:can\s+i\s+follow\s+you|happy\s+sunday|where\s+do\s+you\s+live|i\s+love\s+u)\b/i },
+    { label: 'open to work', category: 'non_lead', pattern: /\b(?:#opentowork|open\s+to\s+work|available\s+for\s+(?:new\s+)?(?:projects?|work|opportunities))\b/i },
+    { label: 'i am a developer', category: 'non_lead', pattern: /\b(?:i\s+am\s+a\s+|i'm\s+a\s+|we\s+are\s+a\s+)(?:freelance\s+)?(?:developer|designer|agency|consultant)\b/i },
+    { label: 'aspiring professional', category: 'non_lead', pattern: /\b(?:aspiring|budding)\s+(?:web\s+)?(?:developer|designer|engineer|freelancer)\b/i },
+    { label: 'learn in public', category: 'non_lead', pattern: /\b#?(?:learninpublic|buildinpublic|techstudent|deepwork|codinglife|programmerlife|developerhumor)\b/i },
+    { label: 'developer humor', category: 'non_lead', pattern: /\b(?:developer\s+humor|coffee\s+driven\s+development|syntax\s+errors|microservices\s+nobody)\b/i },
+    { label: 'startup idea pitch', category: 'non_lead', pattern: /\b(?:exploring\s+an\s+idea|not\s+yet\s+a\s+startup|join\s+(?:the\s+)?waitlist|gathering\s+(?:early\s+)?feedback|landing\s+page|product\s+(?:vision|doc|roadmap))\b/i },
+    { label: 'side project promo', category: 'non_lead', pattern: /\b(?:built\s+the\s+landing\s+page|spare\s+time|side\s+quest|i\s+work\s+full[- ]time\s+as)\b/i },
+    { label: 'personal reflection', category: 'non_lead', pattern: /\b(?:pride\s+myself\s+on|happy\s+sunday|feeling\s+clouded|audit\s+your\s+current\s+projects)\b/i },
 ];
 
 const CATEGORY_WEIGHT: Record<IntentCategory, number> = {
@@ -136,7 +150,7 @@ export function extractLeadIntent(content: string): LeadIntentAnalysis {
     }
 
     const reasons: string[] = [];
-    let confidence = 50;
+    let confidence = 28;
 
     for (const label of buying) {
         confidence += CATEGORY_WEIGHT.buying;
@@ -186,6 +200,15 @@ export function extractLeadIntent(content: string): LeadIntentAnalysis {
     if (jobSignals >= 1 && serviceSignals >= 1) {
         confidence = clamp(confidence, 38, 62);
         reasons.push('mixed employment and buying signals — needs manual review');
+    }
+
+    // Sellers pitching services without buying intent
+    if (serviceSignals === 0 && nonLead.length >= 1 && jobSignals === 0) {
+        confidence = Math.min(confidence, 22);
+    }
+
+    if (serviceSignals === 0 && jobSignals === 0 && nonLead.length === 0) {
+        confidence = Math.min(confidence, 22);
     }
 
     confidence = clamp(Math.round(confidence), 0, 100);

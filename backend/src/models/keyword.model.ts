@@ -8,13 +8,27 @@ const mapKeyword = (record: any) => {
 
 const Keyword = {
     async find(filter: any = {}, options?: { sort?: Record<string, number> }) {
+        const where: any = {};
+        if (filter.is_deleted !== undefined) where.is_deleted = filter.is_deleted;
+        if (filter.is_active !== undefined) where.is_active = filter.is_active;
+        if (filter.text) where.text = filter.text;
+
         const keywords = await prisma.keyword.findMany({
-            where: {
-                is_deleted: filter.is_deleted ?? undefined,
-            },
+            where,
             orderBy: options?.sort?.created_at === -1 ? { created_at: 'desc' } : undefined,
         });
-        return keywords.map(mapKeyword);
+
+        let results = keywords.map(mapKeyword);
+
+        if (filter.platforms && typeof filter.platforms === 'string') {
+            const platform = filter.platforms;
+            results = results.filter((kw) => {
+                const platforms = Array.isArray(kw.platforms) ? kw.platforms : [];
+                return platforms.includes(platform);
+            });
+        }
+
+        return results;
     },
 
     async findOne(filter: any) {

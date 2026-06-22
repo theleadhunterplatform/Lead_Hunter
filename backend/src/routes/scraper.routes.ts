@@ -4,7 +4,8 @@ import {
     triggerLinkedInActivity,
     triggerTwitter, 
     triggerReddit,
-    triggerThreads
+    triggerThreads,
+    triggerAllScrapers,
 } from '../controllers/scraper.controller';
 import { protect, authorize } from '../middleware/auth';
 
@@ -13,6 +14,7 @@ const router = express.Router();
 router.use(protect);
 router.use(authorize('scraper:run'));
 
+router.post('/all', triggerAllScrapers);
 router.post('/linkedin', triggerLinkedIn);
 router.post('/linkedin-activity', triggerLinkedInActivity);
 router.post('/twitter', triggerTwitter);
