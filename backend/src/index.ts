@@ -114,8 +114,8 @@ app.use(errorHandler);
 const startServer = async () => {
     const PORT = config.port;
 
-    // Listen immediately so Render health checks pass while DB/Redis init runs
-    app.listen(PORT, () => {
+    // Render requires binding to 0.0.0.0 and PORT from the environment
+    app.listen(PORT, '0.0.0.0', () => {
         console.log(`Server running on port ${PORT}`);
     });
 
@@ -124,7 +124,7 @@ const startServer = async () => {
 
     const redisReady = await verifyRedisConnection();
     if (redisReady) {
-        initWorkers(); // Start background workers
+        await initWorkers(); // Start background workers
     }
     
     if (config.appEnv === 'production' || process.env.ENABLE_CRON_DEV === 'true') {
