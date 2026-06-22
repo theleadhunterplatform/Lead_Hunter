@@ -124,7 +124,7 @@ const startServer = async () => {
 
     const redisReady = await verifyRedisConnection();
     if (redisReady) {
-        await initWorkers(); // Start background workers
+        initWorkers(); // Start background workers
     }
     
     if (config.appEnv === 'production' || process.env.ENABLE_CRON_DEV === 'true') {

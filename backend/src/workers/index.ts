@@ -1,19 +1,10 @@
-export const initWorkers = async () => {
-    // Load workers after HTTP port is open — avoids slow Redis connects blocking Render deploy
-    const [
-        { scraperWorker },
-        { intelligenceWorker },
-        { ocrWorker },
-        { aiTrainWorker },
-        { enrichmentWorker },
-    ] = await Promise.all([
-        import('./scraper.worker'),
-        import('./intelligence.worker'),
-        import('./ocr.worker'),
-        import('./ai-train.worker'),
-        import('./enrichment.worker'),
-    ]);
+import { scraperWorker } from './scraper.worker';
+import { intelligenceWorker } from './intelligence.worker';
+import { ocrWorker } from './ocr.worker';
+import { aiTrainWorker } from './ai-train.worker';
+import { enrichmentWorker } from './enrichment.worker';
 
+export const initWorkers = () => {
     console.log('👷 Workers Initialized and Listening...');
 
     scraperWorker.on('ready', () => console.log('✔ Scraper Worker Ready'));
