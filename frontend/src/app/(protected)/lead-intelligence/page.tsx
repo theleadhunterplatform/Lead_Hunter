@@ -432,11 +432,13 @@ export default function LeadIntelligencePage() {
 
   const formatFoundBy = (foundBy?: string[]) => {
     if (!foundBy?.length) return null;
-    return foundBy
-      .map((s) =>
-        s === 'contact_compass' ? 'Contact Compass' : s === 'hunter_finder' ? 'Hunter.io' : s
-      )
-      .join(' + ');
+    const labels: Record<string, string> = {
+      contact_compass: 'Contact Compass',
+      hunter_finder: 'Hunter.io',
+      contactout: 'ContactOut',
+      apollo: 'Apollo.io',
+    };
+    return foundBy.map((s) => labels[s] || s).join(' + ');
   };
 
   const isRedundantEmailNote = (note?: string) => {
@@ -496,6 +498,8 @@ export default function LeadIntelligencePage() {
       compass_and_hunter: 'Contact Compass + Hunter.io',
       pattern_guess: 'Pattern guess',
       threads_profile: 'Threads profile',
+      contactout: 'ContactOut',
+      apollo: 'Apollo.io',
     };
     return source ? labels[source] || source : null;
   };
@@ -979,7 +983,14 @@ export default function LeadIntelligencePage() {
                         </div>
 
                         {lead.contact_info?.phone_numbers?.map((p: any, i: number) => (
-                          <p key={i} className="text-sm font-bold text-zinc-400 mt-3">{p.number}</p>
+                          <div key={i} className="mt-3">
+                            <p className="text-sm font-bold text-zinc-400">{p.number}</p>
+                            {getEmailSourceLabel(p.source) && (
+                              <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest mt-1">
+                                Found via: {getEmailSourceLabel(p.source)}
+                              </p>
+                            )}
+                          </div>
                         ))}
                       </div>
                     ) : isInternal && lead.status === 'relevant' && (lead.platform === 'linkedin' || lead.platform === 'threads') && (
@@ -996,6 +1007,11 @@ export default function LeadIntelligencePage() {
                                 <div key={i}>
                                   <p className="text-[8px] font-black uppercase tracking-widest text-zinc-600 mb-0.5">Phone</p>
                                   <p className="text-xs text-zinc-300">{p.number}</p>
+                                  {getEmailSourceLabel(p.source) && (
+                                    <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest mt-0.5">
+                                      {getEmailSourceLabel(p.source)}
+                                    </p>
+                                  )}
                                 </div>
                               ))
                             ) : (

@@ -86,3 +86,69 @@ export const getHunterKey = asyncHandler(async (_req: Request, res: Response, _n
         },
     });
 });
+
+// @desc    Update ContactOut API Token
+// @route   POST /api/settings/contactout-api-token
+// @access  Private
+export const updateContactOutToken = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+    const { token } = req.body;
+
+    if (!token) {
+        return res.status(400).json({ success: false, message: 'Token is required' });
+    }
+
+    await settingService.updateSetting('contactout_api_token', token, 'ContactOut API Token');
+
+    return res.status(200).json({
+        success: true,
+        message: 'ContactOut API token updated successfully',
+    });
+});
+
+// @desc    Get ContactOut API Token (Masked)
+// @route   GET /api/settings/contactout-api-token
+// @access  Private
+export const getContactOutToken = asyncHandler(async (_req: Request, res: Response, _next: NextFunction) => {
+    const token = await settingService.getSetting('contactout_api_token');
+
+    return res.status(200).json({
+        success: true,
+        data: {
+            token: token ? `${token.substring(0, 4)}...${token.substring(token.length - 4)}` : null,
+            is_configured: !!token,
+        },
+    });
+});
+
+// @desc    Update Apollo API Key
+// @route   POST /api/settings/apollo-api-key
+// @access  Private
+export const updateApolloKey = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+    const { api_key } = req.body;
+
+    if (!api_key) {
+        return res.status(400).json({ success: false, message: 'API key is required' });
+    }
+
+    await settingService.updateSetting('apollo_api_key', api_key, 'Apollo.io API Key');
+
+    return res.status(200).json({
+        success: true,
+        message: 'Apollo API key updated successfully',
+    });
+});
+
+// @desc    Get Apollo API Key (Masked)
+// @route   GET /api/settings/apollo-api-key
+// @access  Private
+export const getApolloKey = asyncHandler(async (_req: Request, res: Response, _next: NextFunction) => {
+    const apiKey = await settingService.getSetting('apollo_api_key');
+
+    return res.status(200).json({
+        success: true,
+        data: {
+            api_key: apiKey ? `${apiKey.substring(0, 4)}...${apiKey.substring(apiKey.length - 4)}` : null,
+            is_configured: !!apiKey,
+        },
+    });
+});

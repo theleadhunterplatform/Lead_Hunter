@@ -43,6 +43,20 @@ export default function TokensPage() {
   const [newHunterKey, setNewHunterKey] = useState("");
   const [isUpdatingHunter, setIsUpdatingHunter] = useState(false);
 
+  const [contactOutInfo, setContactOutInfo] = useState<{
+    token: string | null;
+    is_configured: boolean;
+  }>({ token: null, is_configured: false });
+  const [newContactOutToken, setNewContactOutToken] = useState("");
+  const [isUpdatingContactOut, setIsUpdatingContactOut] = useState(false);
+
+  const [apolloKeyInfo, setApolloKeyInfo] = useState<{
+    api_key: string | null;
+    is_configured: boolean;
+  }>({ api_key: null, is_configured: false });
+  const [newApolloKey, setNewApolloKey] = useState("");
+  const [isUpdatingApollo, setIsUpdatingApollo] = useState(false);
+
   const fetchTokens = async () => {
     try {
       const response = await api.get("/apify-keys");
@@ -72,6 +86,24 @@ export default function TokensPage() {
     }
   };
 
+  const fetchContactOutToken = async () => {
+    try {
+      const response = await api.get("/settings/contactout-api-token");
+      setContactOutInfo(response.data.data);
+    } catch (err) {
+      console.error("Failed to fetch ContactOut token", err);
+    }
+  };
+
+  const fetchApolloKey = async () => {
+    try {
+      const response = await api.get("/settings/apollo-api-key");
+      setApolloKeyInfo(response.data.data);
+    } catch (err) {
+      console.error("Failed to fetch Apollo key", err);
+    }
+  };
+
   useEffect(() => {
     if (!authLoading) {
       if (!hasPermission('scraping:manage')) {
@@ -81,6 +113,8 @@ export default function TokensPage() {
       fetchTokens();
       fetchCCToken();
       fetchHunterKey();
+      fetchContactOutToken();
+      fetchApolloKey();
     }
   }, [authLoading, hasPermission, router]);
 
@@ -139,6 +173,36 @@ export default function TokensPage() {
       setError(err.response?.data?.message || "Failed to update Hunter.io API key.");
     } finally {
       setIsUpdatingHunter(false);
+    }
+  };
+
+  const updateContactOutToken = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newContactOutToken.trim()) return;
+    setIsUpdatingContactOut(true);
+    try {
+      await api.post("/settings/contactout-api-token", { token: newContactOutToken });
+      setNewContactOutToken("");
+      fetchContactOutToken();
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Failed to update ContactOut token.");
+    } finally {
+      setIsUpdatingContactOut(false);
+    }
+  };
+
+  const updateApolloKey = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newApolloKey.trim()) return;
+    setIsUpdatingApollo(true);
+    try {
+      await api.post("/settings/apollo-api-key", { api_key: newApolloKey });
+      setNewApolloKey("");
+      fetchApolloKey();
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Failed to update Apollo API key.");
+    } finally {
+      setIsUpdatingApollo(false);
     }
   };
 
@@ -378,6 +442,50 @@ export default function TokensPage() {
             <HunterButton type="submit" variant="primary" disabled={isUpdatingHunter || !newHunterKey.trim()} className="px-8 flex items-center gap-2">
               {isUpdatingHunter ? <Loader2 size={20} className="animate-spin" /> : <Plus size={20} />}
               Update Key
+            </HunterButton>
+          </form>
+        </div>
+
+        <div className="bg-hunter-grey p-6 neo-border border-zinc-800 mt-6">
+          <p className="text-zinc-500 font-display uppercase text-[10px] tracking-widest font-bold mb-4">
+            Phone enrichment — ContactOut (LinkedIn profile + include_phone).
+          </p>
+          {contactOutInfo.is_configured ? (
+            <div className="mb-6 p-4 bg-zinc-900/50 neo-border border-zinc-800 font-mono text-xs text-zinc-600">
+              Active: {contactOutInfo.token}
+            </div>
+          ) : (
+            <p className="mb-6 text-red-500/70 text-[10px] font-black uppercase tracking-widest">No ContactOut token configured.</p>
+          )}
+          <form onSubmit={updateContactOutToken} className="flex gap-4">
+            <div className="relative flex-1">
+              <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-hunter-orange" size={20} />
+              <HunterInput type="password" placeholder="ContactOut API token" value={newContactOutToken} onChange={(e) => setNewContactOutToken(e.target.value)} className="pl-12" />
+            </div>
+            <HunterButton type="submit" variant="primary" disabled={isUpdatingContactOut || !newContactOutToken.trim()} className="px-8">
+              {isUpdatingContactOut ? <Loader2 size={20} className="animate-spin" /> : "Update"}
+            </HunterButton>
+          </form>
+        </div>
+
+        <div className="bg-hunter-grey p-6 neo-border border-zinc-800 mt-6">
+          <p className="text-zinc-500 font-display uppercase text-[10px] tracking-widest font-bold mb-4">
+            Phone enrichment — Apollo.io (people/match, reveal_phone_number).
+          </p>
+          {apolloKeyInfo.is_configured ? (
+            <div className="mb-6 p-4 bg-zinc-900/50 neo-border border-zinc-800 font-mono text-xs text-zinc-600">
+              Active: {apolloKeyInfo.api_key}
+            </div>
+          ) : (
+            <p className="mb-6 text-red-500/70 text-[10px] font-black uppercase tracking-widest">No Apollo API key configured.</p>
+          )}
+          <form onSubmit={updateApolloKey} className="flex gap-4">
+            <div className="relative flex-1">
+              <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-hunter-orange" size={20} />
+              <HunterInput type="password" placeholder="Apollo API key" value={newApolloKey} onChange={(e) => setNewApolloKey(e.target.value)} className="pl-12" />
+            </div>
+            <HunterButton type="submit" variant="primary" disabled={isUpdatingApollo || !newApolloKey.trim()} className="px-8">
+              {isUpdatingApollo ? <Loader2 size={20} className="animate-spin" /> : "Update"}
             </HunterButton>
           </form>
         </div>

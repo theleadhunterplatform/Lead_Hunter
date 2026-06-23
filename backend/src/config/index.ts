@@ -75,6 +75,12 @@ const config = {
     hunter: {
         apiKey: process.env.HUNTER_API_KEY || '',
     },
+    apollo: {
+        apiKey: process.env.APOLLO_API_KEY || '',
+    },
+    contactOut: {
+        apiToken: process.env.CONTACTOUT_API_TOKEN || '',
+    },
 };
 
 if (dbMode === 'supabase' && !process.env.DATABASE_URL && config.env === 'production') {

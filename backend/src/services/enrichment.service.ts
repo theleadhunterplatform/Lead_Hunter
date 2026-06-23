@@ -3,6 +3,7 @@ import { findLeadEmail } from './lead-enrichment.service';
 import ErrorResponse from '../utils/error-response.utils';
 import {
     isVerifiedEmailStatus,
+    leadHasPhone,
     resolveLinkedInPublicIdFromLead,
 } from '../utils/lead-enrichment.utils';
 
@@ -59,6 +60,10 @@ export function shouldEnrichLead(lead: { status?: string; platform?: string }) {
     return lead.status === 'relevant' && (lead.platform === 'linkedin' || lead.platform === 'threads');
 }
 
+function hasVerifiedEmail(lead: any): boolean {
+    return Boolean(lead.email && isVerifiedEmailStatus(lead.contact_info?.email_status));
+}
+
 export async function enrichLeadPost(postId: string, options?: { force?: boolean }): Promise<EnrichmentResult> {
     const lead = await LeadPost.findById(postId);
     if (!lead) {
@@ -73,12 +78,12 @@ export async function enrichLeadPost(postId: string, options?: { force?: boolean
         };
     }
 
-    if (!options?.force && lead.enrichment_status === 'found' && lead.email) {
+    if (!options?.force && hasVerifiedEmail(lead) && leadHasPhone(lead)) {
         return {
             success: true,
             status: 'found',
             data: lead,
-            message: 'Lead already has verified contact information.',
+            message: 'Lead already has verified email and phone.',
         };
     }
 

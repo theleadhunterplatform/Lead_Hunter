@@ -125,8 +125,53 @@ export function leadHasDiscoverableContact(lead: {
 }): boolean {
     if (lead.email?.trim()) return true;
     if (lead.contact_info?.emails?.some((entry) => entry.email?.trim())) return true;
-    if (lead.contact_info?.phone_numbers?.some((p) => p.number?.trim())) return true;
+    if (leadHasPhone(lead)) return true;
     return false;
+}
+
+export type PhoneSource =
+    | 'post_text'
+    | 'apify_profile'
+    | 'website'
+    | 'contactout'
+    | 'apollo'
+    | 'contact_compass'
+    | 'threads_profile';
+
+export function leadHasPhone(lead: {
+    contact_info?: { phone_numbers?: Array<{ number?: string }> } | null;
+}): boolean {
+    return Boolean(lead.contact_info?.phone_numbers?.some((p) => p.number?.trim()));
+}
+
+function normalizePhoneKey(number: string): string {
+    return number.replace(/\D/g, '');
+}
+
+export function mergePhoneEntry(
+    contactInfo: Record<string, any> | null | undefined,
+    phone: string,
+    source: PhoneSource,
+    type: 'mobile' | 'work' | 'direct' = 'mobile'
+): Record<string, any> {
+    const existing = Array.isArray(contactInfo?.phone_numbers) ? [...contactInfo.phone_numbers] : [];
+    const key = normalizePhoneKey(phone);
+    const already = existing.some((entry) => normalizePhoneKey(entry.number || '') === key);
+    if (!already) {
+        existing.unshift({ number: phone, type, source });
+    }
+
+    return {
+        phone_numbers: existing,
+        phone_source: source,
+    };
+}
+
+export function pickFirstPhone(...candidates: Array<string | null | undefined>): string | null {
+    for (const candidate of candidates) {
+        if (candidate?.trim()) return candidate.trim();
+    }
+    return null;
 }
 
 export function formatEnrichmentStatusLabel(status?: string | null): string {
