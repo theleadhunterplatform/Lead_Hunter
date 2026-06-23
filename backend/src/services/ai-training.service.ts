@@ -5,6 +5,22 @@ import { getSetting, updateSetting } from './setting.service';
 export const MIN_TRAINING_SAMPLES = 8;
 const METRICS_KEY = 'local_ai_metrics';
 
+const MANUAL_LABEL_HINTS = [
+    'Manually marked',
+    'Rejected during admin review',
+    'Rejected during bulk admin review',
+];
+
+function isManualTrainingLabel(qualificationReason?: string | null): boolean {
+    if (!qualificationReason) return false;
+    return MANUAL_LABEL_HINTS.some((hint) => qualificationReason.includes(hint));
+}
+
+export async function isLocalAiModelReady(): Promise<boolean> {
+    const stored = (await getSetting(METRICS_KEY)) as LocalAiMetrics | null;
+    return Boolean(stored?.model_ready);
+}
+
 export type TrainingSample = {
     content: string;
     label: 'relevant' | 'irrelevant';
@@ -30,18 +46,28 @@ export async function getTrainingSamples(): Promise<TrainingSample[]> {
             status: { in: ['relevant', 'irrelevant'] },
             NOT: { content: '' },
         },
-        select: { content: true, status: true },
+        select: { content: true, status: true, qualification_reason: true, updated_at: true },
         orderBy: { updated_at: 'desc' },
+        take: 500,
     });
 
     const unique = new Map<string, TrainingSample>();
     for (const post of labeled) {
         const content = post.content.trim();
         if (content.length <= 10) continue;
-        unique.set(`${post.status}:${content.slice(0, 200)}`, {
+
+        const sample: TrainingSample = {
             content,
             label: post.status as 'relevant' | 'irrelevant',
-        });
+        };
+
+        const key = `${post.status}:${content.slice(0, 200)}`;
+        unique.set(key, sample);
+
+        // Manual admin labels are duplicated so the model prioritizes your corrections.
+        if (isManualTrainingLabel(post.qualification_reason)) {
+            unique.set(`${key}:manual`, sample);
+        }
     }
 
     return Array.from(unique.values());

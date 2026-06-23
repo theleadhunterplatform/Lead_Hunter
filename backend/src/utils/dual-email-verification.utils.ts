@@ -68,6 +68,18 @@ export async function runDualEmailVerification(
     else if (hunterFinderVerified) verified_by.push('Hunter.io');
 
     if (hunterResult && ['undeliverable', 'invalid', 'disposable'].includes(hunterResult)) {
+        if (foundBy.includes('contact_compass')) {
+            return {
+                email_status: 'unverified',
+                find_note,
+                verification_note: `Found by Contact Compass. Hunter.io marked as ${hunterResult}; kept as unverified for review.`,
+                found_by: foundBy,
+                verified_by: compassVerified ? ['Contact Compass'] : [],
+                compass_verified: compassVerified,
+                hunter_verified: false,
+                hunter_result: hunterResult,
+            };
+        }
         return {
             email_status: 'invalid',
             find_note,

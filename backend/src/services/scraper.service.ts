@@ -141,6 +141,9 @@ export class ScraperService {
             newPostData.author = {
                 name: item.author?.name,
                 url: item.author?.linkedinUrl,
+                publicIdentifier: item.author?.publicIdentifier,
+                info: item.author?.info,
+                website: item.author?.website,
             };
         } else if (platform === 'twitter') {
             newPostData.author = {

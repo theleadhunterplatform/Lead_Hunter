@@ -1,7 +1,10 @@
 import LeadPost from '../models/lead-post.model';
 import { findLeadEmail } from './lead-enrichment.service';
 import ErrorResponse from '../utils/error-response.utils';
-import { isVerifiedEmailStatus } from '../utils/lead-enrichment.utils';
+import {
+    isVerifiedEmailStatus,
+    resolveLinkedInPublicIdFromLead,
+} from '../utils/lead-enrichment.utils';
 
 export type EnrichmentStatus =
     | 'pending'
@@ -38,18 +41,7 @@ async function seedAuthorContactInfo(postId: string) {
     if (!lead) return;
 
     const author = lead.author || {};
-    let publicId = lead.contact_info?.linkedin_public_id;
-
-    if (!publicId) {
-        const urls = [author.url, lead.url].filter(Boolean) as string[];
-        for (const url of urls) {
-            const match = url.match(/linkedin\.com\/in\/([^/?#]+)/);
-            if (match) {
-                publicId = match[1];
-                break;
-            }
-        }
-    }
+    const publicId = resolveLinkedInPublicIdFromLead(lead);
 
     if (!publicId && !author.name) return;
 

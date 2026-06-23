@@ -21,7 +21,9 @@ type ProfileCommentItem = {
         author?: {
             name?: string;
             linkedinUrl?: string;
+            publicIdentifier?: string;
             info?: string;
+            website?: string | null;
         };
         postedAt?: {
             date?: string;
@@ -135,7 +137,9 @@ export class TargetScraperService {
                 author: {
                     name: post.author?.name,
                     url: post.author?.linkedinUrl,
+                    publicIdentifier: post.author?.publicIdentifier,
                     info: post.author?.info,
+                    website: post.author?.website,
                 },
                 posted_at: post.postedAt || {},
                 engagement: post.engagement || { likes: 0, comments: 0, shares: 0 },

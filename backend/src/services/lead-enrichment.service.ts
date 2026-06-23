@@ -8,9 +8,9 @@ import { recordContactCompassLookup } from '../utils/contact-compass-usage.utils
 import { scrapeLinkedInAuthorProfile } from './linkedin-profile-enrichment.service';
 import {
     extractEmailFromText,
-    extractLinkedInPublicId,
     extractPhoneFromText,
     isVerifiedEmailStatus,
+    resolveLinkedInPublicIdFromLead,
     type EmailStatus,
 } from '../utils/lead-enrichment.utils';
 import {
@@ -118,6 +118,20 @@ async function lookupContactCompass(publicId: string) {
     return data.result.people[0];
 }
 
+function keepCompassEmailOnRejection(
+    verification: Awaited<ReturnType<typeof runDualEmailVerification>>,
+    sources: EmailCandidate['sources']
+) {
+    if (verification.email_status !== 'invalid') return verification;
+    if (!sources.includes('contact_compass')) return verification;
+
+    return {
+        ...verification,
+        email_status: 'unverified' as const,
+        verification_note: `${verification.verification_note} Kept as unverified (Contact Compass).`,
+    };
+}
+
 async function applyContactUpdate(
     lead: any,
     update: {
@@ -137,18 +151,26 @@ async function applyContactUpdate(
     let message = update.message;
 
     if (email) {
-        const verification = await runDualEmailVerification(email, {
+        let verification = await runDualEmailVerification(email, {
             source: update.email_source,
             foundBy: update.found_by,
             compassStatus: update.compass_status,
             hunterFinderStatus: update.hunter_finder_status,
         });
+        if (
+            update.found_by?.includes('contact_compass') ||
+            update.email_source === 'contact_compass' ||
+            update.email_source === 'compass_and_hunter'
+        ) {
+            verification = keepCompassEmailOnRejection(verification, ['contact_compass']);
+        }
         emailStatus = verification.email_status;
         const combinedNote = `${verification.find_note} ${verification.verification_note}`.trim();
         message = combinedNote;
         if (emailStatus === 'invalid') {
             email = null;
-        } else {
+        }
+        if (email) {
             const entry = buildEmailEntry(
                 email,
                 verification,
@@ -335,11 +357,12 @@ async function applyMultipleEmailCandidates(lead: any, candidates: EmailCandidat
     const entries: LeadEmailEntry[] = [];
 
     for (const candidate of candidates) {
-        const verification = await runDualEmailVerification(candidate.email, {
+        let verification = await runDualEmailVerification(candidate.email, {
             foundBy: candidate.sources,
             compassStatus: candidate.compassStatus,
             hunterFinderStatus: candidate.hunterFinderStatus,
         });
+        verification = keepCompassEmailOnRejection(verification, candidate.sources);
 
         if (verification.email_status === 'invalid') continue;
 
@@ -449,9 +472,7 @@ export const findLeadEmail = async (leadId: string, options?: { force?: boolean 
     }
 
     const authorUrl = lead.author?.url;
-    let publicId =
-        lead.contact_info?.linkedin_public_id ||
-        extractLinkedInPublicId([authorUrl, lead.url]);
+    let publicId = resolveLinkedInPublicIdFromLead(lead);
 
     // Step 1 — post text (most authentic)
     const emailInContent = extractEmailFromText(lead.content);
@@ -497,7 +518,7 @@ export const findLeadEmail = async (leadId: string, options?: { force?: boolean 
     // Step 2 — Apify LinkedIn profile
     if (authorUrl?.includes('linkedin.com/in/')) {
         profileData = await scrapeLinkedInAuthorProfile(authorUrl);
-        publicId = publicId || profileData?.linkedin_public_id || null;
+        publicId = resolveLinkedInPublicIdFromLead(lead, profileData?.linkedin_public_id) || publicId;
 
         if (profileData?.email) {
             const result = await applyContactUpdate(lead, {

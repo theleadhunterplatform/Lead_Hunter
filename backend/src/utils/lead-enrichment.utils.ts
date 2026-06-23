@@ -52,6 +52,55 @@ export function extractLinkedInPublicId(urls: Array<string | undefined>): string
     return null;
 }
 
+/** LinkedIn internal profile IDs (ACo…) match poorly in Contact Compass / Hunter. */
+export function isOpaqueLinkedInPublicId(id: string): boolean {
+    return /^ACo[A-Za-z0-9_-]+$/.test(id.trim());
+}
+
+/**
+ * Prefer vanity slug from scrape (publicIdentifier) over opaque /in/ACo… URLs.
+ */
+export function resolveLinkedInPublicId(input: {
+    author?: { publicIdentifier?: string | null; url?: string | null } | null;
+    contact_info?: { linkedin_public_id?: string | null } | null;
+    profilePublicId?: string | null;
+    urls?: Array<string | undefined | null>;
+}): string | null {
+    const urlSlug = extractLinkedInPublicId(
+        (input.urls?.filter(Boolean) as string[]) ||
+            [input.author?.url, ...(input.urls || [])].filter(Boolean) as string[]
+    );
+
+    const candidates = [
+        input.author?.publicIdentifier,
+        input.contact_info?.linkedin_public_id,
+        input.profilePublicId,
+        urlSlug,
+    ]
+        .map((value) => (typeof value === 'string' ? value.trim() : ''))
+        .filter(Boolean);
+
+    const vanity = candidates.find((id) => !isOpaqueLinkedInPublicId(id));
+    return vanity || candidates[0] || null;
+}
+
+export function resolveLinkedInPublicIdFromLead(
+    lead: { author?: any; contact_info?: any; url?: string; raw_result?: any },
+    profilePublicId?: string | null
+): string | null {
+    const rawAuthor = lead.raw_result?.author;
+    return resolveLinkedInPublicId({
+        author: {
+            ...lead.author,
+            publicIdentifier: lead.author?.publicIdentifier || rawAuthor?.publicIdentifier,
+            url: lead.author?.url || rawAuthor?.linkedinUrl,
+        },
+        contact_info: lead.contact_info,
+        profilePublicId,
+        urls: [lead.author?.url, rawAuthor?.linkedinUrl, lead.url],
+    });
+}
+
 export type EmailStatus = 'verified' | 'unverified' | 'guessed';
 
 export function isVerifiedEmailStatus(status?: string | null): boolean {
