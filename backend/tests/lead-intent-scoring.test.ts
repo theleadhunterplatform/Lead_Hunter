@@ -12,6 +12,15 @@ describe('lead-intent-scoring', () => {
         'Looking for a videography partner for product shoots',
         'Need a UI/UX designer for a startup project',
         'Looking for an app development company to build our MVP',
+        "We're Hiring – Freelance Flutter Developer. Remote freelance project.",
+        'I am looking for an experienced freelance developer to build a fintech application.',
+        "We're Looking for the Right Tech Partner! Looking for technology partners for our food delivery platform.",
+        'Looking for a technical co-founder or developer to build our AI-powered app.',
+        'Looking for Web Development agency and CRM Development partner. Estimated Project Value: 8 Lakh',
+        'Looking for a Social Media Growth Partner. Seeking an agency to manage our social media.',
+        'Looking for a Strong Technical Partner (Remote). Open to Development Agencies.',
+        'Looking for Website & Mobile App Development Companies for enterprise project.',
+        'Freelance Full-Stack Web Developer Needed. Project-based freelance developer.',
     ];
 
     const irrelevantExamples = [

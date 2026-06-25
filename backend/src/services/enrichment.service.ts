@@ -6,6 +6,7 @@ import {
     leadHasPhone,
     resolveLinkedInPublicIdFromLead,
 } from '../utils/lead-enrichment.utils';
+import { ENRICHABLE_PLATFORMS } from './social-profile-enrichment.service';
 
 export type EnrichmentStatus =
     | 'pending'
@@ -57,7 +58,7 @@ async function seedAuthorContactInfo(postId: string) {
 }
 
 export function shouldEnrichLead(lead: { status?: string; platform?: string }) {
-    return lead.status === 'relevant' && (lead.platform === 'linkedin' || lead.platform === 'threads');
+    return lead.status === 'relevant' && ENRICHABLE_PLATFORMS.includes(lead.platform as any);
 }
 
 function hasVerifiedEmail(lead: any): boolean {
@@ -74,7 +75,7 @@ export async function enrichLeadPost(postId: string, options?: { force?: boolean
         return {
             success: false,
             status: 'skipped',
-            message: 'Contact enrichment only runs for qualified LinkedIn or Threads leads.',
+            message: 'Contact enrichment only runs for qualified LinkedIn, Threads, X, or Reddit leads.',
         };
     }
 

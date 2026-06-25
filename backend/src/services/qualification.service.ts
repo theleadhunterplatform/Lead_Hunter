@@ -8,6 +8,7 @@ import {
     confidenceToStatus,
     buildIntentReason,
     logQualificationDecision,
+    isBuyerSeekingContractorPartnerAgency,
     type IntentClassification,
 } from '../utils/lead-intent-scoring.utils';
 
@@ -39,7 +40,9 @@ function intentToResult(intent: IntentClassification, method: QualificationResul
 }
 
 /** Employment-only and clear seller posts — never overridden by the learned model. */
-function isHardIrrelevant(intent: IntentClassification): boolean {
+function isHardIrrelevant(intent: IntentClassification, content?: string): boolean {
+    if (content && isBuyerSeekingContractorPartnerAgency(content)) return false;
+
     const { analysis } = intent;
     const serviceSignals = analysis.buying.length + analysis.recommendation.length;
     const jobSignals = analysis.employment.length + analysis.fullTime.length;
@@ -135,7 +138,7 @@ export async function qualifyPostContent(content: string, platform = 'linkedin')
 
     const intent = classifyLeadIntent(content);
 
-    if (isHardIrrelevant(intent)) {
+    if (isHardIrrelevant(intent, content)) {
         const result = intentToResult(intent, 'intent-rules');
         logQualificationDecision(content, intent, { method: result.method, platform });
         return result;

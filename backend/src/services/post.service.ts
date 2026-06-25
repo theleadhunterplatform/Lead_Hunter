@@ -126,13 +126,13 @@ export const bulkReEnrichPosts = async (query: {
     const filter = buildLeadListFilter(query);
     filter.status = 'relevant';
 
-    const enrichablePlatforms = ['linkedin', 'threads'];
+    const enrichablePlatforms = ['linkedin', 'threads', 'twitter', 'reddit'];
     if (filter.platform?.$in) {
         filter.platform.$in = filter.platform.$in.filter((platform: string) =>
             enrichablePlatforms.includes(platform)
         );
         if (filter.platform.$in.length === 0) {
-            return { queued: 0, message: 'No enrichable LinkedIn or Threads leads matched the current filters.' };
+            return { queued: 0, message: 'No enrichable leads matched the current filters.' };
         }
     } else {
         filter.platform = { $in: enrichablePlatforms };
@@ -166,7 +166,7 @@ export const reEnrichPost = async (id: string) => {
     }
 
     if (!shouldEnrichLead(post)) {
-        throw new ErrorResponse('Contact enrichment only runs for qualified LinkedIn or Threads leads.', 400);
+        throw new ErrorResponse('Contact enrichment only runs for qualified LinkedIn, Threads, X, or Reddit leads.', 400);
     }
 
     const added = await enqueueContactEnrichment(

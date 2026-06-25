@@ -146,18 +146,25 @@ export class ScraperService {
                 website: item.author?.website,
             };
         } else if (platform === 'twitter') {
+            const handle = (item.author || item.authorUsername || item.userName || '').replace(/^@/, '');
             newPostData.author = {
                 name: item.author_name || item.authorName || item.author?.name || item.author,
                 handle: item.author || item.authorUsername || item.userName,
+                url: handle ? `https://x.com/${handle}` : undefined,
             };
         } else if (platform === 'reddit') {
+            const username = item.username || item.author;
             newPostData.author = {
-                name: item.username || item.author,
+                name: username,
+                handle: username,
+                url: username ? `https://www.reddit.com/user/${username}` : undefined,
             };
         } else if (platform === 'threads') {
+            const handle = item.author_username;
             newPostData.author = {
                 name: item.author_name || item.author_username,
                 handle: item.author_username,
+                url: handle ? `https://www.threads.net/@${handle.replace(/^@/, '')}` : undefined,
             };
         }
 

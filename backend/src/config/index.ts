@@ -44,6 +44,7 @@ const config = {
         linkedinActor: 'harvestapi/linkedin-post-search',
         linkedinProfileCommentsActor: process.env.APIFY_LINKEDIN_PROFILE_COMMENTS_ACTOR || 'harvestapi/linkedin-profile-comments',
         linkedinProfileActor: process.env.APIFY_LINKEDIN_PROFILE_ACTOR || 'dev_fusion/linkedin-profile-scraper',
+        twitterProfileActor: process.env.APIFY_TWITTER_PROFILE_ACTOR || 'apidojo/twitter-user-scraper',
         monthlyCommentLimit: parseInt(process.env.APIFY_MONTHLY_COMMENT_LIMIT || '2500', 10),
     },
     targetScraper: {
@@ -80,6 +81,9 @@ const config = {
     },
     contactOut: {
         apiToken: process.env.CONTACTOUT_API_TOKEN || '',
+    },
+    googlePlaces: {
+        apiKey: process.env.GOOGLE_PLACES_API_KEY || '',
     },
 };
 

@@ -481,7 +481,7 @@ export default function LeadIntelligencePage() {
 
   const canEnrichLead = (lead: Lead) =>
     lead.status === 'relevant' &&
-    (lead.platform === 'linkedin' || lead.platform === 'threads');
+    ['linkedin', 'threads', 'twitter', 'reddit'].includes(lead.platform);
 
   const getEnrichButtonLabel = (lead: Lead) => {
     if (!lead.enrichment_status || lead.enrichment_status === 'pending') return 'Find Contacts';
@@ -525,6 +525,11 @@ export default function LeadIntelligencePage() {
       threads_profile: 'Threads profile',
       contactout: 'ContactOut',
       apollo: 'Apollo.io',
+      website: 'Company website',
+      author_info: 'LinkedIn author info',
+      google_maps: 'Google Maps',
+      twitter_profile: 'X profile',
+      reddit_profile: 'Reddit profile',
     };
     return source ? labels[source] || source : null;
   };
@@ -890,7 +895,7 @@ export default function LeadIntelligencePage() {
                             Enriching Contacts
                           </span>
                           <span className="text-[10px] text-zinc-500 normal-case font-medium">
-                            Searching post, profile, Apollo, Contact Compass...
+                            Searching post, profile, websites, Google Maps, Apollo...
                           </span>
                         </div>
                       </div>
@@ -1067,7 +1072,7 @@ export default function LeadIntelligencePage() {
                           </div>
                         ))}
                       </div>
-                    ) : isInternal && lead.status === 'relevant' && (lead.platform === 'linkedin' || lead.platform === 'threads') && (
+                    ) : isInternal && lead.status === 'relevant' && canEnrichLead(lead) && (
                       <div className="flex flex-col gap-3 mb-6">
                         <div className="p-4 bg-zinc-900/30 neo-border border-zinc-800 space-y-3">
                           <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Contact Details</p>

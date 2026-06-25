@@ -25,22 +25,72 @@ const LABELED_PHONE_REGEX = new RegExp(
 const GENERIC_PHONE_REGEX = /(?:\+?\(?\d[\d\s\-.()]{6,}\d|\b0\d[\d\s\-.()]{7,}\d)/g;
 
 export function extractPhoneFromText(text: string): string | null {
-    // Strip emails first so digits inside addresses are not treated as phones.
+    return extractAllPhonesFromText(text)[0] || null;
+}
+
+const TEL_HREF_REGEX = /href\s*=\s*["']tel:([^"'>\s]+)/gi;
+const WHATSAPP_REGEX = /(?:wa\.me\/|api\.whatsapp\.com\/send\?phone=)(\d{8,15})/gi;
+const JSON_LD_PHONE_REGEX = /"telephone"\s*:\s*"([^"]+)"/gi;
+const ITEMPROP_PHONE_REGEX = /itemprop=["']telephone["'][^>]*>([^<]+)</gi;
+
+export function extractAllPhonesFromText(text: string): string[] {
     const withoutEmails = text.replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/gi, ' ');
+    const found: string[] = [];
+    const seen = new Set<string>();
+
+    const push = (raw: string) => {
+        const normalized = normalizePhoneCandidate(raw);
+        if (!normalized) return;
+        const key = normalized.replace(/\D/g, '');
+        if (seen.has(key)) return;
+        seen.add(key);
+        found.push(normalized);
+    };
 
     for (const match of withoutEmails.matchAll(LABELED_PHONE_REGEX)) {
-        const normalized = normalizePhoneCandidate(match[1]);
-        if (normalized) return normalized;
+        push(match[1]);
     }
 
     const matches = withoutEmails.match(GENERIC_PHONE_REGEX);
-    if (!matches) return null;
-
-    for (const match of matches) {
-        const normalized = normalizePhoneCandidate(match);
-        if (normalized) return normalized;
+    if (matches) {
+        for (const match of matches) {
+            push(match);
+        }
     }
-    return null;
+
+    return found;
+}
+
+export function extractAllPhonesFromHtml(html: string): string[] {
+    const found: string[] = [];
+    const seen = new Set<string>();
+
+    const push = (raw: string) => {
+        const normalized = normalizePhoneCandidate(raw.replace(/tel:/i, '').trim());
+        if (!normalized) return;
+        const key = normalized.replace(/\D/g, '');
+        if (seen.has(key)) return;
+        seen.add(key);
+        found.push(normalized);
+    };
+
+    for (const match of html.matchAll(TEL_HREF_REGEX)) {
+        push(match[1]);
+    }
+
+    for (const match of html.matchAll(WHATSAPP_REGEX)) {
+        push(match[1]);
+    }
+
+    for (const match of html.matchAll(JSON_LD_PHONE_REGEX)) {
+        push(match[1]);
+    }
+
+    for (const match of html.matchAll(ITEMPROP_PHONE_REGEX)) {
+        push(match[1]);
+    }
+
+    return found;
 }
 
 export function extractLinkedInPublicId(urls: Array<string | undefined>): string | null {
@@ -133,10 +183,14 @@ export type PhoneSource =
     | 'post_text'
     | 'apify_profile'
     | 'website'
+    | 'author_info'
+    | 'google_maps'
     | 'contactout'
     | 'apollo'
     | 'contact_compass'
-    | 'threads_profile';
+    | 'threads_profile'
+    | 'twitter_profile'
+    | 'reddit_profile';
 
 export function leadHasPhone(lead: {
     contact_info?: { phone_numbers?: Array<{ number?: string }> } | null;

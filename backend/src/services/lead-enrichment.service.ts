@@ -1,13 +1,17 @@
 import axios from 'axios';
-import { ApifyClient } from 'apify-client';
 import LeadPost from '../models/lead-post.model';
-import ApifyKey from '../models/apify-key.model';
 import { getSetting } from './setting.service';
 import ErrorResponse from '../utils/error-response.utils';
 import { recordContactCompassLookup } from '../utils/contact-compass-usage.utils';
-import { scrapeLinkedInAuthorProfile } from './linkedin-profile-enrichment.service';
 import { findPhonesWithContactOut } from '../utils/contactout-api.utils';
 import { findPhonesWithApollo } from '../utils/apollo-api.utils';
+import { runFreePhoneDiscovery } from '../utils/phone-discovery.utils';
+import {
+    enrichSocialProfileForLead,
+    ENRICHABLE_PLATFORMS,
+    getProfileContactSources,
+    type SocialProfileData,
+} from './social-profile-enrichment.service';
 import {
     extractEmailFromText,
     extractPhoneFromText,
@@ -40,6 +44,8 @@ type EmailSource =
     | 'compass_and_hunter'
     | 'pattern_guess'
     | 'threads_profile'
+    | 'twitter_profile'
+    | 'reddit_profile'
     | 'contactout'
     | 'apollo';
 
@@ -55,54 +61,36 @@ interface EmailCandidate {
     message: string;
 }
 
-async function getActiveApifyKey() {
-    const keyRecord = await ApifyKey.findOne({ is_active: true, is_deleted: false });
-    return keyRecord ? keyRecord.key : null;
-}
+async function tryHunterEmailDiscovery(lead: any, profileData?: SocialProfileData | null) {
+    const personName = parsePersonName(
+        profileData?.name || lead.contact_info?.name || lead.author?.name
+    );
+    const domain = profileData?.company_domain || lead.contact_info?.company_domain;
+    const company = profileData?.company_name || lead.contact_info?.company_name;
 
-async function findThreadsContact(lead: any) {
-    const url = lead.author?.url || lead.url;
-    const usernameMatch = url.match(/threads\.net\/@([^/?#]+)/);
-    if (!usernameMatch) return null;
-
-    const apiKey = await getActiveApifyKey();
-    if (!apiKey) throw new ErrorResponse('No active Apify key found for Threads enrichment', 400);
-
-    const client = new ApifyClient({ token: apiKey });
-    const run = await client.actor('apify/threads-profile-api-scraper').call({
-        usernames: [usernameMatch[1]],
+    const hunterFound = await findEmailWithHunterMulti({
+        domain: domain || undefined,
+        company: !domain ? company || undefined : undefined,
+        firstName: personName?.first,
+        lastName: personName?.last,
+        fullName: personName ? undefined : profileData?.name || lead.contact_info?.name,
     });
 
-    const { items } = await client.dataset(run.defaultDatasetId).listItems();
-    if (!items?.length) return null;
+    if (!hunterFound?.email) return { lead, applied: false, message: null };
 
-    const profile = items[0] as any;
-    let email = extractEmailFromText(profile.biography || '');
-    let phone = extractPhoneFromText(profile.biography || '');
-
-    const website = profile.external_url || profile.website;
-    if (website && (!email || !phone)) {
-        try {
-            const webResponse = await axios.get(website, { timeout: 10000 });
-            if (typeof webResponse.data === 'string') {
-                email = email || extractEmailFromText(webResponse.data);
-                phone = phone || extractPhoneFromText(webResponse.data);
-            }
-        } catch (err) {
-            console.error(`Failed to scrape website ${website}:`, err);
-        }
-    }
-
-    return {
-        email,
-        phone,
-        profile_info: {
-            name: profile.full_name,
-            bio: profile.biography,
-            username: profile.username,
-            website,
+    const result = await applyContactUpdate(lead, {
+        email: hunterFound.email,
+        email_source: 'hunter_finder',
+        hunter_finder_status: hunterFound.verificationStatus,
+        contact_info: {
+            company_name: hunterFound.company || company,
+            title: hunterFound.position,
+            company_domain: domain,
         },
-    };
+        message: `Email found via Hunter.io (score ${hunterFound.score}).`,
+    });
+
+    return { lead: result.data, applied: true, message: result.message };
 }
 
 async function lookupContactCompass(publicId: string) {
@@ -469,6 +457,53 @@ export async function verifyLeadEmailManually(leadId: string) {
     return lead;
 }
 
+async function tryApplyPhoneHit(
+    lead: any,
+    phone: string | null | undefined,
+    phone_source: PhoneSource | undefined,
+    message: string
+) {
+    if (!phone || leadHasPhone(lead)) return { lead, message, applied: false };
+
+    const result = await applyContactUpdate(lead, {
+        phone,
+        phone_source,
+        message,
+    });
+
+    return { lead: result.data, message: result.message, applied: true };
+}
+
+async function tryFreePhoneDiscovery(lead: any, profileData?: any) {
+    const hit = await runFreePhoneDiscovery({
+        content: lead.content,
+        author: lead.author,
+        profileData,
+        contactInfo: lead.contact_info,
+    });
+
+    if (!hit) return { lead, lastMessage: null, applied: false };
+
+    const applied = await tryApplyPhoneHit(lead, hit.phone, hit.source, hit.message);
+    return {
+        lead: applied.lead,
+        lastMessage: applied.message,
+        applied: applied.applied,
+    };
+}
+
+async function tryLookupCompassPhone(publicId: string): Promise<string | null> {
+    try {
+        const person = await lookupContactCompass(publicId);
+        if (!person?.phone_numbers?.length) return null;
+        return pickFirstPhone(...person.phone_numbers.map((p: any) => p?.number));
+    } catch (error: any) {
+        if (error instanceof ErrorResponse) throw error;
+        console.warn('[Enrichment] Compass phone lookup failed:', error?.message || error);
+        return null;
+    }
+}
+
 async function tryPaidPhoneLookup(
     linkedinUrl: string,
     paidLookupsUsed: { count: number }
@@ -520,8 +555,11 @@ export const findLeadEmail = async (leadId: string, options?: { force?: boolean 
         throw new ErrorResponse('Lead not found', 404);
     }
 
-    if (lead.platform !== 'linkedin' && lead.platform !== 'threads') {
-        throw new ErrorResponse('Contact finding only supported for LinkedIn and Threads leads', 400);
+    if (!ENRICHABLE_PLATFORMS.includes(lead.platform)) {
+        throw new ErrorResponse(
+            'Contact finding only supported for LinkedIn, Threads, X (Twitter), and Reddit leads',
+            400
+        );
     }
 
     if (!options?.force && hasVerifiedEmail(lead) && leadHasPhone(lead)) {
@@ -558,80 +596,89 @@ export const findLeadEmail = async (leadId: string, options?: { force?: boolean 
         }
     }
 
-    // Threads path
-    if (lead.platform === 'threads') {
-        const contact = await findThreadsContact(lead);
-        if (!contact) {
-            if (enrichmentComplete(lead)) {
-                await lead.save();
+    if (!leadHasPhone(lead)) {
+        const authorPhone = extractPhoneFromText(
+            [lead.author?.info, lead.author?.website].filter(Boolean).join(' ')
+        );
+        const authorApplied = await tryApplyPhoneHit(
+            lead,
+            authorPhone,
+            'author_info',
+            'Phone found in author profile info.'
+        );
+        if (authorApplied.applied) {
+            lead = authorApplied.lead;
+            lastMessage = authorApplied.message || lastMessage;
+            if (hasVerifiedEmail(lead) && leadHasPhone(lead)) {
                 return { success: true, data: lead, message: lastMessage };
             }
-            throw new ErrorResponse('Could not find contact details for this Threads profile', 404);
         }
-
-        return applyContactUpdate(lead, {
-            email: contact.email,
-            phone: contact.phone,
-            phone_source: contact.phone ? 'threads_profile' : undefined,
-            email_status: contact.email ? 'unverified' : undefined,
-            email_source: contact.email ? 'threads_profile' : undefined,
-            contact_info: {
-                name: contact.profile_info?.name,
-                headline: contact.profile_info?.bio,
-                linkedin_public_id: contact.profile_info?.username,
-            },
-            message: contact.phone
-                ? 'Phone found via Threads profile.'
-                : contact.email
-                    ? 'Email found via Threads profile (review recommended).'
-                    : 'Profile found but no contact on Threads.',
-        });
     }
 
-    let profileData = null;
-    const linkedinUrl = authorUrl?.includes('linkedin.com/in/') ? authorUrl : null;
+    let profileData: SocialProfileData | null = null;
+    const linkedinUrl =
+        lead.platform === 'linkedin' && authorUrl?.includes('linkedin.com/in/') ? authorUrl : null;
+    const profileSources = getProfileContactSources(lead.platform);
 
-    // Step 2 — Apify LinkedIn profile + website
-    if (linkedinUrl) {
-        profileData = await scrapeLinkedInAuthorProfile(linkedinUrl);
+    // Step 2 — platform profile (LinkedIn / Threads / X / Reddit)
+    profileData = await enrichSocialProfileForLead(lead);
+    if (lead.platform === 'linkedin' && profileData) {
         publicId = resolveLinkedInPublicIdFromLead(lead, profileData?.linkedin_public_id) || publicId;
+    }
 
-        if (profileData?.email || profileData?.phone) {
-            const result = await applyContactUpdate(lead, {
-                email: profileData.email,
-                phone: profileData.phone,
-                phone_source: profileData.phone ? 'apify_profile' : undefined,
-                email_source: profileData.email ? 'apify_profile' : undefined,
-                contact_info: {
-                    name: profileData.name,
-                    first_name: profileData.first_name,
-                    last_name: profileData.last_name,
-                    headline: profileData.headline,
-                    company_name: profileData.company_name,
-                    linkedin_public_id: publicId || undefined,
-                    company_domain: profileData.company_domain,
-                },
-                message: profileData.phone
-                    ? 'Phone found on LinkedIn profile via Apify.'
-                    : 'Email found on LinkedIn profile via Apify.',
-            });
-            lead = result.data;
-            lastMessage = result.message;
-            if (hasVerifiedEmail(lead) && leadHasPhone(lead)) {
-                return result;
-            }
-        } else if (profileData) {
-            lead.contact_info = {
-                ...lead.contact_info,
-                name: profileData.name || lead.contact_info?.name,
+    if (profileData?.email || profileData?.phone) {
+        const result = await applyContactUpdate(lead, {
+            email: profileData.email,
+            phone: profileData.phone,
+            phone_source: profileData.phone ? profileSources.phone : undefined,
+            email_source: profileData.email ? profileSources.email : undefined,
+            contact_info: {
+                name: profileData.name,
                 first_name: profileData.first_name,
                 last_name: profileData.last_name,
-                headline: profileData.headline || lead.contact_info?.headline,
-                company_name: profileData.company_name || lead.contact_info?.company_name,
-                linkedin_public_id: publicId || lead.contact_info?.linkedin_public_id,
+                headline: profileData.headline,
+                company_name: profileData.company_name,
+                linkedin_public_id: publicId || profileData.linkedin_public_id || undefined,
                 company_domain: profileData.company_domain,
-            };
-            await lead.save();
+                city: profileData.city,
+                state: profileData.state,
+                country: profileData.country,
+            },
+            message: profileData.phone
+                ? `Phone found on ${lead.platform} profile.`
+                : `Email found on ${lead.platform} profile.`,
+        });
+        lead = result.data;
+        lastMessage = result.message;
+        if (hasVerifiedEmail(lead) && leadHasPhone(lead)) {
+            return result;
+        }
+    } else if (profileData) {
+        lead.contact_info = {
+            ...lead.contact_info,
+            name: profileData.name || lead.contact_info?.name,
+            first_name: profileData.first_name,
+            last_name: profileData.last_name,
+            headline: profileData.headline || lead.contact_info?.headline,
+            company_name: profileData.company_name || lead.contact_info?.company_name,
+            linkedin_public_id: publicId || lead.contact_info?.linkedin_public_id,
+            company_domain: profileData.company_domain,
+            city: profileData.city || lead.contact_info?.city,
+            state: profileData.state || lead.contact_info?.state,
+            country: profileData.country || lead.contact_info?.country,
+        };
+        await lead.save();
+    }
+
+    // Step 2b — website + Google Maps (free sources, uses profile/company context)
+    if (!leadHasPhone(lead)) {
+        const freeDiscovery = await tryFreePhoneDiscovery(lead, profileData);
+        if (freeDiscovery.applied) {
+            lead = freeDiscovery.lead;
+            lastMessage = freeDiscovery.lastMessage || lastMessage;
+            if (hasVerifiedEmail(lead) && leadHasPhone(lead)) {
+                return { success: true, data: lead, message: lastMessage };
+            }
         }
     }
 
@@ -658,41 +705,70 @@ export const findLeadEmail = async (leadId: string, options?: { force?: boolean 
         }
     }
 
-    // Steps 5–6 — Contact Compass + Hunter.io (email; phones from Compass payload)
+    // Step 5 — Contact Compass phone lookup when email exists but phone does not
+    if (!leadHasPhone(lead) && hasVerifiedEmail(lead) && publicId) {
+        const compassPhone = await tryLookupCompassPhone(publicId);
+        if (compassPhone) {
+            const phoneResult = await tryApplyPhoneHit(
+                lead,
+                compassPhone,
+                'contact_compass',
+                'Phone found via Contact Compass.'
+            );
+            if (phoneResult.applied) {
+                lead = phoneResult.lead;
+                lastMessage = phoneResult.message || lastMessage;
+            }
+        }
+    }
+
+    // Step 6 — Contact Compass + Hunter.io (LinkedIn) or Hunter-only (other platforms)
     if (!hasVerifiedEmail(lead) && (publicId || profileData || lead.contact_info?.company_domain)) {
         try {
-            const candidates = await collectDualFindCandidates({ publicId, profileData, lead });
-            if (candidates.length > 0) {
-                const primaryCandidate = candidates[0];
-                const compassPhone = pickFirstPhone(
-                    ...(primaryCandidate.contactInfo?.phone_numbers || []).map((p: any) => p?.number)
-                );
+            if (publicId && lead.platform === 'linkedin') {
+                const candidates = await collectDualFindCandidates({ publicId, profileData, lead });
+                if (candidates.length > 0) {
+                    const primaryCandidate = candidates[0];
+                    const compassPhone = pickFirstPhone(
+                        ...(primaryCandidate.contactInfo?.phone_numbers || []).map((p: any) => p?.number)
+                    );
 
-                const result = await tryDualFindCandidates(lead, candidates);
-                lead = result.data;
+                    const result = await tryDualFindCandidates(lead, candidates);
+                    lead = result.data;
 
-                if (!leadHasPhone(lead) && compassPhone) {
-                    const phoneResult = await applyContactUpdate(lead, {
-                        phone: compassPhone,
-                        phone_source: 'contact_compass',
-                        message: 'Phone found via Contact Compass.',
-                    });
-                    lead = phoneResult.data;
+                    if (!leadHasPhone(lead) && compassPhone) {
+                        const phoneResult = await tryApplyPhoneHit(
+                            lead,
+                            compassPhone,
+                            'contact_compass',
+                            'Phone found via Contact Compass.'
+                        );
+                        lead = phoneResult.lead;
+                    }
+
+                    if (result?.success) {
+                        return {
+                            ...result,
+                            message: leadHasPhone(lead) && result.message
+                                ? `${result.message} Phone included.`
+                                : result.message,
+                        };
+                    }
+                    lastMessage = result.message || lastMessage;
                 }
-
-                if (result?.success) {
-                    return {
-                        ...result,
-                        message: leadHasPhone(lead) && result.message
-                            ? `${result.message} Phone included.`
-                            : result.message,
-                    };
+            } else {
+                const hunterResult = await tryHunterEmailDiscovery(lead, profileData);
+                if (hunterResult.applied) {
+                    lead = hunterResult.lead;
+                    lastMessage = hunterResult.message || lastMessage;
+                    if (hasVerifiedEmail(lead) && leadHasPhone(lead)) {
+                        return { success: true, data: lead, message: lastMessage };
+                    }
                 }
-                lastMessage = result.message || lastMessage;
             }
         } catch (error) {
             if (error instanceof ErrorResponse) throw error;
-            console.error('[Enrichment] Dual find failed:', error);
+            console.error('[Enrichment] Email discovery failed:', error);
         }
     }
 
@@ -733,16 +809,16 @@ export const findLeadEmail = async (leadId: string, options?: { force?: boolean 
         };
     }
 
-    if (profileData || publicId) {
+    if (profileData || publicId || lead.platform !== 'linkedin') {
         await lead.save();
         return {
             success: false,
             data: lead,
-            message: publicId
-                ? 'Profile enriched but no contact found across all sources.'
-                : 'Could not extract LinkedIn profile ID for contact lookup.',
+            message: enrichmentComplete(lead)
+                ? lastMessage
+                : 'Profile enriched but no contact found across all sources.',
         };
     }
 
-    throw new ErrorResponse('Could not extract LinkedIn public ID from author profile URL', 400);
+    throw new ErrorResponse('Could not enrich author profile for contact lookup', 400);
 };

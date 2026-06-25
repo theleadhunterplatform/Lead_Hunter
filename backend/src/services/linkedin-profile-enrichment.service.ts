@@ -1,11 +1,12 @@
-import axios from 'axios';
 import config from '../config';
 import { getApifyClient } from '../utils/apify-client.utils';
 import {
     extractEmailFromText,
     extractPhoneFromText,
+    pickFirstPhone,
 } from '../utils/lead-enrichment.utils';
 import { extractDomainFromUrl } from '../utils/email-pattern.utils';
+import { discoverPhonesFromWebsite } from '../utils/website-phone-discovery.utils';
 
 export type LinkedInProfileData = {
     email?: string | null;
@@ -18,6 +19,9 @@ export type LinkedInProfileData = {
     company_domain?: string | null;
     linkedin_public_id?: string;
     website?: string | null;
+    city?: string;
+    state?: string;
+    country?: string;
 };
 
 function pickProfileField(profile: Record<string, any>, keys: string[]) {
@@ -71,6 +75,9 @@ function normalizeProfileItem(item: Record<string, any>): LinkedInProfileData {
         company_domain: companyDomain,
         linkedin_public_id: publicId || undefined,
         website,
+        city: pickProfileField(item, ['city', 'addressCity', 'locationCity']) as string | undefined,
+        state: pickProfileField(item, ['state', 'addressState', 'locationState']) as string | undefined,
+        country: pickProfileField(item, ['country', 'addressCountry', 'locationCountry']) as string | undefined,
     };
 }
 
@@ -89,15 +96,20 @@ export async function scrapeLinkedInAuthorProfile(authorUrl?: string): Promise<L
 
         const profile = normalizeProfileItem(items[0] as Record<string, any>);
 
-        if (profile.website && !profile.email) {
-            try {
-                const response = await axios.get(profile.website, { timeout: 8000 });
-                if (typeof response.data === 'string') {
-                    profile.email = extractEmailFromText(response.data) || profile.email;
-                    profile.phone = extractPhoneFromText(response.data) || profile.phone;
+        if (profile.website && !profile.phone) {
+            const websitePhones = await discoverPhonesFromWebsite(profile.website, { maxPages: 4 });
+            profile.phone = pickFirstPhone(...websitePhones) || profile.phone;
+            if (!profile.email) {
+                // Best-effort email from homepage only (avoid crawling many pages for email).
+                try {
+                    const { default: axios } = await import('axios');
+                    const response = await axios.get(profile.website, { timeout: 8000 });
+                    if (typeof response.data === 'string') {
+                        profile.email = extractEmailFromText(response.data) || profile.email;
+                    }
+                } catch {
+                    // website scrape is best-effort
                 }
-            } catch {
-                // website scrape is best-effort
             }
         }
 

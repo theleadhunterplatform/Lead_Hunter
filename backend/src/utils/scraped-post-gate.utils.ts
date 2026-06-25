@@ -1,4 +1,4 @@
-import { classifyLeadIntent } from './lead-intent-scoring.utils';
+import { classifyLeadIntent, isBuyerSeekingContractorPartnerAgency } from './lead-intent-scoring.utils';
 
 const BUYER_WORDS_IN_KEYWORD =
     /\b(?:looking for|need someone|need help|need a|can anyone|seeking|outsourcing|recommend)\b/i;
@@ -35,24 +35,25 @@ export function shouldIngestScrapedPost(
     }
 
     const intent = classifyLeadIntent(trimmed);
+    const seeksContractorPartner = isBuyerSeekingContractorPartnerAgency(trimmed);
     const serviceSignals =
         intent.analysis.buying.length + intent.analysis.recommendation.length;
     const jobSignals = intent.analysis.employment.length + intent.analysis.fullTime.length;
     const noiseSignals = intent.analysis.nonLead.length;
 
-    if (serviceSignals === 0) {
+    if (serviceSignals === 0 && !seeksContractorPartner) {
         return { ok: false, reason: 'no buyer language in post' };
     }
 
-    if (jobSignals >= 1 && serviceSignals <= 1) {
+    if (jobSignals >= 1 && serviceSignals <= 1 && !seeksContractorPartner) {
         return { ok: false, reason: 'employment / job post' };
     }
 
-    if (noiseSignals >= 1 && serviceSignals <= 1) {
+    if (noiseSignals >= 1 && serviceSignals <= 1 && !seeksContractorPartner) {
         return { ok: false, reason: 'seller or promotional post' };
     }
 
-    if (intent.confidence < 71) {
+    if (intent.confidence < 71 && !seeksContractorPartner) {
         return { ok: false, reason: 'buyer intent not strong enough' };
     }
 
