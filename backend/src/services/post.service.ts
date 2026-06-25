@@ -13,7 +13,7 @@ import { enqueueLeadIntelligence } from '../utils/intelligence-queue.utils';
 import { sanitizeContactFields } from '../utils/contact-redaction.utils';
 import { logLeadAction } from '../utils/audit.utils';
 import { verifyLeadEmailManually } from './lead-enrichment.service';
-import { reconcileEnrichmentStatusIfStale } from './enrichment.service';
+import { reconcileEnrichmentStatusIfStale, shouldEnrichLead } from './enrichment.service';
 import {
     leadHasContactDetails,
 } from '../utils/lead-enrichment.utils';
@@ -157,6 +157,34 @@ export const bulkReEnrichPosts = async (query: {
         queued,
         message: `${queued} lead(s) queued for contact re-enrichment.`,
     };
+};
+
+export const reEnrichPost = async (id: string) => {
+    const post = await LeadPost.findOne({ _id: id, is_deleted: false });
+    if (!post) {
+        throw new ErrorResponse(`Post not found with id of ${id}`, 404);
+    }
+
+    if (!shouldEnrichLead(post)) {
+        throw new ErrorResponse('Contact enrichment only runs for qualified LinkedIn or Threads leads.', 400);
+    }
+
+    const added = await enqueueContactEnrichment(
+        post._id.toString(),
+        { status: 'relevant', platform: post.platform },
+        { force: true }
+    );
+
+    if (!added) {
+        throw new ErrorResponse('This lead cannot be enriched.', 400);
+    }
+
+    await LeadPost.findByIdAndUpdate(id, {
+        enrichment_status: 'searching',
+        enrichment_message: null,
+    });
+
+    return { message: 'Contact enrichment queued.' };
 };
 
 async function attachReviewerNames(posts: any[]) {
@@ -656,10 +684,13 @@ export const updatePostLabel = async (
     }
 
     if (data.status === 'relevant') {
-        await enqueueContactEnrichment(post._id.toString(), {
-            status: 'relevant',
-            platform: post.platform,
-        });
+        if (shouldEnrichLead(post) && !leadHasContactDetails(post)) {
+            await LeadPost.findByIdAndUpdate(post._id.toString(), {
+                enrichment_status: 'pending',
+                enrichment_message: null,
+            });
+            post.enrichment_status = 'pending';
+        }
 
         if (leadHasContactDetails(post) && !post.intelligence) {
             await enqueueLeadIntelligence(post._id.toString());

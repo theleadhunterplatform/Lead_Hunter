@@ -1,6 +1,6 @@
 import LeadPost from '../models/lead-post.model';
 import { classifyText } from './ocr.service';
-import { enqueueContactEnrichment } from '../utils/enrichment-queue.utils';
+import { shouldEnrichLead } from './enrichment.service';
 import { scheduleAutoTrain } from '../utils/auto-train.utils';
 import { isLocalAiModelReady } from './ai-training.service';
 import {
@@ -264,6 +264,10 @@ export async function qualifyLeadPost(postId: string): Promise<QualificationResu
     if (result.status === 'relevant') {
         updateData.review_status = 'awaiting_review';
         updateData.is_training_data = true;
+        if (shouldEnrichLead(post)) {
+            updateData.enrichment_status = 'pending';
+            updateData.enrichment_message = null;
+        }
     } else {
         updateData.review_status = null;
     }
@@ -278,10 +282,7 @@ export async function qualifyLeadPost(postId: string): Promise<QualificationResu
         `✅ [Qualification] ${post.post_id} → ${result.label} (${result.confidence}%) [${result.method}] — ${result.reasons.slice(0, 3).join('; ')}`
     );
 
-    if (result.status === 'relevant') {
-        await enqueueContactEnrichment(postId, { status: 'relevant', platform: post.platform });
-        scheduleAutoTrain().catch((err) => console.error('[AutoTrain] Schedule failed:', err.message));
-    } else if (result.status === 'irrelevant') {
+    if (result.status === 'relevant' || result.status === 'irrelevant') {
         scheduleAutoTrain().catch((err) => console.error('[AutoTrain] Schedule failed:', err.message));
     }
 

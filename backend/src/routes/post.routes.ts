@@ -17,6 +17,7 @@ import {
     verifyEmailPost,
     bulkRequalifyPosts,
     bulkReEnrichPosts,
+    reEnrichPost,
     approveLeadReview,
     rejectLeadReview,
     bulkApproveLeadReviews,
@@ -145,6 +146,7 @@ router.get('/claimed', authorize('lead:read'), getClaimedPosts);
 router.get('/stats', authorize('lead:read'), getLeadIntelligenceStats);
 router.post('/bulk-reanalyse', authorize('lead:hunt'), bulkRequalifyPosts);
 router.post('/bulk-re-enrich', authorize('lead:hunt'), bulkReEnrichPosts);
+router.post('/:id/re-enrich', authorize('lead:hunt'), reEnrichPost);
 router.post('/bulk-approve', authorize('lead:hunt'), bulkApproveLeadReviews);
 router.post('/bulk-reject', authorize('lead:hunt'), bulkRejectLeadReviews);
 

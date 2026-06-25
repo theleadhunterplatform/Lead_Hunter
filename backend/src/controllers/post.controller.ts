@@ -188,6 +188,15 @@ export const bulkReEnrichPosts = asyncHandler(async (req: Request, res: Response
     });
 });
 
+export const reEnrichPost = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+    const result = await postService.reEnrichPost(req.params.id as string);
+
+    return res.status(202).json({
+        success: true,
+        message: result.message,
+    });
+});
+
 export const verifyEmailPost = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
     const post = await postService.verifyLeadEmail(req.params.id as string);
 

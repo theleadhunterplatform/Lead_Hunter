@@ -100,6 +100,7 @@ export default function LeadIntelligencePage() {
   const [bulkReenriching, setBulkReenriching] = useState(false);
   const [bulkApproving, setBulkApproving] = useState(false);
   const [bulkRejecting, setBulkRejecting] = useState(false);
+  const [enrichingIds, setEnrichingIds] = useState<string[]>([]);
   const [reviewActionIds, setReviewActionIds] = useState<string[]>([]);
   const [aiMetrics, setAiMetrics] = useState<{
     accuracy: number | null;
@@ -279,6 +280,19 @@ export default function LeadIntelligencePage() {
       toast.error(err.response?.data?.message || 'Failed to queue bulk re-enrichment.');
     } finally {
       setBulkReenriching(false);
+    }
+  };
+
+  const handleReEnrichLead = async (leadId: string) => {
+    try {
+      setEnrichingIds((prev) => [...prev, leadId]);
+      const response = await api.post(`/posts/${leadId}/re-enrich`);
+      toast.success(response.data.message || 'Enrichment queued.');
+      fetchLeads(currentPage, activeTab, searchQuery, selectedPlatforms, true);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to queue enrichment.');
+    } finally {
+      setEnrichingIds((prev) => prev.filter((id) => id !== leadId));
     }
   };
 
@@ -465,6 +479,15 @@ export default function LeadIntelligencePage() {
     return [];
   };
 
+  const canEnrichLead = (lead: Lead) =>
+    lead.status === 'relevant' &&
+    (lead.platform === 'linkedin' || lead.platform === 'threads');
+
+  const getEnrichButtonLabel = (lead: Lead) => {
+    if (!lead.enrichment_status || lead.enrichment_status === 'pending') return 'Find Contacts';
+    return 'Re-enrich';
+  };
+
   const leadHasDiscoverableContact = (lead: Lead) => {
     if (lead.email?.trim()) return true;
     if (lead.contact_info?.emails?.some((e) => e.email?.trim())) return true;
@@ -484,6 +507,8 @@ export default function LeadIntelligencePage() {
         return 'Partial (found, not verified)';
       case 'not_found':
         return 'Not found';
+      case 'pending':
+        return 'Not started';
       default:
         return status.replace(/_/g, ' ');
     }
@@ -857,7 +882,7 @@ export default function LeadIntelligencePage() {
                       </div>
                     )}
 
-                    {isInternal && lead.status === 'relevant' && lead.enrichment_status === 'searching' && (
+                    {isInternal && canEnrichLead(lead) && lead.enrichment_status === 'searching' && (
                       <div className="mb-4 p-3 bg-hunter-orange/5 neo-border border-hunter-orange/20 flex items-center gap-3">
                         <Loader2 size={14} className="animate-spin text-hunter-orange" />
                         <div>
@@ -865,13 +890,62 @@ export default function LeadIntelligencePage() {
                             Enriching Contacts
                           </span>
                           <span className="text-[10px] text-zinc-500 normal-case font-medium">
-                            Contact Compass + Hunter.io find and verify contacts...
+                            Searching post, profile, Apollo, Contact Compass...
                           </span>
                         </div>
                       </div>
                     )}
 
-                    {isInternal && lead.status === 'relevant' && lead.enrichment_status && lead.enrichment_status !== 'searching' && (
+                    {isInternal && canEnrichLead(lead) && lead.enrichment_status !== 'searching' && (
+                      <div className={`mb-4 p-3 neo-border border-l-2 ${
+                        lead.enrichment_status === 'found'
+                          ? 'bg-green-500/5 border-green-500/30 border-l-green-500'
+                          : lead.enrichment_status === 'partial'
+                            ? 'bg-yellow-500/5 border-yellow-500/30 border-l-yellow-500'
+                            : lead.enrichment_status === 'not_found'
+                              ? 'bg-red-500/5 border-red-500/30 border-l-red-500'
+                              : 'bg-zinc-900/50 border-zinc-800 border-l-zinc-600'
+                      }`}>
+                        <div className="flex items-center justify-between gap-3 mb-1 flex-wrap">
+                          <div className="flex items-center gap-2">
+                            <Mail size={12} className={
+                              lead.enrichment_status === 'found'
+                                ? 'text-green-400'
+                                : lead.enrichment_status === 'partial'
+                                  ? 'text-yellow-400'
+                                  : lead.enrichment_status === 'not_found'
+                                    ? 'text-red-400'
+                                    : 'text-zinc-500'
+                            } />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-white">
+                              Contact Enrichment{lead.enrichment_status ? `: ${getEnrichmentStatusLabel(lead.enrichment_status)}` : ''}
+                            </span>
+                          </div>
+                          <Button
+                            onClick={() => handleReEnrichLead(lead._id)}
+                            disabled={enrichingIds.includes(lead._id)}
+                            className="h-8 px-3 text-[9px] uppercase font-black flex items-center gap-1.5 bg-hunter-orange/10 text-hunter-orange border border-hunter-orange/30 hover:bg-hunter-orange hover:text-black"
+                          >
+                            {enrichingIds.includes(lead._id) ? (
+                              <Loader2 size={12} className="animate-spin" />
+                            ) : (
+                              <RefreshCw size={12} />
+                            )}
+                            {enrichingIds.includes(lead._id) ? 'Queueing...' : getEnrichButtonLabel(lead)}
+                          </Button>
+                        </div>
+                        {(!lead.enrichment_status || lead.enrichment_status === 'pending') && (
+                          <p className="text-xs text-zinc-500">
+                            Enrichment is manual — click Find Contacts when you want to spend API credits.
+                          </p>
+                        )}
+                        {lead.enrichment_message && (
+                          <p className="text-xs text-zinc-400">{lead.enrichment_message}</p>
+                        )}
+                      </div>
+                    )}
+
+                    {isInternal && lead.status === 'relevant' && !canEnrichLead(lead) && lead.enrichment_status && lead.enrichment_status !== 'searching' && (
                       <div className={`mb-4 p-3 neo-border border-l-2 ${
                         lead.enrichment_status === 'found'
                           ? 'bg-green-500/5 border-green-500/30 border-l-green-500'
