@@ -97,6 +97,7 @@ export default function LeadIntelligencePage() {
   const [refineLead, setRefineLead] = useState<Lead | null>(null);
   const [claimingIds, setClaimingIds] = useState<string[]>([]);
   const [bulkReanalysing, setBulkReanalysing] = useState(false);
+  const [reanalysePolling, setReanalysePolling] = useState(false);
   const [bulkReenriching, setBulkReenriching] = useState(false);
   const [bulkApproving, setBulkApproving] = useState(false);
   const [bulkRejecting, setBulkRejecting] = useState(false);
@@ -257,8 +258,15 @@ export default function LeadIntelligencePage() {
     try {
       setBulkReanalysing(true);
       const response = await api.post('/posts/bulk-reanalyse', getBulkFilters());
-      toast.success(response.data.message || 'Bulk re-analysis queued.');
-      fetchLeads(currentPage, activeTab, searchQuery, selectedPlatforms, true);
+      const queued = response.data.queued ?? 0;
+      if (queued > 0) {
+        toast.success(`${queued} lead(s) queued for re-analysis. Watch the Pending tab while they process.`);
+        setReanalysePolling(true);
+        setActiveTab('pending');
+      } else {
+        toast.info(response.data.message || 'No leads matched the current filters.');
+      }
+      fetchLeads(1, 'pending', searchQuery, selectedPlatforms, true);
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to queue bulk re-analysis.');
     } finally {
@@ -420,6 +428,23 @@ export default function LeadIntelligencePage() {
 
     return () => clearInterval(interval);
   }, [leads, currentPage, activeTab, searchQuery, selectedPlatforms]);
+
+  useEffect(() => {
+    const shouldPoll = reanalysePolling || counts.pending > 0;
+    if (!shouldPoll) return;
+
+    const interval = setInterval(() => {
+      fetchLeads(currentPage, activeTab, searchQuery, selectedPlatforms, true);
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, [reanalysePolling, counts.pending, currentPage, activeTab, searchQuery, selectedPlatforms]);
+
+  useEffect(() => {
+    if (!reanalysePolling || counts.pending > 0) return;
+    setReanalysePolling(false);
+    toast.info('Re-analysis finished. Check Relevant or Noise for results.');
+  }, [reanalysePolling, counts.pending]);
 
   const handleSearch = (e?: React.FormEvent) => {
     e?.preventDefault();

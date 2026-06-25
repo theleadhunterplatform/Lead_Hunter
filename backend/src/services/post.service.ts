@@ -108,7 +108,7 @@ export const bulkRequalifyPosts = async (query: {
     });
 
     for (const id of ids) {
-        await enqueueLeadQualification(id);
+        await enqueueLeadQualification(id, { force: true });
     }
 
     return {
