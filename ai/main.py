@@ -138,6 +138,14 @@ async def train_model(request: TrainRequest):
     try:
         print(f"[AI-Train] Training on {len(samples)} labeled samples...")
         metrics = classifier.train(samples)
+        if metrics.get('rolled_back'):
+            has_model = classifier.load_model()
+            return {
+                "success": True,
+                "message": metrics.get("message", "Kept previous model"),
+                "metrics": metrics,
+            }
+
         has_model = classifier.load_model()
         print(f"[AI-Train] Success! Accuracy: {metrics['accuracy']}% on {metrics['samples']} samples")
 

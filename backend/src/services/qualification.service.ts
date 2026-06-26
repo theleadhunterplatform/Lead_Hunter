@@ -12,6 +12,7 @@ import {
     logQualificationDecision,
     isBuyerSeekingContractorPartnerAgency,
     hasFreelanceProjectBuyerContext,
+    isHardRelevantLead,
     type IntentClassification,
 } from '../utils/lead-intent-scoring.utils';
 
@@ -39,6 +40,18 @@ function intentToResult(intent: IntentClassification, method: QualificationResul
         reasons: intent.reasons,
         method,
         reason: buildIntentReason(intent),
+    };
+}
+
+function pendingReviewResult(intent: IntentClassification, note: string): QualificationResult {
+    const reasons = [...intent.reasons, note];
+    return {
+        status: 'pending',
+        label: 'UNCERTAIN',
+        confidence: intent.confidence,
+        reasons,
+        method: 'uncertain',
+        reason: `UNCERTAIN (${intent.confidence}%): ${note}`,
     };
 }
 
@@ -82,7 +95,8 @@ function buildAiDrivenResult(
 function applyAiNudge(
     intent: IntentClassification,
     aiLabel: string,
-    aiConfidencePct: number
+    aiConfidencePct: number,
+    content: string
 ): QualificationResult {
     const { analysis } = intent;
     const jobSignals = analysis.employment.length + analysis.fullTime.length;
@@ -92,6 +106,17 @@ function applyAiNudge(
     let method: QualificationResult['method'] = 'intent+ai';
 
     const aiProb = aiConfidencePct / 100;
+    const hardBuyer = isHardRelevantLead(content, intent);
+
+    if (hardBuyer) {
+        const result = intentToResult(
+            { ...intent, confidence: Math.max(intent.confidence, 71), status: 'relevant', label: 'RELEVANT' },
+            'intent-rules'
+        );
+        result.reasons.push('strong freelance/project buyer — protected from model downgrade');
+        result.reason = buildIntentReason({ ...intent, ...result, status: 'relevant', label: 'RELEVANT' });
+        return result;
+    }
 
     if (aiLabel === 'irrelevant' && aiProb >= AI_OVERRIDE_MIN) {
         confidence = Math.max(0, confidence - 15);
@@ -116,8 +141,16 @@ function applyAiNudge(
     }
 
     confidence = Math.round(confidence);
-    const status = confidenceToStatus(confidence);
-    const label = status === 'relevant' ? 'RELEVANT' : status === 'irrelevant' ? 'IRRELEVANT' : 'UNCERTAIN';
+    let status = confidenceToStatus(confidence);
+
+    if (status === 'pending' || (method === 'uncertain' && confidence > 40 && confidence <= 70)) {
+        return pendingReviewResult(
+            { ...intent, confidence, reasons },
+            'AI unsure — label this lead to improve the model'
+        );
+    }
+
+    const label = status === 'relevant' ? 'RELEVANT' : 'IRRELEVANT';
 
     return {
         status,
@@ -149,6 +182,19 @@ export async function qualifyPostContent(content: string, platform = 'linkedin')
         return result;
     }
 
+    if (isHardRelevantLead(content, intent)) {
+        const boosted = {
+            ...intent,
+            confidence: Math.max(intent.confidence, 71),
+            status: 'relevant' as const,
+            label: 'RELEVANT' as const,
+        };
+        const result = intentToResult(boosted, 'intent-rules');
+        result.reasons.push('rules: strong buyer / freelance project hire');
+        logQualificationDecision(content, boosted, { method: result.method, platform });
+        return result;
+    }
+
     const modelReady = await isLocalAiModelReady();
     const localResult = modelReady ? await classifyText(content) : null;
 
@@ -156,7 +202,6 @@ export async function qualifyPostContent(content: string, platform = 'linkedin')
         const aiConfidencePct = Math.round(localResult.confidence * 100);
         const aiProb = localResult.confidence;
 
-        // Trained model drives qualification when confident (learns from your labeled leads).
         if (localResult.label === 'relevant' && aiProb >= AI_TRUST_MIN) {
             const result = buildAiDrivenResult(
                 intent,
@@ -189,7 +234,6 @@ export async function qualifyPostContent(content: string, platform = 'linkedin')
             return result;
         }
 
-        // Model override: rules say irrelevant but trained model strongly disagrees.
         if (intent.confidence <= 40 && localResult.label === 'relevant' && aiProb >= AI_OVERRIDE_MIN) {
             const result = buildAiDrivenResult(
                 intent,
@@ -206,7 +250,6 @@ export async function qualifyPostContent(content: string, platform = 'linkedin')
             return result;
         }
 
-        // Model override: rules say relevant but trained model strongly disagrees.
         if (intent.confidence >= 71 && localResult.label === 'irrelevant' && aiProb >= AI_OVERRIDE_MIN) {
             const result = buildAiDrivenResult(
                 intent,
@@ -223,9 +266,8 @@ export async function qualifyPostContent(content: string, platform = 'linkedin')
             return result;
         }
 
-        // Uncertain band or low model confidence: blend rules + model.
         if (intent.confidence <= 70) {
-            const result = applyAiNudge(intent, localResult.label, aiConfidencePct);
+            const result = applyAiNudge(intent, localResult.label, aiConfidencePct, content);
             logQualificationDecision(content, intent, {
                 method: result.method,
                 platform,
@@ -236,14 +278,13 @@ export async function qualifyPostContent(content: string, platform = 'linkedin')
         }
     }
 
-    // No trained model or model unavailable — rules only.
     if (intent.confidence <= 40 || intent.confidence >= 71) {
         const result = intentToResult(intent, 'intent-rules');
         logQualificationDecision(content, intent, { method: result.method, platform });
         return result;
     }
 
-    const result = intentToResult(intent, 'uncertain');
+    const result = pendingReviewResult(intent, 'rules inconclusive — label this lead to train the AI');
     if (!modelReady) {
         result.reasons.push('local AI not trained yet — label leads and train to improve future scrapes');
     } else if (!localResult) {
@@ -276,11 +317,11 @@ export async function qualifyLeadPost(postId: string): Promise<QualificationResu
             updateData.enrichment_status = 'pending';
             updateData.enrichment_message = null;
         }
+    } else if (result.status === 'pending') {
+        updateData.review_status = null;
+        updateData.is_training_data = false;
     } else {
         updateData.review_status = null;
-    }
-
-    if (result.status === 'irrelevant') {
         updateData.is_training_data = true;
     }
 

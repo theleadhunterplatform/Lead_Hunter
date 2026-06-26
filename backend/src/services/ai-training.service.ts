@@ -1,20 +1,14 @@
 import prisma from '../lib/prisma';
 import { trainModel } from './ocr.service';
 import { getSetting, updateSetting } from './setting.service';
+import { isManuallyLabeled } from '../utils/training-label.utils';
 
 export const MIN_TRAINING_SAMPLES = 8;
+export const MIN_NEW_LABELS_BEFORE_RETRAIN = 5;
 const METRICS_KEY = 'local_ai_metrics';
+const TRAIN_STATE_KEY = 'auto_train_state';
 
-const MANUAL_LABEL_HINTS = [
-    'Manually marked',
-    'Rejected during admin review',
-    'Rejected during bulk admin review',
-];
-
-function isManualTrainingLabel(qualificationReason?: string | null): boolean {
-    if (!qualificationReason) return false;
-    return MANUAL_LABEL_HINTS.some((hint) => qualificationReason.includes(hint));
-}
+const RECENT_SAMPLE_MS = 30 * 24 * 60 * 60 * 1000;
 
 export async function isLocalAiModelReady(): Promise<boolean> {
     const stored = (await getSetting(METRICS_KEY)) as LocalAiMetrics | null;
@@ -35,8 +29,19 @@ export type LocalAiMetrics = {
     model_ready: boolean;
     status: 'collecting' | 'training' | 'ready' | 'unavailable';
     accuracy_note?: string;
+    vectorizer?: string;
     message?: string;
 };
+
+function pushWeighted(
+    bucket: TrainingSample[],
+    sample: TrainingSample,
+    times: number
+) {
+    for (let i = 0; i < times; i += 1) {
+        bucket.push(sample);
+    }
+}
 
 export async function getTrainingSamples(): Promise<TrainingSample[]> {
     const labeled = await prisma.leadPost.findMany({
@@ -51,7 +56,10 @@ export async function getTrainingSamples(): Promise<TrainingSample[]> {
         take: 500,
     });
 
-    const unique = new Map<string, TrainingSample>();
+    const weighted: TrainingSample[] = [];
+    const seen = new Set<string>();
+    const recentCutoff = Date.now() - RECENT_SAMPLE_MS;
+
     for (const post of labeled) {
         const content = post.content.trim();
         if (content.length <= 10) continue;
@@ -61,41 +69,72 @@ export async function getTrainingSamples(): Promise<TrainingSample[]> {
             label: post.status as 'relevant' | 'irrelevant',
         };
 
-        const key = `${post.status}:${content.slice(0, 200)}`;
-        unique.set(key, sample);
+        const key = `${sample.label}:${content.slice(0, 200)}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
 
-        // Manual admin labels are duplicated so the model prioritizes your corrections.
-        if (isManualTrainingLabel(post.qualification_reason)) {
-            unique.set(`${key}:manual`, sample);
-        }
+        const manual = isManuallyLabeled(post.qualification_reason);
+        const recent = new Date(post.updated_at).getTime() >= recentCutoff;
+
+        let weight = 1;
+        if (manual) weight += 2;
+        if (recent) weight += 1;
+
+        pushWeighted(weighted, sample, weight);
     }
 
-    return Array.from(unique.values());
+    return weighted;
+}
+
+export async function getTrainingSampleCount(): Promise<number> {
+    const labeled = await prisma.leadPost.count({
+        where: {
+            is_deleted: false,
+            is_training_data: true,
+            status: { in: ['relevant', 'irrelevant'] },
+            NOT: { content: '' },
+        },
+    });
+    return labeled;
+}
+
+export async function shouldRunAutoTrain(force = false): Promise<boolean> {
+    if (force) return true;
+
+    const count = await getTrainingSampleCount();
+    if (count < MIN_TRAINING_SAMPLES) return false;
+
+    const state = (await getSetting(TRAIN_STATE_KEY)) as { last_trained_sample_count?: number } | null;
+    const lastCount = state?.last_trained_sample_count ?? 0;
+
+    if (lastCount === 0) return true;
+    return count - lastCount >= MIN_NEW_LABELS_BEFORE_RETRAIN;
 }
 
 export async function getLocalAiMetrics(): Promise<LocalAiMetrics> {
     const samples = await getTrainingSamples();
+    const uniqueCount = await getTrainingSampleCount();
     const stored = (await getSetting(METRICS_KEY)) as LocalAiMetrics | null;
     const relevant_count = samples.filter((s) => s.label === 'relevant').length;
     const irrelevant_count = samples.length - relevant_count;
 
-    if (samples.length < MIN_TRAINING_SAMPLES) {
+    if (uniqueCount < MIN_TRAINING_SAMPLES) {
         return {
             accuracy: stored?.accuracy ?? null,
-            samples: samples.length,
+            samples: uniqueCount,
             relevant_count,
             irrelevant_count,
             last_trained_at: stored?.last_trained_at ?? null,
             model_ready: false,
             status: 'collecting',
-            message: `Learning from your labels: ${samples.length}/${MIN_TRAINING_SAMPLES} manually marked leads collected.`,
+            message: `Learning from your labels: ${uniqueCount}/${MIN_TRAINING_SAMPLES} labeled leads collected.`,
         };
     }
 
     if (stored?.status === 'training') {
         return {
             ...stored,
-            samples: samples.length,
+            samples: uniqueCount,
             relevant_count,
             irrelevant_count,
         };
@@ -104,23 +143,23 @@ export async function getLocalAiMetrics(): Promise<LocalAiMetrics> {
     if (stored?.model_ready) {
         return {
             ...stored,
-            samples: samples.length,
+            samples: uniqueCount,
             relevant_count,
             irrelevant_count,
             status: 'ready',
-            message: `Local AI active · ${stored.accuracy ?? 0}% accuracy on ${stored.samples} training examples.`,
+            message: `Local AI active · ${stored.accuracy ?? 0}% accuracy · ${stored.vectorizer || 'embeddings'}.`,
         };
     }
 
     return {
         accuracy: null,
-        samples: samples.length,
+        samples: uniqueCount,
         relevant_count,
         irrelevant_count,
         last_trained_at: null,
         model_ready: false,
         status: 'collecting',
-        message: `${samples.length} labeled leads ready. Auto-training will run shortly.`,
+        message: `${uniqueCount} labeled leads ready. Auto-training runs after ${MIN_NEW_LABELS_BEFORE_RETRAIN} new labels.`,
     };
 }
 
@@ -131,23 +170,24 @@ async function saveMetrics(metrics: Partial<LocalAiMetrics>) {
 
 export async function executeAutoTraining(): Promise<void> {
     const samples = await getTrainingSamples();
+    const uniqueCount = await getTrainingSampleCount();
 
-    if (samples.length < MIN_TRAINING_SAMPLES) {
+    if (uniqueCount < MIN_TRAINING_SAMPLES) {
         await saveMetrics({
-            samples: samples.length,
+            samples: uniqueCount,
             relevant_count: samples.filter((s) => s.label === 'relevant').length,
             irrelevant_count: samples.filter((s) => s.label !== 'relevant').length,
             model_ready: false,
             status: 'collecting',
             accuracy: null,
-            message: `Need ${MIN_TRAINING_SAMPLES - samples.length} more labeled leads before the model can train.`,
+            message: `Need ${MIN_TRAINING_SAMPLES - uniqueCount} more labeled leads before the model can train.`,
         });
         return;
     }
 
     await saveMetrics({
         status: 'training',
-        samples: samples.length,
+        samples: uniqueCount,
         message: 'Training local AI on latest labeled leads...',
     });
 
@@ -164,17 +204,35 @@ export async function executeAutoTraining(): Promise<void> {
     }
 
     const metrics = result.metrics || {};
+
+    if (metrics.rolled_back) {
+        await saveMetrics({
+            status: 'ready',
+            model_ready: true,
+            message: metrics.message || 'Kept previous model — new training did not improve accuracy.',
+        });
+        console.warn('[AutoTrain] Rolled back to previous model.');
+        return;
+    }
+
     await saveMetrics({
         accuracy: metrics.accuracy ?? null,
-        samples: metrics.samples ?? samples.length,
+        samples: uniqueCount,
         relevant_count: metrics.relevant_count ?? samples.filter((s) => s.label === 'relevant').length,
         irrelevant_count: metrics.irrelevant_count ?? samples.filter((s) => s.label !== 'relevant').length,
         last_trained_at: new Date().toISOString(),
         model_ready: true,
         status: 'ready',
         accuracy_note: metrics.accuracy_note,
-        message: `Local AI updated · ${metrics.accuracy ?? 0}% accuracy.`,
+        vectorizer: metrics.vectorizer,
+        message: `Local AI updated · ${metrics.accuracy ?? 0}% accuracy (${metrics.vectorizer || 'model'}).`,
     });
 
-    console.log(`✅ [AutoTrain] Model updated (${metrics.accuracy}% accuracy, ${metrics.samples} samples)`);
+    await updateSetting(
+        TRAIN_STATE_KEY,
+        { last_trained_sample_count: uniqueCount, last_trained_at: new Date().toISOString() },
+        'Auto-train batching state'
+    );
+
+    console.log(`✅ [AutoTrain] Model updated (${metrics.accuracy}% accuracy, ${uniqueCount} unique samples)`);
 }

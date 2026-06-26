@@ -563,7 +563,7 @@ export default function LeadIntelligencePage() {
     ? [
         { id: "all", label: "All Leads", count: counts.all },
         { id: "irrelevant", label: "Noise", count: counts.irrelevant },
-        { id: "pending", label: "Pending Analysis", count: counts.pending },
+        { id: "pending", label: "Needs Review", count: counts.pending },
         { id: "relevant", label: "Relevant", count: counts.relevant },
         { id: "with_contact", label: "Contact Found", count: counts.with_contact },
         { id: "review", label: "Awaiting Approval", count: counts.review },
@@ -898,7 +898,7 @@ export default function LeadIntelligencePage() {
                           <span className={`text-[10px] font-black uppercase tracking-widest ${
                             lead.qualification_reason ? 'text-yellow-300' : 'text-zinc-500'
                           }`}>
-                            {lead.qualification_reason ? 'Needs manual qualification' : 'Waiting for AI analysis...'}
+                            {lead.qualification_reason ? 'Needs your label — trains the AI' : 'Waiting for AI analysis...'}
                           </span>
                         </div>
                         {lead.qualification_reason && (

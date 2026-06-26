@@ -14,6 +14,7 @@ import { sanitizeContactFields } from '../utils/contact-redaction.utils';
 import { logLeadAction } from '../utils/audit.utils';
 import { verifyLeadEmailManually } from './lead-enrichment.service';
 import { reconcileEnrichmentStatusIfStale, shouldEnrichLead } from './enrichment.service';
+import { isManuallyLabeled } from '../utils/training-label.utils';
 import { isAutoEnrichmentEnabled } from '../utils/automation-settings.utils';
 import {
     leadHasContactDetails,
@@ -88,13 +89,27 @@ export const bulkRequalifyPosts = async (query: {
     platform?: string;
 }) => {
     const filter = buildLeadListFilter(query);
-    const posts = await LeadPost.find(filter, { lean: true }) as Array<{ _id: string }>;
+    const posts = await LeadPost.find(filter, { lean: true }) as Array<{
+        _id: string;
+        qualification_reason?: string | null;
+    }>;
 
     if (posts.length === 0) {
         return { queued: 0, message: 'No leads matched the current filters.' };
     }
 
-    const ids = posts.map((post) => post._id.toString());
+    const eligible = posts.filter((post) => !isManuallyLabeled(post.qualification_reason));
+    const skipped = posts.length - eligible.length;
+
+    if (eligible.length === 0) {
+        return {
+            queued: 0,
+            skipped,
+            message: 'All matching leads were manually labeled and were skipped.',
+        };
+    }
+
+    const ids = eligible.map((post) => post._id.toString());
 
     await prisma.leadPost.updateMany({
         where: { id: { in: ids } },
@@ -114,7 +129,11 @@ export const bulkRequalifyPosts = async (query: {
 
     return {
         queued: ids.length,
-        message: `${ids.length} lead(s) queued for re-analysis.`,
+        skipped,
+        message:
+            skipped > 0
+                ? `${ids.length} lead(s) queued for re-analysis. ${skipped} manual label(s) skipped.`
+                : `${ids.length} lead(s) queued for re-analysis.`,
     };
 };
 
@@ -681,7 +700,7 @@ export const updatePostLabel = async (
     }
 
     if (data.status === 'relevant' || data.status === 'irrelevant') {
-        scheduleAutoTrain().catch((err) => console.error('[AutoTrain] Schedule failed:', err.message));
+        scheduleAutoTrain({ force: true }).catch((err) => console.error('[AutoTrain] Schedule failed:', err.message));
     }
 
     if (data.status === 'relevant') {
@@ -709,9 +728,15 @@ export const updatePostLabel = async (
 };
 
 export const requalifyPost = async (id: string) => {
-    const post = await LeadPost.findOne({ _id: id, is_deleted: false });
+    const post = await LeadPost.findOne({ _id: id, is_deleted: false }, { lean: true }) as {
+        qualification_reason?: string | null;
+    } | null;
     if (!post) {
         throw new ErrorResponse(`Post not found with id of ${id}`, 404);
+    }
+
+    if (isManuallyLabeled(post.qualification_reason)) {
+        throw new ErrorResponse('This lead was manually labeled. Change the label instead of re-analysing.', 400);
     }
 
     await LeadPost.findByIdAndUpdate(id, {

@@ -63,6 +63,14 @@ describe('lead-intent-scoring', () => {
         expect(result.confidence).toBeLessThanOrEqual(40);
     });
 
+    it('does not cap freelance buyer posts at 22% when only hashtag freelance matches', () => {
+        const text =
+            'Hiring: Website Developer I am looking for a skilled Website Developer. #FreelanceDeveloper #Hiring';
+        const result = classifyLeadIntent(text);
+        expect(result.confidence).toBeGreaterThanOrEqual(71);
+        expect(confidenceToLabel(result.confidence)).toBe('RELEVANT');
+    });
+
     it('flags full-time hiring without buying signals', () => {
         const result = classifyLeadIntent('We are hiring a full-time developer. Salary range $120k.');
         expect(result.analysis.employment.length + result.analysis.fullTime.length).toBeGreaterThan(0);

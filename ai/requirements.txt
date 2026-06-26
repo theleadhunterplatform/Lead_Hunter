@@ -10,3 +10,5 @@ joblib
 pymongo
 python-dotenv
 opencv-python-headless
+sentence-transformers>=2.2.0
+torch

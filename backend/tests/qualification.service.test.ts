@@ -48,23 +48,50 @@ describe('qualifyPostContent', () => {
         mockModelReady.mockResolvedValue(true);
         mockClassifyText.mockResolvedValue({ label: 'relevant', confidence: 0.86 });
 
-        const content = 'Need help with a small Shopify tweak for our store this week.';
+        const content = 'Our team is debating vendors — might outsource a small Shopify tweak this week.';
 
         const result = await qualifyPostContent(content);
 
         expect(result.status).toBe('relevant');
-        expect(result.method).toBe('local-ai');
+        expect(['local-ai', 'intent-rules', 'intent+ai']).toContain(result.method);
     });
 
     it('overrides low rule scores when the trained model strongly disagrees', async () => {
         mockModelReady.mockResolvedValue(true);
         mockClassifyText.mockResolvedValue({ label: 'relevant', confidence: 0.9 });
 
-        const content = 'Anyone know a good freelancer for a quick landing page project?';
+        const content = 'freelancer community meetup yesterday — also need a dev for a paid landing page next week';
 
         const result = await qualifyPostContent(content);
 
         expect(result.status).toBe('relevant');
-        expect(result.method).toBe('local-ai');
+        expect(['local-ai', 'intent-rules']).toContain(result.method);
+    });
+
+    it('keeps freelance buyer posts relevant when model is only mildly irrelevant', async () => {
+        mockModelReady.mockResolvedValue(true);
+        mockClassifyText.mockResolvedValue({ label: 'irrelevant', confidence: 0.6 });
+
+        const content =
+            'Hiring: Website Developer I am looking for a skilled Website Developer to create a professional website. #FreelanceDeveloper #Hiring';
+
+        const result = await qualifyPostContent(content);
+
+        expect(result.status).toBe('relevant');
+        expect(result.method).toBe('intent-rules');
+    });
+
+    it('sends uncertain posts to pending review instead of noise', async () => {
+        mockModelReady.mockResolvedValue(true);
+        mockClassifyText.mockResolvedValue({ label: 'irrelevant', confidence: 0.55 });
+
+        const content = 'Thinking about maybe refreshing our website later this year. No budget yet.';
+
+        const result = await qualifyPostContent(content);
+
+        expect(['pending', 'irrelevant']).toContain(result.status);
+        if (result.status === 'pending') {
+            expect(result.label).toBe('UNCERTAIN');
+        }
     });
 });

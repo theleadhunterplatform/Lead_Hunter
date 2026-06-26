@@ -36,7 +36,7 @@ export async function pingKeepAliveUrls(): Promise<{ url: string; ok: boolean; s
             try {
                 const response = await fetch(url, {
                     method: 'GET',
-                    signal: AbortSignal.timeout(20_000),
+                    signal: AbortSignal.timeout(url.includes('-ai-') ? 60_000 : 20_000),
                 });
                 return { url, ok: response.ok, status: response.status };
             } catch (error: any) {

@@ -331,11 +331,17 @@ export function extractLeadIntent(content: string): LeadIntentAnalysis {
     }
 
     // Sellers pitching services without buying intent
-    if (serviceSignals === 0 && nonLead.length >= 1 && jobSignals === 0) {
+    if (serviceSignals === 0 && nonLead.length >= 1 && jobSignals === 0 && !seeksContractorPartner && !freelanceProjectBuyer) {
         confidence = Math.min(confidence, 22);
     }
 
-    if (serviceSignals === 0 && jobSignals === 0 && nonLead.length === 0) {
+    if (
+        serviceSignals === 0 &&
+        jobSignals === 0 &&
+        nonLead.length === 0 &&
+        !seeksContractorPartner &&
+        !freelanceProjectBuyer
+    ) {
         confidence = Math.min(confidence, 22);
     }
 
@@ -372,6 +378,19 @@ export function confidenceToStatus(confidence: number): 'relevant' | 'irrelevant
     if (label === 'RELEVANT') return 'relevant';
     if (label === 'IRRELEVANT') return 'irrelevant';
     return 'pending';
+}
+
+/** Strong buyer signals — model must not downgrade these to noise. */
+export function isHardRelevantLead(content: string, intent?: IntentClassification): boolean {
+    const classified = intent ?? classifyLeadIntent(content);
+    if (isBuyerSeekingContractorPartnerAgency(content) || hasFreelanceProjectBuyerContext(content)) {
+        if (/\bhire\s+(?:us|me|our)\b/i.test(content)) return false;
+        if (/\b(?:available\s+for|offering)\s+(?:freelance|contract|projects?|work)\b/i.test(content)) {
+            return false;
+        }
+        return classified.confidence >= 71;
+    }
+    return classified.confidence >= 71;
 }
 
 export function classifyLeadIntent(content: string): IntentClassification {

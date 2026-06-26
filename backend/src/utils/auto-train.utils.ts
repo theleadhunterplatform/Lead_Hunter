@@ -1,11 +1,19 @@
 import { aiTrainQueue } from '../queues';
-import { MIN_TRAINING_SAMPLES } from '../services/ai-training.service';
+import {
+    MIN_TRAINING_SAMPLES,
+    shouldRunAutoTrain,
+} from '../services/ai-training.service';
 
 const AUTO_TRAIN_JOB_ID = 'auto-retrain-local-ai';
 const AUTO_TRAIN_DELAY_MS = 3000;
 
-export async function scheduleAutoTrain(): Promise<void> {
+export async function scheduleAutoTrain(options?: { force?: boolean }): Promise<void> {
     try {
+        const shouldRun = await shouldRunAutoTrain(options?.force === true);
+        if (!shouldRun) {
+            return;
+        }
+
         const existing = await aiTrainQueue.getJob(AUTO_TRAIN_JOB_ID);
         if (existing) {
             const state = await existing.getState();
@@ -17,7 +25,7 @@ export async function scheduleAutoTrain(): Promise<void> {
 
         await aiTrainQueue.add(
             'auto-retrain',
-            {},
+            { force: options?.force === true },
             {
                 jobId: AUTO_TRAIN_JOB_ID,
                 delay: AUTO_TRAIN_DELAY_MS,
