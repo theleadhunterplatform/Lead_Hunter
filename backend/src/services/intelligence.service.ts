@@ -81,6 +81,8 @@ Format the output exactly like this example structure, using professional and hi
     try {
         const response = await axios.post('https://openrouter.ai/api/v1/chat/completions', {
             model: config.openRouter.intelModel,
+            max_tokens: config.openRouter.intelMaxTokens,
+            temperature: 0.7,
             messages: [
                 {
                     role: 'system',
