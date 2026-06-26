@@ -1,6 +1,17 @@
 import { intelligenceQueue } from '../queues';
 import LeadPost from '../models/lead-post.model';
 import { generateLeadIntelligence } from '../services/intelligence.service';
+import config from '../config';
+import ErrorResponse from '../utils/error-response.utils';
+
+function assertOpenRouterConfigured(): void {
+    if (!config.openRouter.apiKey?.trim()) {
+        throw new ErrorResponse(
+            'OPEN_ROUTER_API is not set on the server. Add your OpenRouter API key in Render → backend service → Environment, then redeploy.',
+            503
+        );
+    }
+}
 
 async function removeStaleIntelJob(postId: string) {
     const stableJobId = `intel-${postId}`;
@@ -40,6 +51,8 @@ export async function requestLeadIntelligence(postId: string, options?: { force?
     if (post.intelligence && !options?.force) {
         return { mode: 'ready' as const, post };
     }
+
+    assertOpenRouterConfigured();
 
     try {
         await enqueueLeadIntelligence(postId, options);
