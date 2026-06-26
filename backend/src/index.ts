@@ -6,6 +6,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import connectDB from './config/db';
 import { initCron } from './cron/leadScraper';
+import { initKeepAliveCron } from './cron/keepAlive';
 import { seedRBAC } from './utils/seed-rbac.utils';
 import authRoutes from './routes/auth.routes';
 import keywordRoutes from './routes/keyword.routes';
@@ -129,6 +130,7 @@ const startServer = async () => {
     
     if (config.appEnv === 'production' || process.env.ENABLE_CRON_DEV === 'true') {
         await initCron();
+        initKeepAliveCron();
         console.log(`✔ Cron jobs initialized (${config.appEnv === 'production' ? 'Production' : 'Dev-Forced'}).`);
     } else {
         console.log('ℹ Non-production environment: Scheduled cron jobs skipped. Use /api/scrapers to trigger manually.');

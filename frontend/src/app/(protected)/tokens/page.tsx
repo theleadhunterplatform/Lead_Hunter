@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Button as HunterButton, Input as HunterInput } from "@/components/ui/HunterUI";
-import { Key, Plus, Trash2, ShieldCheck, ShieldAlert, Loader2, Mail, CheckCircle2, RefreshCw, Sparkles } from "lucide-react";
+import { Key, Plus, Trash2, ShieldCheck, ShieldAlert, Loader2, Mail, CheckCircle2, RefreshCw, Sparkles, Activity } from "lucide-react";
 import api from "@/lib/api";
 
 import { useRouter } from "next/navigation";
@@ -60,7 +60,10 @@ export default function TokensPage() {
   const [automation, setAutomation] = useState({
     auto_scrape_enabled: false,
     auto_enrichment_enabled: false,
+    keep_alive_enabled: false,
+    keep_alive_configured: false,
     scrape_interval_minutes: 30,
+    keep_alive_interval_minutes: 10,
   });
   const [isUpdatingAutomation, setIsUpdatingAutomation] = useState(false);
 
@@ -120,7 +123,7 @@ export default function TokensPage() {
     }
   };
 
-  const toggleAutomation = async (key: "auto_scrape_enabled" | "auto_enrichment_enabled") => {
+  const toggleAutomation = async (key: "auto_scrape_enabled" | "auto_enrichment_enabled" | "keep_alive_enabled") => {
     try {
       setIsUpdatingAutomation(true);
       const next = !automation[key];
@@ -306,6 +309,30 @@ export default function TokensPage() {
               className="shrink-0 min-w-[88px]"
             >
               {isUpdatingAutomation ? <Loader2 size={16} className="animate-spin" /> : automation.auto_enrichment_enabled ? "ON" : "OFF"}
+            </HunterButton>
+          </div>
+
+          <div className="flex items-center justify-between gap-4 p-4 bg-zinc-900/50 neo-border border-zinc-800">
+            <div className="flex items-start gap-4">
+              <div className="w-10 h-10 bg-blue-500/10 flex items-center justify-center neo-border border-blue-500/30 shrink-0">
+                <Activity size={18} className="text-blue-400" />
+              </div>
+              <div>
+                <div className="font-display font-bold uppercase tracking-tight">Keep services awake</div>
+                <p className="text-zinc-500 text-[10px] font-display uppercase tracking-widest mt-1">
+                  Pings frontend, API, and AI every 10 min (Render free tier).
+                  {!automation.keep_alive_configured && " Set FRONTEND_URL + AI_SERVICE_URL on Render."}
+                </p>
+              </div>
+            </div>
+            <HunterButton
+              type="button"
+              variant={automation.keep_alive_enabled ? "primary" : "secondary"}
+              disabled={isUpdatingAutomation || !automation.keep_alive_configured}
+              onClick={() => toggleAutomation("keep_alive_enabled")}
+              className="shrink-0 min-w-[88px]"
+            >
+              {isUpdatingAutomation ? <Loader2 size={16} className="animate-spin" /> : automation.keep_alive_enabled ? "ON" : "OFF"}
             </HunterButton>
           </div>
         </div>
