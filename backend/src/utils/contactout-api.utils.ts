@@ -1,6 +1,7 @@
 import axios from 'axios';
 import config from '../config';
 import { getSetting } from '../services/setting.service';
+import { markContactOutRateLimited, recordContactOutCredits } from './contactout-usage.utils';
 
 export async function getContactOutApiToken(): Promise<string | null> {
     const fromDb = await getSetting('contactout_api_token');
@@ -49,6 +50,12 @@ export async function findPhonesWithContactOut(linkedinUrl: string): Promise<Con
             timeout: 25000,
         });
 
+        const meta = response.data?.meta;
+        const creditsRemaining = meta?.credits_remaining;
+        if (typeof creditsRemaining === 'number') {
+            await recordContactOutCredits(creditsRemaining, meta?.credits_limit ?? null);
+        }
+
         const profile = response.data?.profile || response.data;
         if (!profile) return null;
 
@@ -73,7 +80,11 @@ export async function findPhonesWithContactOut(linkedinUrl: string): Promise<Con
             },
         };
     } catch (error: any) {
-        if (error.response?.status === 404) return null;
+        const status = error.response?.status;
+        if (status === 404) return null;
+        if (status === 403 || status === 429) {
+            await markContactOutRateLimited();
+        }
         console.warn('[ContactOut] Lookup failed:', error.response?.data || error.message);
         return null;
     }

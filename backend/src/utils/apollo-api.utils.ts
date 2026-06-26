@@ -1,6 +1,7 @@
 import axios from 'axios';
 import config from '../config';
 import { getSetting } from '../services/setting.service';
+import { markApolloRateLimited } from './apollo-usage.utils';
 
 export async function getApolloApiKey(): Promise<string | null> {
     const fromDb = await getSetting('apollo_api_key');
@@ -98,7 +99,12 @@ export async function findPhonesWithApollo(linkedinUrl: string): Promise<ApolloL
             },
         };
     } catch (error: any) {
-        if (error.response?.status === 404) return null;
+        const status = error.response?.status;
+        if (status === 404) return null;
+        const msg = error.response?.data?.error || error.response?.data?.message || '';
+        if (status === 429 || status === 403 || String(msg).includes('API_INACCESSIBLE')) {
+            await markApolloRateLimited();
+        }
         console.warn('[Apollo] Lookup failed:', error.response?.data || error.message);
         return null;
     }

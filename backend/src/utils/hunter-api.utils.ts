@@ -1,6 +1,7 @@
 import axios from 'axios';
 import config from '../config';
 import { getSetting } from '../services/setting.service';
+import { markHunterRateLimited } from './hunter-usage.utils';
 
 export async function getHunterApiKey(): Promise<string | null> {
     const fromDb = await getSetting('hunter_api_key');
@@ -26,6 +27,9 @@ export async function verifyEmailWithHunter(email: string): Promise<{
         const verified = result === 'deliverable' || result === 'valid' || result === 'accept_all';
         return { verified, result };
     } catch (error: any) {
+        if (error.response?.status === 429) {
+            await markHunterRateLimited();
+        }
         console.warn('[Hunter] Email verification failed:', error.message);
         return null;
     }
@@ -91,6 +95,9 @@ export async function findEmailWithHunter(options: {
         };
     } catch (error: any) {
         if (error.response?.status === 404) return null;
+        if (error.response?.status === 429) {
+            await markHunterRateLimited();
+        }
         console.warn('[Hunter] Email finder failed:', error.response?.data?.errors || error.message);
         return null;
     }

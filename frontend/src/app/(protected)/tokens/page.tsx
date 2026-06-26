@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { Button as HunterButton, Input as HunterInput } from "@/components/ui/HunterUI";
-import { Key, Plus, Trash2, ShieldCheck, ShieldAlert, Loader2, Mail, CheckCircle2, RefreshCw, Sparkles, Activity } from "lucide-react";
+import { Key, Plus, Trash2, ShieldCheck, ShieldAlert, Loader2, RefreshCw, Sparkles, Activity } from "lucide-react";
 import api from "@/lib/api";
+import { ApiUsagePanel, type ApiUsageData } from "@/components/ApiUsagePanel";
 
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
@@ -19,6 +20,8 @@ export default function TokensPage() {
     comments_used?: number;
     comments_limit?: number;
     comments_remaining?: number;
+    usage?: ApiUsageData;
+    platform_usage?: ApiUsageData | null;
   }[]>([]);
   const [newToken, setNewToken] = useState({ key: "", label: "" });
   const [loading, setLoading] = useState(true);
@@ -32,6 +35,11 @@ export default function TokensPage() {
     lookups_limit?: number;
     lookups_remaining?: number;
     credits_left?: number | null;
+    remaining?: number | null;
+    status?: ApiUsageData["status"];
+    exhausted?: boolean;
+    rate_limited?: boolean;
+    extra_note?: string | null;
   }>({ token: null, is_configured: false });
   const [newCCToken, setNewCCToken] = useState("");
   const [isUpdatingCC, setIsUpdatingCC] = useState(false);
@@ -39,6 +47,17 @@ export default function TokensPage() {
   const [hunterKeyInfo, setHunterKeyInfo] = useState<{
     api_key: string | null;
     is_configured: boolean;
+    searches_used?: number | null;
+    searches_limit?: number | null;
+    searches_remaining?: number | null;
+    verifications_used?: number | null;
+    verifications_limit?: number | null;
+    verifications_remaining?: number | null;
+    plan_name?: string | null;
+    reset_date?: string | null;
+    exhausted?: boolean;
+    rate_limited?: boolean;
+    status?: 'active' | 'low' | 'exhausted' | 'not_configured';
   }>({ api_key: null, is_configured: false });
   const [newHunterKey, setNewHunterKey] = useState("");
   const [isUpdatingHunter, setIsUpdatingHunter] = useState(false);
@@ -46,6 +65,13 @@ export default function TokensPage() {
   const [contactOutInfo, setContactOutInfo] = useState<{
     token: string | null;
     is_configured: boolean;
+    status?: ApiUsageData["status"];
+    exhausted?: boolean;
+    rate_limited?: boolean;
+    used?: number | null;
+    limit?: number | null;
+    remaining?: number | null;
+    extra_note?: string | null;
   }>({ token: null, is_configured: false });
   const [newContactOutToken, setNewContactOutToken] = useState("");
   const [isUpdatingContactOut, setIsUpdatingContactOut] = useState(false);
@@ -53,6 +79,15 @@ export default function TokensPage() {
   const [apolloKeyInfo, setApolloKeyInfo] = useState<{
     api_key: string | null;
     is_configured: boolean;
+    status?: ApiUsageData["status"];
+    exhausted?: boolean;
+    rate_limited?: boolean;
+    used?: number | null;
+    limit?: number | null;
+    remaining?: number | null;
+    plan_name?: string | null;
+    reset_date?: string | null;
+    extra_note?: string | null;
   }>({ api_key: null, is_configured: false });
   const [newApolloKey, setNewApolloKey] = useState("");
   const [isUpdatingApollo, setIsUpdatingApollo] = useState(false);
@@ -375,12 +410,35 @@ export default function TokensPage() {
           </div>
         ) : (
           tokens.map((token) => {
-            const used = token.comments_used ?? 0;
-            const limit = token.comments_limit ?? 2500;
-            const remaining = token.comments_remaining ?? Math.max(0, limit - used);
+            const commentUsage = token.usage;
+            const platformUsage = token.platform_usage;
+            const used = commentUsage?.used ?? token.comments_used ?? 0;
+            const limit = commentUsage?.limit ?? token.comments_limit ?? 2500;
+            const remaining = commentUsage?.remaining ?? token.comments_remaining ?? Math.max(0, limit - used);
+            const commentStatus = commentUsage?.status ?? (remaining === 0 ? "exhausted" : remaining <= 50 ? "low" : "active");
             const usagePct = limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0;
             const usageColor =
-              usagePct >= 95 ? "bg-red-500" : usagePct >= 80 ? "bg-hunter-orange" : "bg-green-500";
+              commentStatus === "exhausted" || usagePct >= 95
+                ? "bg-red-500"
+                : commentStatus === "low" || usagePct >= 80
+                  ? "bg-hunter-orange"
+                  : "bg-green-500";
+            const badgeLabel =
+              commentStatus === "exhausted"
+                ? "Limit Reached"
+                : commentStatus === "low"
+                  ? "Low Quota"
+                  : token.is_active
+                    ? "Active"
+                    : "Disabled";
+            const badgeClass =
+              commentStatus === "exhausted"
+                ? "bg-red-500 text-white border-red-700"
+                : commentStatus === "low"
+                  ? "bg-hunter-orange text-black"
+                  : token.is_active
+                    ? "bg-green-500 text-black"
+                    : "bg-zinc-800 text-zinc-500 border-zinc-700";
 
             return (
             <div
@@ -401,15 +459,25 @@ export default function TokensPage() {
                     <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
                       {remaining} left this month
                     </span>
+                    {platformUsage?.limit != null && (
+                      <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                        Platform: ${platformUsage.used ?? 0} / ${platformUsage.limit}
+                      </span>
+                    )}
                   </div>
                   <div className="mt-2 h-1.5 w-full max-w-xs bg-zinc-800 rounded-full overflow-hidden">
                     <div className={`h-full ${usageColor} transition-all`} style={{ width: `${usagePct}%` }} />
                   </div>
+                  {(commentUsage?.exhausted || platformUsage?.exhausted) && (
+                    <p className="mt-2 text-[10px] font-black uppercase tracking-widest text-red-400/80">
+                      {commentUsage?.extra_note || platformUsage?.extra_note || "Apify quota low or exhausted."}
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0 ml-4">
-                <div className={`px-2 py-1 text-[10px] font-display font-bold uppercase tracking-tighter neo-border ${token.is_active ? 'bg-green-500 text-black border-black' : 'bg-zinc-800 text-zinc-500 border-zinc-700'}`}>
-                  {token.is_active ? "Active" : "Disabled"}
+                <div className={`px-2 py-1 text-[10px] font-display font-bold uppercase tracking-tighter neo-border border-black ${badgeClass}`}>
+                  {badgeLabel}
                 </div>
                 <button
                   onClick={() => deleteToken(token._id)}
@@ -436,58 +504,29 @@ export default function TokensPage() {
         </div>
 
         <div className="bg-hunter-grey p-6 neo-border border-zinc-800">
-          {ccTokenInfo.is_configured ? (
-            <div className="mb-6 p-4 bg-zinc-900/50 neo-border border-zinc-800">
-              <div className="flex items-center justify-between gap-4 mb-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-hunter-orange/10 flex items-center justify-center neo-border border-hunter-orange/30">
-                    <Mail size={20} className="text-hunter-orange" />
-                  </div>
-                  <div>
-                    <div className="font-display font-bold text-lg uppercase tracking-tight">Contact Compass API</div>
-                    <div className="text-zinc-600 font-mono text-xs">{ccTokenInfo.token}</div>
-                  </div>
-                </div>
-                <div className="px-3 py-1 bg-hunter-orange text-black text-[10px] font-black uppercase tracking-widest neo-border border-black shrink-0">
-                  Active
-                </div>
-              </div>
-              {(() => {
-                const used = ccTokenInfo.lookups_used ?? 0;
-                const limit = ccTokenInfo.lookups_limit ?? 500;
-                const remaining = ccTokenInfo.lookups_remaining ?? Math.max(0, limit - used);
-                const usagePct = limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0;
-                const usageColor =
-                  usagePct >= 95 ? "bg-red-500" : usagePct >= 80 ? "bg-hunter-orange" : "bg-green-500";
-
-                return (
-                  <>
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
-                        Lookups: <span className="text-white">{used}</span> / {limit}
-                      </span>
-                      <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                        {remaining} left this month
-                      </span>
-                      {ccTokenInfo.credits_left != null && (
-                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                          CC credits: <span className="text-hunter-orange">{ccTokenInfo.credits_left}</span>
-                        </span>
-                      )}
-                    </div>
-                    <div className="mt-2 h-1.5 w-full max-w-xs bg-zinc-800 rounded-full overflow-hidden">
-                      <div className={`h-full ${usageColor} transition-all`} style={{ width: `${usagePct}%` }} />
-                    </div>
-                  </>
-                );
-              })()}
-            </div>
-          ) : (
-            <div className="mb-6 p-4 bg-red-500/5 neo-border border-red-500/20 flex items-center gap-3">
-              <ShieldAlert className="text-red-500" size={20} />
-              <p className="text-red-500/70 text-[10px] font-black uppercase tracking-widest">Lead enrichment is currently disabled. No API key configured.</p>
-            </div>
-          )}
+          <ApiUsagePanel
+            title="Contact Compass API"
+            maskedCredential={ccTokenInfo.token}
+            configured={ccTokenInfo.is_configured}
+            usage={{
+              status: ccTokenInfo.status,
+              exhausted: ccTokenInfo.exhausted,
+              rate_limited: ccTokenInfo.rate_limited,
+              used: ccTokenInfo.lookups_used ?? 0,
+              limit: ccTokenInfo.lookups_limit ?? 500,
+              remaining: ccTokenInfo.remaining ?? ccTokenInfo.lookups_remaining ?? null,
+              usage_label: "Lookups",
+              extra_note: ccTokenInfo.extra_note,
+            }}
+            extraInline={
+              ccTokenInfo.credits_left != null ? (
+                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                  CC credits: <span className="text-hunter-orange">{ccTokenInfo.credits_left}</span>
+                </span>
+              ) : undefined
+            }
+            notConfiguredMessage="Lead enrichment is currently disabled. No API key configured."
+          />
 
           <form onSubmit={updateCCToken} className="flex gap-4">
             <div className="relative flex-1">
@@ -514,30 +553,47 @@ export default function TokensPage() {
           </p>
           </div>
 
-          {hunterKeyInfo.is_configured ? (
-            <div className="mb-6 p-4 bg-zinc-900/50 neo-border border-zinc-800">
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-green-500/10 flex items-center justify-center neo-border border-green-500/30">
-                    <CheckCircle2 size={20} className="text-green-500" />
-                  </div>
-                  <div>
-                    <div className="font-display font-bold text-lg uppercase tracking-tight">Hunter.io API</div>
-                    <div className="text-zinc-600 font-mono text-xs">{hunterKeyInfo.api_key}</div>
-                  </div>
-                </div>
-                <div className="px-3 py-1 bg-green-500 text-black text-[10px] font-black uppercase tracking-widest neo-border border-black shrink-0">
-                  Active
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="mb-6 p-4 bg-red-500/5 neo-border border-red-500/20 flex items-center gap-3">
-              <ShieldAlert className="text-red-500" size={20} />
-              <p className="text-red-500/70 text-[10px] font-black uppercase tracking-widest">
-                Email verification falls back to domain checks only. No Hunter.io key configured.
-              </p>
-            </div>
+          <ApiUsagePanel
+            title="Hunter.io API"
+            maskedCredential={hunterKeyInfo.api_key}
+            configured={hunterKeyInfo.is_configured}
+            usage={{
+              status: hunterKeyInfo.status,
+              exhausted: hunterKeyInfo.exhausted,
+              rate_limited: hunterKeyInfo.rate_limited,
+              plan_name: hunterKeyInfo.plan_name,
+              reset_date: hunterKeyInfo.reset_date,
+              extra_note:
+                hunterKeyInfo.exhausted || hunterKeyInfo.rate_limited
+                  ? "Hunter.io quota exhausted — finder and verifier skipped until plan resets or you upgrade."
+                  : undefined,
+            }}
+            primary={
+              hunterKeyInfo.searches_limit != null
+                ? {
+                    label: "Searches",
+                    used: hunterKeyInfo.searches_used ?? 0,
+                    limit: hunterKeyInfo.searches_limit,
+                    remaining: hunterKeyInfo.searches_remaining ?? null,
+                  }
+                : undefined
+            }
+            secondary={
+              hunterKeyInfo.verifications_limit != null && hunterKeyInfo.verifications_limit > 0
+                ? {
+                    label: "Verifications",
+                    used: hunterKeyInfo.verifications_used ?? 0,
+                    limit: hunterKeyInfo.verifications_limit,
+                    remaining: hunterKeyInfo.verifications_remaining ?? null,
+                  }
+                : undefined
+            }
+            notConfiguredMessage="Email verification falls back to domain checks only. No Hunter.io key configured."
+          />
+          {hunterKeyInfo.is_configured && hunterKeyInfo.searches_limit == null && hunterKeyInfo.rate_limited && (
+            <p className="mb-6 text-[10px] font-black uppercase tracking-widest text-red-400/80">
+              Hunter.io returned rate limit (429) — quota likely exhausted this billing period.
+            </p>
           )}
 
           <form onSubmit={updateHunterKey} className="flex gap-4">
@@ -562,13 +618,22 @@ export default function TokensPage() {
           <p className="text-zinc-500 font-display uppercase text-[10px] tracking-widest font-bold mb-4">
             Phone enrichment — ContactOut (LinkedIn profile + include_phone).
           </p>
-          {contactOutInfo.is_configured ? (
-            <div className="mb-6 p-4 bg-zinc-900/50 neo-border border-zinc-800 font-mono text-xs text-zinc-600">
-              Active: {contactOutInfo.token}
-            </div>
-          ) : (
-            <p className="mb-6 text-red-500/70 text-[10px] font-black uppercase tracking-widest">No ContactOut token configured.</p>
-          )}
+          <ApiUsagePanel
+            title="ContactOut API"
+            maskedCredential={contactOutInfo.token}
+            configured={contactOutInfo.is_configured}
+            usage={{
+              status: contactOutInfo.status,
+              exhausted: contactOutInfo.exhausted,
+              rate_limited: contactOutInfo.rate_limited,
+              used: contactOutInfo.used,
+              limit: contactOutInfo.limit,
+              remaining: contactOutInfo.remaining,
+              usage_label: "Credits",
+              extra_note: contactOutInfo.extra_note,
+            }}
+            notConfiguredMessage="No ContactOut token configured."
+          />
           <form onSubmit={updateContactOutToken} className="flex gap-4">
             <div className="relative flex-1">
               <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-hunter-orange" size={20} />
@@ -584,13 +649,24 @@ export default function TokensPage() {
           <p className="text-zinc-500 font-display uppercase text-[10px] tracking-widest font-bold mb-4">
             Phone enrichment — Apollo.io (people/match, reveal_phone_number).
           </p>
-          {apolloKeyInfo.is_configured ? (
-            <div className="mb-6 p-4 bg-zinc-900/50 neo-border border-zinc-800 font-mono text-xs text-zinc-600">
-              Active: {apolloKeyInfo.api_key}
-            </div>
-          ) : (
-            <p className="mb-6 text-red-500/70 text-[10px] font-black uppercase tracking-widest">No Apollo API key configured.</p>
-          )}
+          <ApiUsagePanel
+            title="Apollo.io API"
+            maskedCredential={apolloKeyInfo.api_key}
+            configured={apolloKeyInfo.is_configured}
+            usage={{
+              status: apolloKeyInfo.status,
+              exhausted: apolloKeyInfo.exhausted,
+              rate_limited: apolloKeyInfo.rate_limited,
+              used: apolloKeyInfo.used,
+              limit: apolloKeyInfo.limit,
+              remaining: apolloKeyInfo.remaining,
+              plan_name: apolloKeyInfo.plan_name,
+              reset_date: apolloKeyInfo.reset_date,
+              usage_label: "Credits",
+              extra_note: apolloKeyInfo.extra_note,
+            }}
+            notConfiguredMessage="No Apollo API key configured."
+          />
           <form onSubmit={updateApolloKey} className="flex gap-4">
             <div className="relative flex-1">
               <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-hunter-orange" size={20} />

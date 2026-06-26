@@ -3,6 +3,9 @@ import asyncHandler from '../middleware/async';
 import * as settingService from '../services/setting.service';
 import { enrichLeadPost } from '../services/enrichment.service';
 import { getContactCompassUsage } from '../utils/contact-compass-usage.utils';
+import { getHunterUsage } from '../utils/hunter-usage.utils';
+import { getContactOutUsage } from '../utils/contactout-usage.utils';
+import { getApolloUsage } from '../utils/apollo-usage.utils';
 
 // @desc    Find lead email using Contact Compass
 // @route   POST /api/leads/:id/find-email
@@ -77,11 +80,13 @@ export const updateHunterKey = asyncHandler(async (req: Request, res: Response, 
 // @access  Private
 export const getHunterKey = asyncHandler(async (_req: Request, res: Response, _next: NextFunction) => {
     const apiKey = await settingService.getSetting('hunter_api_key');
+    const usage = await getHunterUsage();
 
     return res.status(200).json({
         success: true,
         data: {
             api_key: apiKey ? `${apiKey.substring(0, 4)}...${apiKey.substring(apiKey.length - 4)}` : null,
+            ...usage,
             is_configured: !!apiKey,
         },
     });
@@ -110,11 +115,13 @@ export const updateContactOutToken = asyncHandler(async (req: Request, res: Resp
 // @access  Private
 export const getContactOutToken = asyncHandler(async (_req: Request, res: Response, _next: NextFunction) => {
     const token = await settingService.getSetting('contactout_api_token');
+    const usage = await getContactOutUsage();
 
     return res.status(200).json({
         success: true,
         data: {
             token: token ? `${token.substring(0, 4)}...${token.substring(token.length - 4)}` : null,
+            ...usage,
             is_configured: !!token,
         },
     });
@@ -143,11 +150,13 @@ export const updateApolloKey = asyncHandler(async (req: Request, res: Response, 
 // @access  Private
 export const getApolloKey = asyncHandler(async (_req: Request, res: Response, _next: NextFunction) => {
     const apiKey = await settingService.getSetting('apollo_api_key');
+    const usage = await getApolloUsage();
 
     return res.status(200).json({
         success: true,
         data: {
             api_key: apiKey ? `${apiKey.substring(0, 4)}...${apiKey.substring(apiKey.length - 4)}` : null,
+            ...usage,
             is_configured: !!apiKey,
         },
     });
