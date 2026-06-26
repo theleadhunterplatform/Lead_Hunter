@@ -14,6 +14,7 @@ import { sanitizeContactFields } from '../utils/contact-redaction.utils';
 import { logLeadAction } from '../utils/audit.utils';
 import { verifyLeadEmailManually } from './lead-enrichment.service';
 import { reconcileEnrichmentStatusIfStale, shouldEnrichLead } from './enrichment.service';
+import { isAutoEnrichmentEnabled } from '../utils/automation-settings.utils';
 import {
     leadHasContactDetails,
 } from '../utils/lead-enrichment.utils';
@@ -690,6 +691,13 @@ export const updatePostLabel = async (
                 enrichment_message: null,
             });
             post.enrichment_status = 'pending';
+
+            if (await isAutoEnrichmentEnabled()) {
+                await enqueueContactEnrichment(post._id.toString(), {
+                    status: 'relevant',
+                    platform: post.platform,
+                });
+            }
         }
 
         if (leadHasContactDetails(post) && !post.intelligence) {

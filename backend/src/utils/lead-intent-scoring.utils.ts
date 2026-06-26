@@ -33,7 +33,38 @@ export interface IntentClassification {
 }
 
 const SERVICE_ROLE =
-    '(?:developer|designer|agency|agencies|consultant|contractor|freelancer|freelance|specialist|expert|partner|studio|shopify|seo|ui\\/?ux|videograph(?:er|y)?|app\\s+development|marketing\\s+agency|web\\s+design(?:er)?|copywriter|strategist|co[- ]?founder|tech(?:nology)?\\s+partner|technical\\s+partner)';
+    '(?:developer|designer|agency|agencies|consultant|contractor|freelancer|freelance|specialist|expert|partner|studio|shopify|seo|ui\\/?ux|videograph(?:er|y)?|video\\s+editor|social\\s+media\\s+manager|editor|intern|app\\s+development|marketing\\s+agency|web\\s+design(?:er)?|website\\s+developer|website\\s+designer|website\\s+development|wordpress\\s+developer|e[- ]?commerce|marketing\\s+manager|copywriter|strategist|co[- ]?founder|tech(?:nology)?\\s+partner|technical\\s+partner)';
+
+/** Project / freelance hire context — distinguishes buyer posts from full-time job listings. */
+export function hasFreelanceProjectBuyerContext(content: string): boolean {
+    const text = content.trim();
+    if (!text) return false;
+
+    if (/\b(?:available\s+for|offering)\s+(?:freelance|contract|projects?|work)\b/i.test(text)) return false;
+    if (
+        /\b(?:dm\s+me|contact\s+me)\s+for\s+(?:details|work|projects?)\b/i.test(text) &&
+        !/\b(?:looking\s+for|seeking|need(?:ing)?|hiring|interested\s+candidates)\b/i.test(text)
+    ) {
+        return false;
+    }
+
+    return (
+        /\b(?:freelanc(?:e|er|ing)?|contract(?:or|[- ]?remote|[- ]?basis)?|outside\s+ir35|ir35)\b/i.test(text) ||
+        /\b(?:£|\$|€)\s*\d+[\d,.]*\s*(?:per\s+day|\/day|p\/d)\b/i.test(text) ||
+        /\b\d+[\s-]*(?:day|week|month)\s+contract\b/i.test(text) ||
+        /\bproject[- ]based\b/i.test(text) ||
+        /\b(?:share|send)\s+(?:me\s+)?(?:your\s+)?portfolio\b/i.test(text) ||
+        /\b(?:portfolio|estimate|pricing|timeline).{0,40}\b(?:dm|message|email|comment)\b/i.test(text) ||
+        /\b(?:dm|message|email|comment).{0,60}\b(?:portfolio|estimate|pricing)\b/i.test(text) ||
+        /\binterested\s+candidates?\b/i.test(text) ||
+        /\blooking\s+to\s+(?:develop|build|create|redesign)\b/i.test(text) ||
+        /\bneed\s+(?:a\s+)?quick\s+estimate\b/i.test(text) ||
+        /\bhiring\s*:\s*\w+/i.test(text) ||
+        /\b(?:intern|freelancer)\s*\/\s*(?:freelancer|intern)\b/i.test(text) ||
+        /\bportfolios?\s+to\s+\S+@/i.test(text) ||
+        /\b(?:discuss|share)\s+your\s+(?:experience|portfolio|pricing|examples)\b/i.test(text)
+    );
+}
 
 /** Buyer wants a freelancer, agency, or partner (not a full-time employee posting). */
 export const BUYER_SEEKS_CONTRACTOR_PARTNER_PATTERN =
@@ -51,7 +82,19 @@ export function isBuyerSeekingContractorPartnerAgency(content: string): boolean 
 
     if (BUYER_SEEKS_CONTRACTOR_PARTNER_PATTERN.test(text)) return true;
 
-    const hasBuyerVerb = /\b(?:looking\s+for|seeking|need(?:ing)?|hiring|want\s+to\s+hire)\b/i.test(text);
+    if (hasFreelanceProjectBuyerContext(text)) {
+        const hiresRole =
+            /\b(?:looking\s+for|seeking|need(?:ing)?|hiring|want\s+to\s+hire|requirement)\b/i.test(text) ||
+            /\b(?:developer|designer|editor|freelanc|contract|agency|intern|wordpress|e[- ]?commerce|website)\b/i.test(
+                text
+            );
+        if (hiresRole) return true;
+    }
+
+    const hasBuyerVerb =
+        /\b(?:looking\s+for|looking\s+to\s+(?:develop|build|create)|seeking|need(?:ing)?|hiring|want\s+to\s+hire)\b/i.test(
+            text
+        );
     const hasTarget =
         /\b(?:freelanc(?:e|er|ing)?|agenc(?:y|ies)|partner|co[- ]?founder|technical\s+partner|technology\s+partner|development\s+compan(?:y|ies)|app\s+development\s+companies|web\s+development)\b/i.test(
             text
@@ -62,6 +105,7 @@ export function isBuyerSeekingContractorPartnerAgency(content: string): boolean 
 const INTENT_PATTERNS: IntentPattern[] = [
     // ── A. Service buying intent (RELEVANT) ──
     { label: 'looking for service provider', category: 'buying', pattern: new RegExp(`\\blooking\\s+for\\s+(?:a\\s+|an\\s+)?${SERVICE_ROLE}\\b`, 'i') },
+    { label: 'looking for skilled provider', category: 'buying', pattern: new RegExp(`\\blooking\\s+for\\s+(?:a\\s+|an\\s+)?(?:\\w+\\s+){0,4}${SERVICE_ROLE}\\b`, 'i') },
     { label: 'need a service provider', category: 'buying', pattern: new RegExp(`\\bneed\\s+(?:a\\s+|an\\s+)?${SERVICE_ROLE}\\b`, 'i') },
     { label: 'seeking service provider', category: 'buying', pattern: new RegExp(`\\bseeking\\s+(?:a\\s+|an\\s+)?${SERVICE_ROLE}\\b`, 'i') },
     { label: 'need help with project', category: 'buying', pattern: /\bneed\s+help\s+(?:with|on|building|redesigning|developing)\b/i },
@@ -85,6 +129,19 @@ const INTENT_PATTERNS: IntentPattern[] = [
     { label: 'freelance project buyer', category: 'buying', pattern: /\b(?:freelance|project[- ]based).{0,40}\b(?:developer|designer|opportunit)/i },
     { label: 'looking for development companies', category: 'buying', pattern: /\blooking\s+for\b[\s\S]{0,160}\b(?:app\s+development\s+companies|development\s+companies)\b/i },
     { label: 'seeking agency', category: 'buying', pattern: /\bseeking\s+(?:a\s+|an\s+)?(?:seo|marketing|design|creative)\s+agency\b/i },
+    { label: 'hiring role for project', category: 'buying', pattern: /\bhiring\s*:\s*(?:a\s+|an\s+)?[\w\s]{2,40}\b/i },
+    { label: 'looking to develop website', category: 'buying', pattern: /\blooking\s+to\s+(?:develop|build|create)\s+(?:a\s+|an\s+|our\s+)?(?:professional\s+)?(?:e[- ]?commerce\s+)?(?:website|web\s+app|application|platform)\b/i },
+    { label: 'need estimate from developers', category: 'buying', pattern: /\bneed\s+(?:a\s+)?quick\s+estimate\s+from\b/i },
+    { label: 'looking for video editor', category: 'buying', pattern: /\blooking\s+for\s+(?:a\s+|an\s+)?(?:creative\s+)?video\s+editor\b/i },
+    { label: 'freelance role requirement', category: 'buying', pattern: /\b(?:urgent\s+)?freelance\s+[\w\s/]{2,50}\s+requirement\b/i },
+    { label: 'contract role daily rate', category: 'buying', pattern: /\boutside\s+ir35\b/i },
+    { label: 'contract booking rate', category: 'buying', pattern: /\b(?:£|\$|€)\s*\d+[\d,.]*\s*(?:per\s+day|\/day|p\/d)\b/i },
+    { label: 'share portfolio outreach', category: 'buying', pattern: /\b(?:share|send)\s+(?:me\s+)?(?:your\s+)?portfolio\b/i },
+    { label: 'discuss portfolio pricing', category: 'buying', pattern: /\b(?:discuss|share)\s+your\s+(?:experience|portfolio|pricing|examples|previous\s+work)\b/i },
+    { label: 'intern or freelancer hire', category: 'buying', pattern: /\b(?:intern|freelancer)\s*\/\s*(?:freelancer|intern)\b/i },
+    { label: 'portfolio to email', category: 'buying', pattern: /\bportfolios?\s+to\s+\S+@/i },
+    { label: 'estimate and timeline ask', category: 'buying', pattern: /\b(?:development\s+)?cost\s+and\s+timeline\b/i },
+    { label: 'comment or dm for work', category: 'buying', pattern: /\b(?:comment\s+below|dm\s+me|drop\s+me\s+a\s+message|reach\s+out)\b/i },
 
     // ── C. Recommendation intent (RELEVANT) ──
     { label: 'can anyone recommend', category: 'recommendation', pattern: /\bcan\s+(?:anyone|somebody|someone)\s+recommend\b/i },
@@ -99,6 +156,7 @@ const INTENT_PATTERNS: IntentPattern[] = [
     // ── B. Employment intent (IRRELEVANT) ──
     { label: 'we are hiring', category: 'employment', pattern: /\bwe(?:'re|\s+are)\s+hiring\b/i },
     { label: 'hashtag hiring', category: 'employment', pattern: /#hiring\b/i },
+    { label: 'hashtag job', category: 'employment', pattern: /#job\b/i },
     { label: 'now hiring', category: 'employment', pattern: /\bnow\s+hiring\b/i },
     { label: 'join our team', category: 'employment', pattern: /\bjoin\s+(?:our|the)\s+(?:team|company|growing\s+team)\b/i },
     { label: 'growing our team', category: 'employment', pattern: /\b(?:growing|expanding)\s+our\s+team\b/i },
@@ -173,6 +231,13 @@ export function extractLeadIntent(content: string): LeadIntentAnalysis {
 
     for (const { label, category, pattern } of INTENT_PATTERNS) {
         if (!pattern.test(text)) continue;
+        if (
+            category === 'employment' &&
+            hasFreelanceProjectBuyerContext(text) &&
+            (label === 'hashtag hiring' || label === 'hashtag job')
+        ) {
+            continue;
+        }
         switch (category) {
             case 'buying': buying.push(label); break;
             case 'recommendation': recommendation.push(label); break;
@@ -210,27 +275,35 @@ export function extractLeadIntent(content: string): LeadIntentAnalysis {
     const jobSignals = employment.length + fullTime.length;
     const isSellerPitch =
         /\bhire\s+(?:us|me|our)\b/i.test(text) ||
+        /\b(?:available\s+for\s+(?:freelance|contract|projects?|work)|offering\s+(?:web|app|development|design|marketing)\s+services?)\b/i.test(
+            text
+        ) ||
         /\b(?:verified\s+freelancers\s+ready\s+to\s+deliver|our\s+agency\s+(?:specializes|helps|builds))\b/i.test(
             text
         );
     const seeksContractorPartner = !isSellerPitch && isBuyerSeekingContractorPartnerAgency(text);
+    const freelanceProjectBuyer = !isSellerPitch && hasFreelanceProjectBuyerContext(text);
 
-    if (seeksContractorPartner) {
-        confidence = Math.max(confidence, 86);
-        if (!reasons.some((r) => r.includes('freelanc') || r.includes('agency') || r.includes('partner'))) {
-            reasons.push('buyer seeking freelancer, agency, or partner');
+    if (seeksContractorPartner || freelanceProjectBuyer) {
+        confidence = Math.max(confidence, freelanceProjectBuyer && !seeksContractorPartner ? 84 : 86);
+        if (!reasons.some((r) => r.includes('freelanc') || r.includes('agency') || r.includes('partner') || r.includes('buying'))) {
+            reasons.push(
+                seeksContractorPartner
+                    ? 'buyer seeking freelancer, agency, or partner'
+                    : 'freelance or project-based buyer outreach'
+            );
         }
     }
 
     // Precision: employment posts without buying/recommendation signals → irrelevant
-    if (jobSignals >= 1 && serviceSignals === 0 && !seeksContractorPartner) {
+    if (jobSignals >= 1 && serviceSignals === 0 && !seeksContractorPartner && !freelanceProjectBuyer) {
         confidence = Math.min(confidence, 28);
         if (!reasons.some((r) => r.includes('employment') || r.includes('full-time'))) {
             reasons.push('employment signals without service-buying intent');
         }
     }
 
-    if (jobSignals >= 2 && !seeksContractorPartner) {
+    if (jobSignals >= 2 && !seeksContractorPartner && !freelanceProjectBuyer) {
         confidence = Math.min(confidence, 18);
         reasons.push('multiple employment signals — treated as job posting');
     }
@@ -240,13 +313,15 @@ export function extractLeadIntent(content: string): LeadIntentAnalysis {
         confidence = Math.max(confidence, 82);
     } else if (serviceSignals >= 1 && jobSignals === 0 && nonLead.length === 0) {
         confidence = Math.max(confidence, 74);
-    } else if (seeksContractorPartner && serviceSignals >= 1) {
+    } else if ((seeksContractorPartner || freelanceProjectBuyer) && serviceSignals >= 1) {
         confidence = Math.max(confidence, 84);
+    } else if (freelanceProjectBuyer && serviceSignals === 0) {
+        confidence = Math.max(confidence, 80);
     }
 
     // Mixed: employment + buying — contractor/agency/partner hires are relevant
     if (jobSignals >= 1 && serviceSignals >= 1) {
-        if (seeksContractorPartner) {
+        if (seeksContractorPartner || freelanceProjectBuyer) {
             confidence = Math.max(confidence, 82);
             reasons.push('hiring hashtag present but buyer seeks freelancer, agency, or partner');
         } else {

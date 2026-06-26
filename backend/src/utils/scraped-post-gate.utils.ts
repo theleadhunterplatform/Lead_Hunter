@@ -1,10 +1,14 @@
-import { classifyLeadIntent, isBuyerSeekingContractorPartnerAgency } from './lead-intent-scoring.utils';
+import {
+    classifyLeadIntent,
+    isBuyerSeekingContractorPartnerAgency,
+    hasFreelanceProjectBuyerContext,
+} from './lead-intent-scoring.utils';
 
 const BUYER_WORDS_IN_KEYWORD =
     /\b(?:looking for|need someone|need help|need a|can anyone|seeking|outsourcing|recommend)\b/i;
 
 const EXPLICIT_BUYER_ASK =
-    /\b(?:looking for|need(?: someone| help| a)?|seeking|can anyone recommend|any recommendations|who do you recommend|know anyone who can help)\b/i;
+    /\b(?:looking for|looking to (?:develop|build|create)|need(?: someone| help| a)?|seeking|hiring\s*:|can anyone recommend|any recommendations|who do you recommend|know anyone who can help|need a quick estimate|share your portfolio|discuss your experience)\b/i;
 
 /** Strict gate: only save posts that read like a buyer request in the post text itself. */
 export function shouldIngestScrapedPost(
@@ -36,24 +40,25 @@ export function shouldIngestScrapedPost(
 
     const intent = classifyLeadIntent(trimmed);
     const seeksContractorPartner = isBuyerSeekingContractorPartnerAgency(trimmed);
+    const freelanceProjectBuyer = hasFreelanceProjectBuyerContext(trimmed);
     const serviceSignals =
         intent.analysis.buying.length + intent.analysis.recommendation.length;
     const jobSignals = intent.analysis.employment.length + intent.analysis.fullTime.length;
     const noiseSignals = intent.analysis.nonLead.length;
 
-    if (serviceSignals === 0 && !seeksContractorPartner) {
+    if (serviceSignals === 0 && !seeksContractorPartner && !freelanceProjectBuyer) {
         return { ok: false, reason: 'no buyer language in post' };
     }
 
-    if (jobSignals >= 1 && serviceSignals <= 1 && !seeksContractorPartner) {
+    if (jobSignals >= 1 && serviceSignals <= 1 && !seeksContractorPartner && !freelanceProjectBuyer) {
         return { ok: false, reason: 'employment / job post' };
     }
 
-    if (noiseSignals >= 1 && serviceSignals <= 1 && !seeksContractorPartner) {
+    if (noiseSignals >= 1 && serviceSignals <= 1 && !seeksContractorPartner && !freelanceProjectBuyer) {
         return { ok: false, reason: 'seller or promotional post' };
     }
 
-    if (intent.confidence < 71 && !seeksContractorPartner) {
+    if (intent.confidence < 71 && !seeksContractorPartner && !freelanceProjectBuyer) {
         return { ok: false, reason: 'buyer intent not strong enough' };
     }
 

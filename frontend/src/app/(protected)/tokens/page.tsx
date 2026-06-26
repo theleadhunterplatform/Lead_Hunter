@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Button as HunterButton, Input as HunterInput } from "@/components/ui/HunterUI";
-import { Key, Plus, Trash2, ShieldCheck, ShieldAlert, Loader2, Mail, CheckCircle2 } from "lucide-react";
+import { Key, Plus, Trash2, ShieldCheck, ShieldAlert, Loader2, Mail, CheckCircle2, RefreshCw, Sparkles } from "lucide-react";
 import api from "@/lib/api";
 
 import { useRouter } from "next/navigation";
@@ -57,6 +57,13 @@ export default function TokensPage() {
   const [newApolloKey, setNewApolloKey] = useState("");
   const [isUpdatingApollo, setIsUpdatingApollo] = useState(false);
 
+  const [automation, setAutomation] = useState({
+    auto_scrape_enabled: false,
+    auto_enrichment_enabled: false,
+    scrape_interval_minutes: 30,
+  });
+  const [isUpdatingAutomation, setIsUpdatingAutomation] = useState(false);
+
   const fetchTokens = async () => {
     try {
       const response = await api.get("/apify-keys");
@@ -104,6 +111,28 @@ export default function TokensPage() {
     }
   };
 
+  const fetchAutomation = async () => {
+    try {
+      const response = await api.get("/settings/automation");
+      setAutomation(response.data.data);
+    } catch (err) {
+      console.error("Failed to fetch automation settings", err);
+    }
+  };
+
+  const toggleAutomation = async (key: "auto_scrape_enabled" | "auto_enrichment_enabled") => {
+    try {
+      setIsUpdatingAutomation(true);
+      const next = !automation[key];
+      const response = await api.patch("/settings/automation", { [key]: next });
+      setAutomation(response.data.data);
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Failed to update automation settings.");
+    } finally {
+      setIsUpdatingAutomation(false);
+    }
+  };
+
   useEffect(() => {
     if (!authLoading) {
       if (!hasPermission('scraping:manage')) {
@@ -115,6 +144,7 @@ export default function TokensPage() {
       fetchHunterKey();
       fetchContactOutToken();
       fetchApolloKey();
+      fetchAutomation();
     }
   }, [authLoading, hasPermission, router]);
 
@@ -225,6 +255,61 @@ export default function TokensPage() {
           {error}
         </div>
       )}
+
+      <div className="mb-10 bg-hunter-grey p-6 neo-border border-zinc-800">
+        <h2 className="font-display font-black text-xl uppercase tracking-tight mb-1">Automation</h2>
+        <p className="text-zinc-500 font-display uppercase text-[10px] tracking-widest mb-6">
+          Control scheduled scraping and contact enrichment behavior.
+        </p>
+
+        <div className="space-y-4">
+          <div className="flex items-center justify-between gap-4 p-4 bg-zinc-900/50 neo-border border-zinc-800">
+            <div className="flex items-start gap-4">
+              <div className="w-10 h-10 bg-hunter-orange/10 flex items-center justify-center neo-border border-hunter-orange/30 shrink-0">
+                <RefreshCw size={18} className="text-hunter-orange" />
+              </div>
+              <div>
+                <div className="font-display font-bold uppercase tracking-tight">Auto-scrape every 30 min</div>
+                <p className="text-zinc-500 text-[10px] font-display uppercase tracking-widest mt-1">
+                  Runs active search keywords + watchlist targets on a schedule.
+                </p>
+              </div>
+            </div>
+            <HunterButton
+              type="button"
+              variant={automation.auto_scrape_enabled ? "primary" : "secondary"}
+              disabled={isUpdatingAutomation}
+              onClick={() => toggleAutomation("auto_scrape_enabled")}
+              className="shrink-0 min-w-[88px]"
+            >
+              {isUpdatingAutomation ? <Loader2 size={16} className="animate-spin" /> : automation.auto_scrape_enabled ? "ON" : "OFF"}
+            </HunterButton>
+          </div>
+
+          <div className="flex items-center justify-between gap-4 p-4 bg-zinc-900/50 neo-border border-zinc-800">
+            <div className="flex items-start gap-4">
+              <div className="w-10 h-10 bg-green-500/10 flex items-center justify-center neo-border border-green-500/30 shrink-0">
+                <Sparkles size={18} className="text-green-500" />
+              </div>
+              <div>
+                <div className="font-display font-bold uppercase tracking-tight">Auto enrichment</div>
+                <p className="text-zinc-500 text-[10px] font-display uppercase tracking-widest mt-1">
+                  OFF = manual &quot;Find Contacts&quot; only. ON = runs when a lead is marked relevant.
+                </p>
+              </div>
+            </div>
+            <HunterButton
+              type="button"
+              variant={automation.auto_enrichment_enabled ? "primary" : "secondary"}
+              disabled={isUpdatingAutomation}
+              onClick={() => toggleAutomation("auto_enrichment_enabled")}
+              className="shrink-0 min-w-[88px]"
+            >
+              {isUpdatingAutomation ? <Loader2 size={16} className="animate-spin" /> : automation.auto_enrichment_enabled ? "ON" : "OFF"}
+            </HunterButton>
+          </div>
+        </div>
+      </div>
 
       {/* Add Token Form */}
       <form onSubmit={addToken} className="space-y-4 mb-10 bg-hunter-grey p-6 neo-border border-zinc-800">

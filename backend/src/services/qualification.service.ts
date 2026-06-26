@@ -3,12 +3,15 @@ import { classifyText } from './ocr.service';
 import { shouldEnrichLead } from './enrichment.service';
 import { scheduleAutoTrain } from '../utils/auto-train.utils';
 import { isLocalAiModelReady } from './ai-training.service';
+import { enqueueContactEnrichment } from '../utils/enrichment-queue.utils';
+import { isAutoEnrichmentEnabled } from '../utils/automation-settings.utils';
 import {
     classifyLeadIntent,
     confidenceToStatus,
     buildIntentReason,
     logQualificationDecision,
     isBuyerSeekingContractorPartnerAgency,
+    hasFreelanceProjectBuyerContext,
     type IntentClassification,
 } from '../utils/lead-intent-scoring.utils';
 
@@ -41,7 +44,9 @@ function intentToResult(intent: IntentClassification, method: QualificationResul
 
 /** Employment-only and clear seller posts — never overridden by the learned model. */
 function isHardIrrelevant(intent: IntentClassification, content?: string): boolean {
-    if (content && isBuyerSeekingContractorPartnerAgency(content)) return false;
+    if (content && (isBuyerSeekingContractorPartnerAgency(content) || hasFreelanceProjectBuyerContext(content))) {
+        return false;
+    }
 
     const { analysis } = intent;
     const serviceSignals = analysis.buying.length + analysis.recommendation.length;
@@ -287,6 +292,13 @@ export async function qualifyLeadPost(postId: string): Promise<QualificationResu
 
     if (result.status === 'relevant' || result.status === 'irrelevant') {
         scheduleAutoTrain().catch((err) => console.error('[AutoTrain] Schedule failed:', err.message));
+    }
+
+    if (result.status === 'relevant' && shouldEnrichLead(post) && (await isAutoEnrichmentEnabled())) {
+        await enqueueContactEnrichment(postId, {
+            status: 'relevant',
+            platform: post.platform,
+        });
     }
 
     return result;

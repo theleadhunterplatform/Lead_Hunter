@@ -52,7 +52,7 @@ const config = {
         postedLimit: process.env.TARGET_SCRAPE_POSTED_LIMIT || '24h',
     },
     cron: {
-        interval: process.env.CRON_INTERVAL || '0 * * * *'
+        interval: process.env.CRON_INTERVAL || '*/30 * * * *'
     },
     jwt: {
         accessSecret: process.env.JWT_ACCESS_SECRET || 'access_secret',
