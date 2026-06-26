@@ -80,7 +80,7 @@ Format the output exactly like this example structure, using professional and hi
 
     try {
         const response = await axios.post('https://openrouter.ai/api/v1/chat/completions', {
-            model: 'google/gemini-2.0-flash-001',
+            model: config.openRouter.intelModel,
             messages: [
                 {
                     role: 'system',

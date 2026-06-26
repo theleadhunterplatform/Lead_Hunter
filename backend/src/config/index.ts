@@ -61,7 +61,8 @@ const config = {
         refreshExpire: process.env.JWT_REFRESH_EXPIRE || '7d'
     },
     openRouter: {
-        apiKey: process.env.OPEN_ROUTER_API || ''
+        apiKey: process.env.OPEN_ROUTER_API || '',
+        intelModel: process.env.OPEN_ROUTER_INTEL_MODEL || 'google/gemini-2.5-flash',
     },
     redis: {
         url: resolveRedisUrl(),
