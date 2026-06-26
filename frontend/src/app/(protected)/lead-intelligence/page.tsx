@@ -103,6 +103,7 @@ export default function LeadIntelligencePage() {
   const [bulkRejecting, setBulkRejecting] = useState(false);
   const [enrichingIds, setEnrichingIds] = useState<string[]>([]);
   const [reviewActionIds, setReviewActionIds] = useState<string[]>([]);
+  const [intelActionIds, setIntelActionIds] = useState<string[]>([]);
   const [aiMetrics, setAiMetrics] = useState<{
     accuracy: number | null;
     samples: number;
@@ -330,6 +331,19 @@ export default function LeadIntelligencePage() {
     }
   };
 
+  const handleRegenerateIntel = async (leadId: string) => {
+    try {
+      setIntelActionIds((prev) => [...prev, leadId]);
+      const response = await api.post(`/posts/${leadId}/generate-intelligence`);
+      toast.success(response.data.message || 'Intelligence generation started.');
+      fetchLeads(currentPage, activeTab, searchQuery, selectedPlatforms, true);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to generate intelligence.');
+    } finally {
+      setIntelActionIds((prev) => prev.filter((id) => id !== leadId));
+    }
+  };
+
   const handleBulkApprove = async () => {
     try {
       setBulkApproving(true);
@@ -425,6 +439,19 @@ export default function LeadIntelligencePage() {
     const interval = setInterval(() => {
       fetchLeads(currentPage, activeTab, searchQuery, selectedPlatforms, true);
     }, 8000);
+
+    return () => clearInterval(interval);
+  }, [leads, currentPage, activeTab, searchQuery, selectedPlatforms]);
+
+  useEffect(() => {
+    const awaitingIntel = leads.some(
+      (lead) => lead.review_status === 'approved' && !lead.intelligence
+    );
+    if (!awaitingIntel) return;
+
+    const interval = setInterval(() => {
+      fetchLeads(currentPage, activeTab, searchQuery, selectedPlatforms, true);
+    }, 6000);
 
     return () => clearInterval(interval);
   }, [leads, currentPage, activeTab, searchQuery, selectedPlatforms]);
@@ -870,10 +897,28 @@ export default function LeadIntelligencePage() {
                           </span>
                           {!lead.intelligence && (
                             <span className="text-[9px] font-black uppercase tracking-widest text-hunter-orange flex items-center gap-1">
-                              <Loader2 size={10} className="animate-spin" /> Generating intel...
+                              {intelActionIds.includes(lead._id) ? (
+                                <>
+                                  <Loader2 size={10} className="animate-spin" /> Generating intel...
+                                </>
+                              ) : (
+                                <>
+                                  <Loader2 size={10} className="animate-spin" /> Intel pending
+                                </>
+                              )}
                             </span>
                           )}
                         </div>
+                        {!lead.intelligence && (
+                          <button
+                            type="button"
+                            onClick={() => handleRegenerateIntel(lead._id)}
+                            disabled={intelActionIds.includes(lead._id)}
+                            className="mt-2 text-[9px] font-black uppercase tracking-widest text-hunter-orange hover:text-white disabled:opacity-50"
+                          >
+                            Retry intel generation
+                          </button>
+                        )}
                         {lead.reviewed_by_name && (
                           <p className="text-[10px] text-zinc-500">
                             Reviewed by {lead.reviewed_by_name}

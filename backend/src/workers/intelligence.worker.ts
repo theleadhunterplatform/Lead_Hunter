@@ -16,7 +16,16 @@ export const intelligenceWorker = new Worker(
         }
 
         try {
-            await generateLeadIntelligence(post);
+            const result = await generateLeadIntelligence(post);
+            if (!result?.content) {
+                throw new Error('Intelligence report was empty');
+            }
+
+            const refreshed = await LeadPost.findById(postId);
+            if (!refreshed?.intelligence) {
+                throw new Error('Intelligence report was not saved to the lead');
+            }
+
             console.log(`✅ [IntelligenceWorker] Report generated for post: ${postId}`);
         } catch (error: any) {
             console.error(`❌ [IntelligenceWorker] Failed for post ${postId}:`, error.message);

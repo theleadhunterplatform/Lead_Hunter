@@ -22,6 +22,7 @@ import {
     rejectLeadReview,
     bulkApproveLeadReviews,
     bulkRejectLeadReviews,
+    regenerateLeadIntelligencePost,
 } from '../controllers/post.controller';
 import { findLeadEmail } from '../controllers/contact.controller';
 import { getLeadIntelligenceStats } from '../controllers/dashboard.controller';
@@ -163,5 +164,6 @@ router.put('/:id', authorize('lead:hunt'), updatePost);
 router.post('/:id/re-extract', authorize('lead:hunt'), reExtractPost);
 router.post('/:id/find-email', authorize('lead:hunt'), findLeadEmail);
 router.post('/:id/verify-email', authorize('lead:hunt'), verifyEmailPost);
+router.post('/:id/generate-intelligence', authorize('lead:hunt'), regenerateLeadIntelligencePost);
 
 export default router;

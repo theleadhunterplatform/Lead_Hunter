@@ -11,8 +11,7 @@ import LeadPost from '../models/lead-post.model';
 export const generateLeadIntelligence = async (post: any) => {
     const apiKey = config.openRouter.apiKey;
     if (!apiKey) {
-        console.error('OPEN_ROUTER_API key not found in config');
-        return null;
+        throw new Error('OPEN_ROUTER_API key is not configured on the server');
     }
 
     console.log(`🧠 [Intelligence] Generating strategic report for post: ${post.post_id} (${post.platform})`);
@@ -123,7 +122,13 @@ Format the output exactly like this example structure, using professional and hi
         console.log(`✅ [Intelligence] Report saved for post: ${post.post_id}`);
         return intelligence;
     } catch (error: any) {
+        const detail =
+            error.response?.data?.error?.message
+            || error.response?.data?.error
+            || error.response?.data?.message
+            || error.message
+            || 'Unknown OpenRouter error';
         console.error('Error generating lead intelligence:', error.response?.data || error.message);
-        return null;
+        throw new Error(`Lead intelligence generation failed: ${detail}`);
     }
 };

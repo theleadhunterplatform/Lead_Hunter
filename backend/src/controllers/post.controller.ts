@@ -85,6 +85,22 @@ export const approveLeadReview = asyncHandler(async (req: Request, res: Response
     });
 });
 
+export const regenerateLeadIntelligencePost = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+    const result = await postService.regenerateLeadIntelligence(req.params.id as string);
+
+    return res.status(200).json({
+        success: true,
+        data: result.post,
+        mode: result.mode,
+        message:
+            result.mode === 'queued'
+                ? 'Intelligence report generation queued.'
+                : result.mode === 'inline'
+                  ? 'Intelligence report generated.'
+                  : 'Intelligence report already exists.',
+    });
+});
+
 export const rejectLeadReview = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
     const user = req.user as any;
     const orgId = req.headers['x-org-id'] as string | undefined;

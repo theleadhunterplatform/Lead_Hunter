@@ -9,7 +9,7 @@ import { scheduleAutoTrain } from '../utils/auto-train.utils';
 import { enqueueLeadQualification } from '../utils/qualification-queue.utils';
 import { findExistingLeadPost, isDuplicateKeyError } from '../utils/lead-dedup.utils';
 import { enqueueContactEnrichment } from '../utils/enrichment-queue.utils';
-import { enqueueLeadIntelligence } from '../utils/intelligence-queue.utils';
+import { requestLeadIntelligence } from '../utils/intelligence-queue.utils';
 import { sanitizeContactFields } from '../utils/contact-redaction.utils';
 import { logLeadAction } from '../utils/audit.utils';
 import { verifyLeadEmailManually } from './lead-enrichment.service';
@@ -263,7 +263,7 @@ export const approveLeadReview = async (
     });
 
     if (!updated.intelligence) {
-        await enqueueLeadIntelligence(id);
+        await requestLeadIntelligence(id);
     }
 
     scheduleAutoTrain().catch((err) => console.error('[AutoTrain] Schedule failed:', err.message));
@@ -321,6 +321,29 @@ export const rejectLeadReview = async (
     return updated;
 };
 
+export const regenerateLeadIntelligence = async (id: string) => {
+    const post = await LeadPost.findOne({ _id: id, is_deleted: false });
+    if (!post) {
+        throw new ErrorResponse(`Post not found with id of ${id}`, 404);
+    }
+
+    if (post.status !== 'relevant') {
+        throw new ErrorResponse('Only relevant leads can generate intelligence reports.', 400);
+    }
+
+    if (!leadHasContactDetails(post)) {
+        throw new ErrorResponse('Add contact details before generating intelligence.', 400);
+    }
+
+    const result = await requestLeadIntelligence(id, { force: true });
+    const refreshed = await LeadPost.findById(id);
+
+    return {
+        post: refreshed || post,
+        mode: result.mode,
+    };
+};
+
 export const bulkApproveLeadReviews = async (
     query: {
         status?: string;
@@ -374,7 +397,7 @@ export const bulkApproveLeadReviews = async (
     let approved = 0;
     for (const post of withContact) {
         if (!post.intelligence) {
-            await enqueueLeadIntelligence(post._id.toString());
+            await requestLeadIntelligence(post._id.toString());
         }
         approved += 1;
     }
@@ -720,7 +743,7 @@ export const updatePostLabel = async (
         }
 
         if (leadHasContactDetails(post) && !post.intelligence) {
-            await enqueueLeadIntelligence(post._id.toString());
+            await requestLeadIntelligence(post._id.toString());
         }
     }
 
