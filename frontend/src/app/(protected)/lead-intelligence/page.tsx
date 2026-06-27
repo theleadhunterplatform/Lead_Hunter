@@ -1052,7 +1052,10 @@ export default function LeadIntelligencePage() {
 
                     {/* Lead Intelligence - ALWAYS SHOWN if relevant */}
                     {lead.intelligence && (
-                      <div className="mb-4 p-3 bg-zinc-900/50 neo-border border-zinc-800 border-l-hunter-orange border-l-2">
+                      <div
+                        id={`lead-intel-${lead._id}`}
+                        className="mb-4 p-3 bg-zinc-900/50 neo-border border-zinc-800 border-l-hunter-orange border-l-2"
+                      >
                         <div className="flex items-center gap-2 mb-2">
                           <Zap size={12} className="text-hunter-orange" />
                           <span className="text-[10px] font-black uppercase tracking-widest text-white">Lead Intelligence</span>
@@ -1315,14 +1318,25 @@ export default function LeadIntelligencePage() {
                           </div>
                         )}
                         {lead.review_status === 'approved' && lead.intelligence && (
-                          <Link href="/leads/relevant">
-                            <Button 
-                              size="sm" 
-                              className="h-7 text-[8px] uppercase font-black px-4 bg-hunter-orange text-black border-black flex items-center gap-2"
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                document.getElementById(`lead-intel-${lead._id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+                              }}
+                              className="h-7 text-[8px] uppercase font-black px-4 bg-zinc-800 text-white border border-zinc-700 hover:border-hunter-orange flex items-center gap-2"
                             >
                               <BrainCircuit size={12} /> View Intel
-                            </Button>
-                          </Link>
+                            </button>
+                            <Link href={`/leads/relevant?lead=${lead._id}`}>
+                              <Button
+                                size="sm"
+                                className="h-7 text-[8px] uppercase font-black px-4 bg-hunter-orange text-black border-black flex items-center gap-2"
+                              >
+                                <ExternalLink size={12} /> Hunter Preview
+                              </Button>
+                            </Link>
+                          </>
                         )}
                         {lead.review_status === 'approved' && (
                           <Button 

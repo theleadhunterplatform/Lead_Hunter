@@ -7,7 +7,7 @@ import ErrorResponse from '../utils/error-response.utils';
 function assertOpenRouterConfigured(): void {
     if (!config.openRouter.apiKey?.trim()) {
         throw new ErrorResponse(
-            'OPEN_ROUTER_API is not set on the server. Add your OpenRouter API key in Render → backend service → Environment, then redeploy.',
+            'OPEN_ROUTER_API is not set. For local dev add it to backend/.env and restart the backend. On Render add it under backend → Environment and redeploy.',
             503
         );
     }

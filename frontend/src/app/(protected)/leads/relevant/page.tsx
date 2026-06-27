@@ -20,7 +20,8 @@ import {
     User,
     Zap
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
 interface Lead {
@@ -60,6 +61,8 @@ import ReactMarkdown from 'react-markdown';
 
 export default function StrategicLeadsPage() {
   const { refreshUser, permissions } = useAuth();
+  const searchParams = useSearchParams();
+  const leadFromUrl = searchParams.get("lead");
   const [leads, setLeads] = useState<Lead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
@@ -91,26 +94,42 @@ export default function StrategicLeadsPage() {
     }
   };
 
-  const fetchStrategicLeads = async (silent = false) => {
+  const fetchStrategicLeads = useCallback(async (silent = false) => {
     try {
       if (!silent) setIsLoading(true);
-      const response = await api.get('/posts?status=relevant&limit=50');
-      setLeads(response.data.data);
-      if (response.data.data.length > 0 && !selectedLeadId) {
-        setSelectedLeadId(response.data.data[0]._id);
+      const response = await api.get("/posts?status=approved&limit=50");
+      let nextLeads: Lead[] = response.data.data || [];
+
+      if (leadFromUrl && !nextLeads.some((l) => l._id === leadFromUrl)) {
+        try {
+          const one = await api.get(`/posts/${leadFromUrl}`);
+          if (one.data?.data) {
+            nextLeads = [one.data.data, ...nextLeads];
+          }
+        } catch {
+          // lead may not exist or not accessible
+        }
+      }
+
+      setLeads(nextLeads);
+
+      if (leadFromUrl && nextLeads.some((l) => l._id === leadFromUrl)) {
+        setSelectedLeadId(leadFromUrl);
+      } else if (nextLeads.length > 0) {
+        setSelectedLeadId((current) => current || nextLeads[0]._id);
       }
     } catch (error) {
       console.error("Failed to fetch strategic leads", error);
     } finally {
       if (!silent) setIsLoading(false);
     }
-  };
+  }, [leadFromUrl]);
 
   useEffect(() => {
     fetchStrategicLeads();
     const interval = setInterval(() => fetchStrategicLeads(true), 15000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchStrategicLeads]);
 
   const selectedLead = leads.find(l => l._id === selectedLeadId);
 
@@ -402,11 +421,14 @@ export default function StrategicLeadsPage() {
                         </div>
                       ) : (
                         <div className="py-20 text-center flex flex-col items-center gap-6">
-                          <div className="w-16 h-16 border-2 border-dashed border-zinc-800 flex items-center justify-center rounded-full animate-pulse">
+                          <div className="w-16 h-16 border-2 border-dashed border-zinc-800 flex items-center justify-center rounded-full">
                             <BrainCircuit size={32} className="text-zinc-800" />
                           </div>
-                          <p className="text-xs text-zinc-600 font-bold uppercase tracking-widest leading-relaxed">
-                            Generating strategic report...<br/>Check back in a few seconds.
+                          <p className="text-xs text-zinc-500 font-bold uppercase tracking-widest leading-relaxed max-w-md">
+                            No strategic report for this lead yet.
+                            {isInternal
+                              ? " Go to Lead Intelligence → Approved and click Retry intel generation."
+                              : " This lead is not ready to claim — check back later."}
                           </p>
                         </div>
                       )}
