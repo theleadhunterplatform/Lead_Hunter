@@ -153,7 +153,7 @@ router.post('/bulk-reject', authorize('lead:hunt'), bulkRejectLeadReviews);
 
 router.route('/:id')
     .get(authorize('lead:read'), getPost)
-    .delete(authorize('lead:delete'), deletePost);
+    .delete(authorize('lead:hunt'), deletePost);
 
 router.post('/:id/claim', authorize('lead:read'), claimPost);
 router.post('/:id/qualify', authorize('lead:hunt'), qualifyPost);

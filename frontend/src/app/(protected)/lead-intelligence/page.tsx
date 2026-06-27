@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Filter, Search, Download, ExternalLink, MessageSquare, ThumbsUp, Share2, User, Shield, Plus, ImageIcon, Mail, Loader2, BrainCircuit, Zap, RefreshCw, CheckCircle2, XCircle, ClipboardCheck } from "lucide-react";
+import { Filter, Search, Download, ExternalLink, MessageSquare, ThumbsUp, Share2, User, Shield, Plus, ImageIcon, Mail, Loader2, BrainCircuit, Zap, RefreshCw, CheckCircle2, XCircle, ClipboardCheck, Trash2 } from "lucide-react";
 import { Button, Input } from "@/components/ui/HunterUI";
 import { cn } from "@/components/ui/HunterUI";
 import api from "@/lib/api";
@@ -104,6 +104,7 @@ export default function LeadIntelligencePage() {
   const [enrichingIds, setEnrichingIds] = useState<string[]>([]);
   const [reviewActionIds, setReviewActionIds] = useState<string[]>([]);
   const [intelActionIds, setIntelActionIds] = useState<string[]>([]);
+  const [deletingIds, setDeletingIds] = useState<string[]>([]);
   const [aiMetrics, setAiMetrics] = useState<{
     accuracy: number | null;
     samples: number;
@@ -341,6 +342,23 @@ export default function LeadIntelligencePage() {
       toast.error(err.response?.data?.message || 'Failed to generate intelligence.');
     } finally {
       setIntelActionIds((prev) => prev.filter((id) => id !== leadId));
+    }
+  };
+
+  const handleDeleteLead = async (lead: Lead) => {
+    const label = lead.author?.name || lead.keyword || 'this lead';
+    if (!window.confirm(`Delete "${label}"? This cannot be undone.`)) return;
+
+    try {
+      setDeletingIds((prev) => [...prev, lead._id]);
+      await api.delete(`/posts/${lead._id}`);
+      toast.success('Lead deleted.');
+      setLeads((prev) => prev.filter((l) => l._id !== lead._id));
+      fetchLeadStats();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to delete lead.');
+    } finally {
+      setDeletingIds((prev) => prev.filter((id) => id !== lead._id));
     }
   };
 
@@ -1361,6 +1379,23 @@ export default function LeadIntelligencePage() {
                             )}
                           </Button>
                         )}
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => handleDeleteLead(lead)}
+                          disabled={deletingIds.includes(lead._id)}
+                          className="h-7 text-[8px] uppercase font-black px-3 bg-red-500/10 text-red-400 border-red-500/30 hover:bg-red-500 hover:text-black"
+                          title="Delete lead"
+                        >
+                          {deletingIds.includes(lead._id) ? (
+                            <Loader2 size={12} className="animate-spin" />
+                          ) : (
+                            <>
+                              <Trash2 size={12} className="inline mr-1" />
+                              Delete
+                            </>
+                          )}
+                        </Button>
                       </div>
                     </div>
                   </div>
