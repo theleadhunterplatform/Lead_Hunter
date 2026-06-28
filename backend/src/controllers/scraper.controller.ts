@@ -4,8 +4,14 @@ import { scraperQueue } from '../queues';
 import Keyword from '../models/keyword.model';
 import prisma from '../lib/prisma';
 
-/** Keyword scrape: LinkedIn only — best buyer signal; social search is too noisy. */
-const KEYWORD_SCRAPE_PLATFORMS = ['linkedin'] as const;
+const SUPPORTED_KEYWORD_PLATFORMS = ['linkedin', 'twitter', 'reddit', 'threads'] as const;
+
+function resolveKeywordPlatforms(platforms?: string[]): string[] {
+    const enabled = platforms?.length ? platforms : ['linkedin'];
+    return enabled.filter((platform) =>
+        SUPPORTED_KEYWORD_PLATFORMS.includes(platform as (typeof SUPPORTED_KEYWORD_PLATFORMS)[number])
+    );
+}
 
 async function queuePlatformScrape(platform: string): Promise<{ platform: string; keywords: number }> {
     const activeKeywords = await Keyword.find({
@@ -39,9 +45,7 @@ async function queuePlatformScrape(platform: string): Promise<{ platform: string
 
 async function queueKeywordScrape(keyword: { _id?: string; id?: string; text: string; platforms?: string[] }) {
     const keywordId = keyword._id || keyword.id;
-    const platforms = KEYWORD_SCRAPE_PLATFORMS.filter((platform) =>
-        (keyword.platforms || []).includes(platform)
-    );
+    const platforms = resolveKeywordPlatforms(keyword.platforms);
 
     for (const platform of platforms) {
         console.log(`📡 [KeywordScrape] Single keyword "${keyword.text}" → platform: ${platform}`);
@@ -78,7 +82,7 @@ export const triggerKeywordScrape = asyncHandler(async (req: Request, res: Respo
     if (platforms.length === 0) {
         return res.status(400).json({
             success: false,
-            message: 'Enable LinkedIn on this keyword to scrape it',
+            message: 'Enable at least one platform (LinkedIn, Twitter, Reddit, or Threads) on this keyword',
         });
     }
 
@@ -110,13 +114,13 @@ const triggerScraper = async (platform: string, res: Response) => {
 };
 
 export const triggerAllScrapers = asyncHandler(async (_req: Request, res: Response) => {
-    const platformList = KEYWORD_SCRAPE_PLATFORMS.join(', ');
+    const platformList = SUPPORTED_KEYWORD_PLATFORMS.join(', ');
     console.log(
-        `📡 [KeywordScrape] Scrape-all requested — keyword platforms: [${platformList}] (manual scrape-all is LinkedIn-only)`
+        `📡 [KeywordScrape] Scrape-all requested — queues each keyword on its enabled platforms [${platformList}]`
     );
 
     const results = await Promise.all(
-        KEYWORD_SCRAPE_PLATFORMS.map((platform) => queuePlatformScrape(platform))
+        SUPPORTED_KEYWORD_PLATFORMS.map((platform) => queuePlatformScrape(platform))
     );
     const totalJobs = results.reduce((sum, r) => sum + r.keywords, 0);
     const summary = results
@@ -134,8 +138,8 @@ export const triggerAllScrapers = asyncHandler(async (_req: Request, res: Respon
         success: true,
         message: totalJobs === 0
             ? 'No active keywords found for any platform'
-            : `Scraping queued for ${totalJobs} keyword job(s) on: ${summary || platformList}`,
-        data: { totalJobs, platforms: results, scrape_platforms: [...KEYWORD_SCRAPE_PLATFORMS] },
+            : `Scraping queued for ${totalJobs} job(s) (${summary})`,
+        data: { totalJobs, platforms: results, supported_platforms: [...SUPPORTED_KEYWORD_PLATFORMS] },
     });
 });
 

@@ -175,7 +175,7 @@ export default function KeywordsPage() {
     try {
       const { data } = await api.post(`/scrapers/keyword/${kw._id}`);
       toast.success("Scraping started", {
-        description: data.message || `Queued LinkedIn scrape for "${kw.text}"`,
+        description: data.message || `Queued scrape for "${kw.text}"`,
       });
     } catch (err: any) {
       const msg = err.response?.data?.message || err.response?.data?.error || "Failed to start scraping.";
@@ -199,7 +199,7 @@ export default function KeywordsPage() {
     try {
       const { data } = await api.post("/scrapers/all");
       toast.success("Scraping started", {
-        description: data.message || "Jobs queued for LinkedIn keyword search (strict buyer filter).",
+        description: data.message || "Jobs queued for all enabled platforms on each keyword.",
       });
     } catch (err: any) {
       const msg = err.response?.data?.error || err.response?.data?.message || "Failed to start scraping.";
@@ -218,7 +218,7 @@ export default function KeywordsPage() {
             Search <span className="text-hunter-orange">Keywords</span>
           </h1>
           <p className="text-zinc-500 font-display uppercase text-xs tracking-widest">
-            Use buyer phrases only. Scrape one keyword with ▶ or all with Scrape All (LinkedIn).
+            Use buyer phrases only. Scrape one keyword with ▶ or all with Scrape All — each runs on that keyword&apos;s enabled platforms.
           </p>
         </div>
 
