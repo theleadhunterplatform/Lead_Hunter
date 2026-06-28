@@ -4,18 +4,21 @@ import { scraperQueue } from '../queues';
 
 /** Enqueue keyword + watchlist scrape jobs (used by cron and automation toggle). */
 export async function runScraperProducerJob(): Promise<{ keywords: number; targets: number }> {
+    console.log('📡 [KeywordScrape] Auto-scrape producer started — uses each keyword\'s enabled platforms');
+
     const activeKeywords = await Keyword.find({
         is_active: true,
         is_deleted: false,
     });
 
     if (activeKeywords.length === 0) {
-        console.log('[ScraperProducer] No active keywords found.');
+        console.log('[KeywordScrape] No active keywords found.');
     } else {
-        console.log(`📡 [ScraperProducer] Found ${activeKeywords.length} active keywords. Enqueueing jobs...`);
+        console.log(`📡 [KeywordScrape] Found ${activeKeywords.length} active keyword(s). Enqueueing jobs...`);
 
         for (const kw of activeKeywords) {
-            const platforms = kw.platforms || ['linkedin'];
+            const platforms = kw.platforms?.length ? kw.platforms : ['linkedin'];
+            console.log(`  · "${kw.text}" → platforms: [${platforms.join(', ')}]`);
 
             for (const platform of platforms) {
                 const jobId = `scrape-${platform}-${kw._id}-${new Date().toISOString().split('T')[0]}`;
@@ -33,7 +36,7 @@ export async function runScraperProducerJob(): Promise<{ keywords: number; targe
                     }
                 );
 
-                console.log(`  + Enqueued: ${platform} | "${kw.text}"`);
+                console.log(`  + [${platform}] queued "${kw.text}"`);
             }
         }
     }
@@ -43,9 +46,11 @@ export async function runScraperProducerJob(): Promise<{ keywords: number; targe
     });
 
     if (activeTargets.length === 0) {
-        console.log('[ScraperProducer] No active watchlist targets found.');
+        console.log('[KeywordScrape] No active watchlist targets found.');
     } else {
-        console.log(`📡 [ScraperProducer] Found ${activeTargets.length} active watchlist targets. Enqueueing jobs...`);
+        console.log(
+            `📡 [WatchlistScrape] Found ${activeTargets.length} active LinkedIn target(s). Enqueueing jobs...`
+        );
 
         for (const target of activeTargets) {
             const jobId = `scrape-target-${target.id}-${new Date().toISOString().split('T')[0]}`;
@@ -68,6 +73,6 @@ export async function runScraperProducerJob(): Promise<{ keywords: number; targe
         }
     }
 
-    console.log('✔ [ScraperProducer] Scrape jobs enqueued.');
+    console.log('✔ [KeywordScrape] Auto-scrape producer finished enqueueing jobs.');
     return { keywords: activeKeywords.length, targets: activeTargets.length };
 }

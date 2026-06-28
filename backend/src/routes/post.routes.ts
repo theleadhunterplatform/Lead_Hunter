@@ -23,6 +23,8 @@ import {
     bulkApproveLeadReviews,
     bulkRejectLeadReviews,
     regenerateLeadIntelligencePost,
+    bulkApproveLeadReviewsByIds,
+    bulkDeletePosts,
 } from '../controllers/post.controller';
 import { findLeadEmail } from '../controllers/contact.controller';
 import { getLeadIntelligenceStats } from '../controllers/dashboard.controller';
@@ -149,6 +151,8 @@ router.post('/bulk-reanalyse', authorize('lead:hunt'), bulkRequalifyPosts);
 router.post('/bulk-re-enrich', authorize('lead:hunt'), bulkReEnrichPosts);
 router.post('/:id/re-enrich', authorize('lead:hunt'), reEnrichPost);
 router.post('/bulk-approve', authorize('lead:hunt'), bulkApproveLeadReviews);
+router.post('/bulk-approve-selected', authorize('lead:hunt'), bulkApproveLeadReviewsByIds);
+router.post('/bulk-delete', authorize('lead:hunt'), bulkDeletePosts);
 router.post('/bulk-reject', authorize('lead:hunt'), bulkRejectLeadReviews);
 
 router.route('/:id')

@@ -151,6 +151,41 @@ export const bulkRejectLeadReviews = asyncHandler(async (req: Request, res: Resp
     });
 });
 
+export const bulkApproveLeadReviewsByIds = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+    const user = req.user as any;
+    const orgId = req.headers['x-org-id'] as string | undefined;
+    const { ids } = req.body ?? {};
+    const result = await postService.bulkApproveLeadReviewsByIds(
+        Array.isArray(ids) ? ids : [],
+        user.id || user._id,
+        { organizationId: orgId, ipAddress: req.ip }
+    );
+
+    return res.status(202).json({
+        success: true,
+        approved: result.approved,
+        skipped: result.skipped,
+        message: result.message,
+    });
+});
+
+export const bulkDeletePosts = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+    const user = req.user as any;
+    const orgId = req.headers['x-org-id'] as string | undefined;
+    const { ids } = req.body ?? {};
+    const result = await postService.bulkDeletePosts(
+        Array.isArray(ids) ? ids : [],
+        user.id || user._id,
+        { organizationId: orgId, ipAddress: req.ip }
+    );
+
+    return res.status(200).json({
+        success: true,
+        deleted: result.deleted,
+        message: result.message,
+    });
+});
+
 // @desc    Update post content/data
 // @route   PUT /api/posts/:id
 // @access  Private

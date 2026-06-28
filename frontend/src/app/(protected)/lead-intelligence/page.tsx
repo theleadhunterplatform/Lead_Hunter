@@ -105,6 +105,8 @@ export default function LeadIntelligencePage() {
   const [reviewActionIds, setReviewActionIds] = useState<string[]>([]);
   const [intelActionIds, setIntelActionIds] = useState<string[]>([]);
   const [deletingIds, setDeletingIds] = useState<string[]>([]);
+  const [selectedLeadIds, setSelectedLeadIds] = useState<string[]>([]);
+  const [bulkSelectionBusy, setBulkSelectionBusy] = useState(false);
   const [aiMetrics, setAiMetrics] = useState<{
     accuracy: number | null;
     samples: number;
@@ -354,11 +356,63 @@ export default function LeadIntelligencePage() {
       await api.delete(`/posts/${lead._id}`);
       toast.success('Lead deleted.');
       setLeads((prev) => prev.filter((l) => l._id !== lead._id));
+      setSelectedLeadIds((prev) => prev.filter((id) => id !== lead._id));
       fetchLeadStats();
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to delete lead.');
     } finally {
       setDeletingIds((prev) => prev.filter((id) => id !== lead._id));
+    }
+  };
+
+  const toggleLeadSelection = (leadId: string) => {
+    setSelectedLeadIds((prev) =>
+      prev.includes(leadId) ? prev.filter((id) => id !== leadId) : [...prev, leadId]
+    );
+  };
+
+  const allPageSelected = leads.length > 0 && leads.every((lead) => selectedLeadIds.includes(lead._id));
+
+  const toggleSelectAllPage = () => {
+    const pageIds = leads.map((lead) => lead._id);
+    if (allPageSelected) {
+      setSelectedLeadIds((prev) => prev.filter((id) => !pageIds.includes(id)));
+    } else {
+      setSelectedLeadIds((prev) => [...new Set([...prev, ...pageIds])]);
+    }
+  };
+
+  const handleBulkApproveSelected = async () => {
+    if (selectedLeadIds.length === 0) return;
+    try {
+      setBulkSelectionBusy(true);
+      const response = await api.post('/posts/bulk-approve-selected', { ids: selectedLeadIds });
+      toast.success(response.data.message || 'Selected leads approved.');
+      setSelectedLeadIds([]);
+      fetchLeads(currentPage, activeTab, searchQuery, selectedPlatforms, true);
+      fetchLeadStats();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to approve selected leads.');
+    } finally {
+      setBulkSelectionBusy(false);
+    }
+  };
+
+  const handleBulkDeleteSelected = async () => {
+    if (selectedLeadIds.length === 0) return;
+    if (!window.confirm(`Delete ${selectedLeadIds.length} selected lead(s)? This cannot be undone.`)) return;
+
+    try {
+      setBulkSelectionBusy(true);
+      const response = await api.post('/posts/bulk-delete', { ids: selectedLeadIds });
+      toast.success(response.data.message || 'Selected leads deleted.');
+      setSelectedLeadIds([]);
+      fetchLeads(currentPage, activeTab, searchQuery, selectedPlatforms, true);
+      fetchLeadStats();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to delete selected leads.');
+    } finally {
+      setBulkSelectionBusy(false);
     }
   };
 
@@ -437,6 +491,7 @@ export default function LeadIntelligencePage() {
 
   useEffect(() => {
     fetchLeads(1, activeTab, searchQuery, selectedPlatforms);
+    setSelectedLeadIds([]);
   }, [activeTab, selectedPlatforms]);
 
   useEffect(() => {
@@ -568,6 +623,15 @@ export default function LeadIntelligencePage() {
   const leadHasContactDetails = (lead: Lead) =>
     (lead.enrichment_status === 'found' || lead.enrichment_status === 'partial') &&
     leadHasDiscoverableContact(lead);
+
+  const leadCanBulkApprove = (lead: Lead) =>
+    lead.status === 'relevant' &&
+    lead.review_status === 'awaiting_review' &&
+    leadHasContactDetails(lead);
+
+  const selectedApprovableCount = leads.filter(
+    (lead) => selectedLeadIds.includes(lead._id) && leadCanBulkApprove(lead)
+  ).length;
 
   const getEnrichmentStatusLabel = (status: NonNullable<Lead['enrichment_status']>) => {
     switch (status) {
@@ -785,6 +849,58 @@ export default function LeadIntelligencePage() {
             </Button>
           </div>
         )}
+
+        {isInternal && leads.length > 0 && (
+          <div className="flex flex-wrap items-center gap-3 p-3 bg-zinc-900/80 neo-border border-zinc-800">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={allPageSelected}
+                onChange={toggleSelectAllPage}
+                className="w-4 h-4 accent-hunter-orange cursor-pointer"
+              />
+              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                Select all on page ({leads.length})
+              </span>
+            </label>
+
+            {selectedLeadIds.length > 0 && (
+              <>
+                <span className="text-[10px] font-black uppercase tracking-widest text-hunter-orange">
+                  {selectedLeadIds.length} selected
+                </span>
+                <Button
+                  onClick={handleBulkApproveSelected}
+                  disabled={bulkSelectionBusy || selectedApprovableCount === 0}
+                  title={
+                    selectedApprovableCount === 0
+                      ? 'Selected leads must be awaiting approval with contact details'
+                      : undefined
+                  }
+                  className="h-9 px-4 text-[10px] uppercase font-black flex items-center gap-2 bg-green-500/10 text-green-400 border border-green-500/30 hover:bg-green-500 hover:text-black"
+                >
+                  {bulkSelectionBusy ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                  Approve Selected{selectedApprovableCount > 0 ? ` (${selectedApprovableCount})` : ''}
+                </Button>
+                <Button
+                  onClick={handleBulkDeleteSelected}
+                  disabled={bulkSelectionBusy}
+                  className="h-9 px-4 text-[10px] uppercase font-black flex items-center gap-2 bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500 hover:text-black"
+                >
+                  {bulkSelectionBusy ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                  Delete Selected ({selectedLeadIds.length})
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedLeadIds([])}
+                  className="text-[10px] font-black uppercase tracking-widest text-zinc-500 hover:text-white"
+                >
+                  Clear
+                </button>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Platform Signal Matrix - Unique Filter Concept */}
@@ -841,6 +957,17 @@ export default function LeadIntelligencePage() {
                 className="bg-hunter-grey neo-border border-zinc-800 p-4 flex flex-col hover:border-hunter-orange transition-all group"
               >
                 <div className="flex items-start gap-4">
+                  {isInternal && (
+                    <label className="mt-2 shrink-0 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedLeadIds.includes(lead._id)}
+                        onChange={() => toggleLeadSelection(lead._id)}
+                        className="w-4 h-4 accent-hunter-orange cursor-pointer"
+                        aria-label={`Select ${lead.author?.name || 'lead'}`}
+                      />
+                    </label>
+                  )}
                   {/* Author Mini-Profile */}
                   <div className="w-10 h-10 bg-zinc-800 neo-border border-zinc-700 overflow-hidden flex-shrink-0 flex items-center justify-center group-hover:border-hunter-orange transition-colors">
                     {(lead.is_claimed || isInternal) && lead.author.avatar?.url ? (

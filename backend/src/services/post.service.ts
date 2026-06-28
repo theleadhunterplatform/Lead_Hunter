@@ -421,6 +421,123 @@ export const bulkApproveLeadReviews = async (
     };
 };
 
+export const bulkApproveLeadReviewsByIds = async (
+    ids: string[],
+    reviewerId: string,
+    audit?: { ipAddress?: string; organizationId?: string }
+) => {
+    const uniqueIds = [...new Set(ids.filter(Boolean).map(String))];
+    if (uniqueIds.length === 0) {
+        throw new ErrorResponse('No lead IDs provided', 400);
+    }
+
+    const posts = await LeadPost.find(
+        {
+            _id: { $in: uniqueIds },
+            is_deleted: false,
+            status: 'relevant',
+            review_status: 'awaiting_review',
+        },
+        { lean: true }
+    ) as Array<{
+        _id: string;
+        intelligence?: string;
+        email?: string | null;
+        enrichment_status?: string | null;
+        contact_info?: { emails?: Array<{ email?: string }>; phone_numbers?: Array<{ number?: string }> };
+    }>;
+
+    const withContact = posts.filter((post) => leadHasContactDetails(post));
+    const skipped = uniqueIds.length - withContact.length;
+
+    if (withContact.length === 0) {
+        return {
+            approved: 0,
+            skipped: uniqueIds.length,
+            message: 'No selected leads could be approved — they must be awaiting review with contact details.',
+        };
+    }
+
+    const approveIds = withContact.map((post) => post._id.toString());
+
+    await prisma.leadPost.updateMany({
+        where: { id: { in: approveIds } },
+        data: {
+            review_status: 'approved',
+            reviewed_at: new Date(),
+            reviewed_by_id: reviewerId,
+            is_training_data: true,
+        },
+    });
+
+    for (const post of withContact) {
+        if (!post.intelligence) {
+            await requestLeadIntelligence(post._id.toString());
+        }
+    }
+
+    scheduleAutoTrain().catch((err) => console.error('[AutoTrain] Schedule failed:', err.message));
+
+    await logLeadAction(reviewerId, {
+        action: 'lead.review.bulk_approve',
+        resource: 'lead_post',
+        organizationId: audit?.organizationId,
+        ipAddress: audit?.ipAddress,
+        details: { count: withContact.length, skipped, ids: approveIds },
+    });
+
+    const skipNote = skipped > 0 ? ` ${skipped} skipped (not awaiting approval or missing contact).` : '';
+
+    return {
+        approved: withContact.length,
+        skipped,
+        message: `${withContact.length} selected lead(s) approved.${skipNote}`,
+    };
+};
+
+export const bulkDeletePosts = async (
+    ids: string[],
+    reviewerId: string,
+    audit?: { ipAddress?: string; organizationId?: string }
+) => {
+    const uniqueIds = [...new Set(ids.filter(Boolean).map(String))];
+    if (uniqueIds.length === 0) {
+        throw new ErrorResponse('No lead IDs provided', 400);
+    }
+
+    const posts = await LeadPost.find(
+        { _id: { $in: uniqueIds }, is_deleted: false },
+        { lean: true }
+    ) as Array<{ _id: string; post_id: string; platform: string; keyword: string }>;
+
+    if (posts.length === 0) {
+        return { deleted: 0, message: 'No matching leads found to delete.' };
+    }
+
+    const deleteIds = posts.map((post) => post._id.toString());
+
+    await prisma.leadPost.updateMany({
+        where: { id: { in: deleteIds } },
+        data: {
+            is_deleted: true,
+            deleted_at: new Date(),
+        },
+    });
+
+    await logLeadAction(reviewerId, {
+        action: 'lead.bulk_delete',
+        resource: 'lead_post',
+        organizationId: audit?.organizationId,
+        ipAddress: audit?.ipAddress,
+        details: { count: deleteIds.length, ids: deleteIds },
+    });
+
+    return {
+        deleted: deleteIds.length,
+        message: `${deleteIds.length} lead(s) deleted.`,
+    };
+};
+
 export const bulkRejectLeadReviews = async (
     query: {
         status?: string;

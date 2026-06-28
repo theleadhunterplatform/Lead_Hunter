@@ -14,7 +14,17 @@ async function queuePlatformScrape(platform: string): Promise<{ platform: string
         platforms: platform,
     });
 
+    if (activeKeywords.length === 0) {
+        console.log(`📡 [KeywordScrape] Platform "${platform}": no active keywords configured — skipping`);
+        return { platform, keywords: 0 };
+    }
+
+    console.log(
+        `📡 [KeywordScrape] Platform "${platform}": queuing ${activeKeywords.length} keyword job(s)`
+    );
+
     for (const kw of activeKeywords) {
+        console.log(`  + [${platform}] "${kw.text}" (keywordId=${kw._id})`);
         await scraperQueue.add(`manual-scrape-${platform}-${kw.text}`, {
             keywordId: kw._id,
             platform,
@@ -34,6 +44,7 @@ async function queueKeywordScrape(keyword: { _id?: string; id?: string; text: st
     );
 
     for (const platform of platforms) {
+        console.log(`📡 [KeywordScrape] Single keyword "${keyword.text}" → platform: ${platform}`);
         await scraperQueue.add(
             `manual-scrape-${platform}-${keywordId}`,
             {
@@ -82,6 +93,7 @@ export const triggerKeywordScrape = asyncHandler(async (req: Request, res: Respo
 // @route   POST /api/scrapers/:platform
 // @access  Private/Admin
 const triggerScraper = async (platform: string, res: Response) => {
+    console.log(`📡 [KeywordScrape] Manual trigger requested for platform: ${platform}`);
     const result = await queuePlatformScrape(platform);
 
     if (result.keywords === 0) {
@@ -98,6 +110,11 @@ const triggerScraper = async (platform: string, res: Response) => {
 };
 
 export const triggerAllScrapers = asyncHandler(async (_req: Request, res: Response) => {
+    const platformList = KEYWORD_SCRAPE_PLATFORMS.join(', ');
+    console.log(
+        `📡 [KeywordScrape] Scrape-all requested — keyword platforms: [${platformList}] (manual scrape-all is LinkedIn-only)`
+    );
+
     const results = await Promise.all(
         KEYWORD_SCRAPE_PLATFORMS.map((platform) => queuePlatformScrape(platform))
     );
@@ -107,12 +124,18 @@ export const triggerAllScrapers = asyncHandler(async (_req: Request, res: Respon
         .map((r) => `${r.platform}: ${r.keywords}`)
         .join(', ');
 
+    console.log(
+        totalJobs === 0
+            ? '📡 [KeywordScrape] Scrape-all finished — no jobs queued'
+            : `📡 [KeywordScrape] Scrape-all finished — ${totalJobs} job(s) queued (${summary})`
+    );
+
     return res.status(200).json({
         success: true,
         message: totalJobs === 0
             ? 'No active keywords found for any platform'
-            : `Scraping queued for ${totalJobs} keyword jobs (${summary || 'none'})`,
-        data: { totalJobs, platforms: results },
+            : `Scraping queued for ${totalJobs} keyword job(s) on: ${summary || platformList}`,
+        data: { totalJobs, platforms: results, scrape_platforms: [...KEYWORD_SCRAPE_PLATFORMS] },
     });
 });
 
