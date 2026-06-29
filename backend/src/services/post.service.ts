@@ -397,7 +397,11 @@ export const bulkApproveLeadReviews = async (
     let approved = 0;
     for (const post of withContact) {
         if (!post.intelligence) {
-            await requestLeadIntelligence(post._id.toString());
+            try {
+                await requestLeadIntelligence(post._id.toString());
+            } catch (err: any) {
+                console.warn(`[BulkApprove] Intel queue failed for ${post._id}:`, err?.message || err);
+            }
         }
         approved += 1;
     }
@@ -472,7 +476,11 @@ export const bulkApproveLeadReviewsByIds = async (
 
     for (const post of withContact) {
         if (!post.intelligence) {
-            await requestLeadIntelligence(post._id.toString());
+            try {
+                await requestLeadIntelligence(post._id.toString());
+            } catch (err: any) {
+                console.warn(`[BulkApprove] Intel queue failed for ${post._id}:`, err?.message || err);
+            }
         }
     }
 

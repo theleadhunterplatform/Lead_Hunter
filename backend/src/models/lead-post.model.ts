@@ -31,7 +31,11 @@ const buildWhere = (filter: any = {}) => {
     const { $or, has_contact, ...rest } = filter;
     const where: any = {};
 
-    if (rest._id || rest.id) where.id = rest._id || rest.id;
+    if (rest._id?.$in) {
+        where.id = { in: rest._id.$in };
+    } else if (rest._id || rest.id) {
+        where.id = rest._id || rest.id;
+    }
     if (rest.is_deleted !== undefined) where.is_deleted = rest.is_deleted;
     if (rest.status) where.status = rest.status;
     if (rest.keyword) where.keyword = rest.keyword;
