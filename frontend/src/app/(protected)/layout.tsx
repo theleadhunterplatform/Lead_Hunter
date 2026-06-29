@@ -21,6 +21,7 @@ import { cn } from "@/components/ui/HunterUI";
 import { useAuth } from "@/context/AuthContext";
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
+import { ADMIN_ROUTES, hasAdminAreaAccess } from "@/lib/routes";
 
 export default function ProtectedLayout({
   children,
@@ -31,6 +32,16 @@ export default function ProtectedLayout({
   const pathname = usePathname();
   const { user, loading, hasPermission, logout, activeOrgId, setActiveOrgId, permissions } = useAuth();
   const [organizations, setOrganizations] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!loading && !user) {
+      const redirectParam =
+        pathname === ADMIN_ROUTES.root || pathname.startsWith(`${ADMIN_ROUTES.root}/`)
+          ? `?redirect=${encodeURIComponent(pathname)}`
+          : "";
+      router.replace(`/login${redirectParam}`);
+    }
+  }, [loading, user, router, pathname]);
 
   useEffect(() => {
     // Fetch organizations for the switcher
@@ -58,24 +69,35 @@ export default function ProtectedLayout({
     );
   }
 
+  const isPlatformAdmin = permissions.has("*");
+  const inAdminArea = hasAdminAreaAccess(permissions, hasPermission);
+
   const navItems = [
-    { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     {
-      name: permissions.has('*') ? "Lead Intelligence" : "Strategic Leads",
-      href: permissions.has('*') ? "/lead-intelligence" : "/leads/relevant",
-      icon: MessageSquare,
-      permission: 'lead:read',
+      name: "Dashboard",
+      href: inAdminArea ? ADMIN_ROUTES.dashboard : "/dashboard",
+      icon: LayoutDashboard,
     },
-    { name: "My CRM", href: "/crm", icon: LayoutDashboard, permission: 'lead:read' },
+    {
+      name: isPlatformAdmin ? "Lead Intelligence" : "Strategic Leads",
+      href: isPlatformAdmin ? ADMIN_ROUTES.leadIntelligence : "/leads/relevant",
+      icon: MessageSquare,
+      permission: "lead:read",
+    },
+    { name: "My CRM", href: "/crm", icon: LayoutDashboard, permission: "lead:read" },
     { name: "Hall of Hunters", href: "/leaderboard", icon: Trophy },
-    { name: "Organization Team", href: "/team", icon: Users, permission: 'user:read' },
-    { name: "Search Keys", href: "/tokens", icon: Key, permission: 'scraping:manage' },
-    { name: "Search Keywords", href: "/keywords", icon: Hash, permission: 'keyword:read' },
-    { name: "Watchlist", href: "/targets", icon: UserSearch, permission: 'target:read' },
+    { name: "Organization Team", href: ADMIN_ROUTES.team, icon: Users, permission: "user:read" },
+    { name: "Search Keys", href: ADMIN_ROUTES.tokens, icon: Key, permission: "scraping:manage" },
+    { name: "Search Keywords", href: ADMIN_ROUTES.keywords, icon: Hash, permission: "keyword:create" },
+    { name: "Watchlist", href: ADMIN_ROUTES.targets, icon: UserSearch, permission: "target:read" },
+    { name: "RBAC Engine", href: ADMIN_ROUTES.rbac, icon: Shield, permission: "role:read" },
   ];
 
   const filteredNavItems = navItems.filter(item => {
     if (item.permission && !hasPermission(item.permission)) return false;
+
+    // Platform admins manage leads in Lead Intelligence, not My CRM
+    if (item.href === "/crm" && isPlatformAdmin) return false;
 
     // Admin defined restriction for Lead related data
     const isLeadModule = item.name.toLowerCase().includes('lead') || item.name.toLowerCase().includes('crm');
@@ -119,9 +141,11 @@ export default function ProtectedLayout({
           {filteredNavItems.map((item) => {
             const isActive =
               pathname === item.href ||
-              (item.href === '/lead-intelligence' && pathname.startsWith('/lead-intelligence')) ||
-              (item.href === '/leads/relevant' && pathname.startsWith('/leads/relevant')) ||
-              (item.href === '/keywords' && pathname.startsWith('/keywords'));
+              (item.href === ADMIN_ROUTES.leadIntelligence &&
+                pathname.startsWith(ADMIN_ROUTES.leadIntelligence)) ||
+              (item.href === "/leads/relevant" && pathname.startsWith("/leads/relevant")) ||
+              (item.href.startsWith(`${ADMIN_ROUTES.root}/`) &&
+                pathname.startsWith(item.href));
             return (
               <Link
                 key={item.href}

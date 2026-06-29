@@ -112,6 +112,7 @@ export async function getDashboardStats(currentUser: any) {
             where: {
                 ...baseLeadFilter,
                 status: 'relevant',
+                review_status: 'approved',
                 intelligence: { not: null },
             },
         }),

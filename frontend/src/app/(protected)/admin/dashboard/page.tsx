@@ -11,9 +11,9 @@ import ReactMarkdown from 'react-markdown';
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { ADMIN_ROUTES, hasAdminAreaAccess } from "@/lib/routes";
+import { ADMIN_ROUTES } from "@/lib/routes";
 
-export default function DashboardPage() {
+export default function AdminDashboardPage() {
   const router = useRouter();
   const { user, refreshUser, hasPermission, permissions, loading: authLoading } = useAuth();
   const [teamCount, setTeamCount] = useState<number>(0);
@@ -101,10 +101,10 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (authLoading) return;
-    if (hasAdminAreaAccess(permissions, hasPermission)) {
-      router.replace(ADMIN_ROUTES.dashboard);
+    if (isNormalUser) {
+      router.replace("/dashboard");
     }
-  }, [authLoading, permissions, hasPermission, router]);
+  }, [authLoading, isNormalUser, router]);
 
   const weeklyGoal = stats?.weekly_goal ?? 100;
   const weeklyProgress = stats?.leads?.qualified_this_week ?? 0;
@@ -135,7 +135,7 @@ export default function DashboardPage() {
     return <div className="flex items-center justify-center min-h-screen">Loading Dashboard...</div>;
   }
 
-  if (hasAdminAreaAccess(permissions, hasPermission)) {
+  if (isNormalUser) {
     return <div className="flex items-center justify-center min-h-screen">Loading Dashboard...</div>;
   }
 
@@ -182,7 +182,7 @@ export default function DashboardPage() {
           </div>
         </div>
         <div className="flex flex-col gap-4">
-          <Button className="md:text-xl px-8" onClick={() => window.location.href = isInternal ? '/lead-intelligence' : '/leads/relevant'}>
+          <Button className="md:text-xl px-8" onClick={() => window.location.href = isInternal ? '/admin/lead-intelligence' : '/leads/relevant'}>
             Find Leads
           </Button>
         </div>
@@ -200,7 +200,7 @@ export default function DashboardPage() {
             <p className="text-hunter-orange font-bold uppercase text-[10px] tracking-[0.2em] mb-6">Master system configuration and oversight</p>
             
             <div className="flex flex-wrap gap-6">
-              <Link href="/rbac" className="flex items-center gap-2 group">
+              <Link href="/admin/rbac" className="flex items-center gap-2 group">
                 <div className="p-2 bg-hunter-grey neo-border border-zinc-800 group-hover:border-hunter-orange transition-colors">
                   <Shield className="text-hunter-orange" size={20} />
                 </div>
@@ -210,7 +210,7 @@ export default function DashboardPage() {
                 </div>
               </Link>
 
-              <Link href="/tokens" className="flex items-center gap-2 group">
+              <Link href="/admin/tokens" className="flex items-center gap-2 group">
                 <div className="p-2 bg-hunter-grey neo-border border-zinc-800 group-hover:border-hunter-orange transition-colors">
                   <Zap className="text-hunter-orange" size={20} />
                 </div>
@@ -222,7 +222,7 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="bg-hunter-grey p-8 md:w-80 flex flex-col justify-center gap-4">
-             <Link href="/lead-intelligence">
+             <Link href="/admin/lead-intelligence">
                <Button variant="secondary" className="w-full">Lead Intelligence</Button>
              </Link>
              <Button
@@ -246,7 +246,7 @@ export default function DashboardPage() {
             <p className="text-zinc-500 font-bold uppercase text-[10px] tracking-[0.2em] mb-6">Manage your team and watch leads come in</p>
             
             <div className="flex flex-wrap gap-6">
-              <Link href="/team" className="flex items-center gap-2 group">
+              <Link href="/admin/team" className="flex items-center gap-2 group">
                 <div className="p-2 bg-hunter-grey neo-border border-zinc-800 group-hover:border-hunter-orange transition-colors">
                   <Users className="text-hunter-orange" size={20} />
                 </div>
@@ -256,7 +256,7 @@ export default function DashboardPage() {
                 </div>
               </Link>
 
-              <Link href="/keywords" className="flex items-center gap-2 group">
+              <Link href="/admin/keywords" className="flex items-center gap-2 group">
                 <div className="p-2 bg-hunter-grey neo-border border-zinc-800 group-hover:border-hunter-orange transition-colors">
                   <Activity className="text-hunter-orange" size={20} />
                 </div>
@@ -269,20 +269,20 @@ export default function DashboardPage() {
           </div>
 
           <div className="bg-hunter-grey p-8 md:w-80 flex flex-col justify-center gap-4">
-            <Link href="/team" className="w-full">
+            <Link href="/admin/team" className="w-full">
               <Button variant="secondary" className="w-full flex items-center justify-between group">
                 <span>Add Team Member</span>
                 <UserPlus size={18} className="group-hover:scale-110 transition-transform" />
               </Button>
             </Link>
-            <Link href={isInternal ? "/lead-intelligence" : "/leads/relevant"} className="w-full text-center py-3 border-2 border-zinc-800 font-display font-black uppercase text-xs tracking-widest hover:bg-zinc-800 transition-colors">
+            <Link href={isInternal ? "/admin/lead-intelligence" : "/leads/relevant"} className="w-full text-center py-3 border-2 border-zinc-800 font-display font-black uppercase text-xs tracking-widest hover:bg-zinc-800 transition-colors">
               View All Posts
             </Link>
           </div>
         </motion.div>
       ) : (
         <div className="mb-10 grid grid-cols-1 md:grid-cols-2 gap-6">
-           <Link href={isInternal ? "/lead-intelligence" : "/leads/relevant"} className="bg-hunter-grey p-8 neo-border border-zinc-800 hover:border-hunter-orange transition-all group">
+           <Link href={isInternal ? "/admin/lead-intelligence" : "/leads/relevant"} className="bg-hunter-grey p-8 neo-border border-zinc-800 hover:border-hunter-orange transition-all group">
               <h3 className="text-2xl font-display font-black uppercase mb-2">Find Leads</h3>
               <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-6">Explore qualified intelligence</p>
               <div className="flex items-center gap-2 text-hunter-orange font-black text-xs uppercase tracking-widest">
@@ -323,7 +323,7 @@ export default function DashboardPage() {
             <h2 className="text-3xl font-display font-black uppercase flex items-center gap-3">
               <BrainCircuit className="text-hunter-orange" /> Top Intelligence
             </h2>
-            <Link href={isInternal ? "/lead-intelligence" : "/leads/relevant"} className="text-zinc-500 font-bold uppercase text-[10px] tracking-widest hover:text-hunter-orange transition-colors">
+            <Link href={isInternal ? "/admin/lead-intelligence" : "/leads/relevant"} className="text-zinc-500 font-bold uppercase text-[10px] tracking-widest hover:text-hunter-orange transition-colors">
               View All Reports
             </Link>
           </div>
@@ -351,13 +351,13 @@ export default function DashboardPage() {
                     )}
                   </div>
                   <div className="flex items-center justify-between gap-4 mt-2">
-                    <Link href={isInternal ? "/lead-intelligence" : "/leads/relevant"} className="inline-flex items-center gap-2 text-hunter-orange text-[9px] font-black uppercase tracking-widest group-hover:gap-3 transition-all">
+                    <Link href={isInternal ? "/admin/lead-intelligence" : "/leads/relevant"} className="inline-flex items-center gap-2 text-hunter-orange text-[9px] font-black uppercase tracking-widest group-hover:gap-3 transition-all">
                       Open Full Strategy <ChevronRight size={12} />
                     </Link>
                     
                     {isInternal ? (
                       <Link
-                        href="/lead-intelligence"
+                        href="/admin/lead-intelligence"
                         className="text-[9px] font-black uppercase text-hunter-orange flex items-center gap-1 hover:underline"
                       >
                         Review in Lead Intelligence <ChevronRight size={12} />

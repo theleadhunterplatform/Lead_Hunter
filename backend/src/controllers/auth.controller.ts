@@ -81,6 +81,14 @@ export const toggleUserAccess = asyncHandler(async (req: Request, res: Response,
     });
 });
 
+export const deactivateOrganizationUser = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+    await authService.deactivateOrgUser(req.user as any, req.params.id as string);
+    res.status(200).json({
+        success: true,
+        message: 'User deactivated',
+    });
+});
+
 // @desc    Get authorized organizations
 // @route   GET /api/auth/organizations
 // @access  Private

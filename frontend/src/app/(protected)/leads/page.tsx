@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { ADMIN_ROUTES } from "@/lib/routes";
 
 export default function LeadsRedirectPage() {
   const router = useRouter();
@@ -12,7 +13,7 @@ export default function LeadsRedirectPage() {
 
   useEffect(() => {
     if (loading) return;
-    router.replace(isInternal ? "/lead-intelligence" : "/leads/relevant");
+    router.replace(isInternal ? ADMIN_ROUTES.leadIntelligence : "/leads/relevant");
   }, [loading, isInternal, router]);
 
   return (

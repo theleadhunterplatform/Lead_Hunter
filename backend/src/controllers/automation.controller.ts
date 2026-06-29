@@ -11,6 +11,17 @@ import {
     isKeepAliveEnabled,
 } from '../utils/automation-settings.utils';
 import { isKeepAliveConfigured, pingKeepAliveUrls } from '../services/keep-alive.service';
+import config from '../config';
+
+export const getIntelligenceSettings = asyncHandler(async (_req: Request, res: Response) => {
+    return res.status(200).json({
+        success: true,
+        data: {
+            is_configured: Boolean(config.openRouter.apiKey?.trim()),
+            model: config.openRouter.intelModel,
+        },
+    });
+});
 
 export const getAutomationSettings = asyncHandler(async (_req: Request, res: Response) => {
     return res.status(200).json({

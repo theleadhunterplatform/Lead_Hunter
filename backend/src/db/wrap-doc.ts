@@ -29,6 +29,7 @@ export const wrapDoc = (
             delete data.updatedAt;
             delete data.created_at;
             delete data.updated_at;
+            delete data._id;
 
             if (data.organization && typeof data.organization === 'object') {
                 data.organizationId = (data.organization as any).id || (data.organization as any)._id;

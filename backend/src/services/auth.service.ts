@@ -231,16 +231,53 @@ export const updateUserAccess = async (currentUser: any, targetUserId: string, e
         throw new ErrorResponse('Target user not found', 404);
     }
 
-    // Context check: only allow modifying users in same org if not global admin
-    if (targetUser.organization?.toString() !== currentUser.organization?.toString()) {
-        // Here we'd ideally check if currentUser has global 'user:update'
+    const permissions = await getUserPermissions(currentUser._id.toString());
+    const isGlobalAdmin =
+        hasPermission(permissions, '*') || hasPermission(permissions, 'user:update');
+
+    if (
+        !isGlobalAdmin &&
+        targetUser.organization?.toString() !== currentUser.organization?.toString()
+    ) {
         throw new ErrorResponse('Not authorized to modify users outside your organization', 403);
     }
 
-    targetUser.is_active = enabled; // Map access_enabled to is_active for standard compliance
-    await targetUser.save();
+    return await User.findOneAndUpdate(
+        { _id: targetUserId },
+        { lead_access_enabled: enabled }
+    );
+};
 
-    return targetUser;
+export const deactivateOrgUser = async (currentUser: any, targetUserId: string) => {
+    const targetUser = await User.findById(targetUserId);
+    if (!targetUser) {
+        throw new ErrorResponse('Target user not found', 404);
+    }
+
+    if (targetUser._id.toString() === currentUser._id.toString()) {
+        throw new ErrorResponse('Cannot deactivate your own account', 400);
+    }
+
+    const permissions = await getUserPermissions(currentUser._id.toString());
+    const isGlobalAdmin =
+        hasPermission(permissions, '*') || hasPermission(permissions, 'user:update');
+
+    if (
+        !isGlobalAdmin &&
+        targetUser.organization?.toString() !== currentUser.organization?.toString()
+    ) {
+        throw new ErrorResponse('Not authorized to deactivate users outside your organization', 403);
+    }
+
+    return await User.findOneAndUpdate(
+        { _id: targetUserId },
+        {
+            is_deleted: true,
+            is_active: false,
+            lead_access_enabled: false,
+            deleted_at: new Date(),
+        }
+    );
 };
 
 export const getUserOrganizations = async (currentUser: any) => {

@@ -7,6 +7,7 @@ import {
     getOrganizationUsers,
     addOrganizationUser,
     toggleUserAccess,
+    deactivateOrganizationUser,
     getOrganizations
 } from '../controllers/auth.controller';
 import { protect, authorize } from '../middleware/auth';
@@ -25,5 +26,6 @@ router.get('/organizations', protect, getOrganizations);
 router.get('/organization/users', protect, authorize('user:read'), getOrganizationUsers);
 router.post('/organization/users', protect, authorize('user:create'), addOrganizationUser);
 router.put('/organization/users/:id/access', protect, authorize('user:update'), toggleUserAccess);
+router.delete('/organization/users/:id', protect, authorize('user:update'), deactivateOrganizationUser);
 
 export default router;

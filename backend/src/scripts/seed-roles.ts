@@ -35,7 +35,7 @@ const seedRolesAndPermissions = async () => {
                 description: 'Team member focused on finding and qualifying leads',
                 is_system_role: false,
                 scopeType: 'organization',
-                permissions: ['lead:read', 'lead:claim', 'keyword:read']
+                permissions: ['lead:read', 'lead:claim']
             },
             {
                 name: 'Normal User',

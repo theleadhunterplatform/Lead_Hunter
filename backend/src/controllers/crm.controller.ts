@@ -78,7 +78,7 @@ export const sendEmailToLead = asyncHandler(async (req: Request, res: Response) 
 // @route   POST /api/crm/team/invite
 // @access  Private (Org Admin)
 export const inviteTeamMember = asyncHandler(async (req: Request, res: Response) => {
-    const { email, name, roleSlug = 'org_user' } = req.body;
+    const { email, name, password, roleSlug = 'org_user' } = req.body;
     const adminUser = req.user as any;
 
     if (!adminUser.organization) {
@@ -91,11 +91,11 @@ export const inviteTeamMember = asyncHandler(async (req: Request, res: Response)
         throw new ErrorResponse('User already exists in the system.', 400);
     }
 
-    // 2. Create user (Initial password should be changed)
+    // 2. Create user
     user = await User.create({
         name,
         email,
-        password: 'ChangeMe123!',
+        password: password?.trim() || 'ChangeMe123!',
         organization: adminUser.organization
     });
 

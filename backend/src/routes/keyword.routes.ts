@@ -54,7 +54,7 @@ router.use(protect);
  *         description: Keyword created
  */
 router.route('/')
-    .get(authorize('keyword:read'), getKeywords)
+    .get(authorize('keyword:create'), getKeywords)
     .post(authorize('keyword:create'), validate(createKeywordSchema), addKeyword);
 
 router.route('/bulk')
@@ -108,7 +108,7 @@ router.route('/bulk')
  *         description: Keyword removed
  */
 router.route('/:id')
-    .get(authorize('keyword:read'), getKeyword)
+    .get(authorize('keyword:create'), getKeyword)
     .put(authorize('keyword:update'), validate(updateKeywordSchema), updateKeyword)
     .delete(authorize('keyword:delete'), deleteKeyword);
 

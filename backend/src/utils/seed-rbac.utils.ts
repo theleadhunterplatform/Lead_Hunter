@@ -51,7 +51,6 @@ const SEED_ROLES = [
         permissions: [
             "lead:read",
             "lead:claim",
-            "keyword:read"
         ],
         scopeType: "organization",
         isSystemRole: true
@@ -64,7 +63,6 @@ const SEED_ROLES = [
             "lead:read",
             "lead:claim",
             "lead:hunt",
-            "keyword:read"
         ],
         scopeType: "global",
         isSystemRole: true

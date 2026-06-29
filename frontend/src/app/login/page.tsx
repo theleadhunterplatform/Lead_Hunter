@@ -1,17 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { motion } from "framer-motion";
 import { LogIn, ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button, Input } from "@/components/ui/HunterUI";
 import api from "@/lib/api";
 
 import { useAuth } from "@/context/AuthContext";
+import { ADMIN_ROUTES } from "@/lib/routes";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { refreshUser } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -32,7 +34,12 @@ export default function LoginPage() {
       localStorage.setItem("hunter_refresh_token", payload.refresh_token);
       localStorage.setItem("hunter_user", JSON.stringify(payload.user));
       await refreshUser();
-      router.push("/dashboard");
+      const redirect = searchParams.get("redirect");
+      const destination =
+        redirect === ADMIN_ROUTES.root || redirect?.startsWith(`${ADMIN_ROUTES.root}/`)
+          ? redirect
+          : "/dashboard";
+      router.push(destination);
     } catch (err: any) {
       setError(err.response?.data?.error || err.response?.data?.message || err.message || "Login failed. Please check your email and password.");
     } finally {
@@ -125,5 +132,19 @@ export default function LoginPage() {
         </form>
       </motion.div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <Loader2 className="w-8 h-8 text-hunter-orange animate-spin" />
+        </div>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   );
 }

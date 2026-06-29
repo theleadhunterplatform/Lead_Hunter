@@ -3,6 +3,7 @@
 import { LinkedinLogo, RedditLogo, ThreadsLogo, XLogo } from "@/components/BrandIcons";
 import { Button } from "@/components/ui/HunterUI";
 import { useAuth } from "@/context/AuthContext";
+import { ADMIN_ROUTES } from "@/lib/routes";
 import api from "@/lib/api";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -21,7 +22,7 @@ import {
     Zap
 } from "lucide-react";
 import { useEffect, useState, useCallback } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 interface Lead {
@@ -60,7 +61,8 @@ interface Lead {
 import ReactMarkdown from 'react-markdown';
 
 export default function StrategicLeadsPage() {
-  const { refreshUser, permissions } = useAuth();
+  const router = useRouter();
+  const { refreshUser, permissions, loading: authLoading } = useAuth();
   const searchParams = useSearchParams();
   const leadFromUrl = searchParams.get("lead");
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -70,6 +72,11 @@ export default function StrategicLeadsPage() {
   const [claimingIds, setClaimingIds] = useState<string[]>([]);
 
   const isInternal = permissions.has('*');
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (isInternal) router.replace(ADMIN_ROUTES.leadIntelligence);
+  }, [authLoading, isInternal, router]);
 
   const handleClaim = async (leadId: string) => {
     try {
@@ -248,9 +255,13 @@ export default function StrategicLeadsPage() {
                 <p className="text-[11px] text-zinc-400 line-clamp-2 leading-relaxed font-medium">
                   {lead.content}
                 </p>
-                {lead.intelligence && (
+                {lead.intelligence ? (
                   <div className="mt-3 flex items-center gap-2 text-green-500 text-[8px] font-black uppercase tracking-widest">
                     <BrainCircuit size={10} /> Intelligence Ready
+                  </div>
+                ) : (
+                  <div className="mt-3 flex items-center gap-2 text-hunter-orange text-[8px] font-black uppercase tracking-widest">
+                    <Loader2 size={10} className="animate-spin" /> Report Generating
                   </div>
                 )}
               </button>
@@ -319,16 +330,19 @@ export default function StrategicLeadsPage() {
                     ) : (
                       <Button 
                         variant="primary" 
-                        className="flex items-center gap-3 bg-hunter-orange text-black hover:bg-white hover:scale-105 transition-all shadow-[0_0_20px_rgba(255,107,0,0.3)]"
+                        className="flex items-center gap-3 bg-hunter-orange text-black hover:bg-white hover:scale-105 transition-all shadow-[0_0_20px_rgba(255,107,0,0.3)] disabled:opacity-50 disabled:hover:scale-100"
                         onClick={() => handleClaim(selectedLead._id)}
-                        disabled={claimingIds.includes(selectedLead._id)}
+                        disabled={claimingIds.includes(selectedLead._id) || !selectedLead.intelligence}
+                        title={!selectedLead.intelligence ? "Strategic report is still generating" : undefined}
                       >
                         {claimingIds.includes(selectedLead._id) ? (
                           <Loader2 size={18} className="animate-spin" />
                         ) : (
                           <Zap size={18} />
                         )}
-                        Claim Lead to Unlock Contact
+                        {!selectedLead.intelligence
+                          ? "Report Generating — Claim Soon"
+                          : "Claim Lead to Unlock Contact"}
                       </Button>
                     )}
                     <Button 
@@ -425,10 +439,8 @@ export default function StrategicLeadsPage() {
                             <BrainCircuit size={32} className="text-zinc-800" />
                           </div>
                           <p className="text-xs text-zinc-500 font-bold uppercase tracking-widest leading-relaxed max-w-md">
-                            No strategic report for this lead yet.
-                            {isInternal
-                              ? " Go to Lead Intelligence → Approved and click Retry intel generation."
-                              : " This lead is not ready to claim — check back later."}
+                            Strategic report is still being generated.
+                            This lead is visible here — refresh in a moment, then you can claim it.
                           </p>
                         </div>
                       )}

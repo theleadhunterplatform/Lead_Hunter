@@ -263,7 +263,14 @@ export const approveLeadReview = async (
     });
 
     if (!updated.intelligence) {
-        await requestLeadIntelligence(id);
+        try {
+            await requestLeadIntelligence(id);
+        } catch (err: any) {
+            console.error(
+                `[approveLeadReview] Lead ${id} approved but intelligence generation failed:`,
+                err?.message || err
+            );
+        }
     }
 
     scheduleAutoTrain().catch((err) => console.error('[AutoTrain] Schedule failed:', err.message));
@@ -621,11 +628,11 @@ export const getAllPosts = async (currentUser: any, query: {
 
     const filter: any = { is_deleted: false };
 
-    // Security Filter: External users only see admin-approved leads with intelligence
+    // Security Filter: External users only see admin-approved leads.
+    // Intelligence may still be generating; claim requires a completed report.
     if (!isInternal) {
         filter.status = 'relevant';
         filter.review_status = 'approved';
-        filter.intelligence = { $ne: null };
     } else if (query.status && query.status !== 'all') {
         applyListTabFilter(filter, query.status);
     }
@@ -763,12 +770,20 @@ export const getPostById = async (id: string) => {
 
 export const getPostForUser = async (currentUser: any, id: string) => {
     const post = await getPostById(id);
+
+    const permissions = await getUserPermissions(currentUser.id, currentUser.organization?.toString());
+    const isInternal = checkPermission(permissions, '*') || checkPermission(permissions, 'system:admin');
+
+    if (
+        !isInternal &&
+        (post.status !== 'relevant' || post.review_status !== 'approved')
+    ) {
+        throw new ErrorResponse('Post not found with id of ' + id, 404);
+    }
     
     // Check if claimed
     const isClaimed = await Claim.exists({ userId: currentUser.id, leadId: id });
     
-    const permissions = await getUserPermissions(currentUser.id, currentUser.organization?.toString());
-    const isInternal = checkPermission(permissions, '*') || checkPermission(permissions, 'system:admin');
     const shouldShowSensitive = !!isClaimed || isInternal;
     const contact = sanitizeContactFields(post, { isInternal, isClaimed: !!isClaimed });
 

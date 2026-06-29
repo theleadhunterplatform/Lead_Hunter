@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { LayoutDashboard, MessageSquare, Mail, Phone, Calendar, ArrowRight, Save, Clock, User, ExternalLink, ChevronDown, CheckCircle2, XCircle, MoreVertical } from "lucide-react";
 import { Button, Input } from "@/components/ui/HunterUI";
@@ -8,6 +9,8 @@ import api from "@/lib/api";
 import { cn } from "@/components/ui/HunterUI";
 import { toast } from "sonner";
 import { LinkedinLogo, XLogo, RedditLogo, ThreadsLogo } from "@/components/BrandIcons";
+import { useAuth } from "@/context/AuthContext";
+import { ADMIN_ROUTES } from "@/lib/routes";
 
 interface ClaimedLead {
   _id: string;
@@ -33,6 +36,8 @@ interface ClaimedLead {
 }
 
 export default function CRMPage() {
+  const router = useRouter();
+  const { permissions, loading: authLoading } = useAuth();
   const [claims, setClaims] = useState<ClaimedLead[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingIds, setSavingIds] = useState<string[]>([]);
@@ -51,8 +56,16 @@ export default function CRMPage() {
   };
 
   useEffect(() => {
+    if (authLoading) return;
+    if (permissions.has('*')) {
+      router.replace(ADMIN_ROUTES.leadIntelligence);
+    }
+  }, [authLoading, permissions, router]);
+
+  useEffect(() => {
+    if (authLoading || permissions.has('*')) return;
     fetchClaimedLeads();
-  }, []);
+  }, [authLoading, permissions]);
 
   const updateStatus = async (claimId: string, status: string) => {
     try {
@@ -105,6 +118,14 @@ export default function CRMPage() {
     rejected: "text-red-400 bg-red-400/10 border-red-400/20",
     archived: "text-zinc-500 bg-zinc-500/10 border-zinc-500/20",
   };
+
+  if (authLoading || permissions.has('*')) {
+    return (
+      <div className="p-8 flex justify-center py-40">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-hunter-orange"></div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
