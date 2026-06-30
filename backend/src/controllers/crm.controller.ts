@@ -3,6 +3,7 @@ import asyncHandler from '../middleware/async';
 import Claim from '../models/claim.model';
 import User from '../models/user.model';
 import ErrorResponse from '../utils/error-response.utils';
+import { hashPassword } from '../utils/password.utils';
 import RoleAssignment from '../models/role-assignment.model';
 import Role from '../models/role.model';
 
@@ -86,18 +87,36 @@ export const inviteTeamMember = asyncHandler(async (req: Request, res: Response)
     }
 
     // 1. Check if user already exists
-    let user = await User.findOne({ email });
-    if (user) {
+    const normalizedEmail = email.toLowerCase().trim();
+    let user = await User.findOne({ email: normalizedEmail });
+    if (user && !user.is_deleted) {
         throw new ErrorResponse('User already exists in the system.', 400);
     }
 
-    // 2. Create user
-    user = await User.create({
-        name,
-        email,
-        password: password?.trim() || 'ChangeMe123!',
-        organization: adminUser.organization
-    });
+    if (user?.is_deleted) {
+        await RoleAssignment.removeAllForUser(user._id.toString());
+        user = await User.findOneAndUpdate(
+            { _id: user._id },
+            {
+                name,
+                password: await hashPassword(password?.trim() || 'ChangeMe123!'),
+                organizationId: adminUser.organization,
+                is_deleted: false,
+                is_active: true,
+                lead_access_enabled: true,
+                deleted_at: null,
+                status: 'active',
+            }
+        );
+    } else {
+        // 2. Create user
+        user = await User.create({
+            name,
+            email: normalizedEmail,
+            password: password?.trim() || 'ChangeMe123!',
+            organization: adminUser.organization
+        });
+    }
 
     // 3. Assign Role in this organization
     const role = await Role.findOne({ slug: roleSlug });

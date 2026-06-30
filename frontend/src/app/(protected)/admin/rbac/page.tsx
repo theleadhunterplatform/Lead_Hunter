@@ -293,6 +293,7 @@ export default function RBACPage() {
                 </div>
 
                 {assignments
+                  .filter((a) => !a.userId?.is_deleted)
                   .filter(a => a.userId?.name?.toLowerCase().includes(searchTerm.toLowerCase()) || a.userId?.email?.toLowerCase().includes(searchTerm.toLowerCase()))
                   .map(assignment => (
                     <div key={assignment._id} className="bg-hunter-grey p-6 neo-border border-zinc-800 flex flex-col md:flex-row md:items-center justify-between group hover:border-hunter-orange transition-all">

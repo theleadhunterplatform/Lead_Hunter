@@ -86,6 +86,9 @@ export const createRoleAssignment = asyncHandler(async (req: Request, res: Respo
     ]);
 
     if (!user) return next(new ErrorResponse('User not found', 404));
+    if (user.is_deleted) {
+        return next(new ErrorResponse('Cannot assign roles to a deactivated user. Re-invite them first.', 400));
+    }
     if (!role) return next(new ErrorResponse('Role not found', 404));
 
     // 2. AUTHORITY VALIDATION (CRITICAL)
@@ -147,10 +150,15 @@ export const getRoleAssignments = asyncHandler(async (req: Request, res: Respons
     }
 
     const assignments = await RoleAssignment.find(query, { populate: ['roleId', 'userId'] });
+    const activeAssignments = assignments.filter((assignment: any) => {
+        const assignedUser = assignment.userId;
+        if (!assignedUser || typeof assignedUser !== 'object') return true;
+        return !assignedUser.is_deleted;
+    });
 
     res.status(200).json({
         success: true,
-        data: assignments
+        data: activeAssignments
     });
 });
 

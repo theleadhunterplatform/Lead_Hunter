@@ -98,13 +98,13 @@ export default function TeamPage() {
       return;
     }
 
-    if (!window.confirm(`Deactivate ${member.name}? They will lose access to the platform.`)) return;
+    if (!window.confirm(`Deactivate ${member.name}? They will lose access and their role assignments will be removed.`)) return;
 
     setDeleteLoading(memberId);
     try {
       await api.delete(`/auth/organization/users/${memberId}`);
       fetchMembers();
-      toast.success("User deactivated.");
+      toast.success("User deactivated and access revoked.");
     } catch (err: any) {
       const msg =
         err.response?.data?.error ||

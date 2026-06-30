@@ -59,7 +59,9 @@ const RoleAssignment = {
 
         if (populateList.includes('roleId') || populateList.length === 0) include.role = true;
         if (populateList.includes('userId')) {
-            include.user = { select: { id: true, name: true, email: true } };
+            include.user = {
+                select: { id: true, name: true, email: true, is_deleted: true, is_active: true },
+            };
         }
 
         const assignments = await prisma.roleAssignment.findMany({
@@ -84,6 +86,11 @@ const RoleAssignment = {
     async removeById(id: string) {
         await prisma.roleAssignment.delete({ where: { id } });
         return { deletedCount: 1 };
+    },
+
+    async removeAllForUser(userId: string) {
+        const result = await prisma.roleAssignment.deleteMany({ where: { userId } });
+        return { deletedCount: result.count };
     },
 
     async create(data: any) {

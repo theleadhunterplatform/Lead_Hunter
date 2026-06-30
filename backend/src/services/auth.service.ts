@@ -7,14 +7,82 @@ import { generateTokenPair } from '../utils/token.utils';
 import jwt from 'jsonwebtoken';
 import config from '../config';
 import { getUserPermissions, hasPermission } from '../utils/rbac.utils';
+import { hashPassword } from '../utils/password.utils';
+
+async function reactivateDeletedUser(
+    existing: any,
+    data: { name: string; password: string; organizationId?: string | null }
+) {
+    const updateData: Record<string, unknown> = {
+        name: data.name,
+        password: await hashPassword(data.password),
+        is_deleted: false,
+        is_active: true,
+        lead_access_enabled: true,
+        deleted_at: null,
+        status: 'active',
+    };
+
+    if (data.organizationId !== undefined) {
+        updateData.organizationId = data.organizationId;
+    }
+
+    return User.findOneAndUpdate({ _id: existing._id || existing.id }, updateData);
+}
 
 export const registerUser = async (userData: any) => {
     const { name, email: rawEmail, password, organization_name, referred_by } = userData;
     const email = rawEmail.toLowerCase().trim();
 
-    const userExists = await User.findOne({ email });
-    if (userExists) {
+    const existingUser = await User.findOne({ email });
+    if (existingUser && !existingUser.is_deleted) {
         throw new ErrorResponse('User already exists', 400);
+    }
+
+    if (existingUser?.is_deleted) {
+        await RoleAssignment.removeAllForUser(existingUser._id.toString());
+        const user = await reactivateDeletedUser(existingUser, { name, password });
+        let organizationId: any = user.organization?.toString?.() || user.organization || undefined;
+
+        if (organization_name) {
+            const org = await Organization.create({
+                name: organization_name,
+                ownerId: user._id,
+            });
+            organizationId = org._id;
+            await User.findOneAndUpdate(
+                { _id: user._id },
+                { organizationId: org._id }
+            );
+            user.organization = organizationId;
+        }
+
+        const roleSlug = organization_name ? 'org_admin' : 'normal_user';
+        const targetRole = await Role.findOne({ slug: roleSlug });
+        if (!targetRole) {
+            throw new ErrorResponse('System error: Default roles not initialized', 500);
+        }
+
+        await RoleAssignment.create({
+            userId: user._id,
+            roleId: targetRole._id,
+            scope: {
+                type: targetRole.scopeType,
+                organizationId: targetRole.scopeType === 'organization' ? organizationId : undefined,
+            },
+            assignedBy: user._id,
+        });
+
+        const tokens = generateTokenPair(user._id.toString());
+        return {
+            user: {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                organization: user.organization,
+            },
+            ...tokens,
+        };
     }
 
     let roleSlug = organization_name ? 'org_admin' : 'normal_user';
@@ -183,7 +251,8 @@ export const getOrgUsers = async (currentUser: any, providedOrgId?: string) => {
 };
 
 export const addOrgUser = async (currentUser: any, userData: any) => {
-    const { name, email, password } = userData;
+    const { name, email: rawEmail, password } = userData;
+    const email = rawEmail.toLowerCase().trim();
     const orgId = currentUser.organization?.toString();
 
     if (!orgId) {
@@ -191,7 +260,7 @@ export const addOrgUser = async (currentUser: any, userData: any) => {
     }
 
     const userExists = await User.findOne({ email });
-    if (userExists) {
+    if (userExists && !userExists.is_deleted) {
         throw new ErrorResponse('User already exists', 400);
     }
 
@@ -200,12 +269,22 @@ export const addOrgUser = async (currentUser: any, userData: any) => {
         throw new ErrorResponse('System error: User roles not initialized', 500);
     }
 
-    const user = await User.create({
-        name,
-        email,
-        password,
-        organization: orgId
-    });
+    const user = userExists?.is_deleted
+        ? await reactivateDeletedUser(userExists, {
+              name,
+              password,
+              organizationId: orgId,
+          })
+        : await User.create({
+              name,
+              email,
+              password,
+              organization: orgId,
+          });
+
+    if (userExists?.is_deleted) {
+        await RoleAssignment.removeAllForUser(user._id.toString());
+    }
 
     // Assign default role within the organization
     await RoleAssignment.create({
@@ -268,6 +347,8 @@ export const deactivateOrgUser = async (currentUser: any, targetUserId: string) 
     ) {
         throw new ErrorResponse('Not authorized to deactivate users outside your organization', 403);
     }
+
+    await RoleAssignment.removeAllForUser(targetUserId);
 
     return await User.findOneAndUpdate(
         { _id: targetUserId },
