@@ -15,6 +15,10 @@ import ReactMarkdown from 'react-markdown';
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { getApiError } from "@/lib/errors";
+import {
+  formatVerifiedByLabel,
+  getEmailStatusBadge,
+} from "@/lib/email-verification";
 
 interface Lead {
   _id: string;
@@ -565,17 +569,13 @@ export default function LeadIntelligencePage() {
     fetchLeads(newPage, activeTab, searchQuery, selectedPlatforms);
   };
 
-  const getEmailBadge = (status?: string, source?: string) => {
-    if (status === 'invalid') {
-      return <span className="text-[8px] px-1.5 py-0.5 bg-red-500/10 text-red-500 neo-border border-red-500/30 uppercase font-black">Invalid</span>;
-    }
-    if (status === 'verified' || status === 'valid' || status === 'deliverable') {
-      return <span className="text-[8px] px-1.5 py-0.5 bg-green-500/10 text-green-500 neo-border border-green-500/30 uppercase font-black">Verified</span>;
-    }
-    if (status === 'guessed' || source === 'pattern_guess') {
-      return <span className="text-[8px] px-1.5 py-0.5 bg-yellow-500/10 text-yellow-500 neo-border border-yellow-500/30 uppercase font-black">Guessed</span>;
-    }
-    return <span className="text-[8px] px-1.5 py-0.5 bg-zinc-500/10 text-zinc-400 neo-border border-zinc-500/30 uppercase font-black">Unverified</span>;
+  const renderEmailBadge = (status?: string, source?: string) => {
+    const badge = getEmailStatusBadge(status, source);
+    return (
+      <span className={cn("text-[8px] px-1.5 py-0.5 neo-border uppercase font-black", badge.className)}>
+        {badge.label}
+      </span>
+    );
   };
 
   const formatFoundBy = (foundBy?: string[]) => {
@@ -1292,7 +1292,7 @@ export default function LeadIntelligencePage() {
                             >
                               <div className="flex items-center gap-2 mb-2 flex-wrap">
                                 <p className="text-lg font-display font-black text-white tracking-tight">{entry.email}</p>
-                                {getEmailBadge(entry.email_status, entry.email_source)}
+                                {renderEmailBadge(entry.email_status, entry.email_source)}
                                 {entry.is_primary && getLeadEmailEntries(lead).length > 1 && (
                                   <span className="text-[8px] px-1.5 py-0.5 bg-hunter-orange/10 text-hunter-orange neo-border border-hunter-orange/30 uppercase font-black">
                                     Primary
@@ -1304,11 +1304,11 @@ export default function LeadIntelligencePage() {
                                   Found by: {formatFoundBy(entry.found_by)}
                                 </p>
                               )}
-                              {entry.verified_by?.length ? (
+                              {formatVerifiedByLabel(entry.verified_by) && (
                                 <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest">
-                                  Verified by: {entry.verified_by.join(' + ')}
+                                  {formatVerifiedByLabel(entry.verified_by)}
                                 </p>
-                              ) : null}
+                              )}
                               {!isRedundantEmailNote(entry.find_note) && (
                                 <p className="text-[10px] text-zinc-500 mt-1 normal-case font-medium">{entry.find_note}</p>
                               )}

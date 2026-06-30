@@ -144,7 +144,7 @@ export default function StrategicLeadsPage() {
     if (!isInternal && !lead.is_claimed) return "Claim lead to unlock";
     if (lead.email) {
       const status = lead.contact_info?.email_status;
-      if (status === 'verified' || status === 'valid' || status === 'deliverable') return lead.email;
+      if (status === 'verified') return lead.email;
       return "No verified email found yet";
     }
     if (lead.enrichment_status === 'searching') return "Searching...";

@@ -29,10 +29,37 @@ function formatFoundBy(foundBy: FindSource[]): string {
     return labels[foundBy[0]];
 }
 
-function formatVerifiedBy(verifiedBy: string[]): string {
-    if (verifiedBy.length === 0) return 'Not verified';
-    if (verifiedBy.length === 2) return 'Contact Compass and Hunter.io';
-    return verifiedBy[0];
+export function formatVerifiedByLabel(verifiedBy: string[]): string | null {
+    if (!verifiedBy.length) return null;
+
+    const hasCompass = verifiedBy.includes('Contact Compass');
+    const hasHunter = verifiedBy.includes('Hunter.io');
+
+    if (hasCompass && hasHunter) return 'Verified by: Contact Compass & Hunter.io';
+    if (hasCompass) return 'Verified by: Contact Compass Only';
+    if (hasHunter) return 'Verified by: Hunter.io Only';
+    return null;
+}
+
+function bothToolsConfirmed(compassVerified: boolean | null, hunterVerified: boolean): boolean {
+    return compassVerified === true && hunterVerified;
+}
+
+function buildResult(
+    partial: Omit<DualVerificationResult, 'verification_note'> & { verification_note?: string }
+): DualVerificationResult {
+    const label = formatVerifiedByLabel(partial.verified_by);
+    const verification_note =
+        partial.verification_note ||
+        label ||
+        (partial.email_status === 'verified'
+            ? 'Verified by: Contact Compass & Hunter.io'
+            : `Found by ${formatFoundBy(partial.found_by)}.`);
+
+    return {
+        ...partial,
+        verification_note,
+    } as DualVerificationResult;
 }
 
 export async function runDualEmailVerification(
@@ -45,12 +72,14 @@ export async function runDualEmailVerification(
     } = {}
 ): Promise<DualVerificationResult> {
     const foundBy = options.foundBy || [];
-    const bothFound = foundBy.includes('contact_compass') && foundBy.includes('hunter_finder');
+    const includesCompass = foundBy.includes('contact_compass');
 
     const compassVerified =
-        foundBy.includes('contact_compass') && options.compassStatus != null
+        includesCompass && options.compassStatus != null
             ? compassSaysVerified(options.compassStatus)
-            : null;
+            : includesCompass
+              ? false
+              : null;
     const hunterFinderVerified =
         foundBy.includes('hunter_finder') && options.hunterFinderStatus != null
             ? compassSaysVerified(options.hunterFinderStatus)
@@ -60,16 +89,13 @@ export async function runDualEmailVerification(
     const hunterVerifierPass = hunter?.verified === true;
     const hunterResult = hunter?.result;
 
-    const find_note = `Found by ${formatFoundBy(foundBy)}.`;
-    const verified_by: string[] = [];
-
-    if (compassVerified) verified_by.push('Contact Compass');
-    if (hunterVerifierPass) verified_by.push('Hunter.io');
-    else if (hunterFinderVerified) verified_by.push('Hunter.io');
+    const find_note = foundBy.length
+        ? `Found by ${formatFoundBy(foundBy)}.`
+        : '';
 
     if (hunterResult && ['undeliverable', 'invalid', 'disposable'].includes(hunterResult)) {
-        if (foundBy.includes('contact_compass')) {
-            return {
+        if (includesCompass) {
+            return buildResult({
                 email_status: 'unverified',
                 find_note,
                 verification_note: `Found by Contact Compass. Hunter.io marked as ${hunterResult}; kept as unverified for review.`,
@@ -78,9 +104,9 @@ export async function runDualEmailVerification(
                 compass_verified: compassVerified,
                 hunter_verified: false,
                 hunter_result: hunterResult,
-            };
+            });
         }
-        return {
+        return buildResult({
             email_status: 'invalid',
             find_note,
             verification_note: `Rejected by Hunter.io: ${hunterResult}.`,
@@ -89,94 +115,77 @@ export async function runDualEmailVerification(
             compass_verified: compassVerified,
             hunter_verified: false,
             hunter_result: hunterResult,
-        };
+        });
     }
 
-    if (bothFound && hunterVerifierPass && (compassVerified || compassVerified === null)) {
-        return {
+    if (bothToolsConfirmed(compassVerified, hunterVerifierPass) && includesCompass) {
+        return buildResult({
             email_status: 'verified',
             find_note,
-            verification_note: `Verified by ${formatVerifiedBy(verified_by)}.`,
             found_by: foundBy,
-            verified_by,
-            compass_verified: compassVerified,
-            hunter_verified: true,
-            hunter_result: hunterResult,
-        };
-    }
-
-    if (bothFound && compassVerified && hunterVerifierPass) {
-        return {
-            email_status: 'verified',
-            find_note,
-            verification_note: `Verified by Contact Compass and Hunter.io.`,
-            found_by: foundBy,
-            verified_by,
+            verified_by: ['Contact Compass', 'Hunter.io'],
             compass_verified: true,
             hunter_verified: true,
             hunter_result: hunterResult,
-        };
+        });
     }
 
     if (foundBy.length === 1 && foundBy[0] === 'contact_compass') {
-        if (hunterVerifierPass) {
-            return {
+        if (hunterVerifierPass && !compassVerified) {
+            return buildResult({
                 email_status: 'unverified',
                 find_note,
-                verification_note: `Found by Contact Compass only. Hunter.io could not find this email, but verified it as ${hunterResult || 'deliverable'}.`,
+                verification_note: `Found by Contact Compass only. Hunter.io verified as ${hunterResult || 'deliverable'}, but Contact Compass did not confirm.`,
                 found_by: foundBy,
                 verified_by: ['Hunter.io'],
                 compass_verified: compassVerified,
                 hunter_verified: true,
                 hunter_result: hunterResult,
-            };
+            });
         }
-        return {
+        return buildResult({
             email_status: 'unverified',
             find_note,
             verification_note: 'Found by Contact Compass only. Hunter.io could not find this email.',
             found_by: foundBy,
             verified_by: compassVerified ? ['Contact Compass'] : [],
             compass_verified: compassVerified,
-            hunter_verified: hunterVerifierPass,
+            hunter_verified: false,
             hunter_result: hunterResult,
-        };
+        });
     }
 
     if (foundBy.length === 1 && foundBy[0] === 'hunter_finder') {
         if (hunterVerifierPass) {
-            return {
-                email_status: hunterVerifierPass && compassVerified ? 'verified' : 'unverified',
+            return buildResult({
+                email_status: 'unverified',
                 find_note,
-                verification_note: compassVerified
-                    ? `Found by Hunter.io only. Verified by Hunter.io.`
-                    : `Found by Hunter.io only. Verified by Hunter.io: ${hunterResult || 'deliverable'}.`,
                 found_by: foundBy,
                 verified_by: ['Hunter.io'],
                 compass_verified: null,
                 hunter_verified: true,
                 hunter_result: hunterResult,
-            };
+            });
         }
     }
 
     if (options.source === 'post_text') {
-        return {
-            email_status: hunterVerifierPass ? 'verified' : 'unverified',
+        return buildResult({
+            email_status: hunterVerifierPass ? 'unverified' : 'unverified',
             find_note: 'Found in post text.',
             verification_note: hunterVerifierPass
-                ? `Verified by Hunter.io: ${hunterResult || 'deliverable'}.`
+                ? `Verified by: Hunter.io Only`
                 : 'Found in post text.',
             found_by: [],
             verified_by: hunterVerifierPass ? ['Hunter.io'] : [],
             compass_verified: null,
             hunter_verified: hunterVerifierPass,
             hunter_result: hunterResult,
-        };
+        });
     }
 
     if (options.source === 'pattern_guess') {
-        return {
+        return buildResult({
             email_status: 'guessed',
             find_note: 'Found by pattern guess.',
             verification_note: hunterResult
@@ -187,12 +196,12 @@ export async function runDualEmailVerification(
             compass_verified: null,
             hunter_verified: hunterVerifierPass,
             hunter_result: hunterResult,
-        };
+        });
     }
 
     const domainCheck = await verifyEmailDomain(email);
     if (domainCheck.disposable) {
-        return {
+        return buildResult({
             email_status: 'invalid',
             find_note,
             verification_note: 'Disposable email domain rejected.',
@@ -201,11 +210,11 @@ export async function runDualEmailVerification(
             compass_verified: compassVerified,
             hunter_verified: hunterVerifierPass,
             hunter_result: hunterResult,
-        };
+        });
     }
 
     if (!domainCheck.mx_valid) {
-        return {
+        return buildResult({
             email_status: 'invalid',
             find_note,
             verification_note: 'Email domain has no MX records.',
@@ -214,19 +223,24 @@ export async function runDualEmailVerification(
             compass_verified: compassVerified,
             hunter_verified: hunterVerifierPass,
             hunter_result: hunterResult,
-        };
+        });
     }
 
-    return {
+    const verified_by: string[] = [];
+    if (compassVerified) verified_by.push('Contact Compass');
+    if (hunterVerifierPass) verified_by.push('Hunter.io');
+    else if (hunterFinderVerified) verified_by.push('Hunter.io');
+
+    return buildResult({
         email_status: 'unverified',
-        find_note,
-        verification_note: `Found by ${formatFoundBy(foundBy)}. Could not fully verify with both tools.`,
+        find_note: find_note || `Found by ${formatFoundBy(foundBy)}.`,
+        verification_note: 'Could not fully verify with both Contact Compass and Hunter.io.',
         found_by: foundBy,
         verified_by,
         compass_verified: compassVerified,
         hunter_verified: hunterVerifierPass,
         hunter_result: hunterResult,
-    };
+    });
 }
 
 export function getDomainFromEmail(email: string): string | null {

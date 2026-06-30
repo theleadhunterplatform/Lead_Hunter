@@ -12,6 +12,10 @@ import { LinkedinLogo, XLogo, RedditLogo, ThreadsLogo } from "@/components/Brand
 import { useAuth } from "@/context/AuthContext";
 import { ADMIN_ROUTES } from "@/lib/routes";
 import { getApiError } from "@/lib/errors";
+import {
+  formatVerifiedByLabel,
+  getEmailStatusBadge,
+} from "@/lib/email-verification";
 
 interface ClaimedLead {
   _id: string;
@@ -32,6 +36,7 @@ interface ClaimedLead {
     email?: string;
     contact_info?: {
        email_status?: string;
+       verified_by?: string[];
        phone_numbers?: { number: string; type: string }[];
     };
   };
@@ -112,17 +117,8 @@ export default function CRMPage() {
      }
   };
 
-  const getEmailVerificationLabel = (claim: ClaimedLead) => {
-    const status = claim.leadId.contact_info?.email_status?.toLowerCase();
-    if (!status) return "Unverified";
-    if (status === "verified" || status === "valid" || status === "deliverable") return "Verified";
-    return status.charAt(0).toUpperCase() + status.slice(1);
-  };
-
-  const isEmailVerified = (claim: ClaimedLead) => {
-    const status = claim.leadId.contact_info?.email_status?.toLowerCase();
-    return status === "verified" || status === "valid" || status === "deliverable";
-  };
+  const getEmailBadgeForClaim = (claim: ClaimedLead) =>
+    getEmailStatusBadge(claim.leadId.contact_info?.email_status);
 
   const statusColors: any = {
     new: "text-blue-400 bg-blue-400/10 border-blue-400/20",
@@ -208,16 +204,23 @@ export default function CRMPage() {
 
                   <div className="space-y-2">
                     {claim.leadId.email && (
-                      <div className="flex items-center gap-2 text-[10px] font-bold text-hunter-orange uppercase tracking-tight">
-                        <Mail size={12} /> {claim.leadId.email}
-                        <span className={cn(
-                          "px-1.5 py-0.5 text-[8px] neo-border-sm",
-                          isEmailVerified(claim)
-                            ? "text-green-400 border-green-400/30 bg-green-400/10"
-                            : "text-zinc-500 border-zinc-700 bg-zinc-900"
-                        )}>
-                          {getEmailVerificationLabel(claim)}
-                        </span>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 text-[10px] font-bold text-hunter-orange uppercase tracking-tight">
+                          <Mail size={12} /> {claim.leadId.email}
+                          {(() => {
+                            const badge = getEmailBadgeForClaim(claim);
+                            return (
+                              <span className={cn("px-1.5 py-0.5 text-[8px] neo-border-sm", badge.className)}>
+                                {badge.label}
+                              </span>
+                            );
+                          })()}
+                        </div>
+                        {formatVerifiedByLabel(claim.leadId.contact_info?.verified_by) && (
+                          <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest pl-5">
+                            {formatVerifiedByLabel(claim.leadId.contact_info?.verified_by)}
+                          </p>
+                        )}
                       </div>
                     )}
                     {claim.leadId.contact_info?.phone_numbers?.[0] && (
