@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { LinkedinLogo, XLogo, RedditLogo, ThreadsLogo } from "@/components/BrandIcons";
 import { useAuth } from "@/context/AuthContext";
 import { ADMIN_ROUTES } from "@/lib/routes";
+import { getApiError } from "@/lib/errors";
 
 interface ClaimedLead {
   _id: string;
@@ -30,6 +31,7 @@ interface ClaimedLead {
     url: string;
     email?: string;
     contact_info?: {
+       email_status?: string;
        phone_numbers?: { number: string; type: string }[];
     };
   };
@@ -93,21 +95,33 @@ export default function CRMPage() {
     }
   };
 
-  const sendMockEmail = async (leadId: string, claimId: string) => {
+  const sendOutreach = async (leadId: string, claimId: string) => {
      try {
        setSendingEmailIds(prev => [...prev, claimId]);
-       await api.post("/crm/send-email", {
+       const { data } = await api.post("/crm/send-email", {
          leadId,
          subject: "Strategic Partnership Inquiry",
          body: "Hi, I saw your post and thought we could collaborate."
        });
-       toast.success("Email sent successfully");
-       fetchClaimedLeads(); // Refresh to see status update and timestamp
-     } catch (error: any) {
-       toast.error(error.response?.data?.message || "Failed to send email");
+       toast.success(data.message || "Outreach logged successfully");
+       fetchClaimedLeads();
+     } catch (error: unknown) {
+       toast.error(getApiError(error, "Failed to send outreach"));
      } finally {
        setSendingEmailIds(prev => prev.filter(id => id !== claimId));
      }
+  };
+
+  const getEmailVerificationLabel = (claim: ClaimedLead) => {
+    const status = claim.leadId.contact_info?.email_status?.toLowerCase();
+    if (!status) return "Unverified";
+    if (status === "verified" || status === "valid" || status === "deliverable") return "Verified";
+    return status.charAt(0).toUpperCase() + status.slice(1);
+  };
+
+  const isEmailVerified = (claim: ClaimedLead) => {
+    const status = claim.leadId.contact_info?.email_status?.toLowerCase();
+    return status === "verified" || status === "valid" || status === "deliverable";
   };
 
   const statusColors: any = {
@@ -196,6 +210,14 @@ export default function CRMPage() {
                     {claim.leadId.email && (
                       <div className="flex items-center gap-2 text-[10px] font-bold text-hunter-orange uppercase tracking-tight">
                         <Mail size={12} /> {claim.leadId.email}
+                        <span className={cn(
+                          "px-1.5 py-0.5 text-[8px] neo-border-sm",
+                          isEmailVerified(claim)
+                            ? "text-green-400 border-green-400/30 bg-green-400/10"
+                            : "text-zinc-500 border-zinc-700 bg-zinc-900"
+                        )}>
+                          {getEmailVerificationLabel(claim)}
+                        </span>
                       </div>
                     )}
                     {claim.leadId.contact_info?.phone_numbers?.[0] && (
@@ -234,7 +256,7 @@ export default function CRMPage() {
                   <div className="mt-auto">
                     <Button
                       className="w-full h-10 text-[10px] font-black uppercase tracking-widest gap-2"
-                      onClick={() => sendMockEmail(claim.leadId._id, claim._id)}
+                      onClick={() => sendOutreach(claim.leadId._id, claim._id)}
                       disabled={!claim.leadId.email || sendingEmailIds.includes(claim._id)}
                       isLoading={sendingEmailIds.includes(claim._id)}
                     >

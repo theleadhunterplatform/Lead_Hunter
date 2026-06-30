@@ -6,6 +6,7 @@ import ErrorResponse from '../utils/error-response.utils';
 import { hashPassword } from '../utils/password.utils';
 import RoleAssignment from '../models/role-assignment.model';
 import Role from '../models/role.model';
+import { isVerifiedEmailStatus } from '../utils/lead-enrichment.utils';
 
 // @desc    Update claim CRM status
 // @route   PUT /api/crm/claims/:id
@@ -50,12 +51,10 @@ export const sendEmailToLead = asyncHandler(async (req: Request, res: Response) 
     }
 
     const emailStatus = lead.contact_info?.email_status;
-    if (emailStatus !== 'verified' && emailStatus !== 'valid' && emailStatus !== 'deliverable') {
-        throw new ErrorResponse('Only verified emails can be used for outreach.', 400);
-    }
+    const emailVerified = isVerifiedEmailStatus(emailStatus);
 
-    // 2. Mock Email Sending (Integrate with SendGrid/SMTP in production)
-    console.log(`📧 [CRM] Sending email to ${lead.email}`);
+    // Mock email sending (integrate with SendGrid/SMTP in production)
+    console.log(`📧 [CRM] Sending email to ${lead.email}${emailVerified ? '' : ' (unverified)'}`);
     console.log(`Subject: ${subject}`);
     console.log(`Body: ${body}`);
 
@@ -67,10 +66,13 @@ export const sendEmailToLead = asyncHandler(async (req: Request, res: Response) 
 
     return res.status(200).json({
         success: true,
-        message: `Email successfully sent to ${lead.email}`,
+        message: emailVerified
+            ? `Email successfully sent to ${lead.email}`
+            : `Outreach logged for ${lead.email} (email not fully verified — confirm before sending in production).`,
         data: {
             status: claimDoc.status,
-            last_contacted: claimDoc.last_contacted
+            last_contacted: claimDoc.last_contacted,
+            email_verified: emailVerified,
         }
     });
 });
