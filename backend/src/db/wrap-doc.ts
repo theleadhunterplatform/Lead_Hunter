@@ -25,6 +25,10 @@ export const wrapDoc = (
             delete data.roleId;
             delete data.userId;
             delete data.leadId;
+            delete data.lead;
+            delete data.user;
+            delete data.role;
+            delete data.keywordRef;
             delete data.createdAt;
             delete data.updatedAt;
             delete data.created_at;

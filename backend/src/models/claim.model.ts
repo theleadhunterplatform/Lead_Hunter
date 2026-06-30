@@ -2,9 +2,19 @@ import prisma from '../lib/prisma';
 import { toApiDoc } from '../utils/serialize.utils';
 import { wrapDoc } from '../db/wrap-doc';
 
+const CLAIM_UPDATE_FIELDS = new Set(['status', 'notes', 'last_contacted', 'token_cost']);
+
 const mapClaim = (record: any) => {
     if (!record) return null;
-    const doc = wrapDoc(record, async (id, data) => prisma.claim.update({ where: { id }, data: data as any }));
+    const doc = wrapDoc(record, async (id, data) => {
+        const updateData: Record<string, unknown> = {};
+        for (const [key, value] of Object.entries(data)) {
+            if (CLAIM_UPDATE_FIELDS.has(key)) {
+                updateData[key] = value;
+            }
+        }
+        return prisma.claim.update({ where: { id }, data: updateData as any });
+    });
     if (record.lead) {
         doc.leadId = toApiDoc(record.lead);
     }
