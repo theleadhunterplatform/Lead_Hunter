@@ -1,13 +1,12 @@
 import { Router } from 'express';
 import { getLeaderboard, earnPoints } from '../controllers/leaderboard.controller';
-import { protect } from '../middleware/auth';
+import { protect, authorize } from '../middleware/auth';
 
 const router = Router();
 
-// Publicly viewable leaderboard
-router.get('/', getLeaderboard);
+router.get('/', protect, getLeaderboard);
 
-// Protected actions for earning/managing points
-router.post('/earn', protect, earnPoints);
+// Platform admins only — not for end-user token farming
+router.post('/earn', protect, authorize('*'), earnPoints);
 
 export default router;

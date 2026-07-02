@@ -299,6 +299,17 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {isNormalUser && (stats?.leads?.available_to_claim ?? 0) === 0 && (
+        <div className="mb-10 p-6 bg-hunter-orange/10 neo-border border-hunter-orange/40">
+          <h3 className="font-display font-black uppercase text-lg mb-2">No leads available yet</h3>
+          <p className="text-zinc-400 text-sm max-w-2xl">
+            Strategic leads appear here after our team scrapes, enriches, and approves them.
+            Check back soon — new approved leads show up on{" "}
+            <Link href="/leads/relevant" className="text-hunter-orange font-bold hover:underline">Strategic Leads</Link>.
+          </p>
+        </div>
+      )}
+
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
         {quickStats.map((stat, i) => (

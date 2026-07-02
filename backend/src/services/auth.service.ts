@@ -8,6 +8,14 @@ import jwt from 'jsonwebtoken';
 import config from '../config';
 import { getUserPermissions, hasPermission } from '../utils/rbac.utils';
 import { hashPassword } from '../utils/password.utils';
+import prisma from '../lib/prisma';
+import { generateSecureToken, hashToken, generateTempPassword } from '../utils/crypto-token.utils';
+import {
+    sendEmail,
+    buildPasswordResetEmail,
+    buildInviteEmail,
+    isEmailConfigured,
+} from '../utils/email.service';
 
 async function reactivateDeletedUser(
     existing: any,
@@ -31,6 +39,10 @@ async function reactivateDeletedUser(
 }
 
 export const registerUser = async (userData: any) => {
+    if (!config.security.allowOpenRegistration) {
+        throw new ErrorResponse('Registration is invite-only. Contact your administrator.', 403);
+    }
+
     const { name, email: rawEmail, password, organization_name, referred_by } = userData;
     const email = rawEmail.toLowerCase().trim();
 
@@ -149,15 +161,16 @@ export const registerUser = async (userData: any) => {
 
     const tokens = generateTokenPair(user._id.toString());
 
-    return {
-        user: {
-            id: user._id,
-            name: user.name,
-            email: user.email,
-            organization: user.organization
-        },
-        ...tokens
-    };
+        return {
+            user: {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                organization: user.organization,
+                must_change_password: false,
+            },
+            ...tokens,
+        };
 };
 
 export const loginUser = async (credentials: any) => {
@@ -182,13 +195,16 @@ export const loginUser = async (credentials: any) => {
     const permissionsSet = await getUserPermissions(user._id.toString());
     const permissions = Array.from(permissionsSet);
 
+    const fullUser = await prisma.user.findUnique({ where: { id: user._id.toString() } });
+
     return {
         user: {
             id: user._id,
             name: user.name,
             email: user.email,
             organization: user.organization,
-            permissions // Include permissions in login response for frontend speed
+            permissions,
+            must_change_password: fullUser?.must_change_password ?? false,
         },
         ...tokens
     };
@@ -251,56 +267,27 @@ export const getOrgUsers = async (currentUser: any, providedOrgId?: string) => {
 };
 
 export const addOrgUser = async (currentUser: any, userData: any) => {
-    const { name, email: rawEmail, password } = userData;
-    const email = rawEmail.toLowerCase().trim();
     const orgId = currentUser.organization?.toString();
 
     if (!orgId) {
         throw new ErrorResponse('Organization context required to add users', 400);
     }
 
-    const userExists = await User.findOne({ email });
-    if (userExists && !userExists.is_deleted) {
-        throw new ErrorResponse('User already exists', 400);
-    }
-
-    const userRole = await Role.findOne({ slug: 'org_user' }) || await Role.findOne({ slug: 'user' });
-    if (!userRole) {
-        throw new ErrorResponse('System error: User roles not initialized', 500);
-    }
-
-    const user = userExists?.is_deleted
-        ? await reactivateDeletedUser(userExists, {
-              name,
-              password,
-              organizationId: orgId,
-          })
-        : await User.create({
-              name,
-              email,
-              password,
-              organization: orgId,
-          });
-
-    if (userExists?.is_deleted) {
-        await RoleAssignment.removeAllForUser(user._id.toString());
-    }
-
-    // Assign default role within the organization
-    await RoleAssignment.create({
-        userId: user._id,
-        roleId: userRole._id,
-        scope: {
-            type: 'organization',
-            organizationId: orgId
-        }
+    const result = await createInvitedUser({
+        name: userData.name,
+        email: userData.email,
+        organizationId: orgId,
+        assignedById: currentUser._id.toString(),
+        password: userData.password,
     });
 
     return {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        organization: user.organization
+        id: result.user._id,
+        name: result.user.name,
+        email: result.user.email,
+        organization: result.user.organization,
+        invite_email_sent: isEmailConfigured(),
+        temp_password: result.tempPassword,
     };
 };
 
@@ -380,3 +367,164 @@ export const getUserOrganizations = async (currentUser: any) => {
 
     return [];
 };
+
+export const requestPasswordReset = async (email: string) => {
+    const normalized = email.toLowerCase().trim();
+    const user = await prisma.user.findFirst({
+        where: { email: normalized, is_deleted: false, is_active: true },
+    });
+
+    // Always return success to avoid email enumeration
+    if (!user) {
+        return { message: 'If that email exists, a reset link has been sent.' };
+    }
+
+    const rawToken = generateSecureToken();
+    const hashed = hashToken(rawToken);
+    const expires = new Date(Date.now() + 60 * 60 * 1000);
+
+    await prisma.user.update({
+        where: { id: user.id },
+        data: {
+            password_reset_token: hashed,
+            password_reset_expires: expires,
+        },
+    });
+
+    const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/+$/, '');
+    const resetUrl = `${frontendUrl}/reset-password?token=${rawToken}`;
+    const { subject, html } = buildPasswordResetEmail(resetUrl);
+
+    if (isEmailConfigured()) {
+        await sendEmail({ to: user.email, subject, html });
+    } else if (config.env !== 'production') {
+        console.log(`[Dev] Password reset link for ${user.email}: ${resetUrl}`);
+    }
+
+    return { message: 'If that email exists, a reset link has been sent.' };
+};
+
+export const resetPassword = async (token: string, newPassword: string) => {
+    if (!token || !newPassword || newPassword.length < 6) {
+        throw new ErrorResponse('Valid token and password (min 6 chars) required', 400);
+    }
+
+    const hashed = hashToken(token);
+    const user = await prisma.user.findFirst({
+        where: {
+            password_reset_token: hashed,
+            password_reset_expires: { gt: new Date() },
+            is_deleted: false,
+        },
+    });
+
+    if (!user) {
+        throw new ErrorResponse('Invalid or expired reset token', 400);
+    }
+
+    await prisma.user.update({
+        where: { id: user.id },
+        data: {
+            password: await hashPassword(newPassword),
+            password_reset_token: null,
+            password_reset_expires: null,
+            must_change_password: false,
+        },
+    });
+
+    return { message: 'Password updated successfully' };
+};
+
+export const changePassword = async (userId: string, currentPassword: string, newPassword: string) => {
+    const user = await User.findOne({ _id: userId }, { select: 'password' });
+    if (!user) throw new ErrorResponse('User not found', 404);
+
+    const isMatch = await user.comparePassword(currentPassword);
+    if (!isMatch) throw new ErrorResponse('Current password is incorrect', 401);
+
+    if (!newPassword || newPassword.length < 6) {
+        throw new ErrorResponse('New password must be at least 6 characters', 400);
+    }
+
+    await prisma.user.update({
+        where: { id: userId },
+        data: {
+            password: await hashPassword(newPassword),
+            must_change_password: false,
+        },
+    });
+
+    return { message: 'Password changed successfully' };
+};
+
+export async function createInvitedUser(options: {
+    name: string;
+    email: string;
+    organizationId: string;
+    assignedById: string;
+    roleSlug?: string;
+    password?: string;
+}) {
+    const email = options.email.toLowerCase().trim();
+    const tempPassword = options.password?.trim() || generateTempPassword();
+    const mustChange = !options.password?.trim();
+
+    let user = await User.findOne({ email });
+
+    if (user && !user.is_deleted) {
+        throw new ErrorResponse('User already exists in the system.', 400);
+    }
+
+    if (user?.is_deleted) {
+        await RoleAssignment.removeAllForUser(user._id.toString());
+        user = await User.findOneAndUpdate(
+            { _id: user._id },
+            {
+                name: options.name,
+                password: await hashPassword(tempPassword),
+                organizationId: options.organizationId,
+                is_deleted: false,
+                is_active: true,
+                lead_access_enabled: true,
+                deleted_at: null,
+                status: 'active',
+                must_change_password: mustChange,
+            }
+        );
+    } else {
+        user = await User.create({
+            name: options.name,
+            email,
+            password: tempPassword,
+            organization: options.organizationId,
+        });
+        await prisma.user.update({
+            where: { id: user._id.toString() },
+            data: { must_change_password: mustChange },
+        });
+    }
+
+    const role = await Role.findOne({ slug: options.roleSlug || 'org_user' });
+    if (!role) throw new ErrorResponse('Invalid role specified.', 400);
+
+    await RoleAssignment.create({
+        userId: user._id,
+        roleId: role._id,
+        scope: { type: 'organization', organizationId: options.organizationId },
+        assignedBy: options.assignedById,
+    });
+
+    const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/+$/, '');
+    const loginUrl = `${frontendUrl}/login`;
+
+    if (isEmailConfigured()) {
+        const { subject, html } = buildInviteEmail(options.name, email, tempPassword, loginUrl);
+        await sendEmail({ to: email, subject, html });
+    }
+
+    return {
+        user,
+        role,
+        tempPassword: isEmailConfigured() ? undefined : tempPassword,
+    };
+}

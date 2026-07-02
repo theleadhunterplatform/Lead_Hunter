@@ -51,15 +51,24 @@ export default function TeamPage() {
     setError("");
 
     try {
+      let response;
       if (user?.organization) {
-        await api.post("/auth/organization/users", newMember);
+        response = await api.post("/auth/organization/users", newMember);
       } else {
-        await api.post("/crm/team/invite", newMember);
+        response = await api.post("/crm/team/invite", newMember);
       }
       setIsAdding(false);
       setNewMember({ name: "", email: "", password: "" });
       fetchMembers();
-      toast.success("Team member added successfully!");
+      const msg = response.data?.message;
+      const tempPassword = response.data?.data?.temp_password;
+      if (tempPassword) {
+        toast.success(`Member created. Temporary password: ${tempPassword}`, { duration: 15000 });
+      } else if (msg) {
+        toast.success(msg);
+      } else {
+        toast.success("Team member added successfully!");
+      }
     } catch (err: any) {
       const errorData = err.response?.data;
       const errorMessage =
@@ -301,13 +310,15 @@ export default function TeamPage() {
                 />
 
                 <Input
-                  label="Password"
-                  placeholder="••••••••"
+                  label="Password (optional)"
+                  placeholder="Auto-generated & emailed if empty"
                   type="password"
-                  required
                   value={newMember.password}
                   onChange={(e) => setNewMember({ ...newMember, password: e.target.value })}
                 />
+                <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest -mt-2">
+                  Leave blank to email a secure temporary password
+                </p>
 
                 <div className="flex gap-4 pt-2">
                   <Button

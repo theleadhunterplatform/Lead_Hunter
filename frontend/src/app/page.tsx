@@ -19,9 +19,8 @@ export default function Home() {
         </div>
 
         <div className="hidden md:flex items-center gap-8 font-display font-bold uppercase text-sm tracking-widest">
-          <Link href="/leads" className="hover:text-hunter-orange transition-colors">Dashboard</Link>
-          <Link href="/leads" className="hover:text-hunter-orange transition-colors">All Posts</Link>
-          <Link href="/ai" className="hover:text-hunter-orange transition-colors">AI Settings</Link>
+          <Link href="/login" className="hover:text-hunter-orange transition-colors">Sign In</Link>
+          <Link href="/privacy" className="hover:text-hunter-orange transition-colors">Privacy</Link>
         </div>
 
         <Link href="/login" className="neo-orange-border bg-hunter-orange text-black px-4 py-1 font-display font-black uppercase text-sm hover:translate-x-[2px] hover:translate-y-[2px] transition-transform active:translate-x-[4px] active:translate-y-[4px]">

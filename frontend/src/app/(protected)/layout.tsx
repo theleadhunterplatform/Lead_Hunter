@@ -14,7 +14,9 @@ import {
   Trophy,
   Settings,
   Shield,
-  UserSearch
+  UserSearch,
+  Menu,
+  X
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/components/ui/HunterUI";
@@ -32,6 +34,7 @@ export default function ProtectedLayout({
   const pathname = usePathname();
   const { user, loading, hasPermission, logout, activeOrgId, setActiveOrgId, permissions } = useAuth();
   const [organizations, setOrganizations] = useState<any[]>([]);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -42,6 +45,12 @@ export default function ProtectedLayout({
       router.replace(`/login${redirectParam}`);
     }
   }, [loading, user, router, pathname]);
+
+  useEffect(() => {
+    if (!loading && user?.must_change_password && pathname !== "/change-password") {
+      router.replace("/change-password");
+    }
+  }, [loading, user, pathname, router]);
 
   useEffect(() => {
     // Fetch organizations for the switcher
@@ -199,11 +208,36 @@ export default function ProtectedLayout({
 
       {/* Main Content Area */}
       <main className="flex-1 overflow-y-auto">
-        {/* Mobile Header (simplified) */}
-        <div className="md:hidden p-4 border-b-3 border-hunter-orange flex items-center justify-between">
-          <span className="font-display font-black uppercase">Dashboard</span>
-          <button onClick={logout} className="text-red-500"><LogOut size={18} /></button>
+        {/* Mobile Header */}
+        <div className="md:hidden p-4 border-b-3 border-hunter-orange flex items-center justify-between sticky top-0 z-40 bg-hunter-black">
+          <span className="font-display font-black uppercase text-sm truncate">
+            The Lead <span className="text-hunter-orange">Hunter</span>
+          </span>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setMobileNavOpen((o) => !o)} className="text-white" aria-label="Menu">
+              {mobileNavOpen ? <X size={22} /> : <Menu size={22} />}
+            </button>
+            <button onClick={logout} className="text-red-500" aria-label="Sign out"><LogOut size={18} /></button>
+          </div>
         </div>
+        {mobileNavOpen && (
+          <nav className="md:hidden border-b border-zinc-800 bg-hunter-grey p-2 space-y-1">
+            {filteredNavItems.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setMobileNavOpen(false)}
+                className={cn(
+                  "flex items-center gap-3 px-4 py-3 font-display font-bold uppercase text-xs tracking-widest",
+                  pathname === item.href ? "bg-hunter-orange text-black" : "text-zinc-400"
+                )}
+              >
+                <item.icon size={16} />
+                {item.name}
+              </Link>
+            ))}
+          </nav>
+        )}
         {children}
       </main>
     </div>

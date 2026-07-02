@@ -31,11 +31,11 @@ import { getLeadIntelligenceStats } from '../controllers/dashboard.controller';
 import { protect, authorize } from '../middleware/auth';
 import { validate } from '../middleware/validate';
 import { labelPostSchema } from '../schemas/post.schema';
+import { requireExtensionApiKey } from '../middleware/extension-api-key';
 
 const router = express.Router();
 
-// Public Extension Routes (No Auth for local dev)
-router.post('/bulk-ingest', bulkIngestPosts);
+router.post('/bulk-ingest', requireExtensionApiKey, bulkIngestPosts);
 
 router.use(protect);
 

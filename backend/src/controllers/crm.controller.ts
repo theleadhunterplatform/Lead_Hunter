@@ -1,11 +1,9 @@
 import { Request, Response } from 'express';
 import asyncHandler from '../middleware/async';
 import Claim from '../models/claim.model';
-import User from '../models/user.model';
 import ErrorResponse from '../utils/error-response.utils';
-import { hashPassword } from '../utils/password.utils';
-import RoleAssignment from '../models/role-assignment.model';
-import Role from '../models/role.model';
+import * as authService from '../services/auth.service';
+import { sendEmail, isEmailConfigured } from '../utils/email.service';
 import { isVerifiedEmailStatus } from '../utils/lead-enrichment.utils';
 
 // @desc    Update claim CRM status
@@ -53,10 +51,21 @@ export const sendEmailToLead = asyncHandler(async (req: Request, res: Response) 
     const emailStatus = lead.contact_info?.email_status;
     const emailVerified = isVerifiedEmailStatus(emailStatus);
 
-    // Mock email sending (integrate with SendGrid/SMTP in production)
-    console.log(`📧 [CRM] Sending email to ${lead.email}${emailVerified ? '' : ' (unverified)'}`);
-    console.log(`Subject: ${subject}`);
-    console.log(`Body: ${body}`);
+    if (!isEmailConfigured()) {
+        throw new ErrorResponse(
+            'Email sending is not configured. Set RESEND_API_KEY or SMTP_* on the server.',
+            503
+        );
+    }
+
+    await sendEmail({
+        to: lead.email,
+        subject: subject || 'Strategic Partnership Inquiry',
+        html: `<div style="font-family:sans-serif;white-space:pre-wrap">${body || ''}</div>`,
+        text: body,
+    });
+
+    console.log(`📧 [CRM] Email sent to ${lead.email}${emailVerified ? '' : ' (unverified)'}`);
 
     // 3. Update claim status
     const claimDoc = claim as any;
@@ -88,58 +97,26 @@ export const inviteTeamMember = asyncHandler(async (req: Request, res: Response)
         throw new ErrorResponse('You must belong to an organization to invite team members.', 403);
     }
 
-    // 1. Check if user already exists
-    const normalizedEmail = email.toLowerCase().trim();
-    let user = await User.findOne({ email: normalizedEmail });
-    if (user && !user.is_deleted) {
-        throw new ErrorResponse('User already exists in the system.', 400);
-    }
-
-    if (user?.is_deleted) {
-        await RoleAssignment.removeAllForUser(user._id.toString());
-        user = await User.findOneAndUpdate(
-            { _id: user._id },
-            {
-                name,
-                password: await hashPassword(password?.trim() || 'ChangeMe123!'),
-                organizationId: adminUser.organization,
-                is_deleted: false,
-                is_active: true,
-                lead_access_enabled: true,
-                deleted_at: null,
-                status: 'active',
-            }
-        );
-    } else {
-        // 2. Create user
-        user = await User.create({
-            name,
-            email: normalizedEmail,
-            password: password?.trim() || 'ChangeMe123!',
-            organization: adminUser.organization
-        });
-    }
-
-    // 3. Assign Role in this organization
-    const role = await Role.findOne({ slug: roleSlug });
-    if (!role) {
-        throw new ErrorResponse('Invalid role specified.', 400);
-    }
-
-    await RoleAssignment.create({
-        userId: user._id,
-        roleId: role._id,
-        scope: { type: 'organization', organizationId: adminUser.organization },
-        assignedBy: adminUser._id
+    const result = await authService.createInvitedUser({
+        name,
+        email,
+        organizationId: adminUser.organization.toString(),
+        assignedById: adminUser._id.toString(),
+        roleSlug,
+        password,
     });
 
     return res.status(201).json({
         success: true,
-        message: `User ${email} invited and assigned to ${role.name}`,
+        message: isEmailConfigured()
+            ? `Invitation email sent to ${email}`
+            : `User ${email} created. Share the temporary password securely.`,
         data: {
-            id: user._id,
-            email: user.email,
-            role: role.name
-        }
+            id: result.user._id,
+            email: result.user.email,
+            role: result.role.name,
+            invite_email_sent: isEmailConfigured(),
+            temp_password: result.tempPassword,
+        },
     });
 });

@@ -22,9 +22,14 @@ function RegisterForm() {
     organization_name: "",
   });
   const [isOrganization, setIsOrganization] = useState(searchParams.get("org") === "true");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!acceptedTerms) {
+      setError("You must accept the Terms of Service and Privacy Policy.");
+      return;
+    }
     setLoading(true);
     setError("");
 
@@ -133,6 +138,21 @@ function RegisterForm() {
             value={formData.password}
             onChange={(e) => setFormData({ ...formData, password: e.target.value })}
           />
+
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={acceptedTerms}
+              onChange={(e) => setAcceptedTerms(e.target.checked)}
+              className="mt-1 accent-hunter-orange"
+            />
+            <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wide leading-relaxed">
+              I agree to the{" "}
+              <Link href="/terms" className="text-hunter-orange hover:underline" target="_blank">Terms of Service</Link>
+              {" "}and{" "}
+              <Link href="/privacy" className="text-hunter-orange hover:underline" target="_blank">Privacy Policy</Link>
+            </span>
+          </label>
 
           <Button
             type="submit"

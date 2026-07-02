@@ -13,6 +13,7 @@ interface User {
   points: number;
   referral_count?: number;
   lead_access_enabled?: boolean;
+  must_change_password?: boolean;
   organization?: {
     _id: string;
     name: string;

@@ -1,7 +1,7 @@
 import express from 'express';
 import { protect, authorize } from '../middleware/auth';
 import { updateToken, getToken, updateHunterKey, getHunterKey, updateContactOutToken, getContactOutToken, updateApolloKey, getApolloKey } from '../controllers/contact.controller';
-import { getAutomationSettings, updateAutomationSettings, getIntelligenceSettings } from '../controllers/automation.controller';
+import { getAutomationSettings, updateAutomationSettings, getIntelligenceSettings, getEmailSettings } from '../controllers/automation.controller';
 
 const router = express.Router();
 
@@ -10,6 +10,7 @@ router.use(protect);
 router.get('/automation', authorize('scraping:manage'), getAutomationSettings);
 router.patch('/automation', authorize('scraping:manage'), updateAutomationSettings);
 router.get('/intelligence', authorize('lead:hunt'), getIntelligenceSettings);
+router.get('/email', authorize('user:read'), getEmailSettings);
 
 router.post('/contact-compass-token', authorize('scraping:manage'), updateToken);
 router.get('/contact-compass-token', authorize('scraping:manage'), getToken);

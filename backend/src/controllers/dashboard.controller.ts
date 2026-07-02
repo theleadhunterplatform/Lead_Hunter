@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 import asyncHandler from '../middleware/async';
 import { getDashboardStats, getLeadStats } from '../services/dashboard.service';
+import { getScrapeActivityStats } from '../utils/scrape-run-log.utils';
 import { getUserPermissions, hasPermission as checkPermission } from '../utils/rbac.utils';
 import ErrorResponse from '../utils/error-response.utils';
 
@@ -30,9 +31,13 @@ export const getLeadIntelligenceStats = asyncHandler(async (req: Request, res: R
     }
 
     const stats = await getLeadStats();
+    const scrape = await getScrapeActivityStats();
 
     res.status(200).json({
         success: true,
-        data: stats,
+        data: {
+            ...stats,
+            scrape,
+        },
     });
 });

@@ -12,7 +12,6 @@ export const getLeaderboardData = async (query: { limit?: number }) => {
         select: {
             id: true,
             name: true,
-            email: true,
             points: true,
             plan: true,
             referral_count: true,

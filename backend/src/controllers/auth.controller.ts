@@ -99,3 +99,23 @@ export const getOrganizations = asyncHandler(async (req: Request, res: Response,
         data: result
     });
 });
+
+export const forgotPassword = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+    const result = await authService.requestPasswordReset(req.body.email);
+    res.status(200).json({ success: true, ...result });
+});
+
+export const resetPassword = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+    const result = await authService.resetPassword(req.body.token, req.body.password);
+    res.status(200).json({ success: true, ...result });
+});
+
+export const changePassword = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+    const user = req.user as any;
+    const result = await authService.changePassword(
+        user._id.toString(),
+        req.body.current_password,
+        req.body.new_password
+    );
+    res.status(200).json({ success: true, ...result });
+});

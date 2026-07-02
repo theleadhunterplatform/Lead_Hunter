@@ -34,6 +34,10 @@ function LoginForm() {
       localStorage.setItem("hunter_refresh_token", payload.refresh_token);
       localStorage.setItem("hunter_user", JSON.stringify(payload.user));
       await refreshUser();
+      if (payload.user?.must_change_password) {
+        router.push("/change-password");
+        return;
+      }
       const redirect = searchParams.get("redirect");
       const destination =
         redirect === ADMIN_ROUTES.root || redirect?.startsWith(`${ADMIN_ROUTES.root}/`)
@@ -111,6 +115,12 @@ function LoginForm() {
             value={formData.password}
             onChange={(e) => setFormData({ ...formData, password: e.target.value })}
           />
+
+          <p className="text-right">
+            <Link href="/forgot-password" className="text-[10px] font-bold uppercase tracking-widest text-hunter-orange hover:underline">
+              Forgot password?
+            </Link>
+          </p>
 
           <Button
             type="submit"

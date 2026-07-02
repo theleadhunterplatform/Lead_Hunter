@@ -87,6 +87,25 @@ const config = {
     googlePlaces: {
         apiKey: process.env.GOOGLE_PLACES_API_KEY || '',
     },
+    email: {
+        from: process.env.EMAIL_FROM || 'Lead Hunter <noreply@leadhunter.app>',
+        resendApiKey: process.env.RESEND_API_KEY || '',
+        smtp: {
+            host: process.env.SMTP_HOST || '',
+            port: parseInt(process.env.SMTP_PORT || '587', 10),
+            secure: process.env.SMTP_SECURE === 'true',
+            user: process.env.SMTP_USER || '',
+            pass: process.env.SMTP_PASS || '',
+        },
+    },
+    security: {
+        extensionIngestApiKey: process.env.EXTENSION_INGEST_API_KEY || '',
+        allowOpenRegistration: process.env.ALLOW_OPEN_REGISTRATION !== 'false',
+        platformOwnerEmails: (process.env.PLATFORM_OWNER_EMAILS || '')
+            .split(',')
+            .map((e) => e.trim().toLowerCase())
+            .filter(Boolean),
+    },
 };
 
 if (dbMode === 'supabase' && !process.env.DATABASE_URL && config.env === 'production') {

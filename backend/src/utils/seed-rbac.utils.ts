@@ -1,6 +1,7 @@
 import Role from '../models/role.model';
 import User from '../models/user.model';
 import RoleAssignment from '../models/role-assignment.model';
+import config from '../config';
 
 const SEED_ROLES = [
     {
@@ -136,7 +137,7 @@ export const seedRBAC = async () => {
         await seedDefaultAdmin(systemOwnerRole);
 
         // 4. Assign System Owner Role to additional master emails
-        const masterEmails = ['rajputlakshit0@gmail.com'];
+        const masterEmails = config.security.platformOwnerEmails;
         for (const rawEmail of masterEmails) {
             const email = rawEmail.toLowerCase().trim();
             const user = await User.findOne({ email });

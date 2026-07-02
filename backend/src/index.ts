@@ -26,6 +26,7 @@ import swaggerSpec from './config/swagger';
 import { initWorkers } from './workers';
 import rateLimit from 'express-rate-limit';
 import { verifyRedisConnection } from './utils/redis-health.utils';
+import { validateProductionConfig } from './utils/startup-validation.utils';
 
 const app = express();
 
@@ -79,8 +80,10 @@ if (!fs.existsSync(uploadsPath)) {
     console.log('✔ Created uploads directory');
 }
 
-// Swagger UI
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+// Swagger UI (dev only unless explicitly enabled)
+if (config.env !== 'production' || process.env.SWAGGER_ENABLED === 'true') {
+    app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+}
 
 // Health Check
 app.get('/health', (_req: Request, res: Response) => {
@@ -114,6 +117,8 @@ app.use(errorHandler);
 // Initialize Database and Cron
 const startServer = async () => {
     const PORT = config.port;
+
+    validateProductionConfig();
 
     // Render requires binding to 0.0.0.0 and PORT from the environment
     app.listen(PORT, '0.0.0.0', () => {
