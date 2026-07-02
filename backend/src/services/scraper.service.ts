@@ -13,17 +13,14 @@ import {
 } from '../utils/scraped-item.utils';
 
 export class ScraperService {
-    static async scrapeKeyword(
-        keywordId: string,
-        platform: string
-    ): Promise<{ items_scraped: number; new_leads: number; duplicate_count: number }> {
+    static async scrapeKeyword(keywordId: string, platform: string) {
         const kw = await Keyword.findById(keywordId);
         if (!kw) throw new Error(`Keyword ${keywordId} not found`);
 
         const phrases = splitKeywordPhrases(kw.text);
         if (phrases.length === 0) {
             console.warn(`[ScraperService] Keyword ${keywordId} has no usable search phrases`);
-            return { items_scraped: 0, new_leads: 0, duplicate_count: 0 };
+            return;
         }
 
         if (phrases.length > 1) {
@@ -33,18 +30,11 @@ export class ScraperService {
         }
 
         const { client, activeKey } = await getApifyClient();
-        let items_scraped = 0;
-        let new_leads = 0;
-        let duplicate_count = 0;
 
         try {
             for (const phrase of phrases) {
-                const result = await this.scrapePhrase(client, platform, phrase, kw);
-                items_scraped += result.items_scraped;
-                new_leads += result.new_leads;
-                duplicate_count += result.duplicate_count;
+                await this.scrapePhrase(client, platform, phrase, kw);
             }
-            return { items_scraped, new_leads, duplicate_count };
         } catch (error: any) {
             await handleApifyLimitError(error, activeKey);
             console.error(`❌ Error in ScraperService (${platform}):`, error.message);
@@ -52,12 +42,7 @@ export class ScraperService {
         }
     }
 
-    private static async scrapePhrase(
-        client: any,
-        platform: string,
-        phrase: string,
-        kw: any
-    ): Promise<{ items_scraped: number; new_leads: number; duplicate_count: number }> {
+    private static async scrapePhrase(client: any, platform: string, phrase: string, kw: any) {
         console.log(`🚀 [ScraperService] Processing ${platform} for keyword: "${phrase}"`);
 
         let items: any[] = [];
@@ -114,12 +99,6 @@ export class ScraperService {
                 `[ScraperService] "${phrase}" on ${platform}: saved ${saved}, skipped ${skipped}/${items.length}`
             );
         }
-
-        return {
-            items_scraped: items.length,
-            new_leads: saved,
-            duplicate_count: skipped,
-        };
     }
 
     private static async processScrapedItem(

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Filter, Search, Download, ExternalLink, MessageSquare, ThumbsUp, Share2, User, Shield, Plus, ImageIcon, Mail, Loader2, BrainCircuit, Zap, RefreshCw, CheckCircle2, XCircle, ClipboardCheck, Trash2, Radar } from "lucide-react";
+import { Filter, Search, Download, ExternalLink, MessageSquare, ThumbsUp, Share2, User, Shield, Plus, ImageIcon, Mail, Loader2, BrainCircuit, Zap, RefreshCw, CheckCircle2, XCircle, ClipboardCheck, Trash2 } from "lucide-react";
 import { Button, Input } from "@/components/ui/HunterUI";
 import { cn } from "@/components/ui/HunterUI";
 import api from "@/lib/api";
@@ -131,26 +131,6 @@ export default function LeadIntelligencePage() {
     awaiting_review: number;
     with_contact: number;
     watchlist_active: number;
-    scrape?: {
-      scrape_ingested_today: number;
-      scrape_runs_today: number;
-      today_items_fetched: number;
-      today_new_from_scrapes: number;
-      today_skipped_from_scrapes: number;
-      last_scrape_run: {
-        at: string;
-        status: string;
-        job_name: string;
-        platform: string | null;
-        keyword: string | null;
-        target_name: string | null;
-        items_scraped: number;
-        new_leads: number;
-        skipped: number;
-        error: string | null;
-        duration_ms: number | null;
-      } | null;
-    };
   } | null>(null);
   const { user, refreshUser, permissions, loading: authLoading } = useAuth();
   const isInternal = permissions.has('*');
@@ -697,33 +677,6 @@ export default function LeadIntelligencePage() {
     return source ? labels[source] || source : null;
   };
 
-  const formatScrapeRunLabel = (
-    run: NonNullable<NonNullable<typeof leadStats>["scrape"]>["last_scrape_run"]
-  ) => {
-    if (!run) return "No scrape runs logged yet";
-    if (run.target_name) return `Watchlist · ${run.target_name}`;
-    if (run.keyword) return `${run.platform || "scrape"} · "${run.keyword}"`;
-    return run.platform || run.job_name || "Scrape run";
-  };
-
-  const formatRelativeTime = (iso: string) => {
-    const diff = Date.now() - new Date(iso).getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 1) return "just now";
-    if (mins < 60) return `${mins}m ago`;
-    const hours = Math.floor(mins / 60);
-    if (hours < 24) return `${hours}h ago`;
-    return `${Math.floor(hours / 24)}d ago`;
-  };
-
-  const formatExactTime = (iso: string) =>
-    new Date(iso).toLocaleString(undefined, {
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    });
-
   const tabs = isInternal
     ? [
         { id: "all", label: "All Leads", count: counts.all },
@@ -774,68 +727,6 @@ export default function LeadIntelligencePage() {
                 </a>
                 {intelModel ? ` (model: ${intelModel})` : ""}.
               </p>
-            </div>
-          )}
-
-          {isInternal && leadStats?.scrape && (
-            <div className="p-5 bg-hunter-grey neo-border border-zinc-800 border-l-4 border-l-blue-500/80">
-              <div className="flex items-center gap-2 mb-4">
-                <Radar size={16} className="text-blue-400" />
-                <h2 className="text-[10px] font-black uppercase tracking-[0.25em] text-zinc-400">
-                  Scraping Activity
-                </h2>
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div>
-                  <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500 mb-1">Ingested Today</p>
-                  <p className="text-2xl font-display font-black text-white">
-                    {leadStats.scrape.scrape_ingested_today}
-                  </p>
-                  <p className="text-[9px] text-zinc-600 font-bold uppercase mt-1">new scraped leads</p>
-                </div>
-                <div>
-                  <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500 mb-1">Runs Today</p>
-                  <p className="text-2xl font-display font-black text-white">
-                    {leadStats.scrape.scrape_runs_today}
-                  </p>
-                  <p className="text-[9px] text-zinc-600 font-bold uppercase mt-1">
-                    {leadStats.scrape.today_new_from_scrapes} new · {leadStats.scrape.today_skipped_from_scrapes} skipped
-                  </p>
-                </div>
-                <div>
-                  <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500 mb-1">Fetched Today</p>
-                  <p className="text-2xl font-display font-black text-white">
-                    {leadStats.scrape.today_items_fetched}
-                  </p>
-                  <p className="text-[9px] text-zinc-600 font-bold uppercase mt-1">posts from Apify</p>
-                </div>
-                <div>
-                  <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500 mb-1">Last Scrape Run</p>
-                  {leadStats.scrape.last_scrape_run ? (
-                    <>
-                      <p className="text-sm font-display font-black text-white leading-tight">
-                        {formatRelativeTime(leadStats.scrape.last_scrape_run.at)}
-                      </p>
-                      <p className="text-[9px] text-zinc-500 font-bold uppercase mt-1 truncate" title={formatScrapeRunLabel(leadStats.scrape.last_scrape_run)}>
-                        {formatScrapeRunLabel(leadStats.scrape.last_scrape_run)}
-                      </p>
-                      <p className="text-[9px] text-zinc-600 font-bold uppercase mt-1">
-                        {leadStats.scrape.last_scrape_run.status === "failed" ? (
-                          <span className="text-red-400">Failed</span>
-                        ) : (
-                          <>
-                            {leadStats.scrape.last_scrape_run.new_leads} new · {leadStats.scrape.last_scrape_run.skipped} skipped
-                          </>
-                        )}
-                        {" · "}
-                        {formatExactTime(leadStats.scrape.last_scrape_run.at)}
-                      </p>
-                    </>
-                  ) : (
-                    <p className="text-sm font-bold text-zinc-500 uppercase">No runs yet</p>
-                  )}
-                </div>
-              </div>
             </div>
           )}
 
