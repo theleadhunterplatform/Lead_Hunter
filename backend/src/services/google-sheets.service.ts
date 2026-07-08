@@ -75,6 +75,60 @@ function buildFrontendRedirect(status: 'connected' | 'error', message?: string):
     return url.toString();
 }
 
+function asGoogleSheetsError(err: unknown): ErrorResponse {
+    if (err instanceof ErrorResponse) return err;
+
+    const gaxios = err as {
+        message?: string;
+        response?: {
+            status?: number;
+            data?: {
+                error?: {
+                    message?: string;
+                    errors?: Array<{ message?: string }>;
+                };
+            };
+        };
+    };
+
+    const apiMessage =
+        gaxios.response?.data?.error?.message ||
+        gaxios.response?.data?.error?.errors?.[0]?.message ||
+        gaxios.message ||
+        'Google Sheets request failed';
+    const status = gaxios.response?.status;
+
+    if (status === 404) {
+        return new ErrorResponse(
+            'Spreadsheet not found. Check the URL and ensure the sheet is owned by or shared with your connected Google account.',
+            400
+        );
+    }
+
+    if (status === 403) {
+        const needsApiEnable =
+            /has not been used|is disabled|access not configured/i.test(apiMessage);
+        const hint = needsApiEnable
+            ? ' Enable the Google Sheets API in Google Cloud Console (APIs & Services → Library → Google Sheets API), then reconnect.'
+            : ' Ensure this Google account can edit the spreadsheet.';
+        return new ErrorResponse(`Google Sheets access denied.${hint}`, 400);
+    }
+
+    if (status === 401) {
+        return new ErrorResponse('Google session expired. Click Reconnect Google and try again.', 400);
+    }
+
+    return new ErrorResponse(apiMessage, 400);
+}
+
+async function withGoogleSheets<T>(fn: () => Promise<T>): Promise<T> {
+    try {
+        return await fn();
+    } catch (err) {
+        throw asGoogleSheetsError(err);
+    }
+}
+
 export async function createGoogleConnectUrl(userId: string): Promise<string> {
     const oauth2Client = getOAuthClient();
     const state = generateSecureToken(16);
@@ -158,6 +212,17 @@ async function getSheetsClientForUser(userId: string) {
         access_token: cfg.access_token,
         refresh_token: cfg.refresh_token,
         expiry_date: cfg.expiry_date ?? undefined,
+    });
+
+    oauth2Client.removeAllListeners('tokens');
+    oauth2Client.on('tokens', (tokens) => {
+        void saveUserConfig(userId, {
+            ...cfg,
+            connected: true,
+            access_token: tokens.access_token || cfg.access_token,
+            refresh_token: tokens.refresh_token || cfg.refresh_token,
+            expiry_date: tokens.expiry_date ?? cfg.expiry_date ?? null,
+        });
     });
 
     return { cfg, sheets: google.sheets({ version: 'v4', auth: oauth2Client }) };
@@ -251,9 +316,11 @@ export async function saveGoogleSheetsTarget(userId: string, spreadsheetInput: s
 
     const { cfg, sheets } = await getSheetsClientForUser(userId);
 
-    await sheets.spreadsheets.get({ spreadsheetId });
-    await ensureSheetTab(sheets, spreadsheetId, tabName);
-    await ensureHeaders(sheets, spreadsheetId, tabName);
+    await withGoogleSheets(async () => {
+        await sheets.spreadsheets.get({ spreadsheetId });
+        await ensureSheetTab(sheets, spreadsheetId, tabName);
+        await ensureHeaders(sheets, spreadsheetId, tabName);
+    });
 
     const updated: GoogleSheetsUserConfig = {
         ...cfg,
@@ -288,37 +355,40 @@ export async function exportClaimsToGoogleSheets(userId: string) {
         throw new ErrorResponse('No Google Sheet configured. Save a spreadsheet first.', 400);
     }
     const sheetName = cfg.sheet_name || DEFAULT_SHEET_NAME;
+    const spreadsheetId = cfg.spreadsheet_id;
 
     const claims = await Claim.find({ userId }, { populate: 'leadId' });
     if (claims.length === 0) {
         return { exported: 0, skipped: 0, message: 'No claimed leads to export.' };
     }
 
-    await ensureSheetTab(sheets, cfg.spreadsheet_id, sheetName);
-    await ensureHeaders(sheets, cfg.spreadsheet_id, sheetName);
+    return withGoogleSheets(async () => {
+        await ensureSheetTab(sheets, spreadsheetId, sheetName);
+        await ensureHeaders(sheets, spreadsheetId, sheetName);
 
-    const existing = await sheets.spreadsheets.values.get({
-        spreadsheetId: cfg.spreadsheet_id,
-        range: `${sheetName}!A2:A`,
-    });
-    const existingIds = new Set((existing.data.values || []).map((row) => row[0]));
-
-    const rows = normalizeClaimsRows(claims);
-    const pendingRows = rows.filter((row) => !existingIds.has(row[0]));
-
-    if (pendingRows.length > 0) {
-        await sheets.spreadsheets.values.append({
-            spreadsheetId: cfg.spreadsheet_id,
-            range: `${sheetName}!A:K`,
-            valueInputOption: 'RAW',
-            requestBody: { values: pendingRows },
+        const existing = await sheets.spreadsheets.values.get({
+            spreadsheetId,
+            range: `${sheetName}!A2:A`,
         });
-    }
+        const existingIds = new Set((existing.data.values || []).map((row) => row[0]));
 
-    return {
-        exported: pendingRows.length,
-        skipped: rows.length - pendingRows.length,
-        spreadsheet_id: cfg.spreadsheet_id,
-        sheet_name: sheetName,
-    };
+        const rows = normalizeClaimsRows(claims);
+        const pendingRows = rows.filter((row) => !existingIds.has(row[0]));
+
+        if (pendingRows.length > 0) {
+            await sheets.spreadsheets.values.append({
+                spreadsheetId,
+                range: `${sheetName}!A:K`,
+                valueInputOption: 'RAW',
+                requestBody: { values: pendingRows },
+            });
+        }
+
+        return {
+            exported: pendingRows.length,
+            skipped: rows.length - pendingRows.length,
+            spreadsheet_id: spreadsheetId,
+            sheet_name: sheetName,
+        };
+    });
 }
