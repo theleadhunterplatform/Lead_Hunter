@@ -1,11 +1,13 @@
-import jwt from 'jsonwebtoken';
 import { google } from 'googleapis';
 import config from '../config';
 import ErrorResponse from '../utils/error-response.utils';
+import { generateSecureToken } from '../utils/crypto-token.utils';
 import * as settingService from './setting.service';
 import Claim from '../models/claim.model';
 
 const GOOGLE_SCOPE = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/userinfo.email'];
+const OAUTH_STATE_PREFIX = 'google_oauth_state_';
+const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
 const DEFAULT_SHEET_NAME = 'Lead_Hunter_Export';
 const HEADERS = [
     'claim_id',
@@ -73,9 +75,15 @@ function buildFrontendRedirect(status: 'connected' | 'error', message?: string):
     return url.toString();
 }
 
-export function createGoogleConnectUrl(userId: string): string {
+export async function createGoogleConnectUrl(userId: string): Promise<string> {
     const oauth2Client = getOAuthClient();
-    const state = jwt.sign({ userId }, config.jwt.accessSecret, { expiresIn: '10m' });
+    const state = generateSecureToken(16);
+    await settingService.updateSetting(
+        `${OAUTH_STATE_PREFIX}${state}`,
+        { userId, expires_at: Date.now() + OAUTH_STATE_TTL_MS },
+        'Temporary Google OAuth state'
+    );
+
     return oauth2Client.generateAuthUrl({
         access_type: 'offline',
         prompt: 'consent',
@@ -84,14 +92,28 @@ export function createGoogleConnectUrl(userId: string): string {
     });
 }
 
-export async function handleGoogleOAuthCallback(code: string, state: string): Promise<string> {
-    let userId: string;
-    try {
-        const payload = jwt.verify(state, config.jwt.accessSecret) as { userId: string };
-        userId = payload.userId;
-    } catch {
+async function resolveOAuthState(state: string): Promise<string> {
+    const normalized = state.trim();
+    if (!normalized) {
         throw new ErrorResponse('Invalid OAuth state.', 400);
     }
+
+    const raw = await settingService.getSetting(`${OAUTH_STATE_PREFIX}${normalized}`);
+    if (!raw || typeof raw !== 'object') {
+        throw new ErrorResponse('Invalid OAuth state.', 400);
+    }
+
+    const { userId, expires_at } = raw as { userId?: string; expires_at?: number };
+    if (!userId || !expires_at || Date.now() > expires_at) {
+        throw new ErrorResponse('OAuth state expired. Please connect again.', 400);
+    }
+
+    await settingService.deleteSetting(`${OAUTH_STATE_PREFIX}${normalized}`);
+    return userId;
+}
+
+export async function handleGoogleOAuthCallback(code: string, state: string): Promise<string> {
+    const userId = await resolveOAuthState(state);
 
     const oauth2Client = getOAuthClient();
     const tokenResult = await oauth2Client.getToken(code);
