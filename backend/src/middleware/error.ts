@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import ErrorResponse from '../utils/error-response.utils';
+import config from '../config';
 
 const errorHandler = (err: any, _req: Request, res: Response, _next: NextFunction) => {
     let error = { ...err };
@@ -16,10 +17,17 @@ const errorHandler = (err: any, _req: Request, res: Response, _next: NextFunctio
         error = new ErrorResponse('Duplicate field value entered', 400);
     }
 
-    res.status(error.statusCode || 500).json({
+    const statusCode = error.statusCode || 500;
+    const isProd = config.env === 'production';
+    const safeMessage =
+        isProd && statusCode >= 500
+            ? 'Internal Server Error'
+            : error.message || 'Server Error';
+
+    res.status(statusCode).json({
         success: false,
-        error: error.message || 'Server Error',
-        errors: error.errors || undefined
+        error: safeMessage,
+        errors: isProd && statusCode >= 500 ? undefined : error.errors || undefined
     });
 };
 

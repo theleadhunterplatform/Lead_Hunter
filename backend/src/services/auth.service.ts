@@ -16,19 +16,21 @@ import {
     buildInviteEmail,
     isEmailConfigured,
 } from '../utils/email.service';
+import { isSignupApprovalRequired } from '../utils/signup-approval.utils';
 
 async function reactivateDeletedUser(
     existing: any,
-    data: { name: string; password: string; organizationId?: string | null }
+    data: { name: string; password: string; organizationId?: string | null; email: string }
 ) {
+    const needsApproval = isSignupApprovalRequired(data.email);
     const updateData: Record<string, unknown> = {
         name: data.name,
         password: await hashPassword(data.password),
         is_deleted: false,
-        is_active: true,
-        lead_access_enabled: true,
+        is_active: !needsApproval,
+        lead_access_enabled: !needsApproval,
         deleted_at: null,
-        status: 'active',
+        status: needsApproval ? 'pending' : 'active',
     };
 
     if (data.organizationId !== undefined) {
@@ -53,7 +55,7 @@ export const registerUser = async (userData: any) => {
 
     if (existingUser?.is_deleted) {
         await RoleAssignment.removeAllForUser(existingUser._id.toString());
-        const user = await reactivateDeletedUser(existingUser, { name, password });
+        const user = await reactivateDeletedUser(existingUser, { name, password, email });
         let organizationId: any = user.organization?.toString?.() || user.organization || undefined;
 
         if (organization_name) {
@@ -85,6 +87,20 @@ export const registerUser = async (userData: any) => {
             assignedBy: user._id,
         });
 
+        if (isSignupApprovalRequired(email)) {
+            return {
+                approval_required: true,
+                message: 'Account created. Awaiting admin approval before you can log in.',
+                user: {
+                    id: user._id,
+                    name: user.name,
+                    email: user.email,
+                    status: 'pending',
+                    organization: user.organization,
+                },
+            };
+        }
+
         const tokens = generateTokenPair(user._id.toString());
         return {
             user: {
@@ -104,11 +120,16 @@ export const registerUser = async (userData: any) => {
         throw new ErrorResponse('System error: Default roles not initialized', 500);
     }
 
+    const needsApproval = isSignupApprovalRequired(email);
+
     // 1. Create User
     const user = await User.create({
         name,
         email,
-        password
+        password,
+        status: needsApproval ? 'pending' : 'active',
+        is_active: !needsApproval,
+        lead_access_enabled: !needsApproval,
     });
 
     let organizationId: any = undefined;
@@ -159,6 +180,21 @@ export const registerUser = async (userData: any) => {
         assignedBy: user._id
     });
 
+    if (needsApproval) {
+        return {
+            approval_required: true,
+            message: 'Account created. Awaiting admin approval before you can log in.',
+            user: {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                status: 'pending',
+                organization: user.organization,
+                must_change_password: false,
+            },
+        };
+    }
+
     const tokens = generateTokenPair(user._id.toString());
 
         return {
@@ -182,7 +218,19 @@ export const loginUser = async (credentials: any) => {
         throw new ErrorResponse('Invalid credentials', 401);
     }
 
-    if (!user.is_active || user.is_deleted) {
+    if (user.is_deleted) {
+        throw new ErrorResponse('Account is inactive or deleted', 401);
+    }
+
+    if (user.status === 'pending') {
+        throw new ErrorResponse('Your account is pending admin approval.', 403);
+    }
+
+    if (user.status === 'rejected') {
+        throw new ErrorResponse('Your signup was rejected. Contact support if you believe this is a mistake.', 403);
+    }
+
+    if (!user.is_active) {
         throw new ErrorResponse('Account is inactive or deleted', 401);
     }
 
@@ -204,6 +252,7 @@ export const loginUser = async (credentials: any) => {
             email: user.email,
             organization: user.organization,
             permissions,
+            status: fullUser?.status ?? user.status,
             must_change_password: fullUser?.must_change_password ?? false,
         },
         ...tokens
@@ -221,6 +270,14 @@ export const refreshUserToken = async (refreshToken: string) => {
         const user = await User.findById(decoded.id);
         if (!user || !user.is_active || user.is_deleted) {
             throw new ErrorResponse('User no longer exists or is inactive', 401);
+        }
+
+        if (user.status === 'pending') {
+            throw new ErrorResponse('Your account is pending admin approval.', 403);
+        }
+
+        if (user.status === 'rejected') {
+            throw new ErrorResponse('Your signup was rejected.', 403);
         }
 
         const tokens = generateTokenPair(user._id.toString());

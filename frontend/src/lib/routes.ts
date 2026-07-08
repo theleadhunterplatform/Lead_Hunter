@@ -2,6 +2,7 @@ export const ADMIN_ROUTES = {
   root: "/admin",
   dashboard: "/admin/dashboard",
   leadIntelligence: "/admin/lead-intelligence",
+  approvals: "/admin/user-approvals",
   tokens: "/admin/tokens",
   keywords: "/admin/keywords",
   targets: "/admin/targets",
@@ -16,6 +17,7 @@ export function hasAdminAreaAccess(
   if (permissions.has("*")) return true;
   return (
     hasPermission("user:read") ||
+    hasPermission("system:admin") ||
     hasPermission("keyword:create") ||
     hasPermission("target:read") ||
     hasPermission("scraping:manage") ||

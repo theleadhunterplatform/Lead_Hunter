@@ -99,7 +99,9 @@ export default function ProtectedLayout({
     { name: "Search Keys", href: ADMIN_ROUTES.tokens, icon: Key, permission: "scraping:manage" },
     { name: "Search Keywords", href: ADMIN_ROUTES.keywords, icon: Hash, permission: "keyword:create" },
     { name: "Watchlist", href: ADMIN_ROUTES.targets, icon: UserSearch, permission: "target:read" },
+    { name: "User Approvals", href: ADMIN_ROUTES.approvals, icon: Shield, permission: "system:admin" },
     { name: "RBAC Engine", href: ADMIN_ROUTES.rbac, icon: Shield, permission: "role:read" },
+    { name: "Integrations", href: "/integrations/google-sheets", icon: Settings, permission: "lead:read" },
   ];
 
   const filteredNavItems = navItems.filter(item => {

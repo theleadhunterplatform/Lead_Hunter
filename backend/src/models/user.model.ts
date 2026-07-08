@@ -40,6 +40,7 @@ const buildWhere = (filter: any = {}) => {
     if (filter._id || filter.id) where.id = filter._id || filter.id;
     if (filter.email) where.email = filter.email.toLowerCase().trim();
     if (filter.is_deleted !== undefined) where.is_deleted = filter.is_deleted;
+    if (filter.status) where.status = filter.status;
     if (filter.organization) where.organizationId = filter.organization;
     if (filter.$or) {
         where.OR = filter.$or.map((clause: any) => {
@@ -117,6 +118,7 @@ const User = {
                 organizationId: data.organization || null,
                 status: data.status || 'active',
                 lead_access_enabled: data.lead_access_enabled ?? true,
+                is_active: data.is_active ?? true,
                 plan: data.plan || 'free',
                 tokens: data.tokens ?? 10,
             },

@@ -87,6 +87,11 @@ const config = {
     googlePlaces: {
         apiKey: process.env.GOOGLE_PLACES_API_KEY || '',
     },
+    googleOAuth: {
+        clientId: process.env.GOOGLE_OAUTH_CLIENT_ID || '',
+        clientSecret: process.env.GOOGLE_OAUTH_CLIENT_SECRET || '',
+        redirectUri: process.env.GOOGLE_OAUTH_REDIRECT_URI || '',
+    },
     email: {
         from: process.env.EMAIL_FROM || 'Lead Hunter <noreply@leadhunter.app>',
         resendApiKey: process.env.RESEND_API_KEY || '',
@@ -100,7 +105,9 @@ const config = {
     },
     security: {
         extensionIngestApiKey: process.env.EXTENSION_INGEST_API_KEY || '',
+        settingsEncryptionKey: process.env.SETTINGS_ENCRYPTION_KEY || '',
         allowOpenRegistration: process.env.ALLOW_OPEN_REGISTRATION !== 'false',
+        requireSignupApproval: process.env.REQUIRE_SIGNUP_APPROVAL !== 'false',
         platformOwnerEmails: (process.env.PLATFORM_OWNER_EMAILS || '')
             .split(',')
             .map((e) => e.trim().toLowerCase())

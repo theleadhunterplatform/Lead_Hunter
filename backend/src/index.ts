@@ -20,6 +20,8 @@ import leaderboardRoutes from './routes/leaderboard.routes';
 import crmRoutes from './routes/crm.routes';
 import targetRoutes from './routes/target.routes';
 import dashboardRoutes from './routes/dashboard.routes';
+import adminRoutes from './routes/admin.routes';
+import googleSheetsRoutes from './routes/google-sheets.routes';
 import errorHandler from './middleware/error';
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './config/swagger';
@@ -29,6 +31,7 @@ import { verifyRedisConnection } from './utils/redis-health.utils';
 import { validateProductionConfig } from './utils/startup-validation.utils';
 
 const app = express();
+app.disable('x-powered-by');
 
 // Trust proxy for production environments (required for express-rate-limit)
 app.set('trust proxy', 1);
@@ -52,7 +55,7 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization', 'x-org-id'],
 }));
 
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
 app.use(helmet({
     crossOriginResourcePolicy: { policy: 'cross-origin' },
 }));
@@ -71,7 +74,23 @@ app.use(limiter);
 
 // Static Folders
 const uploadsPath = path.join(__dirname, '../uploads');
-app.use('/uploads', express.static(uploadsPath));
+app.use('/uploads', (req: Request, res: Response, next) => {
+    const ext = path.extname(req.path).toLowerCase();
+    const allowed = new Set(['.jpg', '.jpeg', '.png', '.webp']);
+    if (!allowed.has(ext)) {
+        return res.status(403).json({ success: false, message: 'File type is not accessible' });
+    }
+    return next();
+});
+app.use('/uploads', express.static(uploadsPath, {
+    fallthrough: false,
+    index: false,
+    dotfiles: 'deny',
+    setHeaders: (res) => {
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        res.setHeader('Cache-Control', 'private, max-age=86400');
+    },
+}));
 
 // Ensure uploads directory exists
 import fs from 'fs';
@@ -103,6 +122,8 @@ app.use('/api/leaderboard', leaderboardRoutes);
 app.use('/api/crm', crmRoutes);
 app.use('/api/targets', targetRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/google-sheets', googleSheetsRoutes);
 
 // 404 Handler
 app.use((_req: Request, res: Response) => {

@@ -3,6 +3,7 @@ import prisma from '../lib/prisma';
 import { seedRBAC } from '../utils/seed-rbac.utils';
 
 export const connect = async () => {
+    process.env.REQUIRE_SIGNUP_APPROVAL = 'false';
     await prisma.$connect();
     await seedRBAC();
 };
@@ -22,8 +23,9 @@ export const clear = async () => {
         prisma.apifyKey.deleteMany(),
         prisma.keyword.deleteMany(),
         prisma.setting.deleteMany(),
-        prisma.user.deleteMany(),
+        prisma.user.updateMany({ data: { organizationId: null } }),
         prisma.organization.deleteMany(),
+        prisma.user.deleteMany(),
         prisma.role.deleteMany(),
     ]);
 

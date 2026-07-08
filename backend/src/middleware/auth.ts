@@ -28,6 +28,14 @@ export const protect = async (req: Request, res: Response, next: NextFunction) =
             return res.status(401).json({ message: 'User no longer exists or is disabled' });
         }
 
+        if (user.status === 'pending') {
+            return res.status(403).json({ message: 'Account pending admin approval' });
+        }
+
+        if (user.status === 'rejected') {
+            return res.status(403).json({ message: 'Account signup was rejected' });
+        }
+
         req.user = {
             ...user,
             id: user.id || user._id,
