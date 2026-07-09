@@ -18,12 +18,16 @@ export default function TokensPage() {
     key: string;
     label: string;
     is_active: boolean;
+    assigned_worker?: string | null;
     comments_used?: number;
     comments_limit?: number;
     comments_remaining?: number;
     usage?: ApiUsageData;
     platform_usage?: ApiUsageData | null;
   }[]>([]);
+  const [activeLeases, setActiveLeases] = useState<
+    Array<{ worker_id: string; key_id: string; key_label: string | null }>
+  >([]);
   const [newToken, setNewToken] = useState({ key: "", label: "" });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -107,6 +111,7 @@ export default function TokensPage() {
     try {
       const response = await api.get("/apify-keys");
       setTokens(response.data.data);
+      setActiveLeases(response.data.active_leases || []);
     } catch (error: any) {
       console.error("Failed to fetch tokens", error);
     } finally {
@@ -399,6 +404,22 @@ export default function TokensPage() {
       </form>
 
       {/* Tokens List */}
+      {activeLeases.length > 0 && (
+        <div className="mb-4 bg-hunter-orange/10 border border-hunter-orange/40 p-4 text-xs">
+          <p className="font-display font-black uppercase tracking-widest text-hunter-orange mb-2">
+            Tokens in use right now
+          </p>
+          <ul className="space-y-1 text-zinc-300">
+            {activeLeases.map((lease) => (
+              <li key={`${lease.worker_id}-${lease.key_id}`}>
+                <span className="text-white font-bold">{lease.key_label || "Unnamed key"}</span>
+                {" "}→ worker <span className="font-mono text-hunter-orange">{lease.worker_id}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="space-y-4">
         {loading ? (
           <div className="p-10 text-center animate-pulse text-zinc-600 font-display uppercase tracking-widest text-sm flex flex-col items-center gap-4">
@@ -425,7 +446,9 @@ export default function TokensPage() {
                   ? "bg-hunter-orange"
                   : "bg-green-500";
             const badgeLabel =
-              commentStatus === "exhausted"
+              token.assigned_worker
+                ? "In Use"
+                : commentStatus === "exhausted"
                 ? "Limit Reached"
                 : commentStatus === "low"
                   ? "Low Quota"
@@ -433,7 +456,9 @@ export default function TokensPage() {
                     ? "Active"
                     : "Disabled";
             const badgeClass =
-              commentStatus === "exhausted"
+              token.assigned_worker
+                ? "bg-hunter-orange text-black"
+                : commentStatus === "exhausted"
                 ? "bg-red-500 text-white border-red-700"
                 : commentStatus === "low"
                   ? "bg-hunter-orange text-black"
@@ -463,6 +488,11 @@ export default function TokensPage() {
                     {platformUsage?.limit != null && (
                       <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
                         Platform: ${platformUsage.used ?? 0} / ${platformUsage.limit}
+                      </span>
+                    )}
+                    {token.assigned_worker && (
+                      <span className="text-[10px] font-black uppercase tracking-widest text-hunter-orange">
+                        Node: {token.assigned_worker}
                       </span>
                     )}
                   </div>
