@@ -2,16 +2,20 @@ import { Request, Response, NextFunction } from 'express';
 import asyncHandler from '../middleware/async';
 import * as apifyKeyService from '../services/apify-key.service';
 import { getApifyCommentUsageView, getApifyPlatformUsage } from '../utils/apify-usage.utils';
+import { getApifyLeaseStatus, getWorkerId } from '../utils/apify-client.utils';
 
 // @desc    Get all Apify keys
 // @route   GET /api/apify-keys
 // @access  Private
 export const getApifyKeys = asyncHandler(async (_req: Request, res: Response, _next: NextFunction) => {
     const keys = await apifyKeyService.getAllApifyKeys();
+    const leases = await getApifyLeaseStatus();
+    const leaseByKeyId = new Map(leases.map((lease) => [lease.key_id, lease.worker_id]));
 
     const data = await Promise.all(
         keys.map(async (key: Record<string, any>) => {
             const commentUsage = getApifyCommentUsageView(key);
+            const keyId = key._id || key.id;
             const platformUsage =
                 key.is_active && typeof key.key === 'string'
                     ? await getApifyPlatformUsage(key.key)
@@ -19,6 +23,7 @@ export const getApifyKeys = asyncHandler(async (_req: Request, res: Response, _n
 
             return {
                 ...key,
+                assigned_worker: keyId ? leaseByKeyId.get(keyId) || null : null,
                 usage: commentUsage,
                 platform_usage: platformUsage,
             };
@@ -28,6 +33,8 @@ export const getApifyKeys = asyncHandler(async (_req: Request, res: Response, _n
     res.status(200).json({
         success: true,
         count: data.length,
+        worker_id: getWorkerId(),
+        active_leases: leases,
         data,
     });
 });

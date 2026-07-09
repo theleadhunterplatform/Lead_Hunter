@@ -83,21 +83,12 @@ export const updateApifyKey = async (id: string, data: any) => {
         throw new ErrorResponse(`Apify key not found with id of ${id}`, 404);
     }
 
-    return await prisma.$transaction(async (tx) => {
-        if (data.is_active) {
-            await tx.apifyKey.updateMany({
-                where: { id: { not: id } },
-                data: { is_active: false },
-            });
-        }
-
-        const updatedKey = await tx.apifyKey.update({
-            where: { id },
-            data,
-        });
-
-        return updatedKey;
+    const updatedKey = await prisma.apifyKey.update({
+        where: { id },
+        data,
     });
+
+    return updatedKey;
 };
 
 export const deleteApifyKey = async (id: string) => {
