@@ -41,6 +41,21 @@ function RegisterForm() {
       };
       const { data } = await api.post("/auth/register", payload_data);
       const payload = data.data || data;
+
+      if (payload.approval_required) {
+        router.push(
+          `/login?pending=approval&message=${encodeURIComponent(
+            payload.message || "Account created. Awaiting admin approval before you can log in."
+          )}`
+        );
+        return;
+      }
+
+      if (!payload.access_token || !payload.refresh_token) {
+        setError("Registration succeeded but sign-in could not be completed. Please try logging in.");
+        return;
+      }
+
       localStorage.setItem("hunter_token", payload.access_token);
       localStorage.setItem("hunter_refresh_token", payload.refresh_token);
       localStorage.setItem("hunter_user", JSON.stringify(payload.user));

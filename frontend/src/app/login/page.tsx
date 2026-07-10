@@ -17,6 +17,9 @@ function LoginForm() {
   const { refreshUser } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const pendingMessage = searchParams.get("pending") === "approval"
+    ? searchParams.get("message") || "Your account is pending admin approval."
+    : null;
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -92,6 +95,12 @@ function LoginForm() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6 bg-hunter-grey p-8 neo-border border-zinc-800">
+          {pendingMessage && (
+            <div className="bg-emerald-500/10 border-2 border-emerald-500 p-4 text-emerald-400 text-xs font-black uppercase tracking-wider">
+              {pendingMessage}
+            </div>
+          )}
+
           {error && (
             <div className="bg-red-500/10 border-2 border-red-500 p-4 text-red-500 text-xs font-black uppercase tracking-wider">
               {error}
