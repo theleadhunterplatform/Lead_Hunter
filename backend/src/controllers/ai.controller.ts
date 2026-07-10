@@ -62,7 +62,23 @@ export const triggerManualTraining = asyncHandler(async (_req: Request, res: Res
     await executeAutoTraining();
     const metrics = await getLocalAiMetrics();
 
-    res.status(200).json({
+    if (metrics.status === 'unavailable' || (!metrics.model_ready && metrics.message?.toLowerCase().includes('unavailable'))) {
+        return res.status(502).json({
+            success: false,
+            message: metrics.message || 'AI training failed. Check the AI service on Render.',
+            data: metrics,
+        });
+    }
+
+    if (metrics.status === 'collecting' && (metrics.samples ?? 0) < 8) {
+        return res.status(400).json({
+            success: false,
+            message: metrics.message || 'Not enough labeled leads to train.',
+            data: metrics,
+        });
+    }
+
+    return res.status(200).json({
         success: true,
         data: metrics,
     });

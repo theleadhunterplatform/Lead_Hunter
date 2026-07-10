@@ -1,3 +1,4 @@
+import asyncio
 import os
 from typing import List, Optional
 
@@ -94,6 +95,7 @@ async def health_check():
         "status": "online",
         "engine": "EasyOCR (lazy)",
         "classifier_loaded": has_model,
+        "train_mode": "embeddings" if os.getenv("USE_EMBEDDINGS", "false").lower() in ("1", "true", "yes") else "tfidf",
     }
 
 
@@ -137,7 +139,8 @@ async def train_model(request: TrainRequest):
 
     try:
         print(f"[AI-Train] Training on {len(samples)} labeled samples...")
-        metrics = classifier.train(samples)
+        # Run CPU-heavy sklearn fit off the event loop so /health stays responsive.
+        metrics = await asyncio.to_thread(classifier.train, samples)
         if metrics.get('rolled_back'):
             has_model = classifier.load_model()
             return {
@@ -146,7 +149,7 @@ async def train_model(request: TrainRequest):
                 "metrics": metrics,
             }
 
-        has_model = classifier.load_model()
+        has_model = True
         print(f"[AI-Train] Success! Accuracy: {metrics['accuracy']}% on {metrics['samples']} samples")
 
         return {

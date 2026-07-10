@@ -44,17 +44,37 @@ function pushWeighted(
 }
 
 export async function getTrainingSamples(): Promise<TrainingSample[]> {
-    const labeled = await prisma.leadPost.findMany({
-        where: {
-            is_deleted: false,
-            is_training_data: true,
-            status: { in: ['relevant', 'irrelevant'] },
-            NOT: { content: '' },
-        },
-        select: { content: true, status: true, qualification_reason: true, updated_at: true },
-        orderBy: { updated_at: 'desc' },
-        take: 500,
-    });
+    const [relevant, irrelevant] = await Promise.all([
+        prisma.leadPost.findMany({
+            where: {
+                is_deleted: false,
+                is_training_data: true,
+                status: 'relevant',
+                NOT: { content: '' },
+            },
+            select: { content: true, status: true, qualification_reason: true, updated_at: true },
+            orderBy: { updated_at: 'desc' },
+            take: 300,
+        }),
+        prisma.leadPost.findMany({
+            where: {
+                is_deleted: false,
+                is_training_data: true,
+                status: 'irrelevant',
+                NOT: { content: '' },
+            },
+            select: { content: true, status: true, qualification_reason: true, updated_at: true },
+            orderBy: { updated_at: 'desc' },
+            take: 300,
+        }),
+    ]);
+
+    // Prefer a balanced mix so majority "relevant" labels don't drown out junk patterns.
+    const maxPerClass = 200;
+    const labeled = [
+        ...irrelevant.slice(0, maxPerClass),
+        ...relevant.slice(0, maxPerClass),
+    ];
 
     const weighted: TrainingSample[] = [];
     const seen = new Set<string>();
@@ -76,7 +96,9 @@ export async function getTrainingSamples(): Promise<TrainingSample[]> {
         const manual = isManuallyLabeled(post.qualification_reason);
         const recent = new Date(post.updated_at).getTime() >= recentCutoff;
 
+        // Upsample minority / manual labels more aggressively.
         let weight = 1;
+        if (sample.label === 'irrelevant') weight += 2;
         if (manual) weight += 2;
         if (recent) weight += 1;
 
@@ -112,11 +134,20 @@ export async function shouldRunAutoTrain(force = false): Promise<boolean> {
 }
 
 export async function getLocalAiMetrics(): Promise<LocalAiMetrics> {
-    const samples = await getTrainingSamples();
     const uniqueCount = await getTrainingSampleCount();
     const stored = (await getSetting(METRICS_KEY)) as LocalAiMetrics | null;
-    const relevant_count = samples.filter((s) => s.label === 'relevant').length;
-    const irrelevant_count = samples.length - relevant_count;
+    // Unique labeled counts (not weighted duplicates used only for training payload).
+    const uniqueSamples = await prisma.leadPost.findMany({
+        where: {
+            is_deleted: false,
+            is_training_data: true,
+            status: { in: ['relevant', 'irrelevant'] },
+            NOT: { content: '' },
+        },
+        select: { status: true },
+    });
+    const relevant_count = uniqueSamples.filter((s) => s.status === 'relevant').length;
+    const irrelevant_count = uniqueSamples.length - relevant_count;
 
     if (uniqueCount < MIN_TRAINING_SAMPLES) {
         return {
@@ -194,12 +225,13 @@ export async function executeAutoTraining(): Promise<void> {
     const result = await trainModel(samples);
 
     if (!result.success) {
+        const detail = result.error || result.message || 'AI service unavailable';
         await saveMetrics({
             status: 'unavailable',
             model_ready: false,
-            message: result.message || 'AI service unavailable. Start python main.py in the ai/ folder.',
+            message: `AI training failed: ${detail}`,
         });
-        console.error('[AutoTrain] Failed:', result.error || result.message);
+        console.error('[AutoTrain] Failed:', detail);
         return;
     }
 
@@ -215,6 +247,7 @@ export async function executeAutoTraining(): Promise<void> {
         return;
     }
 
+    const qualityNote = metrics.quality_warning || metrics.message;
     await saveMetrics({
         accuracy: metrics.accuracy ?? null,
         samples: uniqueCount,
@@ -225,7 +258,9 @@ export async function executeAutoTraining(): Promise<void> {
         status: 'ready',
         accuracy_note: metrics.accuracy_note,
         vectorizer: metrics.vectorizer,
-        message: `Local AI updated · ${metrics.accuracy ?? 0}% accuracy (${metrics.vectorizer || 'model'}).`,
+        message: qualityNote
+            ? `Local AI updated · ${metrics.accuracy ?? 0}% (${metrics.vectorizer || 'model'}). ${qualityNote}`
+            : `Local AI updated · ${metrics.accuracy ?? 0}% accuracy (${metrics.vectorizer || 'model'}).`,
     });
 
     await updateSetting(

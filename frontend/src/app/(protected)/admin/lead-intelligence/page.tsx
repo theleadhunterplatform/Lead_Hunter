@@ -468,7 +468,7 @@ export default function LeadIntelligencePage() {
       toast.success(response.data.data?.message || 'AI training complete.');
       fetchAiMetrics();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'AI training failed. Ensure the Python AI service is running.');
+      toast.error(err.response?.data?.message || err.response?.data?.error || 'AI training failed. Ensure the Python AI service is running.');
     } finally {
       setIsTrainingAi(false);
     }

@@ -172,6 +172,7 @@ Only needed for OCR / AI training features.
 3. Start: `uvicorn main:app --host 0.0.0.0 --port $PORT`
 4. Instance: **Standard (2 GB RAM)**
 5. On backend set: `AI_SERVICE_URL=https://lead-hunter-ai.onrender.com`
+6. Training uses **TF-IDF by default** (fast, works on free/starter). Optional: set `USE_EMBEDDINGS=true` only on **Standard (2 GB+)** if you want sentence-transformers.
 
 ---
 

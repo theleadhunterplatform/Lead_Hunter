@@ -141,47 +141,145 @@ export const cleanExtractedText = (text: string): string => {
 /**
  * Triggers model retraining on the AI service using labeled leads from the database
  */
+const TRAIN_TIMEOUT_MS = 120_000;
+const TRAIN_MAX_SAMPLES = 400;
+const TRAIN_MAX_CONTENT_CHARS = 1500;
+
+function prepareTrainPayload(samples: Array<{ content: string; label: string }>) {
+    const relevant: Array<{ content: string; label: string }> = [];
+    const irrelevant: Array<{ content: string; label: string }> = [];
+    const seen = new Set<string>();
+
+    for (const sample of samples) {
+        const label = sample.label;
+        if (label !== 'relevant' && label !== 'irrelevant') continue;
+
+        let content = (sample.content || '').trim();
+        if (content.length <= 10) continue;
+        if (content.length > TRAIN_MAX_CONTENT_CHARS) {
+            content = content.slice(0, TRAIN_MAX_CONTENT_CHARS);
+        }
+
+        const key = `${label}:${content.slice(0, 200)}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+
+        const row = { content, label };
+        if (label === 'irrelevant') irrelevant.push(row);
+        else relevant.push(row);
+    }
+
+    // Keep both classes in the payload (up to half each).
+    const half = Math.floor(TRAIN_MAX_SAMPLES / 2);
+    return [...irrelevant.slice(0, half), ...relevant.slice(0, half)];
+}
+
+async function wakeAiService(baseUrl: string): Promise<boolean> {
+    for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 20_000);
+            const res = await fetch(`${baseUrl}/health`, { signal: controller.signal });
+            clearTimeout(timer);
+            if (res.ok) return true;
+        } catch (err: any) {
+            console.warn(`[AI-Train] Wake attempt ${attempt}/3 failed: ${err.message}`);
+        }
+        await new Promise((r) => setTimeout(r, 2000 * attempt));
+    }
+    return false;
+}
+
 export const trainModel = async (
     samples: Array<{ content: string; label: string }>
 ): Promise<{ success: boolean; message: string; output?: string; error?: string; metrics?: any }> => {
-    try {
-        console.log(`[AI-Train] Sending ${samples.length} labeled samples to AI service...`);
-        const response = await fetch(`${config.aiService.url}/train`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ data: samples }),
-        });
+    const baseUrl = config.aiService.url.replace(/\/+$/, '');
+    const payload = prepareTrainPayload(samples);
 
-        if (!response.ok) {
-            let errorDetail = response.statusText;
-            try {
-                const errorData = await response.json() as any;
-                errorDetail = errorData.detail || errorData.error || errorData.message || errorDetail;
-            } catch {
-                // ignore non-JSON bodies
-            }
-            console.error(`[AI-Train] Failed (${response.status}) at ${config.aiService.url}/train — ${errorDetail}`);
-            return { 
-                success: false, 
-                message: 'AI Service failed during training',
-                error: errorDetail,
-            };
+    if (payload.length < 8) {
+        return {
+            success: false,
+            message: 'Not enough unique labeled samples to train',
+            error: `Need at least 8 unique samples, got ${payload.length}`,
+        };
+    }
+
+    try {
+        const awake = await wakeAiService(baseUrl);
+        if (!awake) {
+            console.warn('[AI-Train] AI service health check failed — attempting train anyway');
         }
 
-        const result = await response.json() as any;
+        console.log(`[AI-Train] Sending ${payload.length} unique samples to AI service (from ${samples.length} weighted)...`);
+
+        let lastError = 'Bad Gateway';
+        for (let attempt = 1; attempt <= 2; attempt++) {
+            try {
+                const controller = new AbortController();
+                const timer = setTimeout(() => controller.abort(), TRAIN_TIMEOUT_MS);
+                const response = await fetch(`${baseUrl}/train`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ data: payload }),
+                    signal: controller.signal,
+                });
+                clearTimeout(timer);
+
+                if (!response.ok) {
+                    let errorDetail = response.statusText;
+                    try {
+                        const errorData = await response.json() as any;
+                        errorDetail = errorData.detail || errorData.error || errorData.message || errorDetail;
+                    } catch {
+                        // ignore non-JSON bodies
+                    }
+
+                    lastError = errorDetail;
+                    console.error(`[AI-Train] Failed (${response.status}) attempt ${attempt}/2 at ${baseUrl}/train — ${errorDetail}`);
+
+                    if ((response.status === 502 || response.status === 503) && attempt < 2) {
+                        await wakeAiService(baseUrl);
+                        await new Promise((r) => setTimeout(r, 3000));
+                        continue;
+                    }
+
+                    return {
+                        success: false,
+                        message: 'AI Service failed during training',
+                        error: errorDetail,
+                    };
+                }
+
+                const result = await response.json() as any;
+                return {
+                    success: result.success,
+                    message: result.message || 'Training completed',
+                    output: result.output,
+                    error: result.error,
+                    metrics: result.metrics,
+                };
+            } catch (err: any) {
+                lastError = err.name === 'AbortError' ? 'Training timed out after 120s' : err.message;
+                console.error(`[AI-Train] Attempt ${attempt}/2 error:`, lastError);
+                if (attempt < 2) {
+                    await wakeAiService(baseUrl);
+                    await new Promise((r) => setTimeout(r, 3000));
+                    continue;
+                }
+            }
+        }
+
         return {
-            success: result.success,
-            message: result.message || 'Training completed',
-            output: result.output,
-            error: result.error,
-            metrics: result.metrics,
+            success: false,
+            message: 'Failed to connect to AI Service',
+            error: lastError,
         };
     } catch (error: any) {
         console.error('[AI-Train] Connection error:', error.message);
-        return { 
-            success: false, 
+        return {
+            success: false,
             message: 'Failed to connect to AI Service',
-            error: error.message 
+            error: error.message,
         };
     }
 };
