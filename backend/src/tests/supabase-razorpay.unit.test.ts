@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 import config from '../config';
 import { verifySupabaseAccessToken } from '../services/supabase-auth.service';
-import { getPurchasablePlans } from '../services/payment.service';
+import { getPaymentCatalog, getPurchasablePlans, isRazorpayConfigured } from '../services/payment.service';
 import crypto from 'crypto';
 
 describe('Supabase auth token verify', () => {
@@ -36,6 +36,13 @@ describe('Razorpay purchasable plans', () => {
         expect(plans.map((p) => p.id)).toEqual(['paid', 'enterprise']);
         expect(plans[0].amount_paise).toBeGreaterThan(0);
         expect(plans[1].amount_paise).toBeGreaterThan(0);
+    });
+
+    it('catalog reports configured flag from env', () => {
+        const catalog = getPaymentCatalog();
+        expect(catalog.plans).toHaveLength(2);
+        expect(typeof catalog.configured).toBe('boolean');
+        expect(catalog.configured).toBe(isRazorpayConfigured());
     });
 });
 

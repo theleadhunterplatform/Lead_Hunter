@@ -6,6 +6,7 @@ export function validateProductionConfig(): void {
     if (config.env !== 'production') return;
 
     const errors: string[] = [];
+    const warnings: string[] = [];
 
     if (INSECURE_SECRETS.has(config.jwt.accessSecret)) {
         errors.push('JWT_ACCESS_SECRET must be set to a strong random value in production');
@@ -19,15 +20,30 @@ export function validateProductionConfig(): void {
     if (!process.env.FRONTEND_URL?.trim()) {
         errors.push('FRONTEND_URL is required in production (CORS)');
     }
-    if (!config.googleOAuth.clientId.trim()) {
-        errors.push('GOOGLE_OAUTH_CLIENT_ID is required in production');
+
+    // Google Sheets OAuth is optional for hunter onboard; Sheets routes return 503 if unset.
+    if (
+        !config.googleOAuth.clientId.trim() ||
+        !config.googleOAuth.clientSecret.trim() ||
+        !config.googleOAuth.redirectUri.trim()
+    ) {
+        warnings.push(
+            'Google OAuth is incomplete — Google Sheets export will be unavailable until GOOGLE_OAUTH_* is set'
+        );
     }
-    if (!config.googleOAuth.clientSecret.trim()) {
-        errors.push('GOOGLE_OAUTH_CLIENT_SECRET is required in production');
+
+    if (!config.openRouter.apiKey.trim()) {
+        warnings.push(
+            'OPEN_ROUTER_API is unset — lead intelligence and outreach drafts will fail until it is set'
+        );
     }
-    if (!config.googleOAuth.redirectUri.trim()) {
-        errors.push('GOOGLE_OAUTH_REDIRECT_URI is required in production');
+
+    if (!config.razorpay.keyId || !config.razorpay.keySecret) {
+        warnings.push(
+            'Razorpay is unset — plan upgrades are disabled until RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET are set'
+        );
     }
+
     const settingsKey = config.security.settingsEncryptionKey?.trim();
     if (!settingsKey) {
         errors.push('SETTINGS_ENCRYPTION_KEY is required in production');
@@ -40,6 +56,11 @@ export function validateProductionConfig(): void {
         } catch {
             errors.push('SETTINGS_ENCRYPTION_KEY must be valid base64');
         }
+    }
+
+    if (warnings.length) {
+        console.warn('⚠ Production configuration warnings:');
+        warnings.forEach((w) => console.warn(`  - ${w}`));
     }
 
     if (errors.length) {

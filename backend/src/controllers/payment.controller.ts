@@ -4,9 +4,11 @@ import ErrorResponse from '../utils/error-response.utils';
 import * as paymentService from '../services/payment.service';
 
 export const listPaymentPlans = asyncHandler(async (_req: Request, res: Response) => {
+    const catalog = paymentService.getPaymentCatalog();
     return res.status(200).json({
         success: true,
-        data: paymentService.getPurchasablePlans(),
+        data: catalog.plans,
+        configured: catalog.configured,
     });
 });
 

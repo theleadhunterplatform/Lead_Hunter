@@ -380,16 +380,26 @@ export default function DashboardPage() {
                     ) : (
                       <Button
                         size="sm"
-                        className="h-8 px-4 text-[9px] font-black uppercase bg-white text-black hover:bg-hunter-orange transition-all flex items-center gap-2"
+                        className="h-8 px-4 text-[9px] font-black uppercase bg-white text-black hover:bg-hunter-orange transition-all flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
                         onClick={() => handleClaim(lead._id)}
-                        disabled={claimingIds.includes(lead._id)}
+                        disabled={
+                          claimingIds.includes(lead._id) ||
+                          !(lead.has_intelligence || lead.intelligence)
+                        }
+                        title={
+                          !(lead.has_intelligence || lead.intelligence)
+                            ? "Strategic report is still generating"
+                            : undefined
+                        }
                       >
                         {claimingIds.includes(lead._id) ? (
                           <Loader2 size={12} className="animate-spin" />
                         ) : (
                           <Zap size={12} />
                         )}
-                        Claim Now
+                        {lead.has_intelligence || lead.intelligence
+                          ? "Claim Now"
+                          : "Intel pending"}
                       </Button>
                     )}
                   </div>

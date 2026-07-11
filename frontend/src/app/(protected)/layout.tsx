@@ -36,6 +36,7 @@ export default function ProtectedLayout({
   const { user, loading, hasPermission, logout, activeOrgId, setActiveOrgId, permissions } = useAuth();
   const [organizations, setOrganizations] = useState<any[]>([]);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [billingEnabled, setBillingEnabled] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -54,7 +55,6 @@ export default function ProtectedLayout({
   }, [loading, user, pathname, router]);
 
   useEffect(() => {
-    // Fetch organizations for the switcher
     const fetchOrgs = async () => {
       try {
         const { data } = await api.get('/auth/organizations');
@@ -63,7 +63,18 @@ export default function ProtectedLayout({
         console.error('Failed to fetch orgs', error);
       }
     };
-    if (user) fetchOrgs();
+    const fetchBillingAvailability = async () => {
+      try {
+        const { data } = await api.get('/payments/plans');
+        setBillingEnabled(data.configured === true);
+      } catch {
+        setBillingEnabled(false);
+      }
+    };
+    if (user) {
+      fetchOrgs();
+      fetchBillingAvailability();
+    }
   }, [user]);
 
   if (loading) {
@@ -111,6 +122,9 @@ export default function ProtectedLayout({
 
     // Platform admins manage leads in Lead Intelligence, not My CRM
     if (item.href === "/crm" && isPlatformAdmin) return false;
+
+    // Hide Billing until Razorpay is configured (avoids dead-end upgrade CTAs)
+    if (item.href === "/billing" && !billingEnabled) return false;
 
     // Admin defined restriction for Lead related data
     const isLeadModule = item.name.toLowerCase().includes('lead') || item.name.toLowerCase().includes('crm');

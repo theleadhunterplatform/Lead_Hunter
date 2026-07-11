@@ -46,6 +46,7 @@ export default function BillingPage() {
   const { user, refreshUser } = useAuth();
   const [myPlan, setMyPlan] = useState<MyPlan | null>(null);
   const [catalog, setCatalog] = useState<PlanCard[]>([]);
+  const [paymentsConfigured, setPaymentsConfigured] = useState(false);
   const [loading, setLoading] = useState(true);
   const [payingPlan, setPayingPlan] = useState<string | null>(null);
 
@@ -59,6 +60,9 @@ export default function BillingPage() {
       ]);
 
       if (meRes?.data?.data) setMyPlan(meRes.data.data);
+
+      const configured = payRes?.data?.configured === true;
+      setPaymentsConfigured(configured);
 
       const paidPlans: PlanCard[] = payRes?.data?.data || [];
       if (paidPlans.length > 0) {
@@ -79,6 +83,10 @@ export default function BillingPage() {
   }, []);
 
   const handleUpgrade = async (planId: string) => {
+    if (!paymentsConfigured) {
+      toast.error("Online upgrades are not available yet. Contact your admin.");
+      return;
+    }
     try {
       setPayingPlan(planId);
       const { data } = await api.post("/payments/razorpay/order", { plan: planId });
@@ -123,6 +131,22 @@ export default function BillingPage() {
     return (
       <div className="p-8 flex justify-center py-40">
         <Loader2 className="w-10 h-10 text-hunter-orange animate-spin" />
+      </div>
+    );
+  }
+
+  if (!paymentsConfigured) {
+    return (
+      <div className="p-8 max-w-2xl mx-auto py-24 text-center space-y-4">
+        <h1 className="text-3xl font-display font-black uppercase tracking-tighter">
+          Billing <span className="text-hunter-orange">offline.</span>
+        </h1>
+        <p className="text-zinc-500 text-sm">
+          Self-serve upgrades are not available yet. You can keep using your current plan tokens.
+        </p>
+        <Button onClick={() => (window.location.href = "/dashboard")} className="mt-4">
+          Back to Dashboard
+        </Button>
       </div>
     );
   }
@@ -221,12 +245,16 @@ export default function BillingPage() {
 
               <Button
                 className="w-full h-11 text-[10px] font-black uppercase tracking-widest gap-2"
-                disabled={isCurrent || Boolean(payingPlan)}
+                disabled={isCurrent || Boolean(payingPlan) || !paymentsConfigured}
                 isLoading={isPaying}
                 onClick={() => handleUpgrade(plan.id)}
               >
                 <Sparkles size={14} />
-                {isCurrent ? "Current Plan" : `Upgrade to ${plan.name}`}
+                {isCurrent
+                  ? "Current Plan"
+                  : paymentsConfigured
+                    ? `Upgrade to ${plan.name}`
+                    : "Checkout unavailable"}
               </Button>
             </motion.div>
           );

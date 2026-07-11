@@ -130,6 +130,7 @@ export const registerUser = async (userData: any) => {
         status: needsApproval ? 'pending' : 'active',
         is_active: !needsApproval,
         lead_access_enabled: !needsApproval,
+        tokens: needsApproval ? 0 : undefined,
     });
 
     let organizationId: any = undefined;
@@ -427,13 +428,28 @@ export const getUserOrganizations = async (currentUser: any) => {
 
 export const requestPasswordReset = async (email: string) => {
     const normalized = email.toLowerCase().trim();
+    const emailConfigured = isEmailConfigured();
     const user = await prisma.user.findFirst({
         where: { email: normalized, is_deleted: false, is_active: true },
     });
 
-    // Always return success to avoid email enumeration
+    // Always return a generic success shape for unknown emails (enumeration-safe).
     if (!user) {
-        return { message: 'If that email exists, a reset link has been sent.' };
+        if (!emailConfigured && config.env === 'production') {
+            console.error(
+                '[Auth] Password reset requested but email is not configured (RESEND_API_KEY or SMTP_*).'
+            );
+            return {
+                message: 'Password reset is temporarily unavailable. Contact support or try again later.',
+                email_configured: false,
+                email_sent: false,
+            };
+        }
+        return {
+            message: 'If that email exists, a reset link has been sent.',
+            email_configured: emailConfigured,
+            email_sent: false,
+        };
     }
 
     const rawToken = generateSecureToken();
@@ -452,13 +468,33 @@ export const requestPasswordReset = async (email: string) => {
     const resetUrl = `${frontendUrl}/reset-password?token=${rawToken}`;
     const { subject, html } = buildPasswordResetEmail(resetUrl);
 
-    if (isEmailConfigured()) {
+    if (emailConfigured) {
         await sendEmail({ to: user.email, subject, html });
-    } else if (config.env !== 'production') {
-        console.log(`[Dev] Password reset link for ${user.email}: ${resetUrl}`);
+        return {
+            message: 'If that email exists, a reset link has been sent.',
+            email_configured: true,
+            email_sent: true,
+        };
     }
 
-    return { message: 'If that email exists, a reset link has been sent.' };
+    if (config.env !== 'production') {
+        console.log(`[Dev] Password reset link for ${user.email}: ${resetUrl}`);
+        return {
+            message: 'Email is not configured. Use the reset link from the server console (dev only).',
+            email_configured: false,
+            email_sent: false,
+            reset_url: resetUrl,
+        };
+    }
+
+    console.error(
+        '[Auth] Password reset token created but email is not configured (RESEND_API_KEY or SMTP_*).'
+    );
+    return {
+        message: 'Password reset is temporarily unavailable. Contact support or try again later.',
+        email_configured: false,
+        email_sent: false,
+    };
 };
 
 export const resetPassword = async (token: string, newPassword: string) => {

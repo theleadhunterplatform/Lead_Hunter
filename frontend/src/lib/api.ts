@@ -25,6 +25,23 @@ const processQueue = (error: any, token: string | null = null) => {
   failedQueue = [];
 };
 
+const isApprovalBlockedMessage = (message?: string) =>
+  typeof message === 'string' &&
+  /pending admin approval|awaiting admin approval|signup was rejected|account signup was rejected/i.test(
+    message
+  );
+
+const handleLogout = (redirectTo = '/login') => {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('hunter_token');
+    localStorage.removeItem('hunter_refresh_token');
+    localStorage.removeItem('hunter_user');
+    if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
+      window.location.href = redirectTo;
+    }
+  }
+};
+
 // Add a request interceptor to add the auth token to every request
 api.interceptors.request.use(
   (config) => {
@@ -50,9 +67,20 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+    const status = error.response?.status;
+    const apiMessage =
+      error.response?.data?.error || error.response?.data?.message || '';
+
+    // Pending/rejected accounts mid-session → clear tokens and show approval screen
+    if (status === 403 && isApprovalBlockedMessage(apiMessage)) {
+      handleLogout(
+        `/login?pending=approval&message=${encodeURIComponent(apiMessage)}`
+      );
+      return Promise.reject(error);
+    }
 
     // If error is 401 and not already retried
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (status === 401 && !originalRequest._retry) {
       if (isRefreshing) {
         // If already refreshing, add to queue
         return new Promise((resolve, reject) => {
@@ -110,16 +138,5 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
-
-const handleLogout = () => {
-  if (typeof window !== 'undefined') {
-    localStorage.removeItem('hunter_token');
-    localStorage.removeItem('hunter_refresh_token');
-    localStorage.removeItem('hunter_user');
-    if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
-      window.location.href = '/login';
-    }
-  }
-};
 
 export default api;

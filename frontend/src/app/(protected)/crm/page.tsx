@@ -16,6 +16,7 @@ import {
   formatVerifiedByLabel,
   getEmailStatusBadge,
 } from "@/lib/email-verification";
+import { LeadAccessGate } from "@/components/LeadAccessGate";
 
 interface ClaimedLead {
   _id: string;
@@ -235,6 +236,7 @@ export default function CRMPage() {
   }
 
   return (
+    <LeadAccessGate>
     <div className="p-8 max-w-6xl mx-auto">
       <header className="mb-12">
         <h1 className="text-5xl font-display font-black uppercase tracking-tighter mb-2 italic">
@@ -472,5 +474,6 @@ export default function CRMPage() {
         </div>
       )}
     </div>
+    </LeadAccessGate>
   );
 }

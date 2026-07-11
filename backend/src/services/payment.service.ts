@@ -8,8 +8,12 @@ import { setUserPlan } from './plan.service';
 
 const RAZORPAY_API = 'https://api.razorpay.com/v1';
 
+export function isRazorpayConfigured() {
+    return Boolean(config.razorpay.keyId?.trim() && config.razorpay.keySecret?.trim());
+}
+
 function assertRazorpayConfigured() {
-    if (!config.razorpay.keyId || !config.razorpay.keySecret) {
+    if (!isRazorpayConfigured()) {
         throw new ErrorResponse(
             'Razorpay is not configured. Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.',
             503
@@ -33,6 +37,13 @@ export function getPurchasablePlans() {
             currency: plan.currency || 'INR',
         };
     });
+}
+
+export function getPaymentCatalog() {
+    return {
+        configured: isRazorpayConfigured(),
+        plans: getPurchasablePlans(),
+    };
 }
 
 export async function createRazorpayOrder(userId: string, planId: string) {

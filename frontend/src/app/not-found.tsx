@@ -44,7 +44,7 @@ export default function NotFound() {
           transition={{ delay: 0.8, duration: 0.5 }}
           className="flex flex-col sm:flex-row items-center justify-center gap-6 p-2 bg-white/5 backdrop-blur-md neo-border border-white/5 rounded-sm"
         >
-          <Link href="/leads" className="w-full sm:w-auto">
+          <Link href="/dashboard" className="w-full sm:w-auto">
             <Button className="w-full sm:w-auto px-10 h-14 text-lg group relative overflow-hidden">
               <span className="relative z-10 flex items-center justify-center">
                 <ArrowLeft className="mr-2 group-hover:-translate-x-1 transition-transform" size={20} />
@@ -54,7 +54,7 @@ export default function NotFound() {
             </Button>
           </Link>
 
-          <Link href="/leads" className="w-full sm:w-auto">
+          <Link href="/leads/relevant" className="w-full sm:w-auto">
             <Button variant="secondary" className="w-full sm:w-auto px-10 h-14 text-lg group hover:border-hunter-orange transition-all duration-300">
               <span className="flex items-center justify-center">
                 <Target className="mr-2 group-hover:scale-110 transition-transform" size={20} />

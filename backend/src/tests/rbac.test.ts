@@ -164,7 +164,9 @@ describe('RBAC Role & Permission Tests', () => {
                 .set('Authorization', `Bearer ${token}`);
 
             expect(permRes.status).toBe(200);
-            expect(permRes.body.data.permissions).toContain('lead:hunt');
+            expect(permRes.body.data.permissions).toContain('lead:read');
+            expect(permRes.body.data.permissions).toContain('lead:claim');
+            expect(permRes.body.data.permissions).not.toContain('lead:hunt');
             expect(permRes.body.data.role.slug).toBe('normal_user');
         });
     });

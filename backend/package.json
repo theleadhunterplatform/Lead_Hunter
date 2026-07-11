@@ -17,6 +17,7 @@
     "db:generate:local": "cross-env DB_MODE=local node scripts/prisma-generate.js",
     "db:generate:supabase": "cross-env DB_MODE=supabase node scripts/prisma-generate.js",
     "seed": "ts-node src/scripts/seed.ts",
+    "seed:claimable": "ts-node src/scripts/seed-claimable-leads.ts",
     "db:dedupe-leads": "ts-node src/scripts/remove-duplicate-leads.ts",
     "db:clear-leads": "ts-node src/scripts/delete-all-leads.ts",
     "db:cleanup-junk-leads": "ts-node src/scripts/retroactive-gate-cleanup.ts",

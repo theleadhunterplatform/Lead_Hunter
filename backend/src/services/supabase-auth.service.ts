@@ -105,7 +105,7 @@ export async function loginWithSupabaseToken(input: {
                 is_active: !needsApproval,
                 lead_access_enabled: !needsApproval,
                 plan: 'free',
-                tokens: plan.monthly_tokens,
+                tokens: needsApproval ? 0 : plan.monthly_tokens,
             },
         });
 
@@ -146,10 +146,32 @@ export async function loginWithSupabaseToken(input: {
     }
 
     if (user.status === 'pending') {
-        throw new ErrorResponse('Account pending admin approval', 403);
+        return {
+            approval_required: true,
+            message: 'Your account is pending admin approval.',
+            user: {
+                id: user.id,
+                name: user.name,
+                email: user.email,
+                phone: user.phone,
+                status: user.status,
+                plan: user.plan,
+            },
+        };
     }
     if (user.status === 'rejected') {
-        throw new ErrorResponse('Account signup was rejected', 403);
+        return {
+            approval_required: true,
+            message: 'Your signup was rejected. Contact support if you believe this is a mistake.',
+            user: {
+                id: user.id,
+                name: user.name,
+                email: user.email,
+                phone: user.phone,
+                status: user.status,
+                plan: user.plan,
+            },
+        };
     }
     if (!user.is_active || user.is_deleted) {
         throw new ErrorResponse('Account is disabled', 403);

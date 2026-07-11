@@ -31,17 +31,25 @@ function LoginForm() {
   const [otp, setOtp] = useState("");
   const [formData, setFormData] = useState({ email: "", password: "" });
 
-  const pendingMessage =
+  const pendingFromQuery =
     searchParams.get("pending") === "approval"
       ? searchParams.get("message") || "Your account is pending admin approval."
       : null;
+  const [pendingBanner, setPendingBanner] = useState<string | null>(pendingFromQuery);
+
+  const isApprovalRelatedError = (message: string) =>
+    /pending admin approval|awaiting admin approval|signup was rejected|account signup was rejected/i.test(
+      message
+    );
 
   const finishLogin = async (payload: any) => {
     if (payload.approval_required) {
-      router.push(
-        `/login?pending=approval&message=${encodeURIComponent(
-          payload.message || "Your account is pending admin approval."
-        )}`
+      const message =
+        payload.message || "Your account is pending admin approval.";
+      setPendingBanner(message);
+      setError("");
+      router.replace(
+        `/login?pending=approval&message=${encodeURIComponent(message)}`
       );
       return;
     }
@@ -73,7 +81,16 @@ function LoginForm() {
       const { data } = await api.post("/auth/login", formData);
       await finishLogin(data.data || data);
     } catch (err: unknown) {
-      setError(getApiError(err, "Login failed. Check your email and password."));
+      const message = getApiError(err, "Login failed. Check your email and password.");
+      if (isApprovalRelatedError(message)) {
+        setPendingBanner(message);
+        setError("");
+        router.replace(
+          `/login?pending=approval&message=${encodeURIComponent(message)}`
+        );
+      } else {
+        setError(message);
+      }
     } finally {
       setLoading(false);
     }
@@ -125,7 +142,16 @@ function LoginForm() {
       const { data } = await api.post("/auth/supabase", { access_token: accessToken });
       await finishLogin(data.data || data);
     } catch (err: unknown) {
-      setError(getApiError(err, "Invalid OTP or login failed."));
+      const message = getApiError(err, "Invalid OTP or login failed.");
+      if (isApprovalRelatedError(message)) {
+        setPendingBanner(message);
+        setError("");
+        router.replace(
+          `/login?pending=approval&message=${encodeURIComponent(message)}`
+        );
+      } else {
+        setError(message);
+      }
     } finally {
       setLoading(false);
     }
@@ -153,7 +179,7 @@ function LoginForm() {
             Sign <span className="text-hunter-orange">In</span>
           </h1>
           <p className="text-zinc-500 font-bold uppercase tracking-widest text-[10px] mt-2">
-            Phone OTP or email — pick your way in
+            {phoneAuthEnabled ? "Phone OTP or email — pick your way in" : "Sign in with your email"}
           </p>
         </div>
 
@@ -208,9 +234,9 @@ function LoginForm() {
         )}
 
         <div className="space-y-6 bg-hunter-grey p-8 neo-border border-zinc-800">
-          {pendingMessage && (
+          {pendingBanner && (
             <div className="bg-emerald-500/10 border-2 border-emerald-500 p-4 text-emerald-400 text-xs font-black uppercase tracking-wider">
-              {pendingMessage}
+              {pendingBanner}
             </div>
           )}
 

@@ -92,6 +92,9 @@ function RegisterForm() {
           <p className="text-zinc-500 font-bold uppercase tracking-widest text-[10px] mt-2 text-center">
             Start finding leads for your business today.
           </p>
+          <p className="text-zinc-400 text-xs mt-3 text-center max-w-sm leading-relaxed">
+            New accounts usually need admin approval before you can sign in. You&apos;ll get access as soon as a platform admin approves you.
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5 bg-hunter-grey p-8 neo-border border-zinc-800">

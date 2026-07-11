@@ -63,7 +63,6 @@ const SEED_ROLES = [
         permissions: [
             "lead:read",
             "lead:claim",
-            "lead:hunt",
         ],
         scopeType: "global",
         isSystemRole: true

@@ -615,11 +615,11 @@ export const getAllPosts = async (currentUser: any, query: {
     keyword?: string;
     platform?: string;
 }) => {
-    // Check for lead access enabled (feature flag)
-    if (!currentUser.lead_access_enabled) {
-        const perms = await getUserPermissions(currentUser.id, currentUser.organization?.toString());
-        if (!checkPermission(perms, 'lead:read')) {
-            throw new ErrorResponse('Not authorized to access leads.', 403);
+    // Check for lead access enabled (org managers can disable hunting for a member)
+    if (currentUser.lead_access_enabled === false) {
+        const accessPerms = await getUserPermissions(currentUser.id, currentUser.organization?.toString());
+        if (!checkPermission(accessPerms, '*') && !checkPermission(accessPerms, 'system:admin')) {
+            throw new ErrorResponse('Lead access is disabled for your account. Contact your manager.', 403);
         }
     }
 

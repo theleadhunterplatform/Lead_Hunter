@@ -72,23 +72,46 @@ USE_CLOUD_REDIS=true
 JWT_ACCESS_SECRET=<long random string>
 JWT_REFRESH_SECRET=<another long random string>
 
+# Required: node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+SETTINGS_ENCRYPTION_KEY=<base64-32-byte-key>
+
 ADMIN_EMAIL=demo@yourclient.com
 ADMIN_PASSWORD=ChangeThisDemoPassword!
 ADMIN_NAME=Demo Admin
 
 APIFY_API_TOKEN=<your token, or leave empty for now>
+OPEN_ROUTER_API=<required for claimable intel + outreach drafts>
+
+# Optional — password reset / CRM email
+# RESEND_API_KEY=
+# EMAIL_FROM=Lead Hunter <noreply@yourdomain.com>
+
+# Optional — enables Billing upgrades (nav stays hidden until set)
+# RAZORPAY_KEY_ID=
+# RAZORPAY_KEY_SECRET=
+
+# Optional — Google Sheets only (API boots without these)
+# GOOGLE_OAUTH_CLIENT_ID=
+# GOOGLE_OAUTH_CLIENT_SECRET=
+# GOOGLE_OAUTH_REDIRECT_URI=https://lead-hunter-api.onrender.com/api/google-sheets/callback
+
+# true = staff approve signups; false = open beta login after register
+REQUIRE_SIGNUP_APPROVAL=true
 
 FRONTEND_URL=https://lead-hunter-web.onrender.com
 ```
 
 > `FRONTEND_URL` — use the name you will give the frontend service. You can fix it after Step 5 if the URL is different.
+> Full checklist: see `ONBOARD.md`.
 
 4. **Create Web Service** → wait for deploy to finish.
 
 5. Open **Shell** tab and run:
 
 ```bash
-npx prisma db push --schema prisma/schema.prisma
+npm run db:push:supabase
+# Optional: stock demo claimable leads
+npm run seed:claimable
 ```
 
 6. Test: open `https://lead-hunter-api.onrender.com/health` — should show `{"status":"OK",...}`
@@ -158,7 +181,10 @@ Optional: add Apify keys in the app under **Search Keys** before a scrape demo.
 | Login fails | Check backend logs; confirm `prisma db push` ran |
 | CORS / network error in browser | `FRONTEND_URL` must match the URL in the browser exactly |
 | API not found | `NEXT_PUBLIC_API_URL` must end with `/api` — redeploy frontend after changing |
-| Scrape does nothing | Check `REDIS_URL` and `USE_CLOUD_REDIS=true`; check Apify token |
+| Scrape does nothing | Check `REDIS_URL` and `USE_CLOUD_REDIS=true`; check Apify token; enable auto-scrape under Search Keys |
+| Empty Strategic Leads | Run `npm run seed:claimable` or approve leads with intelligence (`OPEN_ROUTER_API`) |
+| Password reset does nothing | Set `RESEND_API_KEY` + `EMAIL_FROM` (or SMTP_*) |
+| Billing missing / checkout fails | Set `RAZORPAY_KEY_ID` + `RAZORPAY_KEY_SECRET` |
 | Very slow first load | Normal on free/cold start — use Starter plans for demos |
 
 ---

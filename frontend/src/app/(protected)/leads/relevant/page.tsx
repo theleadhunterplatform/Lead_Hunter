@@ -61,6 +61,7 @@ interface Lead {
 }
 
 import ReactMarkdown from 'react-markdown';
+import { LeadAccessGate } from "@/components/LeadAccessGate";
 
 export default function StrategicLeadsPage() {
   const router = useRouter();
@@ -199,6 +200,7 @@ export default function StrategicLeadsPage() {
   };
 
   return (
+    <LeadAccessGate>
     <div className="flex h-full overflow-hidden bg-hunter-black">
       {/* Sidebar List */}
       <div className="w-96 border-r-2 border-zinc-900 flex flex-col bg-hunter-black flex-shrink-0">
@@ -219,8 +221,11 @@ export default function StrategicLeadsPage() {
             <div className="p-10 text-center flex flex-col items-center gap-4">
               <Target size={32} className="text-zinc-800" />
               <span className="text-[10px] font-black uppercase text-zinc-600 tracking-widest leading-relaxed">
-                No high-value leads<br/>identified yet.
+                No claimable leads yet
               </span>
+              <p className="text-[11px] text-zinc-500 leading-relaxed max-w-[220px]">
+                Leads show here after they are scraped, enriched, approved, and given intelligence. Check back soon or ask your admin.
+              </p>
             </div>
           ) : (
             leads.map(lead => (
@@ -453,5 +458,6 @@ export default function StrategicLeadsPage() {
         </AnimatePresence>
       </div>
     </div>
+    </LeadAccessGate>
   );
 }
