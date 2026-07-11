@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/HunterUI";
 import { useAuth } from "@/context/AuthContext";
 import { ADMIN_ROUTES } from "@/lib/routes";
 import api from "@/lib/api";
+import { applyClaimResponseToLead } from "@/lib/claim-reveal";
 import { AnimatePresence, motion } from "framer-motion";
 import {
     ArrowUpRight,
@@ -55,6 +56,7 @@ interface Lead {
     phone_numbers?: { number: string; type: string }[];
   };
   intelligence?: string;
+  has_intelligence?: boolean;
   is_claimed?: boolean;
 }
 
@@ -84,18 +86,16 @@ export default function StrategicLeadsPage() {
       const response = await api.post(`/posts/${leadId}/claim`);
       
       if (response.data.success) {
-        // Update local lead state
         setLeads(prev => prev.map(l => 
-          l._id === leadId ? { ...l, is_claimed: true } : l
+          l._id === leadId ? applyClaimResponseToLead(l, response.data) : l
         ));
         
-        // Refresh user tokens
         refreshUser();
         
-        toast.success("Lead claimed! View it in My CRM.");
+        toast.success("Lead claimed! Contact details unlocked.");
       }
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to claim lead.');
+      toast.error(err.response?.data?.message || err.response?.data?.error || 'Failed to claim lead.');
     } finally {
       setClaimingIds(prev => prev.filter(id => id !== leadId));
     }
@@ -332,8 +332,8 @@ export default function StrategicLeadsPage() {
                         variant="primary" 
                         className="flex items-center gap-3 bg-hunter-orange text-black hover:bg-white hover:scale-105 transition-all shadow-[0_0_20px_rgba(255,107,0,0.3)] disabled:opacity-50 disabled:hover:scale-100"
                         onClick={() => handleClaim(selectedLead._id)}
-                        disabled={claimingIds.includes(selectedLead._id) || !selectedLead.intelligence}
-                        title={!selectedLead.intelligence ? "Strategic report is still generating" : undefined}
+                        disabled={claimingIds.includes(selectedLead._id) || !(selectedLead.has_intelligence || selectedLead.intelligence)}
+                        title={!(selectedLead.has_intelligence || selectedLead.intelligence) ? "Strategic report is still generating" : undefined}
                       >
                         {claimingIds.includes(selectedLead._id) ? (
                           <Loader2 size={18} className="animate-spin" />

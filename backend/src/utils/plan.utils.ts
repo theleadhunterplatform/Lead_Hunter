@@ -11,7 +11,17 @@ export type PlanDefinition = {
     /** Max claims per calendar month (-1 = unlimited) */
     max_claims_per_month: number;
     features: string[];
+    /** Razorpay amount in paise (INR). 0 / undefined = not for sale */
+    price_paise?: number;
+    currency?: string;
 };
+
+function envPaise(key: string, fallback: number): number {
+    const raw = process.env[key];
+    if (!raw) return fallback;
+    const n = parseInt(raw, 10);
+    return Number.isFinite(n) && n >= 0 ? n : fallback;
+}
 
 export const PLAN_DEFINITIONS: Record<PlanId, PlanDefinition> = {
     free: {
@@ -22,6 +32,8 @@ export const PLAN_DEFINITIONS: Record<PlanId, PlanDefinition> = {
         claim_cost: 1,
         max_claims_per_month: 15,
         features: ['claim_leads', 'google_sheets', 'crm'],
+        price_paise: 0,
+        currency: 'INR',
     },
     paid: {
         id: 'paid',
@@ -31,6 +43,8 @@ export const PLAN_DEFINITIONS: Record<PlanId, PlanDefinition> = {
         claim_cost: 1,
         max_claims_per_month: 100,
         features: ['claim_leads', 'google_sheets', 'crm', 'priority_support'],
+        price_paise: envPaise('RAZORPAY_PAID_AMOUNT_PAISE', 99900),
+        currency: 'INR',
     },
     enterprise: {
         id: 'enterprise',
@@ -40,6 +54,8 @@ export const PLAN_DEFINITIONS: Record<PlanId, PlanDefinition> = {
         claim_cost: 1,
         max_claims_per_month: -1,
         features: ['claim_leads', 'google_sheets', 'crm', 'priority_support', 'team_seats'],
+        price_paise: envPaise('RAZORPAY_ENTERPRISE_AMOUNT_PAISE', 499900),
+        currency: 'INR',
     },
 };
 

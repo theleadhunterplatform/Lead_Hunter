@@ -8,6 +8,7 @@ import User from '../models/user.model';
 import Role from '../models/role.model';
 import RoleAssignment from '../models/role-assignment.model';
 import Organization from '../models/organization.model';
+import { getUserPermissions } from '../utils/rbac.utils';
 
 const app = express();
 app.use(express.json());
@@ -111,7 +112,19 @@ describe('RBAC Role & Permission Tests', () => {
 
             expect(permRes.status).toBe(200);
             expect(permRes.body.data.permissions).toContain('lead:hunt');
+            expect(permRes.body.data.permissions).not.toContain('*');
             expect(permRes.body.data.role.slug).toBe('org_admin');
+        });
+
+        it('does not grant platform wildcard to org owners via x-org-id', async () => {
+            const user = await setupUserWithRole('orgowner-star@test.com', 'org_admin', 'Owner Agency');
+            const perms = await getUserPermissions(
+                (user as any)._id.toString(),
+                (user as any).organization.toString()
+            );
+
+            expect(perms.has('*')).toBe(false);
+            expect(perms.has('lead:hunt')).toBe(true);
         });
     });
 

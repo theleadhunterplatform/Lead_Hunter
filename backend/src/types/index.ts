@@ -80,6 +80,8 @@ export interface IUser {
     deleted_at?: Date | null;
     plan: 'free' | 'paid' | 'enterprise';
     tokens: number;
+    phone?: string | null;
+    supabase_user_id?: string | null;
     referral_count: number;
     points: number;
     createdAt: Date;

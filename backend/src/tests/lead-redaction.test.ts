@@ -88,6 +88,11 @@ describe('Lead contact redaction flow', () => {
         expect(res.body.data.source_profile).toBe('locked');
         expect(res.body.data.raw_result).toBeUndefined();
         expect(res.body.data.author?.handle).toBe('locked');
+        expect(res.body.data.intelligence).toBe(
+            'Strategic intelligence report ready. Claim this lead to unlock the full analysis.'
+        );
+        expect(res.body.data.has_intelligence).toBe(true);
+        expect(res.body.data.content).not.toContain('Looking for a growth marketer');
     });
 
     it('reveals contact details after claim in list and detail', async () => {
@@ -108,6 +113,7 @@ describe('Lead contact redaction flow', () => {
         expect(detailRes.body.data.email).toBe('lead@example.com');
         expect(detailRes.body.data.contact_info?.phone_numbers?.[0]?.number).toBe('+1-555-111-2222');
         expect(detailRes.body.data.url).toBe('https://linkedin.com/posts/redaction-lead-1');
+        expect(detailRes.body.data.intelligence).toBe('Approved high-value lead.');
 
         const listRes = await request(app)
             .get('/api/posts')

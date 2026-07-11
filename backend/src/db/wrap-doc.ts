@@ -20,6 +20,15 @@ export const wrapDoc = (
                 }
             }
 
+            // Capture org id before stripping relation-shaped fields
+            const orgValue = data.organization;
+            if (typeof orgValue === 'string') {
+                data.organizationId = orgValue;
+            } else if (orgValue && typeof orgValue === 'object') {
+                data.organizationId =
+                    (orgValue as any).id || (orgValue as any)._id || data.organizationId;
+            }
+
             delete data.organization;
             delete data.scope;
             delete data.roleId;
@@ -34,10 +43,9 @@ export const wrapDoc = (
             delete data.created_at;
             delete data.updated_at;
             delete data._id;
-
-            if (data.organization && typeof data.organization === 'object') {
-                data.organizationId = (data.organization as any).id || (data.organization as any)._id;
-            }
+            // Never persist password via blanket save() — avoids double-hash / accidental overwrite
+            delete data.password;
+            delete data.comparePassword;
 
             const updated = await updateFn(this.id || this._id, data);
             const wrapped = wrapDoc(updated, updateFn, extras);

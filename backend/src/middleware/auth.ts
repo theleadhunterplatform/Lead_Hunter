@@ -64,8 +64,8 @@ export const authorize = (requiredPermission: string) => {
             if (hasPermission(permissions, requiredPermission)) {
                 
                 // 2. LEAD ACCESS SECURITY GATE (Admin defined restriction)
-                // If it's a lead permission, we also verify the user.lead_access_enabled flag
-                // unless they are the organization owner (wildcard permission)
+                // If it's a lead permission, also verify lead_access_enabled
+                // unless they have platform wildcard permission.
                 if (requiredPermission.startsWith('lead:') && !permissions.has('*')) {
                     if (user.lead_access_enabled === false) {
                         return res.status(403).json({

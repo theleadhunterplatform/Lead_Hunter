@@ -24,6 +24,7 @@ import adminRoutes from './routes/admin.routes';
 import googleSheetsRoutes from './routes/google-sheets.routes';
 import planRoutes from './routes/plan.routes';
 import outreachRoutes from './routes/outreach.routes';
+import paymentRoutes from './routes/payment.routes';
 import errorHandler from './middleware/error';
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './config/swagger';
@@ -57,7 +58,12 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization', 'x-org-id'],
 }));
 
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({
+    limit: '1mb',
+    verify: (req, _res, buf) => {
+        (req as any).rawBody = buf;
+    },
+}));
 app.use(helmet({
     crossOriginResourcePolicy: { policy: 'cross-origin' },
 }));
@@ -128,6 +134,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/google-sheets', googleSheetsRoutes);
 app.use('/api/plans', planRoutes);
 app.use('/api/outreach', outreachRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // 404 Handler
 app.use((_req: Request, res: Response) => {

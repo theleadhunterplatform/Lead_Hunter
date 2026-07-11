@@ -16,7 +16,8 @@ import {
   Shield,
   UserSearch,
   Menu,
-  X
+  X,
+  CreditCard
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/components/ui/HunterUI";
@@ -94,6 +95,7 @@ export default function ProtectedLayout({
       permission: "lead:read",
     },
     { name: "My CRM", href: "/crm", icon: LayoutDashboard, permission: "lead:read" },
+    { name: "Billing", href: "/billing", icon: CreditCard },
     { name: "Hall of Hunters", href: "/leaderboard", icon: Trophy },
     { name: "Organization Team", href: ADMIN_ROUTES.team, icon: Users, permission: "user:read" },
     { name: "Search Keys", href: ADMIN_ROUTES.tokens, icon: Key, permission: "scraping:manage" },
@@ -183,6 +185,9 @@ export default function ProtectedLayout({
             <div className="overflow-hidden">
               <div className="text-[10px] font-black uppercase truncate">{user?.name}</div>
               <div className="text-[8px] text-zinc-500 truncate">{user?.email}</div>
+              <div className="text-[8px] text-hunter-orange uppercase tracking-widest mt-0.5">
+                {user?.plan || "free"} plan
+              </div>
             </div>
           </div>
           

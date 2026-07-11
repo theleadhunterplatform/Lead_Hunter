@@ -8,7 +8,12 @@ const mapUser = (record: any, includePassword = false) => {
     const doc = wrapDoc(record, async (id, data) => {
         const updateData: any = { ...data };
         if (updateData.password) {
-            updateData.password = await hashPassword(updateData.password as string);
+            const pwd = String(updateData.password);
+            // Avoid double-hashing when save() persists an already-hashed password field
+            const alreadyHashed = /^\$2[aby]\$/.test(pwd);
+            if (!alreadyHashed) {
+                updateData.password = await hashPassword(pwd);
+            }
         }
         if (updateData.organization !== undefined) {
             updateData.organizationId = updateData.organization;

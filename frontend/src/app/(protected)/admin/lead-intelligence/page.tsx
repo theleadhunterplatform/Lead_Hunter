@@ -7,6 +7,7 @@ import { Filter, Search, Download, ExternalLink, MessageSquare, ThumbsUp, Share2
 import { Button, Input } from "@/components/ui/HunterUI";
 import { cn } from "@/components/ui/HunterUI";
 import api from "@/lib/api";
+import { applyClaimResponseToLead } from "@/lib/claim-reveal";
 import ManualLeadModal from "@/components/ManualLeadModal";
 import RefineLeadModal from "@/components/RefineLeadModal";
 import { LinkedinLogo, XLogo, RedditLogo, ThreadsLogo } from "@/components/BrandIcons";
@@ -480,18 +481,16 @@ export default function LeadIntelligencePage() {
       const response = await api.post(`/posts/${leadId}/claim`);
       
       if (response.data.success) {
-        // Update local lead state
         setLeads(prev => prev.map(l => 
-          l._id === leadId ? { ...l, is_claimed: true, claimed_count: (l.claimed_count || 0) + 1 } : l
+          l._id === leadId ? applyClaimResponseToLead(l, response.data) : l
         ));
         
-        // Refresh user tokens
         refreshUser();
         
-        toast.success("Lead claimed! View it in My CRM.");
+        toast.success("Lead claimed! Contact details unlocked.");
       }
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to claim lead.');
+      toast.error(err.response?.data?.message || err.response?.data?.error || 'Failed to claim lead.');
     } finally {
       setClaimingIds(prev => prev.filter(id => id !== leadId));
     }

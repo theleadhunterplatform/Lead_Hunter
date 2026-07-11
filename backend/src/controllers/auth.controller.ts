@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import asyncHandler from '../middleware/async';
 import * as authService from '../services/auth.service';
+import * as supabaseAuth from '../services/supabase-auth.service';
+import ErrorResponse from '../utils/error-response.utils';
 
 // @desc    Register user
 // @route   POST /api/auth/register
@@ -23,6 +25,28 @@ export const login = asyncHandler(async (req: Request, res: Response, _next: Nex
     res.status(200).json({
         success: true,
         data: result
+    });
+});
+
+// @desc    Exchange Supabase Auth token (phone OTP) for Lead Hunter JWTs
+// @route   POST /api/auth/supabase
+// @access  Public
+export const supabaseLogin = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+    const accessToken = req.body?.access_token || req.body?.accessToken;
+    if (!accessToken || typeof accessToken !== 'string') {
+        throw new ErrorResponse('access_token is required (Supabase session access_token).', 400);
+    }
+
+    const data = await supabaseAuth.loginWithSupabaseToken({
+        access_token: accessToken,
+        name: req.body?.name,
+    });
+
+    const status = (data as any).approval_required ? 201 : 200;
+    res.status(status).json({
+        success: true,
+        data,
+        message: (data as any).message,
     });
 });
 

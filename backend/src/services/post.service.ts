@@ -9,7 +9,8 @@ import { enqueueLeadQualification } from '../utils/qualification-queue.utils';
 import { findExistingLeadPost, isDuplicateKeyError } from '../utils/lead-dedup.utils';
 import { enqueueContactEnrichment } from '../utils/enrichment-queue.utils';
 import { requestLeadIntelligence } from '../utils/intelligence-queue.utils';
-import { sanitizeContactFields } from '../utils/contact-redaction.utils';
+import { presentLeadForUser } from '../utils/lead-presentation.utils';
+import { toApiDoc } from '../utils/serialize.utils';
 import { logLeadAction } from '../utils/audit.utils';
 import { verifyLeadEmailManually } from './lead-enrichment.service';
 import { reconcileEnrichmentStatusIfStale, shouldEnrichLead } from './enrichment.service';
@@ -18,7 +19,10 @@ import { isAutoEnrichmentEnabled } from '../utils/automation-settings.utils';
 import {
     leadHasContactDetails,
 } from '../utils/lead-enrichment.utils';
-import { assertCanClaimLead, recordSuccessfulClaim } from './plan.service';
+import { assertCanClaimLead } from './plan.service';
+import { currentPlanMonth } from '../utils/plan.utils';
+import Organization from '../models/organization.model';
+import { Prisma } from '@prisma/client';
 
 function applyListTabFilter(filter: any, status?: string) {
     if (!status || status === 'all') return;
@@ -684,34 +688,7 @@ export const getAllPosts = async (currentUser: any, query: {
 
     const postsWithClaimed = postsWithReviewers.map(post => {
         const isClaimed = claimedIds.has(post._id.toString());
-        const shouldShowSensitive = isClaimed || isInternal;
-        const contact = sanitizeContactFields(post, { isInternal, isClaimed });
-
-        // Base redaction
-        const redactedPost = {
-            ...post,
-            is_claimed: isClaimed,
-            content: shouldShowSensitive ? post.content : "Original signal locked. This high-relevance lead has been verified by the Intelligence Engine. Claim this lead to unlock the full original post and contact data.",
-            email: contact.email,
-            contact_info: contact.contact_info,
-            // Redact author details to prevent direct outreach bypass
-            author: shouldShowSensitive ? post.author : {
-                name: `Strategic Lead [${post.platform.toUpperCase()}]`,
-                handle: "locked",
-                url: "#",
-                avatar: { url: "" }
-            },
-            // Redact all direct outbound URLs
-            url: shouldShowSensitive ? post.url : "#"
-        };
-
-        // Deep redaction for any other direct links (like course URLs or profile links in raw data)
-        if (!shouldShowSensitive) {
-            delete redactedPost.raw_result; // Never show raw scraped data to external users for unclaimed leads
-            if (redactedPost.source_profile) redactedPost.source_profile = "locked";
-        }
-
-        return redactedPost;
+        return presentLeadForUser(post, { isInternal, isClaimed });
     });
 
     const total = await LeadPost.countDocuments(filter);
@@ -783,31 +760,8 @@ export const getPostForUser = async (currentUser: any, id: string) => {
     
     // Check if claimed
     const isClaimed = await Claim.exists({ userId: currentUser.id, leadId: id });
-    
-    const shouldShowSensitive = !!isClaimed || isInternal;
-    const contact = sanitizeContactFields(post, { isInternal, isClaimed: !!isClaimed });
 
-    const redactedPost = {
-        ...post,
-        is_claimed: !!isClaimed,
-        content: shouldShowSensitive ? post.content : "Original signal locked. This high-relevance lead has been verified by the Intelligence Engine. Claim this lead to unlock the full original post and contact data.",
-        email: contact.email,
-        contact_info: contact.contact_info,
-        author: shouldShowSensitive ? post.author : {
-            name: `Strategic Lead [${post.platform.toUpperCase()}]`,
-            handle: "locked",
-            url: "#",
-            avatar: { url: "" }
-        },
-        url: shouldShowSensitive ? post.url : "#"
-    };
-
-    if (!shouldShowSensitive) {
-        delete redactedPost.raw_result;
-        if (redactedPost.source_profile) redactedPost.source_profile = "locked";
-    }
-
-    return redactedPost;
+    return presentLeadForUser(post, { isInternal, isClaimed: !!isClaimed });
 };
 export const updatePostLabel = async (
     id: string,
@@ -1047,43 +1001,162 @@ export const claimPost = async (postId: string, userId: string) => {
     // 3. Check user roles and tokens (plan-aware)
     const { user, tokenCost } = await assertCanClaimLead(userId, { isInternal });
 
-    // 4. Deduct tokens + record monthly claim usage
-    const remainingTokens = await recordSuccessfulClaim(userId, tokenCost);
+    // 4. Atomically deduct tokens + create claim + bump claimed_count
+    const userIdStr = userId.toString();
+    const planStateKey = `user_plan_state_${userIdStr}`;
 
-    // Create claim
-    const claim = await Claim.create({
-        userId: userId as any,
-        leadId: postId as any,
-        token_cost: tokenCost
-    } as any);
+    try {
+        const result = await prisma.$transaction(async (tx) => {
+            const existing = await tx.claim.findFirst({
+                where: { userId: userIdStr, leadId: postId },
+            });
+            if (existing) {
+                throw new ErrorResponse('You have already claimed this lead.', 400);
+            }
 
-    // Update lead claim count
-    post.claimed_count += 1;
-    await post.save();
+            const lead = await tx.leadPost.findFirst({
+                where: { id: postId, is_deleted: false },
+            });
+            if (!lead) {
+                throw new ErrorResponse('Lead not found.', 404);
+            }
+            if (lead.claimed_count >= maxClaims) {
+                throw new ErrorResponse(
+                    `This lead has reached its maximum claim limit (${maxClaims} users).`,
+                    400
+                );
+            }
 
-    return {
-        post,
-        claim,
-        remaining_tokens: remainingTokens,
-        plan: user.plan,
-    };
+            if (tokenCost > 0) {
+                const decremented = await tx.user.updateMany({
+                    where: { id: userIdStr, tokens: { gte: tokenCost } },
+                    data: { tokens: { decrement: tokenCost } },
+                });
+                if (decremented.count !== 1) {
+                    throw new ErrorResponse(
+                        `Insufficient tokens to claim this lead. Need ${tokenCost}.`,
+                        403
+                    );
+                }
+            }
+
+            const claim = await tx.claim.create({
+                data: {
+                    userId: userIdStr,
+                    leadId: postId,
+                    token_cost: tokenCost,
+                    status: 'new',
+                    notes: '',
+                },
+            });
+
+            const bumped = await tx.leadPost.updateMany({
+                where: { id: postId, claimed_count: { lt: maxClaims } },
+                data: { claimed_count: { increment: 1 } },
+            });
+            if (bumped.count !== 1) {
+                throw new ErrorResponse(
+                    `This lead has reached its maximum claim limit (${maxClaims} users).`,
+                    400
+                );
+            }
+
+            const month = currentPlanMonth();
+            const existingState = await tx.setting.findFirst({
+                where: { key: planStateKey, is_deleted: false },
+            });
+            let claimsThisMonth = 1;
+            const rawValue = existingState?.value as { refill_month?: string; claims_this_month?: number } | null;
+            if (rawValue && typeof rawValue === 'object' && rawValue.refill_month === month) {
+                claimsThisMonth = (Number(rawValue.claims_this_month) || 0) + 1;
+            }
+
+            await tx.setting.upsert({
+                where: { key: planStateKey },
+                update: {
+                    value: { refill_month: month, claims_this_month: claimsThisMonth },
+                    is_deleted: false,
+                    deleted_at: null,
+                },
+                create: {
+                    key: planStateKey,
+                    value: { refill_month: month, claims_this_month: claimsThisMonth },
+                    description: 'User plan monthly usage state',
+                },
+            });
+
+            const updatedUser = await tx.user.findUnique({ where: { id: userIdStr } });
+            const updatedLead = await tx.leadPost.findUnique({ where: { id: postId } });
+
+            return {
+                claim,
+                post: updatedLead,
+                remaining_tokens: updatedUser?.tokens ?? 0,
+            };
+        });
+
+        return {
+            post: presentLeadForUser(toApiDoc(result.post as any), {
+                isInternal: false,
+                isClaimed: true,
+            }),
+            claim: {
+                ...result.claim,
+                _id: result.claim.id,
+            },
+            remaining_tokens: result.remaining_tokens,
+            plan: user.plan,
+        };
+    } catch (error: any) {
+        if (error instanceof ErrorResponse) throw error;
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+            throw new ErrorResponse('You have already claimed this lead.', 400);
+        }
+        throw error;
+    }
 };
 
-export const getClaimedPosts = async (userId: string, query: { page?: number; limit?: number; orgId?: string }) => {
+export const getClaimedPosts = async (
+    userId: string,
+    query: { page?: number; limit?: number; orgId?: string }
+) => {
     const page = Number(query.page) || 1;
     const limit = Number(query.limit) || 20;
     const skip = (page - 1) * limit;
+    const userIdStr = userId.toString();
 
-    const filter: any = { userId };
-    
-    // If orgId is provided, show all claims for that organization
+    const filter: any = { userId: userIdStr };
+
+    // If orgId is provided, show all claims for that organization (membership required)
     if (query.orgId) {
+        const orgId = query.orgId.toString();
+        const org = await Organization.findById(orgId);
+        if (!org) {
+            throw new ErrorResponse('Organization not found.', 404);
+        }
+
+        const requester = await prisma.user.findUnique({
+            where: { id: userIdStr },
+            select: { organizationId: true },
+        });
+        const globalPerms = await getUserPermissions(userIdStr, null);
+        const isPlatformAdmin =
+            checkPermission(globalPerms, '*') || checkPermission(globalPerms, 'system:admin');
+        const isOrgMember = requester?.organizationId === orgId;
+        const isOrgOwner = org.ownerId?.toString() === userIdStr;
+
+        if (!isPlatformAdmin && !isOrgMember && !isOrgOwner) {
+            throw new ErrorResponse('Not authorized to view claims for this organization.', 403);
+        }
+
         const orgUsers = await prisma.user.findMany({
-            where: { organizationId: query.orgId },
+            where: { organizationId: orgId },
             select: { id: true },
         });
         const userIds = orgUsers.map((u) => u.id);
-        delete filter.userId;
+        if (isOrgOwner && !userIds.includes(userIdStr)) {
+            userIds.push(userIdStr);
+        }
         filter.userId = { $in: userIds };
     }
 
@@ -1094,12 +1167,12 @@ export const getClaimedPosts = async (userId: string, query: { page?: number; li
         populate: 'leadId',
     });
 
-    const total = await Claim.countDocuments({ userId });
-    
+    const total = await Claim.countDocuments(filter);
+
     return {
         posts: claims,
         total,
         page,
-        pages: Math.ceil(total / limit)
+        pages: Math.ceil(total / limit),
     };
 };

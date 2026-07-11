@@ -38,6 +38,13 @@ const config = {
         url: process.env.SUPABASE_URL || '',
         anonKey: process.env.SUPABASE_ANON_KEY || '',
         serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+        /** Project Settings → API → JWT Secret (HS256). Required for phone auth exchange. */
+        jwtSecret: process.env.SUPABASE_JWT_SECRET || '',
+    },
+    razorpay: {
+        keyId: process.env.RAZORPAY_KEY_ID || '',
+        keySecret: process.env.RAZORPAY_KEY_SECRET || '',
+        webhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET || '',
     },
     apify: {
         token: process.env.APIFY_API_TOKEN || '',

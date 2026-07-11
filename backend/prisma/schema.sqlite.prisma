@@ -13,6 +13,8 @@ model User {
   name                String
   email               String    @unique
   password            String
+  phone               String?   @unique
+  supabase_user_id    String?   @unique
   organizationId      String?
   organization        Organization? @relation(fields: [organizationId], references: [id])
   status              String    @default("active")
@@ -35,6 +37,7 @@ model User {
   assignedRoles      RoleAssignment[] @relation("AssignedByUser")
   claims             Claim[]
   auditLogs          AuditLog[]
+  payments           Payment[]
 
   @@map("users")
 }
@@ -187,6 +190,27 @@ model Claim {
 
   @@unique([userId, leadId])
   @@map("claims")
+}
+
+model Payment {
+  id                  String   @id @default(uuid())
+  userId              String
+  user                User     @relation(fields: [userId], references: [id])
+  provider            String   @default("razorpay")
+  razorpay_order_id   String   @unique
+  razorpay_payment_id String?
+  razorpay_signature  String?
+  plan                String
+  amount_paise        Int
+  currency            String   @default("INR")
+  status              String   @default("created")
+  raw_payload         Json?
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([status])
+  @@map("payments")
 }
 
 model ApifyKey {

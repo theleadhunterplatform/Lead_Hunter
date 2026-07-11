@@ -31,7 +31,10 @@ const mapClaim = (record: any) => {
 
 const buildWhere = (filter: any = {}) => {
     const where: any = {};
-    if (filter.userId) where.userId = filter.userId;
+    if (filter.userId) {
+        if (filter.userId.$in) where.userId = { in: filter.userId.$in };
+        else where.userId = filter.userId;
+    }
     if (filter.leadId) {
         if (filter.leadId.$in) where.leadId = { in: filter.leadId.$in };
         else where.leadId = filter.leadId;

@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/HunterUI";
 import api from "@/lib/api";
+import { applyClaimResponseToLead } from "@/lib/claim-reveal";
 import { motion } from "framer-motion";
 import { Activity, BrainCircuit, CheckCircle2, ChevronRight, Copy, Gift, Loader2, Shield, Target, TrendingUp, UserPlus, Users, Zap } from "lucide-react";
 import Link from "next/link";
@@ -26,18 +27,17 @@ export default function DashboardPage() {
   const handleClaim = async (leadId: string) => {
     try {
       setClaimingIds(prev => [...prev, leadId]);
-      await api.post(`/posts/${leadId}/claim`);
+      const response = await api.post(`/posts/${leadId}/claim`);
       
-      // Update local state to reflect claim
       setTopLeads(prev => prev.map(l => 
-        l._id === leadId ? { ...l, is_claimed: true } : l
+        l._id === leadId ? applyClaimResponseToLead(l, response.data) : l
       ));
       
       toast.success("Lead successfully claimed!", {
         description: "The full signal and contact details are now unlocked."
       });
       
-      refreshUser(); // Update token balance
+      refreshUser();
     } catch (err: any) {
       toast.error("Failed to claim lead", {
         description: err.response?.data?.error || "An error occurred while claiming the lead."

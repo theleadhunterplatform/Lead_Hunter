@@ -1,20 +1,14 @@
-import RoleAssignment from '../models/role-assignment.model';
 import Organization from '../models/organization.model';
+import Role from '../models/role.model';
+import RoleAssignment from '../models/role-assignment.model';
 import { isValidId } from '../utils/serialize.utils';
 
 /**
- * Resolves all permissions for a user within a given scope
+ * Resolves all permissions for a user within a given scope.
+ * Org owners do NOT get platform wildcard `*` — they use their role (org_admin).
  */
 export async function getUserPermissions(userId: string, organizationId: string | null = null): Promise<Set<string>> {
     const permissions = new Set<string>();
-
-    if (organizationId && isValidId(organizationId.toString())) {
-        const org = await Organization.findById(organizationId);
-        if (org && org.ownerId?.toString() === userId.toString()) {
-            permissions.add('*');
-            return permissions;
-        }
-    }
 
     const query: any = {
         userId,
@@ -48,6 +42,21 @@ export async function getUserPermissions(userId: string, organizationId: string 
             });
         }
     });
+
+    // Org owner fallback: grant org_admin permissions if they have no role assignment yet.
+    // Never grant platform `*`.
+    if (
+        permissions.size === 0
+        && organizationId
+        && isValidId(organizationId.toString())
+    ) {
+        const org = await Organization.findById(organizationId);
+        if (org && org.ownerId?.toString() === userId.toString()) {
+            const orgAdmin = await Role.findOne({ slug: 'org_admin' });
+            const rolePerms = Array.isArray(orgAdmin?.permissions) ? orgAdmin.permissions : [];
+            rolePerms.forEach((perm: string) => permissions.add(perm));
+        }
+    }
 
     return permissions;
 }

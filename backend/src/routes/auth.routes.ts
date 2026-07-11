@@ -13,6 +13,7 @@ import {
     resetPassword,
     changePassword,
 } from '../controllers/auth.controller';
+import { supabaseLogin } from '../controllers/auth.controller';
 import { protect, authorize } from '../middleware/auth';
 import { validate } from '../middleware/validate';
 import { registerSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema, changePasswordSchema } from '../schemas/auth.schema';
@@ -24,6 +25,7 @@ router.use(authRateLimiter);
 
 router.post('/register', validate(registerSchema), register);
 router.post('/login', validate(loginSchema), login);
+router.post('/supabase', supabaseLogin);
 router.post('/forgot-password', validate(forgotPasswordSchema), forgotPassword);
 router.post('/reset-password', validate(resetPasswordSchema), resetPassword);
 router.get('/me', protect, getMe);

@@ -7,7 +7,8 @@ interface User {
   _id: string;
   name: string;
   email: string;
-  status: 'active' | 'disabled';
+  phone?: string | null;
+  status: 'active' | 'disabled' | 'pending' | 'rejected';
   plan: 'free' | 'paid' | 'enterprise';
   tokens: number;
   points: number;
