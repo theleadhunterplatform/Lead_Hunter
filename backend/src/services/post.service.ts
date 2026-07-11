@@ -1,6 +1,5 @@
 import prisma from '../lib/prisma';
 import LeadPost from '../models/lead-post.model';
-import User from '../models/user.model';
 import Claim from '../models/claim.model';
 import ErrorResponse from '../utils/error-response.utils';
 import { getSetting } from './setting.service';
@@ -19,6 +18,7 @@ import { isAutoEnrichmentEnabled } from '../utils/automation-settings.utils';
 import {
     leadHasContactDetails,
 } from '../utils/lead-enrichment.utils';
+import { assertCanClaimLead, recordSuccessfulClaim } from './plan.service';
 
 function applyListTabFilter(filter: any, status?: string) {
     if (!status || status === 'all') return;
@@ -1044,24 +1044,11 @@ export const claimPost = async (postId: string, userId: string) => {
         throw new ErrorResponse(`This lead has reached its maximum claim limit (${maxClaims} users).`, 400);
     }
 
-    // 3. Check user roles and tokens
-    const user = await User.findById(userId);
-    if (!user) {
-        throw new ErrorResponse('User not found.', 404);
-    }
+    // 3. Check user roles and tokens (plan-aware)
+    const { user, tokenCost } = await assertCanClaimLead(userId, { isInternal });
 
-    // Token deduction logic
-    const tokenCost = isInternal ? 0 : 1; 
-    
-    if (user.tokens < tokenCost) {
-        throw new ErrorResponse('Insufficient tokens to claim this lead.', 403);
-    }
-
-    // 4. Perform atomic-ish operations
-    if (tokenCost > 0) {
-        user.tokens -= tokenCost;
-        await user.save();
-    }
+    // 4. Deduct tokens + record monthly claim usage
+    const remainingTokens = await recordSuccessfulClaim(userId, tokenCost);
 
     // Create claim
     const claim = await Claim.create({
@@ -1077,7 +1064,8 @@ export const claimPost = async (postId: string, userId: string) => {
     return {
         post,
         claim,
-        remaining_tokens: user.tokens
+        remaining_tokens: remainingTokens,
+        plan: user.plan,
     };
 };
 

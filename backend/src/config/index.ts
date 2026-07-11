@@ -50,6 +50,8 @@ const config = {
     targetScraper: {
         maxItems: parseInt(process.env.TARGET_SCRAPE_MAX_ITEMS || '20', 10),
         postedLimit: process.env.TARGET_SCRAPE_POSTED_LIMIT || '24h',
+        /** Skip Apify call if this target was scraped within N hours (saves tokens). */
+        minHoursBetweenScrapes: parseInt(process.env.TARGET_SCRAPE_MIN_HOURS || '6', 10),
     },
     cron: {
         interval: process.env.CRON_INTERVAL || '*/30 * * * *'

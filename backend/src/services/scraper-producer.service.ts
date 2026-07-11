@@ -32,7 +32,8 @@ export async function runScraperProducerJob(): Promise<{ keywords: number; targe
                     },
                     {
                         jobId,
-                        removeOnComplete: true,
+                        // Must keep completed jobs for the day so jobId blocks re-runs.
+                        removeOnComplete: { age: 60 * 60 * 25 },
                     }
                 );
 
@@ -65,7 +66,7 @@ export async function runScraperProducerJob(): Promise<{ keywords: number; targe
                 },
                 {
                     jobId,
-                    removeOnComplete: true,
+                    removeOnComplete: { age: 60 * 60 * 25 },
                 }
             );
 

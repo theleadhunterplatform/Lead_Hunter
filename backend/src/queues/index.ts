@@ -10,7 +10,9 @@ export const scraperQueue = new Queue('scraper-queue', {
             type: 'exponential',
             delay: 1000,
         },
-        removeOnComplete: true,
+        // Keep completed scrape jobs ~25h so daily jobId dedupe actually works.
+        // removeOnComplete: true was re-queuing the same targets every 30 min.
+        removeOnComplete: { age: 60 * 60 * 25 },
         removeOnFail: false,
     }
 });

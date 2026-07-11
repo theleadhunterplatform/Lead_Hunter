@@ -22,6 +22,7 @@ import targetRoutes from './routes/target.routes';
 import dashboardRoutes from './routes/dashboard.routes';
 import adminRoutes from './routes/admin.routes';
 import googleSheetsRoutes from './routes/google-sheets.routes';
+import planRoutes from './routes/plan.routes';
 import errorHandler from './middleware/error';
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './config/swagger';
@@ -124,6 +125,7 @@ app.use('/api/targets', targetRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/google-sheets', googleSheetsRoutes);
+app.use('/api/plans', planRoutes);
 
 // 404 Handler
 app.use((_req: Request, res: Response) => {

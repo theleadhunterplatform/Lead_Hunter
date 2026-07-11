@@ -56,6 +56,18 @@ export class TargetScraperService {
 
         console.log(`🚀 [TargetScraper] Scraping comments for watchlist target: "${target.name}" (${target.url})`);
 
+        const minHours = config.targetScraper.minHoursBetweenScrapes;
+        if (target.last_scraped_at && minHours > 0) {
+            const hoursSince =
+                (Date.now() - new Date(target.last_scraped_at).getTime()) / (1000 * 60 * 60);
+            if (hoursSince < minHours) {
+                console.log(
+                    `⏭️ [TargetScraper] Skipping "${target.name}" — scraped ${hoursSince.toFixed(1)}h ago (min ${minHours}h)`
+                );
+                return { saved: 0, skipped: 0, deferred: true };
+            }
+        }
+
         const { client, activeKey } = await getApifyClient();
         let saved = 0;
         let skipped = 0;

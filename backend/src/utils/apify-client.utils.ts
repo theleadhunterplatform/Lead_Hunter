@@ -52,9 +52,24 @@ export async function recordApifyCommentUsage(activeKey: ApifyKeyRecord | null, 
 }
 
 export function isApifyLimitError(error: any): boolean {
-    return error?.statusCode === 402 ||
-        error?.statusCode === 403 ||
-        error?.message?.includes('usage limit reached');
+    const status = error?.statusCode ?? error?.status;
+    const message = String(error?.message || error?.data?.message || '').toLowerCase();
+
+    // Do not treat every 403 as exhausted (can be auth/permission noise).
+    if (status === 402) return true;
+    if (
+        message.includes('usage limit') ||
+        message.includes('monthly usage') ||
+        message.includes('limit exceeded') ||
+        message.includes('payment required') ||
+        message.includes('insufficient credits')
+    ) {
+        return true;
+    }
+    if (status === 403 && (message.includes('limit') || message.includes('quota') || message.includes('usage'))) {
+        return true;
+    }
+    return false;
 }
 
 export async function handleApifyLimitError(error: any, activeKey: ApifyKeyRecord | null): Promise<void> {

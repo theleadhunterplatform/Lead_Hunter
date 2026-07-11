@@ -56,6 +56,7 @@ describe('Lead Claiming Integration Tests', () => {
             platform: 'linkedin',
             keyword: 'web dev',
             status: 'relevant',
+            review_status: 'approved',
             intelligence: 'Found a high-value signal for web development services.'
         });
         leadId = lead._id.toString();

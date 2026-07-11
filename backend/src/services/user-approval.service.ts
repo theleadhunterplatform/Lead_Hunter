@@ -2,6 +2,7 @@ import prisma from '../lib/prisma';
 import User from '../models/user.model';
 import ErrorResponse from '../utils/error-response.utils';
 import { toApiDoc } from '../utils/serialize.utils';
+import { setUserPlan } from './plan.service';
 
 function formatPendingUser(user: {
     id: string;
@@ -57,6 +58,11 @@ export async function approveSignupUser(userId: string, actorId: string) {
         include: { organization: true },
     });
 
+    await setUserPlan(userId, (updated.plan as string) || 'free', {
+        refill_tokens: true,
+        actorId,
+    });
+
     await prisma.auditLog.create({
         data: {
             actorId,
@@ -64,7 +70,7 @@ export async function approveSignupUser(userId: string, actorId: string) {
             resource: 'user',
             resourceId: userId,
             status: 'success',
-            details: { email: updated.email },
+            details: { email: updated.email, plan: updated.plan || 'free' },
         },
     });
 
