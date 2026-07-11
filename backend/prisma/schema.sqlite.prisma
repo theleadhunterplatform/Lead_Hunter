@@ -177,6 +177,9 @@ model Claim {
   token_cost     Int       @default(1)
   status         String    @default("new")
   notes          String    @default("")
+  outreach_subject String?
+  outreach_body    String?
+  outreach_generated_at DateTime?
   last_contacted DateTime?
   timestamp      DateTime  @default(now())
   createdAt      DateTime  @default(now()) @map("created_at")

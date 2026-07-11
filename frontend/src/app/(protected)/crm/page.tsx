@@ -2,13 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
-import { LayoutDashboard, MessageSquare, Mail, Phone, Calendar, ArrowRight, Save, Clock, User, ExternalLink, ChevronDown, CheckCircle2, XCircle, MoreVertical } from "lucide-react";
+import { motion } from "framer-motion";
+import { LayoutDashboard, Mail, Phone, Clock, User, ExternalLink, CheckCircle2, Sparkles, Copy, RefreshCw } from "lucide-react";
 import { Button, Input } from "@/components/ui/HunterUI";
 import api from "@/lib/api";
 import { cn } from "@/components/ui/HunterUI";
 import { toast } from "sonner";
-import { LinkedinLogo, XLogo, RedditLogo, ThreadsLogo } from "@/components/BrandIcons";
+import { LinkedinLogo, XLogo } from "@/components/BrandIcons";
 import { useAuth } from "@/context/AuthContext";
 import { ADMIN_ROUTES } from "@/lib/routes";
 import { getApiError } from "@/lib/errors";
@@ -23,6 +23,9 @@ interface ClaimedLead {
   notes: string;
   last_contacted: string | null;
   timestamp: string;
+  outreach_subject?: string | null;
+  outreach_body?: string | null;
+  outreach_generated_at?: string | null;
   leadId: {
     _id: string;
     author: {
@@ -49,6 +52,8 @@ export default function CRMPage() {
   const [loading, setLoading] = useState(true);
   const [savingIds, setSavingIds] = useState<string[]>([]);
   const [sendingEmailIds, setSendingEmailIds] = useState<string[]>([]);
+  const [generatingIds, setGeneratingIds] = useState<string[]>([]);
+  const [draftEdits, setDraftEdits] = useState<Record<string, { subject: string; body: string }>>({});
 
   const fetchClaimedLeads = async () => {
     try {
@@ -100,21 +105,105 @@ export default function CRMPage() {
     }
   };
 
+  const getDraft = (claim: ClaimedLead) =>
+    draftEdits[claim._id] || {
+      subject: claim.outreach_subject || "",
+      body: claim.outreach_body || "",
+    };
+
+  const generateOutreach = async (claimId: string, regenerate = false) => {
+    try {
+      setGeneratingIds((prev) => [...prev, claimId]);
+      const { data } = await api.post("/outreach/generate", {
+        claim_id: claimId,
+        regenerate,
+      });
+      const draft = data.data;
+      setDraftEdits((prev) => ({
+        ...prev,
+        [claimId]: { subject: draft.subject || "", body: draft.body || "" },
+      }));
+      setClaims((prev) =>
+        prev.map((c) =>
+          c._id === claimId
+            ? {
+                ...c,
+                outreach_subject: draft.subject,
+                outreach_body: draft.body,
+                outreach_generated_at: draft.generated_at,
+              }
+            : c
+        )
+      );
+      toast.success(regenerate ? "Draft regenerated" : "Outreach draft ready");
+    } catch (error: unknown) {
+      toast.error(getApiError(error, "Failed to generate outreach"));
+    } finally {
+      setGeneratingIds((prev) => prev.filter((id) => id !== claimId));
+    }
+  };
+
+  const saveOutreachDraft = async (claimId: string) => {
+    const claim = claims.find((c) => c._id === claimId);
+    if (!claim) return;
+    const draft = getDraft(claim);
+    if (!draft.subject.trim() || !draft.body.trim()) {
+      toast.error("Subject and body are required");
+      return;
+    }
+    try {
+      setSavingIds((prev) => [...prev, claimId]);
+      await api.put(`/outreach/${claimId}`, draft);
+      setClaims((prev) =>
+        prev.map((c) =>
+          c._id === claimId
+            ? { ...c, outreach_subject: draft.subject, outreach_body: draft.body }
+            : c
+        )
+      );
+      toast.success("Draft saved");
+    } catch (error: unknown) {
+      toast.error(getApiError(error, "Failed to save draft"));
+    } finally {
+      setSavingIds((prev) => prev.filter((id) => id !== claimId));
+    }
+  };
+
+  const copyOutreach = async (claim: ClaimedLead) => {
+    const draft = getDraft(claim);
+    if (!draft.subject && !draft.body) {
+      toast.error("Generate a draft first");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(`Subject: ${draft.subject}\n\n${draft.body}`);
+      toast.success("Copied to clipboard");
+    } catch {
+      toast.error("Could not copy");
+    }
+  };
+
   const sendOutreach = async (leadId: string, claimId: string) => {
-     try {
-       setSendingEmailIds(prev => [...prev, claimId]);
-       const { data } = await api.post("/crm/send-email", {
-         leadId,
-         subject: "Strategic Partnership Inquiry",
-         body: "Hi, I saw your post and thought we could collaborate."
-       });
-       toast.success(data.message || "Outreach logged successfully");
-       fetchClaimedLeads();
-     } catch (error: unknown) {
-       toast.error(getApiError(error, "Failed to send outreach"));
-     } finally {
-       setSendingEmailIds(prev => prev.filter(id => id !== claimId));
-     }
+    const claim = claims.find((c) => c._id === claimId);
+    const draft = claim ? getDraft(claim) : { subject: "", body: "" };
+    const subject = draft.subject.trim() || "Strategic Partnership Inquiry";
+    const body =
+      draft.body.trim() ||
+      "Hi, I saw your post and thought we could collaborate.";
+    try {
+      setSendingEmailIds((prev) => [...prev, claimId]);
+      const { data } = await api.post("/crm/send-email", {
+        leadId,
+        subject,
+        body,
+      });
+      toast.success(data.message || "Outreach logged successfully");
+      fetchClaimedLeads();
+    } catch (error: unknown) {
+      toast.error(getApiError(error, "Failed to send outreach"));
+    } finally {
+      setSendingEmailIds((prev) => prev.filter((id) => id !== claimId));
+    }
   };
 
   const getEmailBadgeForClaim = (claim: ClaimedLead) =>
@@ -256,9 +345,19 @@ export default function CRMPage() {
                     </div>
                   </div>
 
-                  <div className="mt-auto">
+                  <div className="mt-auto space-y-2">
                     <Button
                       className="w-full h-10 text-[10px] font-black uppercase tracking-widest gap-2"
+                      onClick={() => generateOutreach(claim._id, Boolean(claim.outreach_body))}
+                      disabled={generatingIds.includes(claim._id)}
+                      isLoading={generatingIds.includes(claim._id)}
+                    >
+                      <Sparkles size={14} />
+                      {claim.outreach_body ? "Regenerate Draft" : "Generate Outreach"}
+                    </Button>
+                    <Button
+                      className="w-full h-10 text-[10px] font-black uppercase tracking-widest gap-2"
+                      variant="secondary"
                       onClick={() => sendOutreach(claim.leadId._id, claim._id)}
                       disabled={!claim.leadId.email || sendingEmailIds.includes(claim._id)}
                       isLoading={sendingEmailIds.includes(claim._id)}
@@ -266,22 +365,86 @@ export default function CRMPage() {
                       <Mail size={14} /> Send Outreach
                     </Button>
                     {!claim.leadId.email && (
-                      <p className="text-[8px] text-red-500/50 font-black uppercase text-center mt-1">Email address required</p>
+                      <p className="text-[8px] text-red-500/50 font-black uppercase text-center mt-1">Email address required to send</p>
                     )}
                   </div>
                 </div>
 
                 {/* Activity & Notes */}
-                <div className="lg:col-span-4 flex flex-col">
-                  <label className="text-[8px] font-black uppercase text-zinc-500 mb-1 block">Private Intelligence Notes</label>
-                  <textarea
-                    className="flex-1 w-full bg-hunter-black neo-border border-zinc-800 p-3 text-[11px] text-white outline-none focus:border-hunter-orange transition-colors min-h-[100px]"
-                    placeholder="Strategy notes, contact history..."
-                    defaultValue={claim.notes}
-                    onBlur={(e) => updateNotes(claim._id, e.target.value)}
-                  />
+                <div className="lg:col-span-4 flex flex-col gap-4">
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[8px] font-black uppercase text-zinc-500 block">AI Outreach Draft</label>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => copyOutreach(claim)}
+                          className="text-zinc-500 hover:text-hunter-orange"
+                          title="Copy draft"
+                        >
+                          <Copy size={12} />
+                        </button>
+                        {claim.outreach_body && (
+                          <button
+                            type="button"
+                            onClick={() => generateOutreach(claim._id, true)}
+                            className="text-zinc-500 hover:text-hunter-orange"
+                            title="Regenerate"
+                          >
+                            <RefreshCw size={12} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <Input
+                      className="mb-2 text-[11px]"
+                      placeholder="Subject"
+                      value={getDraft(claim).subject}
+                      onChange={(e) =>
+                        setDraftEdits((prev) => ({
+                          ...prev,
+                          [claim._id]: { ...getDraft(claim), subject: e.target.value },
+                        }))
+                      }
+                    />
+                    <textarea
+                      className="w-full bg-hunter-black neo-border border-zinc-800 p-3 text-[11px] text-white outline-none focus:border-hunter-orange transition-colors min-h-[90px]"
+                      placeholder="Generate an outreach draft personalized to you and this lead..."
+                      value={getDraft(claim).body}
+                      onChange={(e) =>
+                        setDraftEdits((prev) => ({
+                          ...prev,
+                          [claim._id]: { ...getDraft(claim), body: e.target.value },
+                        }))
+                      }
+                    />
+                    {claim.outreach_generated_at && (
+                      <p className="mt-1 text-[8px] font-black uppercase tracking-widest text-zinc-600">
+                        Generated {new Date(claim.outreach_generated_at).toLocaleString()}
+                      </p>
+                    )}
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="mt-2 h-8 w-full text-[9px] font-black uppercase tracking-widest"
+                      onClick={() => saveOutreachDraft(claim._id)}
+                      disabled={savingIds.includes(claim._id) || !getDraft(claim).body}
+                    >
+                      Save Draft
+                    </Button>
+                  </div>
+
+                  <div>
+                    <label className="text-[8px] font-black uppercase text-zinc-500 mb-1 block">Private Intelligence Notes</label>
+                    <textarea
+                      className="w-full bg-hunter-black neo-border border-zinc-800 p-3 text-[11px] text-white outline-none focus:border-hunter-orange transition-colors min-h-[70px]"
+                      placeholder="Strategy notes, contact history..."
+                      defaultValue={claim.notes}
+                      onBlur={(e) => updateNotes(claim._id, e.target.value)}
+                    />
+                  </div>
                   
-                  <div className="mt-4 flex items-center justify-between">
+                  <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3 text-zinc-500">
                       <div className="flex items-center gap-1">
                         <Clock size={10} />

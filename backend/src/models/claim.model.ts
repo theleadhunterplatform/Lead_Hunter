@@ -2,7 +2,15 @@ import prisma from '../lib/prisma';
 import { toApiDoc } from '../utils/serialize.utils';
 import { wrapDoc } from '../db/wrap-doc';
 
-const CLAIM_UPDATE_FIELDS = new Set(['status', 'notes', 'last_contacted', 'token_cost']);
+const CLAIM_UPDATE_FIELDS = new Set([
+    'status',
+    'notes',
+    'last_contacted',
+    'token_cost',
+    'outreach_subject',
+    'outreach_body',
+    'outreach_generated_at',
+]);
 
 const mapClaim = (record: any) => {
     if (!record) return null;
