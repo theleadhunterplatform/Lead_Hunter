@@ -70,8 +70,10 @@ app.use(helmet({
 app.use(morgan('dev'));
 
 const limiter = rateLimit({
+    // SPA dashboards fire many parallel GETs (me, permissions, stats, posts, orgs…).
+    // 100/15m was too low and caused 429 right after login on Render.
     windowMs: 15 * 60 * 1000,
-    limit: config.env === 'production' ? 100 : 2000,
+    limit: config.env === 'production' ? 600 : 2000,
     standardHeaders: true,
     legacyHeaders: false,
     skip: (req) => req.method === 'OPTIONS' || config.env !== 'production',
