@@ -981,11 +981,11 @@ export const deletePost = async (id: string) => {
         throw new ErrorResponse(`Post not found with id of ${id}`, 404);
     }
 
-    // Soft delete - explicitly cast to any to avoid Mongoose/TS hydration issues in this specific environment
-    const postDoc = post as any;
-    postDoc.is_deleted = true;
-    postDoc.deleted_at = new Date();
-    await postDoc.save();
+    // Direct Prisma update to guarantee the soft-delete is persisted
+    await prisma.leadPost.update({
+        where: { id },
+        data: { is_deleted: true, deleted_at: new Date() },
+    });
 
     return post;
 };
