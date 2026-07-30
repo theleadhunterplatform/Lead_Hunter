@@ -640,6 +640,18 @@ export default function LeadIntelligencePage() {
     lead.review_status === 'awaiting_review' &&
     leadHasContactDetails(lead);
 
+  // Readiness check for approved leads shown to users
+  const getLeadReadiness = (lead: Lead): { ready: boolean; reasons: string[] } => {
+    const reasons: string[] = [];
+    const hasIntel = Boolean(lead.intelligence);
+    const hasContact = leadHasDiscoverableContact(lead);
+
+    if (!hasIntel) reasons.push('Intelligence report not generated yet');
+    if (!hasContact) reasons.push('No contact details found (email or phone)');
+
+    return { ready: hasIntel && hasContact, reasons };
+  };
+
   const selectedApprovableCount = leads.filter(
     (lead) => selectedLeadIds.includes(lead._id) && leadCanBulkApprove(lead)
   ).length;
@@ -1083,6 +1095,19 @@ export default function LeadIntelligencePage() {
                           <span className="text-[10px] font-black uppercase tracking-widest text-green-400">
                             Approved — visible on Strategic Leads
                           </span>
+                          {/* Ready / Not Ready badge */}
+                          {(() => {
+                            const { ready, reasons } = getLeadReadiness(lead);
+                            return ready ? (
+                              <span className="text-[9px] font-black uppercase tracking-widest text-green-400 flex items-center gap-1">
+                                <CheckCircle2 size={10} /> Ready
+                              </span>
+                            ) : (
+                              <span className="text-[9px] font-black uppercase tracking-widest text-red-400 flex items-center gap-1">
+                                <XCircle size={10} /> Not Ready — {reasons.join(' · ')}
+                              </span>
+                            );
+                          })()}
                           {!lead.intelligence && (
                             <span className="text-[9px] font-black uppercase tracking-widest text-hunter-orange flex items-center gap-1">
                               {intelActionIds.includes(lead._id) ? (
