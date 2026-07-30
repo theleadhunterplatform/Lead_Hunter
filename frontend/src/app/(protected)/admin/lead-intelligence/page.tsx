@@ -3,12 +3,13 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Filter, Search, Download, ExternalLink, MessageSquare, ThumbsUp, Share2, User, Shield, Plus, ImageIcon, Mail, Loader2, BrainCircuit, Zap, RefreshCw, CheckCircle2, XCircle, ClipboardCheck, Trash2 } from "lucide-react";
+import { Filter, Search, Download, ExternalLink, MessageSquare, ThumbsUp, Share2, User, Shield, Plus, ImageIcon, Mail, Loader2, BrainCircuit, Zap, RefreshCw, CheckCircle2, XCircle, ClipboardCheck, Trash2, ClipboardPaste } from "lucide-react";
 import { Button, Input } from "@/components/ui/HunterUI";
 import { cn } from "@/components/ui/HunterUI";
 import api from "@/lib/api";
 import { applyClaimResponseToLead } from "@/lib/claim-reveal";
 import ManualLeadModal from "@/components/ManualLeadModal";
+import ManualContactModal from "@/components/ManualContactModal";
 import RefineLeadModal from "@/components/RefineLeadModal";
 import { LinkedinLogo, XLogo, RedditLogo, ThreadsLogo } from "@/components/BrandIcons";
 import { useAuth } from "@/context/AuthContext";
@@ -99,6 +100,8 @@ export default function LeadIntelligencePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [accessDenied, setAccessDenied] = useState(false);
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+  const [isManualContactOpen, setIsManualContactOpen] = useState(false);
+  const [manualContactLead, setManualContactLead] = useState<Lead | null>(null);
   const [isRefineModalOpen, setIsRefineModalOpen] = useState(false);
   const [refineLead, setRefineLead] = useState<Lead | null>(null);
   const [claimingIds, setClaimingIds] = useState<string[]>([]);
@@ -670,6 +673,7 @@ export default function LeadIntelligencePage() {
       website: 'Company website',
       author_info: 'LinkedIn author info',
       google_maps: 'Google Maps',
+      manual: 'Manual entry',
       twitter_profile: 'X profile',
       reddit_profile: 'Reddit profile',
     };
@@ -1192,6 +1196,16 @@ export default function LeadIntelligencePage() {
                             )}
                             {enrichingIds.includes(lead._id) ? 'Queueing...' : getEnrichButtonLabel(lead)}
                           </Button>
+                          <Button
+                            onClick={() => {
+                              setManualContactLead(lead);
+                              setIsManualContactOpen(true);
+                            }}
+                            className="h-8 px-3 text-[9px] uppercase font-black flex items-center gap-1.5 bg-blue-500/10 text-blue-300 border border-blue-500/30 hover:bg-blue-500 hover:text-black"
+                          >
+                            <ClipboardPaste size={12} />
+                            Paste Contact
+                          </Button>
                         </div>
                         {(!lead.enrichment_status || lead.enrichment_status === 'pending') && (
                           <p className="text-xs text-zinc-500">
@@ -1367,6 +1381,16 @@ export default function LeadIntelligencePage() {
                               View LinkedIn Profile <ExternalLink size={10} />
                             </a>
                           )}
+                          <Button
+                            onClick={() => {
+                              setManualContactLead(lead);
+                              setIsManualContactOpen(true);
+                            }}
+                            className="h-8 text-[9px] uppercase font-black flex items-center gap-1.5 bg-blue-500/10 text-blue-300 border border-blue-500/30 hover:bg-blue-500 hover:text-black"
+                          >
+                            <ClipboardPaste size={12} />
+                            Paste Contact
+                          </Button>
                         </div>
                       </div>
                     )}
@@ -1628,6 +1652,15 @@ export default function LeadIntelligencePage() {
         </div>
       )}
 
+      <ManualContactModal
+        isOpen={isManualContactOpen}
+        onClose={() => {
+          setIsManualContactOpen(false);
+          setManualContactLead(null);
+        }}
+        onSuccess={() => fetchLeads(currentPage, activeTab, searchQuery, selectedPlatforms, true)}
+        lead={manualContactLead}
+      />
       <ManualLeadModal
         isOpen={isManualModalOpen}
         onClose={() => setIsManualModalOpen(false)}

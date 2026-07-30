@@ -25,12 +25,13 @@ import {
     regenerateLeadIntelligencePost,
     bulkApproveLeadReviewsByIds,
     bulkDeletePosts,
+    setManualLeadContactPost,
 } from '../controllers/post.controller';
 import { findLeadEmail } from '../controllers/contact.controller';
 import { getLeadIntelligenceStats } from '../controllers/dashboard.controller';
 import { protect, authorize } from '../middleware/auth';
 import { validate } from '../middleware/validate';
-import { labelPostSchema } from '../schemas/post.schema';
+import { labelPostSchema, manualContactSchema } from '../schemas/post.schema';
 import { requireExtensionApiKey } from '../middleware/extension-api-key';
 
 const router = express.Router();
@@ -163,6 +164,7 @@ router.post('/:id/claim', authorize('lead:read'), claimPost);
 router.post('/:id/qualify', authorize('lead:hunt'), qualifyPost);
 router.post('/:id/approve', authorize('lead:hunt'), approveLeadReview);
 router.post('/:id/reject-review', authorize('lead:hunt'), rejectLeadReview);
+router.put('/:id/manual-contact', authorize('lead:hunt'), validate(manualContactSchema), setManualLeadContactPost);
 router.put('/:id/label', authorize('lead:hunt'), validate(labelPostSchema), labelPost);
 router.put('/:id', authorize('lead:hunt'), updatePost);
 router.post('/:id/re-extract', authorize('lead:hunt'), reExtractPost);

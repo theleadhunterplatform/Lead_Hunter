@@ -1,6 +1,13 @@
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
+// In production (Vercel) the rewrite in next.config.ts forwards /api/* to
+// the Express backend, so a relative base path is all we need.
+// In local dev, fall back to the local Express server directly.
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  (typeof window === 'undefined'
+    ? 'http://localhost:5001/api'   // SSR / build
+    : '/api');                      // client-side: let Next.js rewrites handle it
 
 const api = axios.create({
   baseURL: API_URL,

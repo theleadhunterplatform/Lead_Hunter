@@ -431,6 +431,78 @@ async function tryDualFindCandidates(lead: any, candidates: EmailCandidate[]) {
     return applyMultipleEmailCandidates(lead, candidates);
 }
 
+export async function applyManualLeadContact(
+    leadId: string,
+    input: { email?: string; phone?: string; note?: string }
+) {
+    const email = input.email?.trim().toLowerCase() || '';
+    const phone = input.phone?.trim() || '';
+    const note = input.note?.trim();
+
+    if (!email && !phone) {
+        throw new ErrorResponse('Provide at least an email or phone number.', 400);
+    }
+
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        throw new ErrorResponse('Invalid email format.', 400);
+    }
+
+    if (phone && phone.replace(/\D/g, '').length < 7) {
+        throw new ErrorResponse('Invalid phone number.', 400);
+    }
+
+    const lead = await LeadPost.findById(leadId);
+    if (!lead) {
+        throw new ErrorResponse('Lead not found', 404);
+    }
+
+    if (lead.status !== 'relevant') {
+        throw new ErrorResponse('Manual contact can only be added to relevant leads.', 400);
+    }
+
+    const findNote = note || 'Manually entered by admin (no API lookup).';
+
+    if (email) {
+        const entry: LeadEmailEntry = {
+            email,
+            found_by: [],
+            email_status: 'unverified',
+            email_source: 'manual',
+            find_note: findNote,
+            verification_note: 'Not API-verified — manually pasted.',
+            verified_by: [],
+            is_primary: true,
+        };
+        lead.email = email;
+        lead.contact_info = {
+            ...lead.contact_info,
+            emails: [entry],
+            email_status: 'unverified',
+            email_source: 'manual',
+            found_by: [],
+            verified_by: [],
+            find_note: findNote,
+            verification_note: entry.verification_note,
+            email_conflict: false,
+        };
+    }
+
+    if (phone) {
+        const phoneMerge = mergePhoneEntry(lead.contact_info, phone, 'manual');
+        lead.contact_info = {
+            ...lead.contact_info,
+            ...phoneMerge,
+        };
+    }
+
+    lead.enrichment_status = 'partial';
+    lead.enrichment_message = findNote;
+    lead.enriched_at = new Date();
+    await lead.save();
+
+    return lead;
+}
+
 export async function verifyLeadEmailManually(leadId: string) {
     const lead = await LeadPost.findById(leadId);
     if (!lead) {
@@ -504,25 +576,17 @@ async function tryLookupCompassPhone(publicId: string): Promise<string | null> {
     }
 }
 
+/**
+ * Paid contact lookup order (after free website / Google Maps):
+ * 1) Apollo
+ * 2) ContactOut (only if Apollo finds nothing useful)
+ */
 async function tryPaidPhoneLookup(
     linkedinUrl: string,
     paidLookupsUsed: { count: number }
 ): Promise<{ phone: string | null; email: string | null; source: PhoneSource | null; contactInfo: Record<string, any> }> {
     if (!linkedinUrl?.includes('linkedin.com/in/')) {
         return { phone: null, email: null, source: null, contactInfo: {} };
-    }
-
-    if (paidLookupsUsed.count < MAX_PAID_PHONE_LOOKUPS) {
-        const contactOut = await findPhonesWithContactOut(linkedinUrl);
-        paidLookupsUsed.count += 1;
-        if (contactOut?.phones?.length || contactOut?.emails?.length) {
-            return {
-                phone: pickFirstPhone(...contactOut.phones),
-                email: contactOut.emails[0] || null,
-                source: 'contactout',
-                contactInfo: contactOut.contactInfo,
-            };
-        }
     }
 
     if (paidLookupsUsed.count < MAX_PAID_PHONE_LOOKUPS) {
@@ -534,6 +598,19 @@ async function tryPaidPhoneLookup(
                 email: apollo.emails[0] || null,
                 source: 'apollo',
                 contactInfo: apollo.contactInfo,
+            };
+        }
+    }
+
+    if (paidLookupsUsed.count < MAX_PAID_PHONE_LOOKUPS) {
+        const contactOut = await findPhonesWithContactOut(linkedinUrl);
+        paidLookupsUsed.count += 1;
+        if (contactOut?.phones?.length || contactOut?.emails?.length) {
+            return {
+                phone: pickFirstPhone(...contactOut.phones),
+                email: contactOut.emails[0] || null,
+                source: 'contactout',
+                contactInfo: contactOut.contactInfo,
             };
         }
     }
@@ -670,8 +747,9 @@ export const findLeadEmail = async (leadId: string, options?: { force?: boolean 
         await lead.save();
     }
 
-    // Step 2b — website + Google Maps (free sources, uses profile/company context)
-    if (!leadHasPhone(lead)) {
+    // Step 2b — Extract company (from profile) → Website scrape → Google Maps
+    // If business email + phone are already found here, store and stop.
+    if (!leadHasPhone(lead) || !hasVerifiedEmail(lead)) {
         const freeDiscovery = await tryFreePhoneDiscovery(lead, profileData);
         if (freeDiscovery.applied) {
             lead = freeDiscovery.lead;
@@ -682,13 +760,17 @@ export const findLeadEmail = async (leadId: string, options?: { force?: boolean 
         }
     }
 
-    // Steps 3–4 — ContactOut + Apollo (phone-first paid lookups)
-    if (linkedinUrl && !leadHasPhone(lead)) {
+    if (hasVerifiedEmail(lead) && leadHasPhone(lead)) {
+        return { success: true, data: lead, message: lastMessage };
+    }
+
+    // Step 3 — Apollo, then ContactOut only if still missing email/phone
+    if (linkedinUrl && (!leadHasPhone(lead) || !lead.email)) {
         const paid = await tryPaidPhoneLookup(linkedinUrl, paidLookupsUsed);
         if (paid.phone || paid.email) {
             const result = await applyContactUpdate(lead, {
                 email: !lead.email ? paid.email : undefined,
-                phone: paid.phone,
+                phone: !leadHasPhone(lead) ? paid.phone : undefined,
                 phone_source: paid.source || undefined,
                 email_source: paid.email ? (paid.source as EmailSource) : undefined,
                 email_status: paid.email ? 'unverified' : undefined,
@@ -697,11 +779,14 @@ export const findLeadEmail = async (leadId: string, options?: { force?: boolean 
                     linkedin_public_id: publicId || paid.contactInfo.linkedin_public_id,
                 },
                 message: paid.phone
-                    ? `Phone found via ${paid.source === 'contactout' ? 'ContactOut' : 'Apollo'}.`
-                    : `Email found via ${paid.source === 'contactout' ? 'ContactOut' : 'Apollo'}.`,
+                    ? `Phone found via ${paid.source === 'apollo' ? 'Apollo' : 'ContactOut'}.`
+                    : `Email found via ${paid.source === 'apollo' ? 'Apollo' : 'ContactOut'}.`,
             });
             lead = result.data;
             lastMessage = result.message;
+            if (hasVerifiedEmail(lead) && leadHasPhone(lead)) {
+                return { success: true, data: lead, message: lastMessage };
+            }
         }
     }
 

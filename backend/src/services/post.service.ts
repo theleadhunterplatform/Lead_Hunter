@@ -12,7 +12,7 @@ import { requestLeadIntelligence } from '../utils/intelligence-queue.utils';
 import { presentLeadForUser } from '../utils/lead-presentation.utils';
 import { toApiDoc } from '../utils/serialize.utils';
 import { logLeadAction } from '../utils/audit.utils';
-import { verifyLeadEmailManually } from './lead-enrichment.service';
+import { verifyLeadEmailManually, applyManualLeadContact } from './lead-enrichment.service';
 import { reconcileEnrichmentStatusIfStale, shouldEnrichLead } from './enrichment.service';
 import { isManuallyLabeled } from '../utils/training-label.utils';
 import { isAutoEnrichmentEnabled } from '../utils/automation-settings.utils';
@@ -710,14 +710,14 @@ export const getAllPosts = async (currentUser: any, query: {
 
     const [allCount, irrelevantCount, relevantCount, withContactCount, approvedCount, pendingCount, reviewCount] =
         await Promise.all([
-            LeadPost.countDocuments(baseFilter),
+        LeadPost.countDocuments(baseFilter),
             LeadPost.countDocuments({ ...baseFilter, status: 'irrelevant' }),
             LeadPost.countDocuments({ ...baseFilter, status: 'relevant' }),
             LeadPost.countDocuments({ ...baseFilter, status: 'relevant', has_contact: true }),
             LeadPost.countDocuments({ ...baseFilter, status: 'relevant', review_status: 'approved' }),
-            LeadPost.countDocuments({ ...baseFilter, status: 'pending' }),
+        LeadPost.countDocuments({ ...baseFilter, status: 'pending' }),
             LeadPost.countDocuments(reviewFilter),
-        ]);
+    ]);
 
     return {
         posts: postsWithClaimed,
@@ -747,7 +747,7 @@ export const getPostById = async (id: string) => {
 
 export const getPostForUser = async (currentUser: any, id: string) => {
     const post = await getPostById(id);
-
+    
     const permissions = await getUserPermissions(currentUser.id, currentUser.organization?.toString());
     const isInternal = checkPermission(permissions, '*') || checkPermission(permissions, 'system:admin');
 
@@ -885,6 +885,30 @@ export const updatePost = async (id: string, data: any) => {
 
 export const verifyLeadEmail = async (id: string) => verifyLeadEmailManually(id);
 
+export const setManualLeadContact = async (
+    id: string,
+    data: { email?: string; phone?: string; note?: string },
+    actorId: string,
+    audit?: { ipAddress?: string; organizationId?: string }
+) => {
+    const post = await applyManualLeadContact(id, data);
+
+    await logLeadAction(actorId, {
+        action: 'lead.contact.manual',
+        resource: 'lead_post',
+        resourceId: id,
+        organizationId: audit?.organizationId,
+        ipAddress: audit?.ipAddress,
+        details: {
+            email: data.email?.trim() || null,
+            phone: data.phone?.trim() ? '[redacted]' : null,
+            note: data.note?.trim() || null,
+        },
+    });
+
+    return post;
+};
+
 export const createManualPost = async (data: {
     content: string;
     keyword: string;
@@ -907,7 +931,7 @@ export const createManualPost = async (data: {
     const postId = `manual-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
 
     try {
-        const post = await LeadPost.create({
+    const post = await LeadPost.create({
         post_id: postId,
         url: 'manual://' + postId, // Mock URL for manual entries
         content: data.content,
@@ -1088,8 +1112,8 @@ export const claimPost = async (postId: string, userId: string) => {
             const updatedUser = await tx.user.findUnique({ where: { id: userIdStr } });
             const updatedLead = await tx.leadPost.findUnique({ where: { id: postId } });
 
-            return {
-                claim,
+    return {
+        claim,
                 post: updatedLead,
                 remaining_tokens: updatedUser?.tokens ?? 0,
             };
@@ -1126,7 +1150,7 @@ export const getClaimedPosts = async (
     const userIdStr = userId.toString();
 
     const filter: any = { userId: userIdStr };
-
+    
     // If orgId is provided, show all claims for that organization (membership required)
     if (query.orgId) {
         const orgId = query.orgId.toString();
@@ -1168,7 +1192,7 @@ export const getClaimedPosts = async (
     });
 
     const total = await Claim.countDocuments(filter);
-
+    
     return {
         posts: claims,
         total,

@@ -190,7 +190,8 @@ export type PhoneSource =
     | 'contact_compass'
     | 'threads_profile'
     | 'twitter_profile'
-    | 'reddit_profile';
+    | 'reddit_profile'
+    | 'manual';
 
 export function leadHasPhone(lead: {
     contact_info?: { phone_numbers?: Array<{ number?: string }> } | null;

@@ -258,6 +258,25 @@ export const verifyEmailPost = asyncHandler(async (req: Request, res: Response, 
     });
 });
 
+export const setManualLeadContactPost = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+    const user = req.user as any;
+    const orgId = req.headers['x-org-id'] as string | undefined;
+    const { email, phone, note } = req.body ?? {};
+
+    const post = await postService.setManualLeadContact(
+        req.params.id as string,
+        { email, phone, note },
+        user.id || user._id,
+        { organizationId: orgId, ipAddress: req.ip }
+    );
+
+    return res.status(200).json({
+        success: true,
+        data: post,
+        message: 'Contact details saved manually. Lead is ready for approval.',
+    });
+});
+
 // @desc    Re-run OCR extraction using the new AI service
 // @route   POST /api/posts/:id/re-extract
 // @access  Private

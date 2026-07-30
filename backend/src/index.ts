@@ -123,6 +123,7 @@ app.get('/health', (_req: Request, res: Response) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/keywords', keywordRoutes);
 app.use('/api/posts', postRoutes);
+app.use('/api/leads', postRoutes); // alias – frontend may call /api/leads instead of /api/posts
 app.use('/api/apify-keys', apifyKeyRoutes);
 app.use('/api/rbac', rbacRoutes);
 app.use('/api/ai', aiRoutes);

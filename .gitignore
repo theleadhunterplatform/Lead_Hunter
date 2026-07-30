@@ -1,0 +1,30 @@
+# SSH / cloud credentials
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Database dumps
+*.sql
+*.dump
+*.bak
+
+# Environment files
+.env
+.env.*
+!.env.example
+!.env.local.example
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node
+node_modules/
+dist/
+build/
+.next/
+
+# Logs
+*.log
+npm-debug.log*
