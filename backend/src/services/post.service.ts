@@ -535,13 +535,11 @@ export const bulkDeletePosts = async (
 
     const deleteIds = posts.map((post) => post._id.toString());
 
-    await prisma.leadPost.updateMany({
-        where: { id: { in: deleteIds } },
-        data: {
-            is_deleted: true,
-            deleted_at: new Date(),
-        },
-    });
+    // Hard delete — remove related records first to satisfy FK constraints
+    await prisma.claim.deleteMany({ where: { leadId: { in: deleteIds } } });
+    await prisma.leadIntelligence.deleteMany({ where: { post_id: { in: deleteIds } } });
+    await prisma.scrapedPost.deleteMany({ where: { post_id: { in: deleteIds } } });
+    await prisma.leadPost.deleteMany({ where: { id: { in: deleteIds } } });
 
     await logLeadAction(reviewerId, {
         action: 'lead.bulk_delete',
@@ -981,11 +979,11 @@ export const deletePost = async (id: string) => {
         throw new ErrorResponse(`Post not found with id of ${id}`, 404);
     }
 
-    // Direct Prisma update to guarantee the soft-delete is persisted
-    await prisma.leadPost.update({
-        where: { id },
-        data: { is_deleted: true, deleted_at: new Date() },
-    });
+    // Hard delete — remove related records first to satisfy FK constraints
+    await prisma.claim.deleteMany({ where: { leadId: id } });
+    await prisma.leadIntelligence.deleteMany({ where: { post_id: id } });
+    await prisma.scrapedPost.deleteMany({ where: { post_id: id } });
+    await prisma.leadPost.delete({ where: { id } });
 
     return post;
 };
