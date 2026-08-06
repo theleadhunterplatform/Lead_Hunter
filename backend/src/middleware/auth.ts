@@ -9,22 +9,38 @@ import { getUserPermissions, hasPermission } from '../utils/rbac.utils';
 
 const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || 'lead-hunter-club';
 
-// Verify Firebase ID token using Google's public keys
+// ── Firebase public key cache (keys rotate every 6h, cache for 5h) ──────────
+interface KeyCache {
+    keys: Record<string, string>;
+    expiresAt: number;
+}
+let firebaseKeyCache: KeyCache | null = null;
+
+async function getFirebasePublicKeys(): Promise<Record<string, string>> {
+    const now = Date.now();
+    if (firebaseKeyCache && now < firebaseKeyCache.expiresAt) {
+        return firebaseKeyCache.keys;
+    }
+
+    const { data: keys } = await axios.get(
+        'https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com',
+        { timeout: 5000 }
+    );
+
+    // Cache for 5 hours
+    firebaseKeyCache = { keys, expiresAt: now + 5 * 60 * 60 * 1000 };
+    return keys;
+}
+
+// Verify Firebase ID token using cached Google public keys
 async function verifyFirebaseToken(token: string): Promise<{ uid: string; email?: string; name?: string } | null> {
     try {
-        // Decode header to get key id
         const header = JSON.parse(Buffer.from(token.split('.')[0], 'base64').toString());
         const kid = header.kid;
 
-        // Fetch Google public keys
-        const { data: keys } = await axios.get(
-            'https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com',
-            { timeout: 5000 }
-        );
-
+        const keys = await getFirebasePublicKeys();
         if (!keys[kid]) return null;
 
-        // Verify the token
         const decoded = jwt.verify(token, keys[kid], {
             algorithms: ['RS256'],
             audience: FIREBASE_PROJECT_ID,
@@ -42,26 +58,39 @@ async function verifyFirebaseToken(token: string): Promise<{ uid: string; email?
 }
 
 // Find or create user from Firebase identity
+// firebase_uid stored as supabase_user_id to tie Firebase identity to DB user
 async function findOrCreateFirebaseUser(firebaseUser: { uid: string; email?: string; name?: string }) {
     if (!firebaseUser.email) return null;
 
-    // Try to find existing user by email
-    let user = await User.findOne({ email: firebaseUser.email.toLowerCase() });
+    // 1. Try to find by Firebase UID first (most secure)
+    let user = await User.findOne({ supabase_user_id: firebaseUser.uid });
+
+    // 2. Fall back to email lookup
+    if (!user) {
+        user = await User.findOne({ email: firebaseUser.email.toLowerCase() });
+    }
 
     if (!user) {
-        // Create new user from Firebase identity
-        user = await prisma.user.create({
+        // Create new user — link Firebase UID via supabase_user_id field
+        await prisma.user.create({
             data: {
                 name: firebaseUser.name || firebaseUser.email.split('@')[0],
                 email: firebaseUser.email.toLowerCase(),
-                password: '',
+                password: '', // Firebase users never use password login
+                supabase_user_id: firebaseUser.uid, // tie to Firebase UID
                 status: 'active',
                 is_active: true,
                 plan: 'free',
                 tokens: 10,
             },
-        }) as any;
+        });
         user = await User.findOne({ email: firebaseUser.email.toLowerCase() });
+    } else if (!user.supabase_user_id) {
+        // Backfill Firebase UID on existing user
+        await prisma.user.update({
+            where: { id: user.id || user._id },
+            data: { supabase_user_id: firebaseUser.uid },
+        });
     }
 
     return user;

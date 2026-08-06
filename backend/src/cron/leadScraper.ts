@@ -1,19 +1,18 @@
 import cron from 'node-cron';
 import { runScraperProducerJob } from '../services/scraper-producer.service';
 import { isAutoScrapeEnabled } from '../utils/automation-settings.utils';
-
-const AUTO_SCRAPE_CRON = '*/30 * * * *';
+import config from '../config';
 
 /**
  * Initializes the producer cron job that enqueues scraping tasks into BullMQ.
- * Runs every 30 minutes when auto-scrape is enabled in platform settings.
+ * Interval is controlled by CRON_INTERVAL env var (default: every 30 min).
  */
 export const initCron = async () => {
-    cron.schedule(AUTO_SCRAPE_CRON, async () => {
+    const interval = config.cron.interval;
+
+    cron.schedule(interval, async () => {
         const enabled = await isAutoScrapeEnabled();
-        if (!enabled) {
-            return;
-        }
+        if (!enabled) return;
 
         console.log('--- [CRON] Auto-scrape enabled — triggering producer job ---');
 
@@ -24,5 +23,5 @@ export const initCron = async () => {
         }
     });
 
-    console.log(`✔ Scraper Cron Initialized: every 30 min (active when auto-scrape is ON)`);
+    console.log(`✔ Scraper Cron Initialized: ${interval} (active when auto-scrape is ON)`);
 };

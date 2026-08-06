@@ -11,10 +11,24 @@ const prisma = new PrismaClient({
     },
 });
 
-// Reconnect on connection loss (Supabase pooler drops idle connections)
-prisma.$connect().catch((err) => {
-    console.error('[Prisma] Initial connection failed:', err.message);
-});
+// Retry initial connection — Supabase pooler can drop idle connections
+async function connectWithRetry(retries = 5, delayMs = 3000): Promise<void> {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+            await prisma.$connect();
+            return;
+        } catch (err: any) {
+            console.error(`[Prisma] Connection attempt ${attempt}/${retries} failed:`, err.message);
+            if (attempt < retries) {
+                await new Promise((resolve) => setTimeout(resolve, delayMs));
+            } else {
+                console.error('[Prisma] All connection attempts failed. Continuing — queries will retry per-request.');
+            }
+        }
+    }
+}
+
+connectWithRetry();
 
 export const getDatabaseLabel = (): string => {
     return resolveDatabaseMode() === 'local' ? 'SQLite (local file)' : 'Supabase PostgreSQL';
