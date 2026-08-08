@@ -98,10 +98,8 @@ export const deleteApifyKey = async (id: string) => {
         throw new ErrorResponse(`Apify key not found with id of ${id}`, 404);
     }
 
-    apifyKey.is_deleted = true;
-    apifyKey.deleted_at = new Date();
-    apifyKey.is_active = false;
-    await apifyKey.save();
+    // Hard delete directly via Prisma
+    await prisma.apifyKey.delete({ where: { id } });
 
     return apifyKey;
 };

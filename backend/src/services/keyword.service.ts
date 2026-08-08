@@ -1,6 +1,7 @@
 import Keyword from '../models/keyword.model';
 import ErrorResponse from '../utils/error-response.utils';
 import { normalizeKeywordInput } from '../utils/keyword-phrases.utils';
+import prisma from '../lib/prisma';
 
 export const getAllKeywords = async () => {
     return await Keyword.find({ is_deleted: false }, { sort: { created_at: -1 } });
@@ -57,11 +58,8 @@ export const deleteKeyword = async (id: string) => {
         throw new ErrorResponse(`Keyword not found with id of ${id}`, 404);
     }
 
-    // Soft delete
-    keyword.is_deleted = true;
-    keyword.deleted_at = new Date();
-    keyword.is_active = false;
-    await keyword.save();
+    // Hard delete via Prisma
+    await prisma.keyword.delete({ where: { id } });
 
     return keyword;
 };
@@ -89,14 +87,7 @@ export const bulkUpdateKeywords = async (ids: string[], updateData: any) => {
 };
 
 export const bulkDeleteKeywords = async (ids: string[]) => {
-    return await Keyword.updateMany(
-        { _id: { $in: ids } },
-        { 
-            $set: { 
-                is_deleted: true, 
-                deleted_at: new Date(),
-                is_active: false 
-            } 
-        }
-    );
+    return await prisma.keyword.deleteMany({
+        where: { id: { in: ids } }
+    });
 };
