@@ -25,6 +25,7 @@ import googleSheetsRoutes from './routes/google-sheets.routes';
 import planRoutes from './routes/plan.routes';
 import outreachRoutes from './routes/outreach.routes';
 import paymentRoutes from './routes/payment.routes';
+import onboardingRoutes from './routes/onboarding.routes';
 import errorHandler from './middleware/error';
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './config/swagger';
@@ -138,6 +139,7 @@ app.use('/api/google-sheets', googleSheetsRoutes);
 app.use('/api/plans', planRoutes);
 app.use('/api/outreach', outreachRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/onboarding', onboardingRoutes);
 
 // 404 Handler
 app.use((_req: Request, res: Response) => {
