@@ -15,10 +15,13 @@ import config from '../config';
 import { isEmailConfigured } from '../utils/email.service';
 
 export const getIntelligenceSettings = asyncHandler(async (_req: Request, res: Response) => {
+    const dbKey = await settingService.getSetting('openrouter_api_key').catch(() => null);
+    const activeKey = dbKey || config.openRouter.apiKey?.trim();
+
     return res.status(200).json({
         success: true,
         data: {
-            is_configured: Boolean(config.openRouter.apiKey?.trim()),
+            is_configured: Boolean(activeKey),
             model: config.openRouter.intelModel,
         },
     });

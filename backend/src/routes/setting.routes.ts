@@ -1,6 +1,6 @@
 import express from 'express';
 import { protect, authorize } from '../middleware/auth';
-import { updateToken, getToken, updateHunterKey, getHunterKey, updateContactOutToken, getContactOutToken, updateApolloKey, getApolloKey } from '../controllers/contact.controller';
+import { updateToken, getToken, updateHunterKey, getHunterKey, updateContactOutToken, getContactOutToken, updateApolloKey, getApolloKey, updateOpenRouterKey, getOpenRouterKey } from '../controllers/contact.controller';
 import { getAutomationSettings, updateAutomationSettings, getIntelligenceSettings, getEmailSettings } from '../controllers/automation.controller';
 
 const router = express.Router();
@@ -20,5 +20,7 @@ router.post('/contactout-api-token', authorize('scraping:manage'), updateContact
 router.get('/contactout-api-token', authorize('scraping:manage'), getContactOutToken);
 router.post('/apollo-api-key', authorize('scraping:manage'), updateApolloKey);
 router.get('/apollo-api-key', authorize('scraping:manage'), getApolloKey);
+router.post('/openrouter-api-key', authorize('scraping:manage'), updateOpenRouterKey);
+router.get('/openrouter-api-key', authorize('scraping:manage'), getOpenRouterKey);
 
 export default router;

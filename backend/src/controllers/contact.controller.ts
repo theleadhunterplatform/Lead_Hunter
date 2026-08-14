@@ -161,3 +161,39 @@ export const getApolloKey = asyncHandler(async (_req: Request, res: Response, _n
         },
     });
 });
+
+// @desc    Update OpenRouter API Key
+// @route   POST /api/settings/openrouter-api-key
+// @access  Private
+export const updateOpenRouterKey = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+    const { api_key } = req.body;
+
+    if (!api_key) {
+        return res.status(400).json({ success: false, message: 'API key is required' });
+    }
+
+    await settingService.updateSetting('openrouter_api_key', api_key, 'OpenRouter API Key for lead intelligence and outreach');
+
+    return res.status(200).json({
+        success: true,
+        message: 'OpenRouter API key updated successfully',
+    });
+});
+
+// @desc    Get OpenRouter API Key (Masked)
+// @route   GET /api/settings/openrouter-api-key
+// @access  Private
+export const getOpenRouterKey = asyncHandler(async (_req: Request, res: Response, _next: NextFunction) => {
+    const dbKey = await settingService.getSetting('openrouter_api_key');
+    const envKey = process.env.OPEN_ROUTER_API;
+    const activeKey = dbKey || envKey;
+
+    return res.status(200).json({
+        success: true,
+        data: {
+            api_key: activeKey ? `${activeKey.substring(0, 8)}...` : null,
+            is_configured: !!activeKey,
+            source: dbKey ? 'database' : (envKey ? 'env' : 'none'),
+        },
+    });
+});

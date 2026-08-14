@@ -2,6 +2,7 @@ import axios from 'axios';
 import config from '../config';
 import LeadIntelligence from '../models/lead-intelligence.model';
 import LeadPost from '../models/lead-post.model';
+import { getSetting } from './setting.service';
 
 /**
  * Generates strategic lead intelligence using OpenRouter (OpenAI-compatible)
@@ -9,7 +10,9 @@ import LeadPost from '../models/lead-post.model';
  * @returns The stored LeadIntelligence document or null
  */
 export const generateLeadIntelligence = async (post: any) => {
-    const apiKey = config.openRouter.apiKey;
+    // Prefer DB key over .env fallback
+    const dbKey = await getSetting('openrouter_api_key').catch(() => null);
+    const apiKey = dbKey || config.openRouter.apiKey;
     if (!apiKey) {
         throw new Error('OPEN_ROUTER_API key is not configured on the server');
     }
