@@ -6,6 +6,20 @@ export const LOCKED_INTELLIGENCE_TEASER =
 export const LOCKED_CONTENT_TEASER =
     'Original signal locked. This high-relevance lead has been verified by the Intelligence Engine. Claim this lead to unlock the full original post and contact data.';
 
+// Regex patterns for contact info redaction
+const EMAIL_REGEX = /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g;
+const PHONE_REGEX = /(\+?\d[\d\s\-()\/.]{6,}\d)/g;
+
+/**
+ * Redact emails and phone numbers from text for unclaimed users.
+ */
+function redactContactsFromText(text: string): string {
+    if (!text) return text;
+    return text
+        .replace(EMAIL_REGEX, '[email hidden]')
+        .replace(PHONE_REGEX, '[phone hidden]');
+}
+
 /**
  * Redact lead fields for external users until they claim (or are platform-internal).
  */
@@ -18,11 +32,17 @@ export function presentLeadForUser(
     const contact = sanitizeContactFields(post, { isInternal, isClaimed });
     const hasIntelligence = Boolean(post.intelligence);
 
+    // For unclaimed external users — redact emails/phones from content
+    // even if content is partially visible, no contact info leaks through
+    const safeContent = shouldShowSensitive
+        ? post.content
+        : LOCKED_CONTENT_TEASER;
+
     const redactedPost: any = {
         ...post,
         is_claimed: isClaimed,
         has_intelligence: hasIntelligence,
-        content: shouldShowSensitive ? post.content : LOCKED_CONTENT_TEASER,
+        content: safeContent,
         email: contact.email,
         contact_info: contact.contact_info,
         author: shouldShowSensitive
@@ -47,4 +67,12 @@ export function presentLeadForUser(
     }
 
     return redactedPost;
+}
+
+/**
+ * Redact contact info from content — used when content must be shown
+ * but contact details should still be hidden (e.g. preview mode).
+ */
+export function redactContactsInContent(content: string): string {
+    return redactContactsFromText(content);
 }
