@@ -3,7 +3,7 @@ import type { NextConfig } from "next";
 const BACKEND_URL =
   process.env.BACKEND_URL ||
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/api$/, "") ||
-  "https://20.204.20.32.sslip.io";
+  "http://137.23.56.134:5001";
 
 const nextConfig: NextConfig = {
   async rewrites() {
