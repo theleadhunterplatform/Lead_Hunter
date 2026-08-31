@@ -68,13 +68,11 @@ app.use(express.json({
 app.use(helmet({
     crossOriginResourcePolicy: { policy: 'cross-origin' },
 }));
-app.use(morgan('dev'));
+app.use(morgan(config.env === 'production' ? 'combined' : 'dev'));
 
 const limiter = rateLimit({
-    // SPA dashboards fire many parallel GETs (me, permissions, stats, posts, orgs…).
-    // 100/15m was too low and caused 429 right after login on Render.
     windowMs: 15 * 60 * 1000,
-    limit: config.env === 'production' ? 600 : 2000,
+    limit: config.env === 'production' ? 1200 : 2000,
     standardHeaders: true,
     legacyHeaders: false,
     skip: (req) => req.method === 'OPTIONS' || config.env !== 'production',

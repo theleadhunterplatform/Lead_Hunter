@@ -9,6 +9,10 @@ const prisma = new PrismaClient({
             url: process.env.DATABASE_URL,
         },
     },
+    transactionOptions: {
+        maxWait: 10000,
+        timeout: 30000,
+    },
 });
 
 // Retry initial connection — Supabase pooler can drop idle connections

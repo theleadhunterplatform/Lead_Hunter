@@ -116,10 +116,15 @@ export async function assertCanClaimLead(userId: string, options?: { isInternal?
     const plan = getPlanDefinition(user.plan);
     const state = await getPlanState(userId);
     const isInternal = options?.isInternal === true;
-    const tokenCost = isInternal ? 0 : plan.claim_cost;
+
+    // Firebase users (empty password) — credit system is handled by frontend
+    // Skip token check entirely, just record the claim
+    const isFirebaseUser = !user.password || user.password === '';
+    const tokenCost = (isInternal || isFirebaseUser) ? 0 : plan.claim_cost;
 
     if (
         !isInternal
+        && !isFirebaseUser
         && plan.max_claims_per_month >= 0
         && state.claims_this_month >= plan.max_claims_per_month
     ) {
@@ -129,7 +134,7 @@ export async function assertCanClaimLead(userId: string, options?: { isInternal?
         );
     }
 
-    if (!isInternal && user.tokens < tokenCost) {
+    if (!isInternal && !isFirebaseUser && user.tokens < tokenCost) {
         throw new ErrorResponse(
             `Insufficient tokens to claim this lead. Need ${tokenCost}, have ${user.tokens}.`,
             403
