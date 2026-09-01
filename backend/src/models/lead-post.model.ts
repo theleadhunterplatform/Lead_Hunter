@@ -17,7 +17,11 @@ function mapSearchOrClause(clause: any) {
         part.keyword = { contains: clause.keyword.$regex, mode: 'insensitive' };
     }
     if (clause['author.name']?.$regex) {
-        // JSON author search handled via raw query fallback in service if needed
+        // author is a JSON field — search within the JSON using string cast
+        part.author = { path: ['name'], string_contains: clause['author.name'].$regex };
+    }
+    if (clause['author.handle']?.$regex) {
+        part.author = { path: ['handle'], string_contains: clause['author.handle'].$regex };
     }
     return Object.keys(part).length ? part : clause;
 }

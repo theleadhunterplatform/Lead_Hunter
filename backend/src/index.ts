@@ -165,7 +165,18 @@ const startServer = async () => {
 
     const redisReady = await verifyRedisConnection();
     if (redisReady) {
-        initWorkers(); // Start background workers
+        initWorkers();
+    } else {
+        // Retry workers every 30 seconds until Redis is available
+        console.warn('⚠ Redis not ready — retrying worker init every 30s...');
+        const retryInterval = setInterval(async () => {
+            const ready = await verifyRedisConnection();
+            if (ready) {
+                clearInterval(retryInterval);
+                initWorkers();
+                console.log('✔ Redis connected — workers initialized.');
+            }
+        }, 30000);
     }
     
     if (config.appEnv === 'production' || process.env.ENABLE_CRON_DEV === 'true') {
@@ -179,19 +190,17 @@ const startServer = async () => {
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err: any) => {
-    console.error(`Unhandled Rejection: ${err.message}`);
-    // Optional: close server & exit process if it's a fatal DB error
-    // server.close(() => process.exit(1));
+    console.error(`Unhandled Rejection: ${err?.message || err}`);
 });
 
-// Handle uncaught exceptions (like Tesseract worker crashes)
+// Handle uncaught exceptions — exit on fatal errors so PM2 can restart cleanly
 process.on('uncaughtException', (err: any) => {
     console.error(`CRITICAL UNCAUGHT EXCEPTION: ${err.message}`);
     if (err.message.includes('libpng') || err.message.includes('tesseract')) {
         console.warn('Recovering from Tesseract/Image processing failure. Process kept alive.');
     } else {
-        // For other unknown critical errors, we might still want to exit
-        // process.exit(1);
+        console.error('Fatal error — exiting for clean restart by PM2.');
+        process.exit(1);
     }
 });
 

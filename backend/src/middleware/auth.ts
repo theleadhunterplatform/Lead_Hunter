@@ -22,14 +22,22 @@ async function getFirebasePublicKeys(): Promise<Record<string, string>> {
         return firebaseKeyCache.keys;
     }
 
-    const { data: keys } = await axios.get(
-        'https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com',
-        { timeout: 5000 }
-    );
-
-    // Cache for 5 hours
-    firebaseKeyCache = { keys, expiresAt: now + 5 * 60 * 60 * 1000 };
-    return keys;
+    try {
+        const { data: keys } = await axios.get(
+            'https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com',
+            { timeout: 5000 }
+        );
+        // Cache for 5 hours
+        firebaseKeyCache = { keys, expiresAt: now + 5 * 60 * 60 * 1000 };
+        return keys;
+    } catch (err: any) {
+        // If network fails but we have stale cache — use it rather than breaking all auth
+        if (firebaseKeyCache) {
+            console.warn('[Firebase] Failed to refresh public keys — using stale cache:', err.message);
+            return firebaseKeyCache.keys;
+        }
+        throw err;
+    }
 }
 
 // Verify Firebase ID token using cached Google public keys

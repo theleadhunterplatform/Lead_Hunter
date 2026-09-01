@@ -99,8 +99,8 @@ Format the output exactly like this example structure, using professional and hi
         }, {
             headers: {
                 'Authorization': `Bearer ${apiKey}`,
-                'HTTP-Referer': 'https://antigravity-lead-gen.com',
-                'X-Title': 'Antigravity Lead Gen',
+                'HTTP-Referer': 'https://leadhunterclub.com',
+                'X-Title': 'Lead Hunter Club',
                 'Content-Type': 'application/json'
             }
         });
