@@ -262,3 +262,107 @@ export async function handleRazorpayWebhook(rawBody: Buffer | string, signature:
 
     return { ignored: true, reason: eventName || 'unhandled_event' };
 }
+
+// Token top-up packs — buy extra tokens without changing plan
+const TOPUP_PACKS = [
+    { id: 'topup_10', tokens: 10, price_paise: 9900, label: '10 Tokens' },
+    { id: 'topup_50', tokens: 50, price_paise: 39900, label: '50 Tokens' },
+    { id: 'topup_100', tokens: 100, price_paise: 69900, label: '100 Tokens' },
+];
+
+export function getTopupPacks() {
+    return TOPUP_PACKS;
+}
+
+export async function createTokenTopupOrder(userId: string, packId: string) {
+    assertRazorpayConfigured();
+
+    const pack = TOPUP_PACKS.find((p) => p.id === packId);
+    if (!pack) throw new ErrorResponse('Invalid top-up pack.', 400);
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user || user.is_deleted || !user.is_active) {
+        throw new ErrorResponse('User not found', 404);
+    }
+
+    const receipt = `topup_${userId.slice(0, 8)}_${Date.now()}`.slice(0, 40);
+
+    let order: any;
+    try {
+        const { data } = await axios.post(
+            `${RAZORPAY_API}/orders`,
+            {
+                amount: pack.price_paise,
+                currency: 'INR',
+                receipt,
+                notes: { user_id: userId, pack_id: packId, tokens: pack.tokens },
+            },
+            { headers: authHeader(), timeout: 30000 }
+        );
+        order = data;
+    } catch (error: any) {
+        const detail = error.response?.data?.error?.description || error.message || 'Razorpay order failed';
+        throw new ErrorResponse(`Razorpay topup order failed: ${detail}`, 502);
+    }
+
+    await prisma.payment.create({
+        data: {
+            userId,
+            provider: 'razorpay',
+            razorpay_order_id: order.id,
+            plan: `topup_${pack.tokens}`,
+            amount_paise: pack.price_paise,
+            currency: 'INR',
+            status: 'created',
+            raw_payload: order,
+        },
+    });
+
+    return {
+        order_id: order.id,
+        amount: pack.price_paise,
+        currency: 'INR',
+        pack: packId,
+        tokens: pack.tokens,
+        label: pack.label,
+        key_id: config.razorpay.keyId,
+        name: 'Lead Hunter',
+        description: `Token top-up — ${pack.label}`,
+        prefill: { name: user.name, email: user.email, contact: user.phone || undefined },
+    };
+}
+
+export async function verifyTopupPayment(
+    userId: string,
+    input: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }
+) {
+    assertRazorpayConfigured();
+
+    const payment = await prisma.payment.findUnique({ where: { razorpay_order_id: input.razorpay_order_id } });
+    if (!payment || payment.userId !== userId) throw new ErrorResponse('Payment order not found.', 404);
+    if (payment.status === 'paid') {
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        return { already_processed: true, tokens: user?.tokens ?? 0 };
+    }
+
+    if (!verifyPaymentSignature(input.razorpay_order_id, input.razorpay_payment_id, input.razorpay_signature)) {
+        await prisma.payment.update({ where: { id: payment.id }, data: { status: 'failed' } });
+        throw new ErrorResponse('Invalid Razorpay payment signature.', 400);
+    }
+
+    // Extract token count from plan field (e.g. "topup_10" → 10)
+    const tokens = parseInt(payment.plan.replace('topup_', ''), 10) || 0;
+    if (tokens <= 0) throw new ErrorResponse('Invalid top-up pack.', 400);
+
+    await prisma.payment.update({
+        where: { id: payment.id },
+        data: { status: 'paid', razorpay_payment_id: input.razorpay_payment_id, razorpay_signature: input.razorpay_signature },
+    });
+
+    const updated = await prisma.user.update({
+        where: { id: userId },
+        data: { tokens: { increment: tokens } },
+    });
+
+    return { already_processed: false, tokens: updated.tokens, added: tokens, message: `${tokens} tokens added.` };
+}
