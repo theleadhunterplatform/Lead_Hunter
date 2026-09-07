@@ -55,7 +55,7 @@ function applyListTabFilter(filter: any, status?: string) {
     filter.status = status;
 }
 
-function buildLeadListFilter(query: {
+export function buildLeadListFilter(query: {
     status?: string;
     search?: string;
     keyword?: string;

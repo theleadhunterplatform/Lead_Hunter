@@ -113,6 +113,7 @@ export default function AdminLeadsPage() {
   const [counts, setCounts] = useState<LeadCounts>({})
   const [isTrainingAi, setIsTrainingAi] = useState(false)
   const [isBulkTitling, setIsBulkTitling] = useState(false)
+  const [isBulkInteling, setIsBulkInteling] = useState(false)
   const [intelConfigured, setIntelConfigured] = useState<boolean | null>(null)
   const [intelModel, setIntelModel] = useState('')
   const { addToast } = useToast()
@@ -537,6 +538,20 @@ export default function AdminLeadsPage() {
     }
   }
 
+  const handleBulkIntel = async () => {
+    try {
+      setIsBulkInteling(true)
+      const res = await apiPost('/api/admin/leads', { action: 'bulk-intelligence', filters: getBulkFilters() })
+      const json = await res.json()
+      addToast({ type: 'success', message: json?.message || `Queued ${json?.queued || 0} leads for intelligence generation` })
+      fetchLeads(currentPage, activeTab, searchQuery, true)
+    } catch {
+      addToast({ type: 'error', message: 'Failed to queue intelligence' })
+    } finally {
+      setIsBulkInteling(false)
+    }
+  }
+
   const handleBulkApproveSelected = async () => {    if (selectedLeadIds.length === 0) return
     try {
       setBulkSelectionBusy(true)
@@ -925,6 +940,22 @@ export default function AdminLeadsPage() {
                 {bulkRejecting ? <Loader2 size={14} className="animate-spin" /> : <XCircle size={14} />}
                 {bulkRejecting ? 'Rejecting...' : 'Reject All'}
               </button>
+              <button
+                onClick={handleBulkTitle}
+                disabled={isBulkTitling}
+                className="h-10 px-5 text-[10px] uppercase font-black rounded-xl flex items-center gap-2 bg-blue-500/10 text-blue-300 border border-blue-500/30 hover:bg-blue-500 hover:text-black transition-all disabled:opacity-50"
+              >
+                {isBulkTitling ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                {isBulkTitling ? 'Queueing...' : 'Generate Titles'}
+              </button>
+              <button
+                onClick={handleBulkIntel}
+                disabled={isBulkInteling}
+                className="h-10 px-5 text-[10px] uppercase font-black rounded-xl flex items-center gap-2 bg-purple-500/10 text-purple-300 border border-purple-500/30 hover:bg-purple-500 hover:text-black transition-all disabled:opacity-50"
+              >
+                {isBulkInteling ? <Loader2 size={14} className="animate-spin" /> : <BrainCircuit size={14} />}
+                {isBulkInteling ? 'Queueing...' : 'Generate Intel'}
+              </button>
             </>
           )}
           <button
@@ -942,14 +973,6 @@ export default function AdminLeadsPage() {
           >
             {bulkReenriching ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
             {bulkReenriching ? 'Queueing...' : 'Re-enrich All'}
-          </button>
-          <button
-            onClick={handleBulkTitle}
-            disabled={isBulkTitling}
-            className="h-10 px-5 text-[10px] uppercase font-black rounded-xl flex items-center gap-2 bg-purple-500/10 text-purple-300 border border-purple-500/30 hover:bg-purple-500 hover:text-black transition-all disabled:opacity-50"
-          >
-            {isBulkTitling ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
-            {isBulkTitling ? 'Queueing...' : 'Generate Titles'}
           </button>
           <button
             onClick={() => setIsManualModalOpen(true)}

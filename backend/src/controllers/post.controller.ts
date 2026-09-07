@@ -1,10 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
 import asyncHandler from '../middleware/async';
-import prisma from '../lib/prisma';
+import LeadPost from '../models/lead-post.model';
 import * as postService from '../services/post.service';
 import { extractTextFromImage, cleanExtractedText } from '../services/ocr.service';
 import { enqueueLeadTitling } from '../utils/title-queue.utils';
 import { applyLeadTitle } from '../services/titling.service';
+import { requestLeadIntelligence } from '../utils/intelligence-queue.utils';
 
 // @desc    Get all posts
 // @route   GET /api/posts
@@ -483,36 +484,55 @@ export const createManualLeadPost = asyncHandler(async (req: Request, res: Respo
     });
 });
 
-// @desc    Bulk generate titles for leads without one
+// @desc    Bulk generate titles for leads in section
 // @route   POST /api/posts/bulk-title
 // @access  Private (lead:hunt)
 export const bulkTitlePosts = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
-    const { status, keyword, platform } = req.body ?? {};
-
-    // Find leads without a title
-    const filter: any = { is_deleted: false };
-    if (status) filter.status = status;
-    if (keyword) filter.keyword = { contains: keyword };
-    if (platform) filter.platform = platform;
-
-    const posts = await prisma.leadPost.findMany({
-        where: { ...filter, title: null },
-        select: { id: true },
-        take: 200,
-    });
+    const filter = postService.buildLeadListFilter(req.body?.filters || req.body || {});
+    const posts = await LeadPost.find(filter, { lean: true }) as Array<{ _id: string; title?: string | null }>;
 
     if (posts.length === 0) {
-        return res.status(200).json({ success: true, queued: 0, message: 'All leads already have titles.' });
+        return res.status(200).json({ success: true, queued: 0, message: 'No leads found in this section.' });
     }
 
-    for (const post of posts) {
-        await enqueueLeadTitling(post.id);
+    const missing = posts.filter((p) => !p.title);
+    const toProcess = req.body?.force ? posts : (missing.length > 0 ? missing : posts);
+
+    for (const post of toProcess) {
+        await enqueueLeadTitling(post._id.toString());
     }
 
-    return res.status(202).json({
+    return res.status(200).json({
         success: true,
-        queued: posts.length,
-        message: `Queued ${posts.length} leads for title generation.`,
+        queued: toProcess.length,
+        message: `Queued ${toProcess.length} lead(s) for title generation.`,
+    });
+});
+
+// @desc    Bulk generate intelligence for leads in section
+// @route   POST /api/posts/bulk-intelligence
+// @access  Private (lead:hunt)
+export const bulkGenerateIntelligencePost = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+    const filter = postService.buildLeadListFilter(req.body?.filters || req.body || {});
+    const posts = await LeadPost.find(filter, { lean: true }) as Array<{ _id: string; intelligence?: string | null }>;
+
+    if (posts.length === 0) {
+        return res.status(200).json({ success: true, queued: 0, message: 'No leads found in this section.' });
+    }
+
+    const missing = posts.filter((p) => !p.intelligence);
+    const toProcess = req.body?.force ? posts : (missing.length > 0 ? missing : posts);
+
+    for (const post of toProcess) {
+        await requestLeadIntelligence(post._id.toString()).catch((err) =>
+            console.warn(`[BulkIntel] Failed to enqueue intel for ${post._id}:`, err?.message || err)
+        );
+    }
+
+    return res.status(200).json({
+        success: true,
+        queued: toProcess.length,
+        message: `Queued ${toProcess.length} lead(s) for intelligence generation.`,
     });
 });
 

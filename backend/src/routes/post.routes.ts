@@ -29,6 +29,7 @@ import {
     bulkDeletePosts,
     setManualLeadContactPost,
     generateLeadTitlePost,
+    bulkGenerateIntelligencePost,
 } from '../controllers/post.controller';
 import { findLeadEmail } from '../controllers/contact.controller';
 import { getLeadIntelligenceStats } from '../controllers/dashboard.controller';
@@ -102,6 +103,7 @@ router.use(protect);
 router.post('/upload', authorize('lead:hunt'), upload.array('images'), uploadManualPost);
 router.post('/manual', authorize('lead:hunt'), createManualLeadPost);
 router.post('/bulk-title', authorize('lead:hunt'), bulkTitlePosts);
+router.post('/bulk-intelligence', authorize('lead:hunt'), bulkGenerateIntelligencePost);
 
 /**
  * @swagger
