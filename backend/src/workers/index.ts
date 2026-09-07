@@ -3,6 +3,7 @@ import { intelligenceWorker } from './intelligence.worker';
 import { ocrWorker } from './ocr.worker';
 import { aiTrainWorker } from './ai-train.worker';
 import { enrichmentWorker } from './enrichment.worker';
+import { titlingWorker } from './titling.worker';
 
 const workers = [
     { worker: scraperWorker, name: 'Scraper' },
@@ -10,6 +11,7 @@ const workers = [
     { worker: ocrWorker, name: 'Qualification' },
     { worker: aiTrainWorker, name: 'AiTrain' },
     { worker: enrichmentWorker, name: 'Enrichment' },
+    { worker: titlingWorker, name: 'Titling' },
 ];
 
 export const initWorkers = () => {

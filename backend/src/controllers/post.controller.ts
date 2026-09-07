@@ -1,7 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 import asyncHandler from '../middleware/async';
+import prisma from '../lib/prisma';
 import * as postService from '../services/post.service';
 import { extractTextFromImage, cleanExtractedText } from '../services/ocr.service';
+import { enqueueLeadTitling } from '../utils/title-queue.utils';
+import { applyLeadTitle } from '../services/titling.service';
 
 // @desc    Get all posts
 // @route   GET /api/posts
@@ -450,5 +453,79 @@ export const getClaimedPosts = asyncHandler(async (req: Request, res: Response, 
         page: result.page,
         pages: result.pages,
         data: result.posts
+    });
+});
+
+// @desc    Create a single manual lead post with optional contact details
+// @route   POST /api/posts/manual
+// @access  Private (lead:hunt)
+export const createManualLeadPost = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+    const { content, keyword, authorName, platform } = req.body ?? {};
+
+    if (!content?.trim()) {
+        return res.status(400).json({ success: false, message: 'content is required' });
+    }
+    if (!keyword?.trim()) {
+        return res.status(400).json({ success: false, message: 'keyword is required' });
+    }
+
+    const post = await postService.createManualPost({
+        content: content.trim(),
+        keyword: keyword.trim(),
+        authorName: authorName?.trim() || 'Manual Entry',
+        platform: platform || 'manual',
+    });
+
+    return res.status(201).json({
+        success: true,
+        data: post,
+        message: 'Lead created and queued for qualification.',
+    });
+});
+
+// @desc    Bulk generate titles for leads without one
+// @route   POST /api/posts/bulk-title
+// @access  Private (lead:hunt)
+export const bulkTitlePosts = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+    const { status, keyword, platform } = req.body ?? {};
+
+    // Find leads without a title
+    const filter: any = { is_deleted: false };
+    if (status) filter.status = status;
+    if (keyword) filter.keyword = { contains: keyword };
+    if (platform) filter.platform = platform;
+
+    const posts = await prisma.leadPost.findMany({
+        where: { ...filter, title: null },
+        select: { id: true },
+        take: 200,
+    });
+
+    if (posts.length === 0) {
+        return res.status(200).json({ success: true, queued: 0, message: 'All leads already have titles.' });
+    }
+
+    for (const post of posts) {
+        await enqueueLeadTitling(post.id);
+    }
+
+    return res.status(202).json({
+        success: true,
+        queued: posts.length,
+        message: `Queued ${posts.length} leads for title generation.`,
+    });
+});
+
+// @desc    Generate title for single lead
+// @route   POST /api/posts/:id/generate-title
+// @access  Private (lead:hunt)
+export const generateLeadTitlePost = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+    const id = String(req.params.id);
+    await applyLeadTitle(id);
+    const post = await postService.getPostById(id);
+    return res.status(200).json({
+        success: true,
+        data: post,
+        message: 'Title generated successfully.',
     });
 });

@@ -35,6 +35,8 @@ import {
     pickPrimaryEmailEntry,
     type LeadEmailEntry,
 } from '../utils/lead-email-entry.utils';
+import { enqueueLeadTitling } from '../utils/title-queue.utils';
+import { requestLeadIntelligence } from '../utils/intelligence-queue.utils';
 
 type EmailSource =
     | 'post_text'
@@ -500,6 +502,13 @@ export async function applyManualLeadContact(
     lead.enriched_at = new Date();
     await lead.save();
 
+    enqueueLeadTitling(leadId).catch((err) =>
+        console.warn(`[ManualContact] Titling enqueue failed for ${leadId}:`, err?.message || err)
+    );
+    requestLeadIntelligence(leadId).catch((err) =>
+        console.warn(`[ManualContact] Intel enqueue failed for ${leadId}:`, err?.message || err)
+    );
+
     return lead;
 }
 
@@ -525,6 +534,13 @@ export async function verifyLeadEmailManually(leadId: string) {
         enrichment_message: 'Email manually verified by admin.',
         enriched_at: new Date(),
     });
+
+    enqueueLeadTitling(leadId).catch((err) =>
+        console.warn(`[ManualVerify] Titling enqueue failed for ${leadId}:`, err?.message || err)
+    );
+    requestLeadIntelligence(leadId).catch((err) =>
+        console.warn(`[ManualVerify] Intel enqueue failed for ${leadId}:`, err?.message || err)
+    );
 
     return lead;
 }

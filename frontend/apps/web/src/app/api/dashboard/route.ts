@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireFullyAuthorized, AuthRequiredError, InactiveUserError, EmailNotVerifiedError, OnboardingRequiredError } from '@/lib/auth'
-import { getPosts } from '@/lib/external-api/client'
 
 export const dynamic = 'force-dynamic'
 
@@ -33,8 +32,9 @@ export async function GET(request: NextRequest) {
 
     let totalLeadsCount = 0
     try {
-      const postsRes = await getPosts({ perPage: 1, status: 'approved' })
-      totalLeadsCount = postsRes.counts?.approved || 0
+      totalLeadsCount = await db.leadPost.count({
+        where: { review_status: 'approved', is_deleted: false },
+      })
     } catch {
       totalLeadsCount = 0
     }
@@ -55,9 +55,11 @@ export async function GET(request: NextRequest) {
 
     const savedLeadsWithScore = await db.userLeadState.findMany({
       where: { userId, isSaved: true },
-      include: { lead: { select: { replyProbability: true } } },
+      include: { lead: { select: { ai_score: true } } },
     })
-    const scores = savedLeadsWithScore.map((s) => s.lead.replyProbability).filter(Boolean)
+    const scores = savedLeadsWithScore
+      .map((s) => (s.lead ? Math.max(s.lead.ai_score || 0, 60) : 0))
+      .filter(Boolean)
     const avgReplyProbability =
       scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0
 
@@ -85,14 +87,12 @@ export async function GET(request: NextRequest) {
 
     const savedLeadsWithTags = await db.userLeadState.findMany({
       where: { userId, isSaved: true },
-      include: { lead: { select: { niches: true, nicheTags: true } } },
+      include: { lead: { select: { keyword: true, platform: true } } },
     })
     const nicheCounts = new Map<string, number>()
     savedLeadsWithTags.forEach((uls) => {
-      const allTags = [...(uls.lead.niches || []), ...(uls.lead.nicheTags || [])]
-      allTags.forEach((tag) => {
-        nicheCounts.set(tag, (nicheCounts.get(tag) || 0) + 1)
-      })
+      const tag = uls.lead?.keyword?.replace(/^watchlist:/, '') || uls.lead?.platform || 'General'
+      nicheCounts.set(tag, (nicheCounts.get(tag) || 0) + 1)
     })
     const colors = ['mint', 'purple']
     const distribution = [...nicheCounts.entries()]

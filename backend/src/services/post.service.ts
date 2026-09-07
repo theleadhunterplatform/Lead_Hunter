@@ -9,6 +9,7 @@ import { enqueueLeadQualification } from '../utils/qualification-queue.utils';
 import { findExistingLeadPost, isDuplicateKeyError } from '../utils/lead-dedup.utils';
 import { enqueueContactEnrichment } from '../utils/enrichment-queue.utils';
 import { requestLeadIntelligence } from '../utils/intelligence-queue.utils';
+import { enqueueLeadTitling } from '../utils/title-queue.utils';
 import { presentLeadForUser } from '../utils/lead-presentation.utils';
 import { toApiDoc } from '../utils/serialize.utils';
 import { logLeadAction } from '../utils/audit.utils';
@@ -266,17 +267,6 @@ export const approveLeadReview = async (
         is_training_data: true,
     });
 
-    if (!updated.intelligence) {
-        try {
-            await requestLeadIntelligence(id);
-        } catch (err: any) {
-            console.error(
-                `[approveLeadReview] Lead ${id} approved but intelligence generation failed:`,
-                err?.message || err
-            );
-        }
-    }
-
     scheduleAutoTrain().catch((err) => console.error('[AutoTrain] Schedule failed:', err.message));
 
     await logLeadAction(reviewerId, {
@@ -405,17 +395,7 @@ export const bulkApproveLeadReviews = async (
         },
     });
 
-    let approved = 0;
-    for (const post of withContact) {
-        if (!post.intelligence) {
-            try {
-                await requestLeadIntelligence(post._id.toString());
-            } catch (err: any) {
-                console.warn(`[BulkApprove] Intel queue failed for ${post._id}:`, err?.message || err);
-            }
-        }
-        approved += 1;
-    }
+    const approved = withContact.length;
 
     scheduleAutoTrain().catch((err) => console.error('[AutoTrain] Schedule failed:', err.message));
 
@@ -484,16 +464,6 @@ export const bulkApproveLeadReviewsByIds = async (
             is_training_data: true,
         },
     });
-
-    for (const post of withContact) {
-        if (!post.intelligence) {
-            try {
-                await requestLeadIntelligence(post._id.toString());
-            } catch (err: any) {
-                console.warn(`[BulkApprove] Intel queue failed for ${post._id}:`, err?.message || err);
-            }
-        }
-    }
 
     scheduleAutoTrain().catch((err) => console.error('[AutoTrain] Schedule failed:', err.message));
 
@@ -834,8 +804,13 @@ export const updatePostLabel = async (
             }
         }
 
-        if (leadHasContactDetails(post) && !post.intelligence) {
-            await requestLeadIntelligence(post._id.toString());
+        if (leadHasContactDetails(post)) {
+            if (!post.title) {
+                await enqueueLeadTitling(post._id.toString()).catch(() => undefined);
+            }
+            if (!post.intelligence) {
+                await requestLeadIntelligence(post._id.toString()).catch(() => undefined);
+            }
         }
     }
 

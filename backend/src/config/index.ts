@@ -74,6 +74,14 @@ const config = {
         intelModel: process.env.OPEN_ROUTER_INTEL_MODEL || 'google/gemini-2.5-flash',
         intelMaxTokens: parseInt(process.env.OPEN_ROUTER_INTEL_MAX_TOKENS || '2048', 10),
     },
+    groq: {
+        apiKey: process.env.GROQ_API_KEY || '',
+        intelModel: process.env.GROQ_INTEL_MODEL || 'llama-3.3-70b-versatile',
+    },
+    gemini: {
+        apiKey: process.env.GEMINI_API_KEY || '',
+        intelModel: process.env.GEMINI_INTEL_MODEL || 'gemini-1.5-flash',
+    },
     redis: {
         url: resolveRedisUrl(),
         useCloud: process.env.USE_CLOUD_REDIS === 'true',

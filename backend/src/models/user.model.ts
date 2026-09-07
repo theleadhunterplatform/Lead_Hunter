@@ -44,6 +44,7 @@ const buildWhere = (filter: any = {}) => {
 
     if (filter._id || filter.id) where.id = filter._id || filter.id;
     if (filter.email) where.email = filter.email.toLowerCase().trim();
+    if (filter.supabase_user_id) where.supabase_user_id = filter.supabase_user_id;
     if (filter.is_deleted !== undefined) where.is_deleted = filter.is_deleted;
     if (filter.status) where.status = filter.status;
     if (filter.organization) where.organizationId = filter.organization;

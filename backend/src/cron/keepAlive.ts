@@ -1,6 +1,7 @@
 import cron from 'node-cron';
 import { isKeepAliveEnabled } from '../utils/automation-settings.utils';
 import { isKeepAliveConfigured, KEEP_ALIVE_INTERVAL, pingKeepAliveUrls } from '../services/keep-alive.service';
+import prisma from '../lib/prisma';
 
 /** Ping Render URLs every 10 min so free-tier services don't idle-sleep. */
 export const initKeepAliveCron = () => {
@@ -17,6 +18,13 @@ export const initKeepAliveCron = () => {
             await pingKeepAliveUrls();
         } catch (error: any) {
             console.error('❌ [KeepAlive] Ping failed:', error.message);
+        }
+
+        // Ping Supabase DB to prevent free-tier auto-pause
+        try {
+            await prisma.$queryRaw`SELECT 1`;
+        } catch (dbErr: any) {
+            console.error('❌ [KeepAlive] DB ping failed:', dbErr.message);
         }
     });
 

@@ -1,0 +1,393 @@
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id                     String    @id // Firebase Auth UID
+  email                  String    @unique
+  name                   String
+  phone                  String?
+  role                   String    @default("user")
+  emailVerified          DateTime?
+
+  // User status for approval workflow
+  status                 String    @default("PENDING") // "PENDING" | "ACTIVE" | "REJECTED" | "SUSPENDED"
+
+  // Onboarding information
+  portfolio              String?
+  website                String?
+  linkedin               String?
+  instagram              String?
+  dribbble               String?
+  behance                String?
+  github                 String?
+  twitter                String?
+  servicesOffered        String[] @default([])
+  preferredLeadCategories String[] @default([])
+  outreachExperience     String?
+  discoverySource        String?
+  tags                   String[] @default([])
+
+  // Subscription management
+  plan                   String    @default("FREE")
+  paymentProvider        String    @default("stripe") // "stripe" | "razorpay"
+  stripeCustomerId       String?   @unique
+  stripeSubscriptionId   String?   @unique
+  stripePriceId          String?
+  stripeCurrentPeriodEnd DateTime?
+  razorpayCustomerId     String?   @unique
+  razorpaySubscriptionId String?   @unique
+  razorpayPlanId         String?
+  razorpayCurrentPeriodEnd DateTime?
+
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  googleSheetId          String?
+  creditAccount          CreditAccount?
+  leadStates             UserLeadState[]
+  auditLogs              AuditLog[]
+  adminNotes             AdminNote[]
+  supportTickets         SupportTicket[]
+}
+
+model CreditAccount {
+  id                 String   @id @default(uuid())
+  userId             String   @unique
+  subscriptionBalance Int     @default(0)
+  bonusBalance       Int      @default(0)
+  rolloverBalance    Int      @default(0)
+  rolloverExpiresAt  DateTime?
+  renewalDate        DateTime?
+
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@map("credit_accounts")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String   // Target user being acted upon
+  adminId    String   // Admin who performed the action
+  action     String   // 'STATUS_CHANGE' | 'CREDIT_CHANGE' | etc.
+  targetType String   // 'USER', 'LEAD', etc.
+  targetId   String   // Entity ID
+  details    Json     @default("{}")
+  createdAt  DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Lead {
+  id               String          @id @default(uuid())
+  name             String
+  email            String
+  phone            String?
+  company          String
+  source           String
+  category         String
+  title            String
+  signalContext    String
+  role             String
+  taskScope        String
+  mustHave         String
+  nicheBonus       String
+  buyerType        String
+  urgency          String
+  winProb          String
+  nicheTags        String[]
+  niches           String[]
+  hashtags         String[]
+  replyProbability Int
+  accent           String
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+}
+
+model UserLeadState {
+  id             String    @id @default(uuid())
+  userId         String
+  leadId         String
+  isSaved        Boolean   @default(false)
+  isRevealed     Boolean   @default(false)
+  status         String    @default("new")
+  revealedAt     DateTime?
+  lastActionDate DateTime? @updatedAt
+
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lead           LeadPost  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  emails         EmailMessage[]
+
+  @@unique([userId, leadId])
+}
+
+model EmailMessage {
+  id              String        @id @default(uuid())
+  userLeadStateId String
+  subject         String
+  body            String
+  direction       String
+  sentAt          DateTime      @default(now())
+
+  userLeadState   UserLeadState @relation(fields: [userLeadStateId], references: [id], onDelete: Cascade)
+}
+
+model EmailLog {
+  id        String   @id @default(uuid())
+  to        String
+  subject   String
+  type      String
+  sentAt    DateTime @default(now())
+  status    String   @default("SENT") // SENT | FAILED | SKIPPED
+  error     String?
+
+  @@map("email_logs")
+}
+
+model NewsletterSubscriber {
+  id               String   @id @default(uuid())
+  email            String   @unique
+  status           String   @default("SUBSCRIBED") // SUBSCRIBED | UNSUBSCRIBED | BOUNCED
+  unsubscribeToken String   @unique
+  source           String   @default("landing") // landing | settings | footer
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("newsletter_subscribers")
+}
+
+model AdminNote {
+  id        String   @id @default(uuid())
+  userId    String
+  adminId   String
+  content   String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("admin_notes")
+}
+
+model SupportTicket {
+  id          String    @id @default(uuid())
+  userId      String
+  subject     String
+  category    String    @default("general") // general | billing | leads | account | technical
+  priority    String    @default("normal")  // low | normal | high | urgent
+  status      String    @default("OPEN")    // OPEN | IN_PROGRESS | RESOLVED | CLOSED
+  assigneeId  String?   // admin UID, nullable until assigned
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  resolvedAt  DateTime?
+
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages    SupportTicketMessage[]
+
+  @@map("support_tickets")
+}
+
+model SupportTicketMessage {
+  id          String        @id @default(uuid())
+  ticketId    String
+  authorId    String        // user UID or admin UID
+  authorRole  String        // "user" | "admin"
+  body        String
+  isInternal  Boolean       @default(false) // admin-only internal note
+  createdAt   DateTime      @default(now())
+
+  ticket      SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@map("support_ticket_messages")
+}
+
+model CrmNote {
+  id        String   @id @default(uuid())
+  userId    String
+  leadId    String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CrmActivity {
+  id        String   @id @default(uuid())
+  userId    String
+  leadId    String
+  action    String
+  details   String?
+  createdAt DateTime @default(now())
+}
+
+model Organization {
+  id        String   @id @default(uuid())
+  name      String
+  ownerId   String
+  status    String   @default("active")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("organizations")
+}
+
+model Role {
+  id           String   @id @default(uuid())
+  name         String   @unique
+  slug         String   @unique
+  description  String?
+  permissions  Json     @default("[]")
+  scopeType    String   @default("organization")
+  isSystemRole Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  assignments RoleAssignment[]
+
+  @@map("roles")
+}
+
+model ApifyKey {
+  id             String   @id @default(uuid())
+  key            String   @unique
+  label          String?
+  is_active      Boolean  @default(true)
+  is_deleted     Boolean  @default(false)
+  comments_used  Int      @default(0)
+  comments_limit Int      @default(1000)
+  usage_month    String
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+  deleted_at     DateTime?
+
+  @@map("apify_keys")
+}
+
+model RoleAssignment {
+  id             String    @id @default(uuid())
+  userId         String
+  roleId         String
+  scopeType      String
+  organizationId String?
+  assignedById   String?
+  expiresAt      DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  role           Role      @relation(fields: [roleId], references: [id])
+
+  @@index([userId, scopeType, organizationId])
+  @@map("role_assignments")
+}
+
+model Keyword {
+  id         String   @id @default(uuid())
+  text       String   @unique
+  platforms  Json     @default("[\"linkedin\"]")
+  is_active  Boolean  @default(true)
+  is_deleted Boolean  @default(false)
+  deleted_at DateTime?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  leadPosts  LeadPost[]
+
+  @@map("keywords")
+}
+
+model SourceProfile {
+  id                     String    @id @default(uuid())
+  name                   String
+  url                    String    @unique
+  platform               String    @default("linkedin")
+  notes                  String?
+  is_active              Boolean   @default(true)
+  last_scraped_at        DateTime?
+  last_comments_found    Int       @default(0)
+  monthly_comments_found Int       @default(0)
+  usage_month            String?
+  created_at             DateTime  @default(now())
+  updated_at             DateTime  @updatedAt
+
+  @@map("source_profiles")
+}
+
+model Setting {
+  id          String    @id @default(uuid())
+  key         String    @unique
+  value       Json
+  description String?
+  is_deleted  Boolean   @default(false)
+  deleted_at  DateTime?
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+
+  @@map("settings")
+}
+
+model Permission {
+  id          String   @id @default(uuid())
+  slug        String   @unique
+  name        String
+  description String?
+  category    String   @default("general")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("permissions")
+}
+
+model LeadPost {
+  id                   String    @id @default(uuid())
+  post_id              String
+  url                  String
+  content              String
+  platform             String    @default("linkedin")
+  author               Json      @default("{}")
+  posted_at            Json      @default("{}")
+  engagement           Json      @default("{\"likes\":0,\"comments\":0,\"shares\":0}")
+  keyword              String?
+  keyword_id           String?
+  keywordRef           Keyword?  @relation(fields: [keyword_id], references: [id])
+  status               String    @default("pending")
+  source               String    @default("scraped")
+  image_url            String?
+  ai_score             Float     @default(0)
+  is_training_data     Boolean   @default(false)
+  is_deleted           Boolean   @default(false)
+  deleted_at           DateTime?
+  email                String?
+  contact_info         Json?
+  raw_result           Json?
+  source_type          String    @default("keyword")
+  source_profile       String?
+  qualification_reason String?
+  enrichment_status    String?
+  enrichment_message   String?
+  enriched_at          DateTime?
+  intelligence         String?
+  title                String?
+  review_status        String?
+  reviewed_at          DateTime?
+  reviewed_by_id       String?
+  claimed_count        Int       @default(0)
+  created_at           DateTime  @default(now())
+  updated_at           DateTime  @updatedAt
+
+  userLeadStates       UserLeadState[]
+
+  @@unique([post_id, platform])
+  @@index([status])
+  @@index([keyword])
+  @@index([platform])
+  @@index([is_deleted])
+  @@index([review_status])
+  @@map("lead_posts")
+}

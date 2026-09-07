@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Geist:wght@100;300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-dim": "#11150c",
+                        "surface": "#11150c",
+                        "primary-fixed-dim": "#9ed753",
+                        "surface-container": "#1d2118",
+                        "inverse-surface": "#e1e4d5",
+                        "tertiary-fixed": "#f7d9ff",
+                        "on-primary-fixed": "#102000",
+                        "on-tertiary": "#3d2847",
+                        "error": "#ffb4ab",
+                        "on-surface-variant": "#c2c9b3",
+                        "surface-container-lowest": "#0c0f07",
+                        "accent-mint": "#B8F36B",
+                        "accent-cyan": "#7DD3FC",
+                        "surface-variant": "#32362c",
+                        "border-subtle": "rgba(255, 255, 255, 0.06)",
+                        "background": "#11150c",
+                        "on-error": "#690005",
+                        "outline": "#8d937f",
+                        "on-primary-container": "#456f00",
+                        "tertiary-fixed-dim": "#dabce3",
+                        "tertiary": "#fffdff",
+                        "surface-secondary": "#171A20",
+                        "error-container": "#93000a",
+                        "on-secondary-fixed-variant": "#4f319c",
+                        "text-secondary": "#9CA3AF",
+                        "secondary": "#cebdff",
+                        "primary": "#fdfff2",
+                        "accent-purple": "#A78BFA",
+                        "on-primary": "#203700",
+                        "secondary-container": "#4f319c",
+                        "surface-container-low": "#191d14",
+                        "surface-bright": "#373b30",
+                        "on-tertiary-fixed-variant": "#553e5e",
+                        "on-tertiary-container": "#735b7d",
+                        "inverse-on-surface": "#2e3228",
+                        "outline-variant": "#434938",
+                        "on-secondary-fixed": "#21005e",
+                        "on-secondary-container": "#bea8ff",
+                        "accent-orange": "#FFB86B",
+                        "primary-fixed": "#b9f46c",
+                        "text-primary": "#F5F7FA",
+                        "secondary-fixed": "#e8ddff",
+                        "tertiary-container": "#f6d7ff",
+                        "surface-tint": "#9ed753",
+                        "surface-container-high": "#282b22",
+                        "on-surface": "#e1e4d5",
+                        "on-error-container": "#ffdad6",
+                        "secondary-fixed-dim": "#cebdff",
+                        "on-secondary": "#381385",
+                        "primary-container": "#b8f36b",
+                        "inverse-primary": "#416900",
+                        "surface-elevated": "#1E222B",
+                        "bg-main": "#0F1115",
+                        "surface-container-highest": "#32362c",
+                        "on-background": "#e1e4d5",
+                        "on-tertiary-fixed": "#271331",
+                        "accent-pink": "#F9A8D4",
+                        "on-primary-fixed-variant": "#304f00"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "ui-label": ["Geist"],
+                        "hero-headline-mobile": ["Space Grotesk"],
+                        "section-heading": ["Space Grotesk"],
+                        "hero-headline": ["Space Grotesk"],
+                        "metadata": ["Geist"],
+                        "body-large": ["Geist"]
+                    },
+                    "fontSize": {
+                        "ui-label": ["14px", {"lineHeight": "1.2", "fontWeight": "500"}],
+                        "hero-headline-mobile": ["42px", {"lineHeight": "1.0", "fontWeight": "700"}],
+                        "section-heading": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "hero-headline": ["72px", {"lineHeight": "0.95", "letterSpacing": "-0.04em", "fontWeight": "700"}],
+                        "metadata": ["14px", {"fontWeight": "400"}],
+                        "body-large": ["18px", {"lineHeight": "1.7", "fontWeight": "400"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            background-color: #0F1115;
+            color: #F5F7FA;
+            font-family: 'Geist', sans-serif;
+            overflow: hidden;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            font-size: 20px;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body class="bg-bg-main text-text-primary">
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-0 h-full z-40 flex flex-col p-4 h-screen w-64 border-r border-border-subtle bg-surface-secondary">
+<div class="mb-10 px-2 flex items-center gap-2">
+<span class="font-hero-headline text-xl font-bold text-accent-mint tracking-tight">Lead Hunter Club</span>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="flex items-center gap-3 px-4 py-3 text-text-secondary hover:text-text-primary transition-all duration-200 hover:bg-surface-elevated/50 rounded-lg" href="#">
+<span class="material-symbols-outlined">rss_feed</span>
+<span class="font-ui-label text-ui-label">Intel Feed</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-text-secondary hover:text-text-primary transition-all duration-200 hover:bg-surface-elevated/50 rounded-lg" href="#">
+<span class="material-symbols-outlined">bookmark</span>
+<span class="font-ui-label text-ui-label">Saved Leads</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-accent-mint bg-surface-elevated rounded-lg font-bold" href="#">
+<span class="material-symbols-outlined">send</span>
+<span class="font-ui-label text-ui-label">Outreach</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-text-secondary hover:text-text-primary transition-all duration-200 hover:bg-surface-elevated/50 rounded-lg" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-ui-label text-ui-label">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-text-secondary hover:text-text-primary transition-all duration-200 hover:bg-surface-elevated/50 rounded-lg" href="#">
+<span class="material-symbols-outlined">insights</span>
+<span class="font-ui-label text-ui-label">Analytics</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-text-secondary hover:text-text-primary transition-all duration-200 hover:bg-surface-elevated/50 rounded-lg" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-ui-label text-ui-label">Settings</span>
+</a>
+</nav>
+<div class="mt-auto pt-4 border-t border-border-subtle">
+<div class="flex items-center gap-3 px-4 py-2 mb-4 bg-surface-elevated rounded-lg">
+<span class="material-symbols-outlined text-accent-mint">bolt</span>
+<span class="font-ui-label text-ui-label text-accent-mint">1,250 Tokens</span>
+</div>
+<a class="flex items-center gap-3 px-4 py-3 text-text-secondary hover:text-text-primary transition-all duration-200" href="#">
+<span class="material-symbols-outlined">account_circle</span>
+<span class="font-ui-label text-ui-label">Profile</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-text-secondary hover:text-text-primary transition-all duration-200" href="#">
+<span class="material-symbols-outlined">help_outline</span>
+<span class="font-ui-label text-ui-label">Support</span>
+</a>
+</div>
+</aside>
+<!-- TopAppBar -->
+<header class="fixed top-0 right-0 left-64 z-30 flex items-center justify-between px-8 h-18 w-full border-b border-border-subtle bg-bg-main/80 backdrop-blur-md">
+<div class="flex items-center gap-4">
+<h1 class="font-section-heading text-body-large font-bold">Outreach</h1>
+<span class="px-2 py-0.5 rounded bg-surface-elevated text-[10px] uppercase tracking-widest text-text-secondary border border-border-subtle">Command Center</span>
+</div>
+<div class="flex items-center gap-6">
+<div class="relative group">
+<span class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-text-secondary text-sm">search</span>
+<input class="bg-surface-secondary border border-border-subtle rounded-lg pl-10 pr-4 py-2 text-ui-label focus:outline-none focus:ring-1 focus:ring-accent-mint transition-all w-64" placeholder="Search threads..." type="text"/>
+</div>
+<div class="flex items-center gap-4">
+<button class="relative p-2 text-text-secondary hover:text-accent-purple transition-all">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-1 right-1 w-2 h-2 bg-accent-orange rounded-full"></span>
+</button>
+<div class="h-8 w-8 rounded-full bg-surface-elevated border border-border-subtle overflow-hidden">
+<img alt="User Avatar" class="w-full h-full object-cover" data-alt="A detailed, professional avatar of a tech executive or high-end freelancer. The character is styled in a minimalist digital art fashion, with a clean aesthetic, wearing smart casual attire. The background is a subtle gradient of deep charcoal and midnight blue, consistent with a premium dark mode interface." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAXUBrqhKMFxibRkYGNlXKR1RRHpP7WhjV6wYG2uaeBCM7qwhrYblGMgZ3TuSruacIMUqtQXPzXDUDHAGamvX0h2kd7e8NgRjSqA_wpPmhnue9vt8yaNCzUpuFgue44ZFunxKs-BBy4qCbH4ZbnDvCLzJklse7HvJSTv_DTi_1rskhZBi7Q-PR7PmzP4cxy3qEgYJKaXpTMv0eZPgQCMlwlOtCb9UN2oAhD_CwuVyLndPEN3sgS8bVqKJCnIFghAQuJtbLJbbt_9t35"/>
+</div>
+</div>
+</div>
+</header>
+<!-- Main Content Area -->
+<main class="ml-64 pt-20 h-screen flex gap-8 p-8">
+<!-- Column 1: Outreach Threads List (22%) -->
+<section class="w-[22%] flex flex-col h-full bg-surface-secondary rounded-xl border border-border-subtle overflow-hidden">
+<div class="p-4 border-b border-border-subtle flex justify-between items-center">
+<span class="font-ui-label text-ui-label font-bold text-text-primary">Inbox</span>
+<button class="text-accent-cyan material-symbols-outlined">filter_list</button>
+</div>
+<div class="flex-1 overflow-y-auto custom-scrollbar">
+<!-- Thread Item 1 -->
+<div class="p-4 border-b border-border-subtle bg-surface-elevated/40 hover:bg-surface-elevated transition-colors cursor-pointer border-l-2 border-l-accent-mint">
+<div class="flex justify-between mb-1">
+<span class="font-ui-label text-[13px] font-bold text-text-primary">Alex Rivera</span>
+<span class="text-[11px] text-text-secondary">2m ago</span>
+</div>
+<div class="text-[12px] text-accent-mint font-medium mb-1">Replied</div>
+<p class="text-[12px] text-text-secondary line-clamp-1">Re: Scale infra for Q3 - Would love to chat about the...</p>
+</div>
+<!-- Thread Item 2 -->
+<div class="p-4 border-b border-border-subtle hover:bg-surface-elevated/40 transition-colors cursor-pointer">
+<div class="flex justify-between mb-1">
+<span class="font-ui-label text-[13px] font-bold text-text-primary">Sarah Chen</span>
+<span class="text-[11px] text-text-secondary">45m ago</span>
+</div>
+<div class="text-[12px] text-text-secondary font-medium mb-1">Sent</div>
+<p class="text-[12px] text-text-secondary line-clamp-1">Quick question on your recent LinkedIn post regarding...</p>
+</div>
+<!-- Thread Item 3 -->
+<div class="p-4 border-b border-border-subtle hover:bg-surface-elevated/40 transition-colors cursor-pointer">
+<div class="flex justify-between mb-1">
+<span class="font-ui-label text-[13px] font-bold text-text-primary">Marcus Thorne</span>
+<span class="text-[11px] text-text-secondary">2h ago</span>
+</div>
+<div class="text-[12px] text-accent-cyan font-medium mb-1">Opened</div>
+<p class="text-[12px] text-text-secondary line-clamp-1">Collaboration opportunity: Lead Hunter Club X Vertex</p>
+</div>
+<!-- Thread Item 4 -->
+<div class="p-4 border-b border-border-subtle hover:bg-surface-elevated/40 transition-colors cursor-pointer">
+<div class="flex justify-between mb-1">
+<span class="font-ui-label text-[13px] font-bold text-text-primary">Elena Rodriguez</span>
+<span class="text-[11px] text-text-secondary">5h ago</span>
+</div>
+<div class="text-[12px] text-accent-purple font-medium mb-1">AI Drafted</div>
+<p class="text-[12px] text-text-secondary line-clamp-1">Congrats on the Series B! Noticed you're hiring for...</p>
+</div>
+<!-- Thread Item 5 -->
+<div class="p-4 border-b border-border-subtle hover:bg-surface-elevated/40 transition-colors cursor-pointer">
+<div class="flex justify-between mb-1">
+<span class="font-ui-label text-[13px] font-bold text-text-primary">Jordan Smith</span>
+<span class="text-[11px] text-text-secondary">Yesterday</span>
+</div>
+<div class="text-[12px] text-text-secondary font-medium mb-1">Sent</div>
+<p class="text-[12px] text-text-secondary line-clamp-1">Partnership inquiry for the upcoming SaaS summit...</p>
+</div>
+</div>
+</section>
+<!-- Column 2: Primary Email Composer (52%) -->
+<section class="w-[52%] flex flex-col h-full bg-surface-secondary rounded-xl border border-border-subtle overflow-hidden">
+<!-- Composer Header -->
+<div class="p-6 border-b border-border-subtle space-y-4">
+<div class="flex items-center gap-4">
+<span class="text-text-secondary text-sm w-12">To:</span>
+<div class="flex-1 flex items-center gap-2 flex-wrap">
+<div class="flex items-center gap-2 bg-surface-elevated px-2 py-1 rounded-lg border border-border-subtle">
+<img alt="Alex Rivera" class="w-5 h-5 rounded-full" data-alt="A small, stylized avatar of a young male tech professional with short dark hair and a confident expression. The lighting is soft and modern, and the visual style is clean and minimalist, matching the overall dark-themed UI." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDyE4T_8Q0fsHlW4lSzRRQfa0-4P7a2ZrM37B6xaUunc5tZkok29I39dRWiVRSGYb3RyOx8g7V3k-rJu953VXdR4T-6hvbW9GnMFZYUnllgNw5yXIBUZVd6jOUeO47y7TZqUbRbGBH6aHWrBeKI6Q2x66NQ3G_V_LWzp4nPYo77uc41GrOVfWGj6IXkcRFoZybFg_20L7CppJoX9jUy8kZ1nof9Kl0LB_-48_5V_HWTprQH5Yqg7qpLO6YEn4YPGqyuXKXO005GbGN6"/>
+<span class="text-ui-label text-text-primary">Alex Rivera</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<span class="text-text-secondary text-sm w-12">Sub:</span>
+<input class="flex-1 bg-transparent border-none focus:ring-0 text-text-primary font-medium p-0" type="text" value="Scale infra for Q3 - Potential Synergy"/>
+</div>
+<div class="flex items-center gap-4">
+<span class="text-text-secondary text-sm w-12">Stage:</span>
+<div class="flex items-center gap-2 px-3 py-1 bg-surface-elevated rounded-lg border border-border-subtle text-xs text-accent-orange font-medium">
+<span class="material-symbols-outlined text-[14px]">bolt</span>
+                        Initial Outreach
+                    </div>
+</div>
+</div>
+<!-- Composer Body -->
+<div class="flex-1 p-6 overflow-y-auto custom-scrollbar bg-bg-main/20">
+<textarea class="w-full h-full bg-transparent border-none focus:ring-0 text-body-large text-text-primary font-body-large resize-none leading-relaxed" spellcheck="false">Hi Alex,
+
+Noticed your recent move to ScaleOps. Impressive growth trajectory you guys are on for Q3.
+
+Given your background as a technical founder, I wanted to reach out specifically about how you're managing the current infra overhead. We've been seeing some interesting patterns with companies in your exact stage using our automated sourcing protocol.
+
+Would love to share some of that intel if you're open to a brief founder-to-founder exchange this week.
+
+Best,
+Elite Operator</textarea>
+</div>
+<!-- Composer Actions -->
+<div class="p-6 border-t border-border-subtle space-y-6">
+<!-- AI Control Chips -->
+<div class="flex items-center gap-3">
+<span class="text-[11px] uppercase tracking-wider text-text-secondary font-bold mr-2">AI Optimization</span>
+<button class="px-3 py-1.5 rounded-full bg-surface-elevated border border-border-subtle text-[12px] text-text-primary flex items-center gap-2 hover:bg-accent-purple/20 transition-all">
+<span class="material-symbols-outlined text-[16px] text-accent-purple">face</span>
+                        Humanize
+                    </button>
+<button class="px-3 py-1.5 rounded-full bg-surface-elevated border border-border-subtle text-[12px] text-text-primary flex items-center gap-2 hover:bg-accent-cyan/20 transition-all">
+<span class="material-symbols-outlined text-[16px] text-accent-cyan">vertical_align_center</span>
+                        Shorten
+                    </button>
+<button class="px-3 py-1.5 rounded-full bg-surface-elevated border border-border-subtle text-[12px] text-text-primary flex items-center gap-2 hover:bg-accent-orange/20 transition-all">
+<span class="material-symbols-outlined text-[16px] text-accent-orange">diversity_3</span>
+                        Founder-to-founder
+                    </button>
+</div>
+<!-- Main Buttons -->
+<div class="flex items-center justify-between">
+<div class="flex gap-4">
+<button class="px-6 py-3 bg-accent-mint text-[#203700] font-bold rounded-lg flex items-center gap-2 hover:brightness-110 active:scale-95 transition-all">
+<span class="material-symbols-outlined">send</span>
+                            Send Outreach
+                        </button>
+<button class="px-6 py-3 bg-surface-elevated border border-border-subtle text-text-primary font-bold rounded-lg flex items-center gap-2 hover:border-accent-purple/50 transition-all">
+<span class="material-symbols-outlined text-accent-purple">auto_awesome</span>
+                            Generate + Send
+                        </button>
+</div>
+<div class="flex gap-2">
+<button class="p-2 text-text-secondary hover:text-text-primary"><span class="material-symbols-outlined">attach_file</span></button>
+<button class="p-2 text-text-secondary hover:text-text-primary"><span class="material-symbols-outlined">schedule</span></button>
+</div>
+</div>
+</div>
+</section>
+<!-- Column 3: Lead Intel Panel (26%) -->
+<section class="w-[26%] flex flex-col h-full gap-6">
+<!-- Section 1: Founder Signals -->
+<div class="bg-surface-secondary rounded-xl border border-border-subtle p-5">
+<h3 class="text-[11px] uppercase tracking-wider text-text-secondary font-bold mb-4">Founder Signals</h3>
+<div class="flex flex-wrap gap-2">
+<div class="px-3 py-1.5 bg-accent-mint/10 border border-accent-mint/30 rounded-lg flex items-center gap-2">
+<span class="w-1.5 h-1.5 bg-accent-mint rounded-full"></span>
+<span class="text-[12px] text-accent-mint font-medium">Technical founder</span>
+</div>
+<div class="px-3 py-1.5 bg-accent-cyan/10 border border-accent-cyan/30 rounded-lg flex items-center gap-2">
+<span class="w-1.5 h-1.5 bg-accent-cyan rounded-full"></span>
+<span class="text-[12px] text-accent-cyan font-medium">Fast responder</span>
+</div>
+<div class="px-3 py-1.5 bg-accent-purple/10 border border-accent-purple/30 rounded-lg flex items-center gap-2">
+<span class="w-1.5 h-1.5 bg-accent-purple rounded-full"></span>
+<span class="text-[12px] text-accent-purple font-medium">Early Adopter</span>
+</div>
+</div>
+</div>
+<!-- Section 2: Outreach Strategy -->
+<div class="bg-surface-secondary rounded-xl border border-border-subtle p-5">
+<h3 class="text-[11px] uppercase tracking-wider text-text-secondary font-bold mb-4">Outreach Strategy</h3>
+<div class="space-y-3">
+<div class="p-3 bg-surface-elevated rounded-lg border border-border-subtle">
+<p class="text-[13px] text-text-primary font-medium mb-1">Mention portfolio</p>
+<p class="text-[11px] text-text-secondary leading-normal">Alex frequently posts about their investment in Vertex AI. Use as an icebreaker.</p>
+</div>
+<div class="p-3 bg-surface-elevated rounded-lg border border-border-subtle">
+<p class="text-[13px] text-text-primary font-medium mb-1">Keep concise</p>
+<p class="text-[11px] text-text-secondary leading-normal">Our data shows Alex responds 40% faster to emails under 100 words.</p>
+</div>
+<div class="p-3 bg-surface-elevated rounded-lg border border-border-subtle">
+<p class="text-[13px] text-text-primary font-medium mb-1">Focus on Infrastructure</p>
+<p class="text-[11px] text-text-secondary leading-normal">Recent tweets suggest frustration with AWS billing cycles.</p>
+</div>
+</div>
+</div>
+<!-- Section 3: Source Context -->
+<div class="flex-1 bg-surface-secondary rounded-xl border border-border-subtle p-5 flex flex-col overflow-hidden">
+<h3 class="text-[11px] uppercase tracking-wider text-text-secondary font-bold mb-4">Source Context</h3>
+<div class="flex-1 overflow-y-auto custom-scrollbar space-y-4">
+<div class="space-y-2">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px] text-accent-orange">forum</span>
+<span class="text-[11px] text-text-secondary">Reddit /r/saas - 4 days ago</span>
+</div>
+<p class="text-[12px] text-text-primary bg-bg-main p-3 rounded-lg border border-border-subtle italic">"Honestly, managing the scaling of our DB clusters is taking 30% of our dev time. Looking for a better way to automate this..."</p>
+</div>
+<div class="space-y-2">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px] text-accent-cyan">share</span>
+<span class="text-[11px] text-text-secondary">LinkedIn Post - 1 week ago</span>
+</div>
+<p class="text-[12px] text-text-primary bg-bg-main p-3 rounded-lg border border-border-subtle italic">"Big congrats to the team for hitting our Q2 milestones! Now the real work begins as we prep for Q3 scale. Hiring infra leads!"</p>
+</div>
+</div>
+</div>
+</section>
+</main>
+</body></html>

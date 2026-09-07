@@ -7,6 +7,8 @@ import {
     resolveLinkedInPublicIdFromLead,
 } from '../utils/lead-enrichment.utils';
 import { ENRICHABLE_PLATFORMS } from './social-profile-enrichment.service';
+import { enqueueLeadTitling } from '../utils/title-queue.utils';
+import { requestLeadIntelligence } from '../utils/intelligence-queue.utils';
 
 export type EnrichmentStatus =
     | 'pending'
@@ -109,6 +111,15 @@ export async function enrichLeadPost(postId: string, options?: { force?: boolean
 
         console.log(`✅ [Enrichment] ${lead.post_id} → ${status}${updated?.email ? ` (${updated.email})` : ''}`);
 
+        if (status === 'found' || status === 'partial') {
+            enqueueLeadTitling(postId).catch((err) =>
+                console.warn(`[Enrichment] Titling enqueue failed for ${postId}:`, err?.message || err)
+            );
+            requestLeadIntelligence(postId).catch((err) =>
+                console.warn(`[Enrichment] Intel enqueue failed for ${postId}:`, err?.message || err)
+            );
+        }
+
         return {
             success: status === 'found' || status === 'partial',
             status,
@@ -135,6 +146,15 @@ export async function enrichLeadPost(postId: string, options?: { force?: boolean
         });
 
         console.warn(`⚠️ [Enrichment] ${lead.post_id} → ${finalStatus}: ${message}`);
+
+        if (finalStatus === 'partial') {
+            enqueueLeadTitling(postId).catch((err) =>
+                console.warn(`[Enrichment] Titling enqueue failed for ${postId}:`, err?.message || err)
+            );
+            requestLeadIntelligence(postId).catch((err) =>
+                console.warn(`[Enrichment] Intel enqueue failed for ${postId}:`, err?.message || err)
+            );
+        }
 
         return {
             success: finalStatus === 'partial',

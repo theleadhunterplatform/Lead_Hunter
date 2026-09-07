@@ -66,3 +66,17 @@ export const enrichmentQueue = new Queue('enrichment-queue', {
 });
 
 console.log('✔ BullMQ Queues Initialized');
+
+// 6. Title Queue - Generates short lead titles using LLM
+export const titleQueue = new Queue('title-queue', {
+    connection: redisConnection,
+    defaultJobOptions: {
+        attempts: 3,
+        backoff: {
+            type: 'exponential',
+            delay: 2000,
+        },
+        removeOnComplete: true,
+        removeOnFail: false,
+    }
+});

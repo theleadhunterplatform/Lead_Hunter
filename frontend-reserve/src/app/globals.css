@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+@theme {
+  --color-hunter-orange: #FF6B00;
+  --color-hunter-black: #050505;
+  --color-hunter-grey: #1A1A1A;
+  --color-hunter-white: #FFFFFF;
+  
+  --font-display: "Space Grotesk", sans-serif;
+}
+
+:root {
+  --background: #050505;
+  --foreground: #FFFFFF;
+  --primary: #FF6B00;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+}
+
+/* Funky Gen-Z Neobrutalist Utils */
+.neo-border {
+  border: 3px solid #000;
+  box-shadow: 4px 4px 0px 0px #000;
+}
+
+.neo-orange-border {
+  border: 3px solid #FF6B00;
+  box-shadow: 4px 4px 0px 0px #FF6B00;
+}
+
+.glow-orange {
+  box-shadow: 0 0 20px rgba(255, 107, 0, 0.4);
+}
+
+@layer base {
+  h1, h2, h3 {
+    @apply font-bold tracking-tighter uppercase;
+  }
+}

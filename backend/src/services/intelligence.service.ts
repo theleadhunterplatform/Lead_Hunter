@@ -4,22 +4,10 @@ import LeadIntelligence from '../models/lead-intelligence.model';
 import LeadPost from '../models/lead-post.model';
 import { getSetting } from './setting.service';
 
-/**
- * Generates strategic lead intelligence using OpenRouter (OpenAI-compatible)
- * @param post The post object from database
- * @returns The stored LeadIntelligence document or null
- */
-export const generateLeadIntelligence = async (post: any) => {
-    // Prefer DB key over .env fallback
-    const dbKey = await getSetting('openrouter_api_key').catch(() => null);
-    const apiKey = dbKey || config.openRouter.apiKey;
-    if (!apiKey) {
-        throw new Error('OPEN_ROUTER_API key is not configured on the server');
-    }
+// ─── Prompt builder ──────────────────────────────────────────────────────────
 
-    console.log(`🧠 [Intelligence] Generating strategic report for post: ${post.post_id} (${post.platform})`);
-
-    const prompt = `
+function buildPrompt(post: any): string {
+    return `
 Analyze the following lead from ${post.platform} and generate a "Lead Intelligence" report in Markdown format.
 
 Post Content:
@@ -80,60 +68,177 @@ Format the output exactly like this example structure, using professional and hi
 ## 🏁 Verdict
 **Lead Score: [X]/10**
 `;
+}
 
-    try {
-        const response = await axios.post('https://openrouter.ai/api/v1/chat/completions', {
+const SYSTEM_PROMPT =
+    'You are a high-level sales strategist and lead generation expert for a premium digital agency. Your goal is to analyze social media leads and provide deep strategic intelligence to help close high-ticket deals.';
+
+// ─── Provider implementations ─────────────────────────────────────────────────
+
+async function callOpenRouter(prompt: string, apiKey: string): Promise<string> {
+    const response = await axios.post(
+        'https://openrouter.ai/api/v1/chat/completions',
+        {
             model: config.openRouter.intelModel,
             max_tokens: config.openRouter.intelMaxTokens,
             temperature: 0.7,
             messages: [
-                {
-                    role: 'system',
-                    content: 'You are a high-level sales strategist and lead generation expert for a premium digital agency. Your goal is to analyze social media leads and provide deep strategic intelligence to help close high-ticket deals.'
-                },
-                {
-                    role: 'user',
-                    content: prompt
-                }
-            ]
-        }, {
+                { role: 'system', content: SYSTEM_PROMPT },
+                { role: 'user', content: prompt },
+            ],
+        },
+        {
             headers: {
-                'Authorization': `Bearer ${apiKey}`,
+                Authorization: `Bearer ${apiKey}`,
                 'HTTP-Referer': 'https://leadhunterclub.com',
                 'X-Title': 'Lead Hunter Club',
-                'Content-Type': 'application/json'
-            }
-        });
+                'Content-Type': 'application/json',
+            },
+            timeout: 60000,
+        },
+    );
+    const content = response.data?.choices?.[0]?.message?.content;
+    if (!content) throw new Error('No content returned from OpenRouter');
+    return content;
+}
 
-        const intelligenceContent = response.data.choices[0].message.content;
+async function callGroq(prompt: string, apiKey: string): Promise<string> {
+    const response = await axios.post(
+        'https://api.groq.com/openai/v1/chat/completions',
+        {
+            model: config.groq.intelModel,
+            max_tokens: 2048,
+            temperature: 0.7,
+            messages: [
+                { role: 'system', content: SYSTEM_PROMPT },
+                { role: 'user', content: prompt },
+            ],
+        },
+        {
+            headers: {
+                Authorization: `Bearer ${apiKey}`,
+                'Content-Type': 'application/json',
+            },
+            timeout: 60000,
+        },
+    );
+    const content = response.data?.choices?.[0]?.message?.content;
+    if (!content) throw new Error('No content returned from Groq');
+    return content;
+}
 
-        if (!intelligenceContent) {
-            throw new Error('No content returned from AI');
+async function callGemini(prompt: string, apiKey: string): Promise<string> {
+    const model = config.gemini.intelModel;
+    const response = await axios.post(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        {
+            contents: [
+                {
+                    parts: [
+                        { text: `${SYSTEM_PROMPT}\n\n${prompt}` },
+                    ],
+                },
+            ],
+            generationConfig: {
+                maxOutputTokens: 2048,
+                temperature: 0.7,
+            },
+        },
+        {
+            headers: { 'Content-Type': 'application/json' },
+            timeout: 60000,
+        },
+    );
+    const content = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!content) throw new Error('No content returned from Gemini');
+    return content;
+}
+
+// ─── Fallback chain ───────────────────────────────────────────────────────────
+
+interface ProviderResult {
+    content: string;
+    provider: string;
+}
+
+async function generateWithFallback(prompt: string): Promise<ProviderResult> {
+    const errors: string[] = [];
+
+    // 1. OpenRouter (primary)
+    const dbKey = await getSetting('openrouter_api_key').catch(() => null);
+    const openRouterKey = (dbKey as string) || config.openRouter.apiKey;
+    if (openRouterKey?.trim()) {
+        try {
+            const content = await callOpenRouter(prompt, openRouterKey);
+            return { content, provider: 'openrouter' };
+        } catch (err: any) {
+            const msg = err.response?.data?.error?.message || err.message || 'Unknown error';
+            console.warn(`[Intelligence] OpenRouter failed: ${msg}`);
+            errors.push(`OpenRouter: ${msg}`);
         }
-
-        // Store in DB
-        const intelligence = await LeadIntelligence.findOneAndUpdate(
-            { post_id: post._id },
-            { content: intelligenceContent },
-            { upsert: true, new: true }
-        );
-
-        // Also sync to LeadPost for easier list access
-        await LeadPost.updateOne(
-            { _id: post._id || post.id },
-            { intelligence: intelligenceContent }
-        );
-
-        console.log(`✅ [Intelligence] Report saved for post: ${post.post_id}`);
-        return intelligence;
-    } catch (error: any) {
-        const detail =
-            error.response?.data?.error?.message
-            || error.response?.data?.error
-            || error.response?.data?.message
-            || error.message
-            || 'Unknown OpenRouter error';
-        console.error('Error generating lead intelligence:', error.response?.data || error.message);
-        throw new Error(`Lead intelligence generation failed: ${detail}`);
+    } else {
+        errors.push('OpenRouter: API key not configured');
     }
+
+    // 2. Groq (first fallback)
+    if (config.groq.apiKey?.trim()) {
+        try {
+            const content = await callGroq(prompt, config.groq.apiKey);
+            return { content, provider: 'groq' };
+        } catch (err: any) {
+            const msg = err.response?.data?.error?.message || err.message || 'Unknown error';
+            console.warn(`[Intelligence] Groq failed: ${msg}`);
+            errors.push(`Groq: ${msg}`);
+        }
+    } else {
+        errors.push('Groq: API key not configured');
+    }
+
+    // 3. Gemini direct (second fallback)
+    if (config.gemini.apiKey?.trim()) {
+        try {
+            const content = await callGemini(prompt, config.gemini.apiKey);
+            return { content, provider: 'gemini' };
+        } catch (err: any) {
+            const msg = err.response?.data?.error?.message || err.message || 'Unknown error';
+            console.warn(`[Intelligence] Gemini failed: ${msg}`);
+            errors.push(`Gemini: ${msg}`);
+        }
+    } else {
+        errors.push('Gemini: API key not configured');
+    }
+
+    throw new Error(`All AI providers failed:\n${errors.join('\n')}`);
+}
+
+// ─── Main export ──────────────────────────────────────────────────────────────
+
+/**
+ * Generates strategic lead intelligence using a multi-provider fallback chain.
+ * Order: OpenRouter → Groq → Gemini (direct)
+ */
+export const generateLeadIntelligence = async (post: any) => {
+    console.log(`🧠 [Intelligence] Generating strategic report for post: ${post.post_id} (${post.platform})`);
+
+    const prompt = buildPrompt(post);
+
+    const { content: intelligenceContent, provider } = await generateWithFallback(prompt);
+
+    console.log(`✅ [Intelligence] Report generated via ${provider} for post: ${post.post_id}`);
+
+    // Store in LeadIntelligence table
+    const intelligence = await LeadIntelligence.findOneAndUpdate(
+        { post_id: post._id },
+        { content: intelligenceContent },
+        { upsert: true, new: true },
+    );
+
+    // Sync to LeadPost for list-view access without joins
+    await LeadPost.updateOne(
+        { _id: post._id || post.id },
+        { intelligence: intelligenceContent },
+    );
+
+    console.log(`✅ [Intelligence] Report saved for post: ${post.post_id}`);
+    return intelligence;
 };

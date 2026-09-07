@@ -8,6 +8,8 @@ import {
     deletePost,
     labelPost,
     uploadManualPost,
+    createManualLeadPost,
+    bulkTitlePosts,
     updatePost,
     reExtractPost,
     bulkIngestPosts,
@@ -26,6 +28,7 @@ import {
     bulkApproveLeadReviewsByIds,
     bulkDeletePosts,
     setManualLeadContactPost,
+    generateLeadTitlePost,
 } from '../controllers/post.controller';
 import { findLeadEmail } from '../controllers/contact.controller';
 import { getLeadIntelligenceStats } from '../controllers/dashboard.controller';
@@ -97,6 +100,8 @@ router.use(protect);
  *         description: Manual leads created via OCR
  */
 router.post('/upload', authorize('lead:hunt'), upload.array('images'), uploadManualPost);
+router.post('/manual', authorize('lead:hunt'), createManualLeadPost);
+router.post('/bulk-title', authorize('lead:hunt'), bulkTitlePosts);
 
 /**
  * @swagger
@@ -171,5 +176,6 @@ router.post('/:id/re-extract', authorize('lead:hunt'), reExtractPost);
 router.post('/:id/find-email', authorize('lead:hunt'), findLeadEmail);
 router.post('/:id/verify-email', authorize('lead:hunt'), verifyEmailPost);
 router.post('/:id/generate-intelligence', authorize('lead:hunt'), regenerateLeadIntelligencePost);
+router.post('/:id/generate-title', authorize('lead:hunt'), generateLeadTitlePost);
 
 export default router;

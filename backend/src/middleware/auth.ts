@@ -80,7 +80,7 @@ async function findOrCreateFirebaseUser(firebaseUser: { uid: string; email?: str
 
     if (!user) {
         // Create new user — link Firebase UID via supabase_user_id field
-        await prisma.user.create({
+        const created = await prisma.user.create({
             data: {
                 name: firebaseUser.name || firebaseUser.email.split('@')[0],
                 email: firebaseUser.email.toLowerCase(),
@@ -92,6 +92,23 @@ async function findOrCreateFirebaseUser(firebaseUser: { uid: string; email?: str
                 tokens: 10,
             },
         });
+
+        // Assign member role so they can read and claim leads
+        try {
+            const memberRole = await prisma.role.findFirst({ where: { slug: 'member' } });
+            if (memberRole) {
+                await prisma.roleAssignment.create({
+                    data: {
+                        userId: created.id,
+                        roleId: memberRole.id,
+                        scopeType: 'global',
+                    },
+                });
+            }
+        } catch (roleErr: any) {
+            console.warn('[Auth] Failed to assign member role to new Firebase user:', roleErr.message);
+        }
+
         user = await User.findOne({ email: firebaseUser.email.toLowerCase() });
     } else if (!user.supabase_user_id) {
         // Backfill Firebase UID on existing user
