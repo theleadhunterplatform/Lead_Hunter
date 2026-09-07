@@ -69,7 +69,7 @@ async function callGroq(prompt: string, apiKey: string): Promise<string> {
 }
 
 async function callGemini(prompt: string, apiKey: string): Promise<string> {
-    const model = config.gemini.intelModel;
+    const model = (config.gemini.intelModel || 'gemini-1.5-flash').replace(/^models\//, '');
     const res = await axios.post(
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
         {
@@ -111,7 +111,8 @@ export async function generateLeadTitle(post: any): Promise<string> {
                 return title;
             }
         } catch (err: any) {
-            errors.push(`OpenRouter: ${err.message}`);
+            const msg = err.response?.data?.error?.message || err.message;
+            errors.push(`OpenRouter: ${msg}`);
         }
     }
 
@@ -125,7 +126,8 @@ export async function generateLeadTitle(post: any): Promise<string> {
                 return title;
             }
         } catch (err: any) {
-            errors.push(`Groq: ${err.message}`);
+            const msg = err.response?.data?.error?.message || err.message;
+            errors.push(`Groq: ${msg}`);
         }
     }
 
@@ -139,7 +141,8 @@ export async function generateLeadTitle(post: any): Promise<string> {
                 return title;
             }
         } catch (err: any) {
-            errors.push(`Gemini: ${err.message}`);
+            const msg = err.response?.data?.error?.message || err.message;
+            errors.push(`Gemini: ${msg}`);
         }
     }
 

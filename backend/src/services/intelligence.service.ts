@@ -128,7 +128,7 @@ async function callGroq(prompt: string, apiKey: string): Promise<string> {
 }
 
 async function callGemini(prompt: string, apiKey: string): Promise<string> {
-    const model = config.gemini.intelModel;
+    const model = (config.gemini.intelModel || 'gemini-1.5-flash').replace(/^models\//, '');
     const response = await axios.post(
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
         {

@@ -71,7 +71,7 @@ const config = {
     },
     openRouter: {
         apiKey: process.env.OPEN_ROUTER_API || '',
-        intelModel: process.env.OPEN_ROUTER_INTEL_MODEL || 'google/gemini-2.5-flash',
+        intelModel: process.env.OPEN_ROUTER_INTEL_MODEL || 'google/gemini-2.0-flash-001',
         intelMaxTokens: parseInt(process.env.OPEN_ROUTER_INTEL_MAX_TOKENS || '2048', 10),
     },
     groq: {
