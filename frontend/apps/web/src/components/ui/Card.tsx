@@ -5,7 +5,7 @@ import type { ReactNode } from 'react'
 type CardVariant = 'metallic' | 'glass' | 'elevated' | 'flat'
 type CardPadding = 'sm' | 'md' | 'lg'
 
-interface CardProps {
+interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   variant?: CardVariant
   padding?: CardPadding
   hover?: boolean
@@ -32,9 +32,11 @@ export function Card({
   hover = false,
   className = '',
   children,
+  ...rest
 }: CardProps) {
   return (
     <div
+      {...rest}
       className={`${variantStyles[variant]} ${paddingStyles[padding]} ${
         hover ? 'hover:scale-102 transition-all duration-300' : ''
       } ${className}`}

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   UserIcon,
@@ -8,14 +8,13 @@ import {
   SparklesIcon,
   ChartBarSquareIcon,
   ChartBarIcon,
-  BanknotesIcon,
   ArrowRightIcon,
   MagnifyingGlassIcon,
   BoltIcon,
   BookmarkIcon,
-  LockClosedIcon,
-  InformationCircleIcon,
   Bars3Icon,
+  AdjustmentsHorizontalIcon,
+  ChevronDownIcon,
 } from '@heroicons/react/24/solid'
 
 import AppSidebar from '@/components/layout/AppSidebar'
@@ -37,47 +36,75 @@ interface PersonaData {
     email: string
     company: string
     source: string
+    category: string
     title: string
+    taskScope: string
     signalContext: string
     urgency: 'low' | 'medium' | 'high' | 'critical'
     nicheTags: string[]
     replyProbability: number
-    accent: 'purple'
+    accent: 'purple' | 'cyan' | 'orange' | 'pink' | 'mint'
   }
 }
 
 // Pre-defined static mock leads to populate the spacious background Leads Feed
-const mockLead1 = {
+const mockLead1: AppLead = {
   id: 'mock-1',
   name: 'Lily Hernandez',
   email: 'l.hernandez@nexus.com',
   company: 'Nexus Analytics',
   source: 'Twitter',
-  title: 'SEO Strategy For —',
+  category: 'SEO STRATEGY',
+  title: 'SEO Strategy & Keyword Recovery',
+  taskScope:
+    'Competitor just outranked them for main keywords. Need a senior SEO strategist to recover organic rankings and rebuild backlink velocity.',
   signalContext: 'Competitor just outranked them for their main keyword. Founder is stressed.',
+  role: 'SEO Strategist',
+  mustHave: 'Technical SEO expertise',
+  nicheBonus: 'B2B SaaS experience',
+  buyerType: 'B2B SaaS',
+  winProb: 'high',
+  hashtags: ['#seo', '#b2b'],
+  niches: ['Marketing'],
   urgency: 'critical',
   nicheTags: ['B2B SaaS', 'SEO', 'Content'],
   replyProbability: 95,
-  accent: 'purple',
+  accent: 'cyan',
   status: 'new',
   timestamp: '4h ago',
-} as AppLead
+  isClaimable: true,
+  revealCost: 3,
+  isRevealed: false,
+}
 
-const mockLead2 = {
+const mockLead2: AppLead = {
   id: 'mock-2',
   name: 'David Anderson',
   email: 'd.anderson@prism.io',
   company: 'Prism Labs',
   source: 'Job Board',
-  title: 'Sales Enablement For —',
+  category: 'OUTBOUND SYSTEMS',
+  title: 'Sales Enablement & Outbound Systems',
+  taskScope:
+    'Just hired 3 new SDRs. Need an outbound architecture specialist to setup Clay, Smartlead, and automated lead enrichment.',
   signalContext: 'Just hired 3 new SDRs. Clear indicator they need outbound infrastructure.',
+  role: 'Sales Operations Lead',
+  mustHave: 'Outbound tooling expertise',
+  nicheBonus: 'Clay & Smartlead experience',
+  buyerType: 'B2B Startup',
+  winProb: 'medium',
+  hashtags: ['#sales', '#outbound'],
+  niches: ['Sales'],
   urgency: 'medium',
   nicheTags: ['B2B', 'Sales', 'Systems'],
   replyProbability: 75,
-  accent: 'purple',
+  accent: 'orange',
   status: 'new',
   timestamp: '3d ago',
-} as AppLead
+  isClaimable: true,
+  revealCost: 3,
+  isRevealed: false,
+}
 
 const PERSONAS: PersonaData[] = [
   {
@@ -94,7 +121,10 @@ const PERSONAS: PersonaData[] = [
       email: 'a.shepard@nexus.ai',
       company: 'Nexus AI',
       source: 'Reddit',
-      title: 'Web Development For —',
+      category: 'SHOPIFY DEV',
+      title: 'Shopify Speed & Web Optimization',
+      taskScope:
+        'Struggling with slow load times and high bounce rates on our current Shopify store. Need full audit and speed optimization.',
       signalContext:
         'Struggling with slow load times and high bounce rates on their current Shopify store.',
       urgency: 'high',
@@ -117,12 +147,15 @@ const PERSONAS: PersonaData[] = [
       email: 'alex@dtcbrands.co',
       company: 'DTC Brands',
       source: 'Twitter',
-      title: 'UI/UX Design For —',
+      category: 'UI/UX DESIGN',
+      title: 'Checkout UI/UX Redesign',
+      taskScope:
+        'Our current checkout page is ugly and mobile conversions are dropping drastically. Looking for complete high-converting Figma overhaul.',
       signalContext: 'Our current checkout page is ugly and conversions are dropping drastically.',
       urgency: 'critical',
       nicheTags: ['E-Commerce', 'UI/UX', 'Conversion'],
       replyProbability: 97,
-      accent: 'purple',
+      accent: 'pink',
     },
   },
   {
@@ -139,13 +172,16 @@ const PERSONAS: PersonaData[] = [
       email: 's.connor@vanguard.io',
       company: 'Vanguard Group',
       source: 'LinkedIn',
-      title: 'Brand Identity For —',
+      category: 'BRAND IDENTITY',
+      title: 'Brand Identity & Design System',
+      taskScope:
+        'Looking for a brand designer to completely overhaul our corporate guidelines, visual identity, and investor deck.',
       signalContext:
         'Looking for a brand designer to completely overhaul our corporate guidelines and slide deck.',
       urgency: 'high',
       nicheTags: ['Branding', 'Vector Art', 'Figma'],
       replyProbability: 96,
-      accent: 'purple',
+      accent: 'mint',
     },
   },
   {
@@ -162,12 +198,15 @@ const PERSONAS: PersonaData[] = [
       email: 'm.carter@stellar.co',
       company: 'Stellar Co',
       source: 'Reddit',
-      title: 'Next.js Optimization For —',
+      category: 'FULLSTACK DEV',
+      title: 'Next.js Performance & Core Web Vitals',
+      taskScope:
+        'Core web vitals dragging down SEO ranking, LCP over 4 seconds. Looking for a senior React/Next.js engineer to refactor rendering pipeline.',
       signalContext: 'Core web vitals dragging down SEO ranking, LCP over 4 seconds.',
       urgency: 'critical',
       nicheTags: ['Next.js', 'Core Web Vitals', 'SEO'],
       replyProbability: 99,
-      accent: 'purple',
+      accent: 'cyan',
     },
   },
   {
@@ -184,13 +223,16 @@ const PERSONAS: PersonaData[] = [
       email: 'm.gold@apparelscale.com',
       company: 'Marcus Apparel',
       source: 'LinkedIn',
-      title: 'Paid Ads Scaling For —',
+      category: 'PAID ADS',
+      title: 'Paid Ads Scaling & Creative Testing',
+      taskScope:
+        'Struggling to maintain ROAS above 1.8x on Meta and TikTok. Looking for creative ad testing framework and media buying partner.',
       signalContext:
         'Struggling to maintain ROAS above 1.8x, looking for creative ad testing framework.',
       urgency: 'high',
       nicheTags: ['DTC Ads', 'Meta', 'TikTok'],
       replyProbability: 95,
-      accent: 'purple',
+      accent: 'orange',
     },
   },
   {
@@ -207,7 +249,10 @@ const PERSONAS: PersonaData[] = [
       email: 'david@gtmpartners.co',
       company: 'GTM Partners',
       source: 'Twitter',
-      title: 'B2B Demand Gen For —',
+      category: 'DEMAND GEN',
+      title: 'B2B Demand Gen & Retainer Pipeline',
+      taskScope:
+        'Need an agency partner with proven track record in B2B demand gen, outbound pipeline infrastructure, and scalable deal acquisition.',
       signalContext:
         'Need an agency with proven experience in B2B demand gen and scalable pipelines.',
       urgency: 'high',
@@ -218,6 +263,16 @@ const PERSONAS: PersonaData[] = [
   },
 ]
 
+const AUDIENCE_NICHES = [
+  { label: 'All', id: 'all', personaId: 'freelancers' },
+  { label: 'Shopify Dev', id: 'shopify', personaId: 'freelancers' },
+  { label: 'UI/UX Design', id: 'uiux', personaId: 'web-designers' },
+  { label: 'Brand Identity', id: 'branding', personaId: 'graphic-designers' },
+  { label: 'Fullstack Dev', id: 'dev', personaId: 'developers' },
+  { label: 'Paid Ads', id: 'ads', personaId: 'smma-owners' },
+  { label: 'Demand Gen', id: 'agency', personaId: 'agency-owners' },
+]
+
 export default function WhoItsForGrid() {
   const [activeTab, setActiveTab] = useState<string>('freelancers')
   const [revealed, setRevealed] = useState<Record<string, boolean>>({})
@@ -225,6 +280,11 @@ export default function WhoItsForGrid() {
   const [displayedText, setDisplayedText] = useState('')
   const [isTyping, setIsTyping] = useState(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [viewMode, setViewMode] = useState<'grid' | 'pipeline'>('grid')
+  const [sortBy, setSortBy] = useState<'newest' | 'replyProbability' | 'urgency'>('newest')
+  const [isFilterOpen, setIsFilterOpen] = useState(false)
+  const [selectedNicheId, setSelectedNicheId] = useState<string>('all')
 
   const activePersona = PERSONAS.find((p) => p.id === activeTab) || PERSONAS[0]
 
@@ -233,21 +293,33 @@ export default function WhoItsForGrid() {
   }
 
   // Construct a type-compliant AppLead representing the primary interactive card
-  const appLead = {
+  const appLead: AppLead = {
     id: activePersona.id,
     name: activePersona.lead.name,
     email: activePersona.lead.email,
     company: activePersona.lead.company,
     source: activePersona.lead.source,
+    category: activePersona.lead.category,
     title: activePersona.lead.title,
+    taskScope: activePersona.lead.taskScope,
     signalContext: activePersona.lead.signalContext,
+    role: activePersona.lead.title,
+    mustHave: activePersona.lead.taskScope,
+    nicheBonus: activePersona.lead.nicheTags.join(', '),
+    buyerType: activePersona.title,
+    winProb: 'high',
+    hashtags: activePersona.lead.nicheTags.map((t) => `#${t.toLowerCase().replace(/[^a-z0-9]+/g, '')}`),
+    niches: [activePersona.lead.category],
     urgency: activePersona.lead.urgency,
     nicheTags: activePersona.lead.nicheTags,
     replyProbability: activePersona.lead.replyProbability,
     accent: activePersona.lead.accent,
-    status: revealed[activePersona.id] ? 'drafting' : 'new',
+    status: revealed[activePersona.id] ? 'saved' : 'new',
     timestamp: '2h ago',
-  } as AppLead
+    isClaimable: true,
+    revealCost: 3,
+    isRevealed: !!revealed[activePersona.id],
+  }
 
   // Typewriting effect inside messaging cockpit draft
   useEffect(() => {
@@ -256,7 +328,7 @@ export default function WhoItsForGrid() {
       setDisplayedText('')
 
       let index = 0
-      const fullText = `Verified contact unlocked: ${activePersona.lead.email} · phone and profile link included. Saved to your pipeline — export anytime as CSV or Excel.`
+      const fullText = `Verified contact unlocked: ${activePersona.lead.email} · phone and profile link included. Saved to your pipeline: export anytime as CSV or Excel.`
       const interval = setInterval(() => {
         if (index < fullText.length) {
           setDisplayedText(fullText.substring(0, index + 2))
@@ -277,13 +349,10 @@ export default function WhoItsForGrid() {
   return (
     <section
       id="who"
-      className="py-36 px-6 max-w-[1400px] mx-auto relative overflow-hidden border-t border-white/[0.03]"
+      className="py-16 md:py-20 px-4 sm:px-6 max-w-[1100px] mx-auto relative overflow-hidden border-t border-white/[0.03]"
     >
-      {/* Background ambient glow */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[900px] glow-purple-faint pointer-events-none" />
-
       {/* HEADER BLOCK: Large text left, horizontal navigation segmented buttons right */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8 mb-16 relative z-10">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8 mb-10 relative z-10">
         <div className="max-w-xl">
           <motion.div
             initial={{ opacity: 0, y: 15 }}
@@ -291,8 +360,8 @@ export default function WhoItsForGrid() {
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
           >
-            <span className="text-[10px] uppercase font-bold tracking-ultra mb-3 block text-accent-purple">
-              Target Audiences
+            <span className="text-sm font-semibold text-accent-orange mb-3 block">
+              Audience radar
             </span>
           </motion.div>
           <motion.h2
@@ -300,7 +369,7 @@ export default function WhoItsForGrid() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8, delay: 0.05 }}
-            className="font-display text-[38px] md:text-[48px] font-bold tracking-tight text-text-primary leading-[1.1] mb-3"
+            className="font-display text-2xl sm:text-3xl md:text-[38px] font-semibold tracking-tight text-text-primary leading-[1.15] mb-2.5"
           >
             Built for modern service-based businesses
           </motion.h2>
@@ -317,7 +386,7 @@ export default function WhoItsForGrid() {
 
         {/* Top-Right Interactive horizontal navigation segmented controls */}
         <div className="lg:shrink-0 flex items-center w-full lg:w-auto">
-          <div className="w-full flex flex-wrap gap-2.5 md:gap-3 items-center justify-center lg:justify-end bg-surface p-2 md:p-2.5 border border-white/[0.08] rounded-3xl md:rounded-4xl shadow-[0_20px_50px_rgba(var(--rgb-black),0.5)]">
+          <div className="w-full flex flex-wrap gap-2 md:gap-2.5 items-center justify-center lg:justify-end bg-surface p-1.5 md:p-2 border border-white/[0.08] rounded-2xl md:rounded-3xl shadow-[0_20px_50px_rgba(var(--rgb-black),0.5)]">
             {PERSONAS.map((p) => {
               const isActive = p.id === activeTab
               const Icon = p.icon
@@ -326,8 +395,13 @@ export default function WhoItsForGrid() {
                   key={p.id}
                   onClick={() => {
                     setActiveTab(p.id)
+                    const match = AUDIENCE_NICHES.find(
+                      (n) => n.personaId === p.id && n.id !== 'all',
+                    )
+                    if (match) setSelectedNicheId(match.id)
+                    else setSelectedNicheId('all')
                   }}
-                  className={`flex flex-col items-center justify-center gap-2 px-3 py-6 md:px-5 md:py-8 rounded-[20px] md:rounded-4xl transition-all duration-300 relative focus:outline-none cursor-pointer flex-1 sm:flex-initial min-w-[95px] md:min-w-[120px] max-w-[130px] ${
+                  className={`flex flex-col items-center justify-center gap-1.5 px-3 py-3 md:px-4 md:py-4 rounded-xl md:rounded-2xl transition-all duration-300 relative focus:outline-none cursor-pointer flex-1 sm:flex-initial min-w-[85px] md:min-w-[105px] max-w-[120px] ${
                     isActive
                       ? 'text-text-secondary hover:text-text-primary transition-colors'
                       : 'text-text-secondary hover:text-text-primary'
@@ -337,12 +411,12 @@ export default function WhoItsForGrid() {
                   {isActive && (
                     <motion.div
                       layoutId="active-tab-glow"
-                      className="absolute inset-0 bg-white/[0.03] border border-white/[0.08] shadow-[0_6px_24px_rgba(var(--rgb-black),0.4)] rounded-[20px] md:rounded-4xl pointer-events-none"
+                      className="absolute inset-0 bg-white/[0.03] border border-white/[0.08] shadow-[0_6px_24px_rgba(var(--rgb-black),0.4)] rounded-xl md:rounded-2xl pointer-events-none"
                       transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                     />
                   )}
-                  <Icon className="w-5 h-5 transition-colors" />
-                  <span className="text-[10px] md:text-xs font-bold tracking-wide text-center leading-tight mt-1 max-w-[90px] break-words">
+                  <Icon className="w-4 h-4 transition-colors" />
+                  <span className="text-[10px] md:text-[11px] font-semibold tracking-wide text-center leading-tight mt-0.5 max-w-[85px] break-words">
                     {p.title}
                   </span>
                 </button>
@@ -357,7 +431,7 @@ export default function WhoItsForGrid() {
         <div
           onMouseEnter={() => setIsHoveredPanel(true)}
           onMouseLeave={() => setIsHoveredPanel(false)}
-          className="w-full rounded-4xl bg-surface border border-white/[0.08] flex flex-col relative overflow-hidden transition-all duration-500 hover:border-white/15 hover:shadow-[0_45px_100px_rgba(var(--rgb-black),0.85)] shadow-[0_30px_70px_rgba(var(--rgb-black),0.6)] h-[780px] md:h-[860px] justify-between"
+          className="w-full rounded-3xl bg-surface border border-white/[0.08] flex flex-col relative overflow-hidden transition-all duration-500 hover:border-white/15 hover:shadow-[0_45px_100px_rgba(var(--rgb-black),0.85)] shadow-[0_30px_70px_rgba(var(--rgb-black),0.6)] h-[530px] md:h-[550px] justify-between"
         >
           {/* Window header */}
           <div className="h-11 border-b border-white/[0.04] bg-surface flex items-center px-6 justify-between shrink-0 select-none">
@@ -403,70 +477,223 @@ export default function WhoItsForGrid() {
             </div>
 
             {/* Simulated Desktop Workspace Main Panel */}
-            <div className="flex-1 h-full flex flex-col bg-bg-main relative p-8 md:p-10 lg:p-12 overflow-hidden">
-              {/* BACKGROUND LAYER: The leads feed dashboard (dimmed/blurred when cockpit overlays) */}
+            <div className="flex-1 h-full flex flex-col bg-bg-main relative p-4 md:p-6 overflow-hidden">
+              {/* BACKGROUND LAYER: The authentic leads feed dashboard */}
               <div
-                className={`w-full h-full flex flex-col justify-start gap-5 transition-all duration-500 ${
+                className={`w-full h-full flex flex-col justify-start gap-3 transition-all duration-500 overflow-y-auto scrollbar-hide ${
                   revealed[activePersona.id]
                     ? 'opacity-30 blur-[3px] scale-98 pointer-events-none'
                     : 'opacity-100 blur-0 scale-100'
                 }`}
               >
-                {/* Leads Feed Dashboard Header */}
-                <div className="flex items-end justify-between shrink-0 select-none">
+                {/* Real Leads Feed Header & Controls Bar */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shrink-0 select-none">
                   <div className="flex items-center gap-2.5">
                     {/* Toggle Sidebar Button */}
                     <button
                       onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                      className={`p-2 bg-surface/80 hover:bg-white/5 border border-white/[0.08] hover:border-white/15 rounded-xl text-text-secondary hover:text-text-primary transition-all cursor-pointer flex items-center justify-center mr-2 shadow-md`}
+                      className="p-1.5 bg-surface/80 hover:bg-white/5 border border-white/[0.08] hover:border-white/15 rounded-xl text-text-secondary hover:text-text-primary transition-all cursor-pointer flex items-center justify-center mr-1 shadow-md"
                       title={isSidebarOpen ? 'Hide Sidebar' : 'Show Sidebar'}
                     >
                       <Bars3Icon
-                        className={`w-[15px] h-[15px] transition-transform duration-300 ${isSidebarOpen ? 'rotate-90 text-text-secondary' : ''}`}
+                        className={`w-3.5 h-3.5 transition-transform duration-300 ${isSidebarOpen ? 'rotate-90 text-text-secondary' : ''}`}
                       />
                     </button>
-                    <h3 className="text-lg font-bold text-text-primary tracking-tight">
+                    <h3 className="text-base font-bold text-text-primary tracking-tight">
                       Lead Feed
                     </h3>
-                    <div className="flex items-center gap-2 px-2.5 py-1 border-l-2 border-accent-purple bg-gradient-to-r from-accent-purple/10 to-transparent text-text-secondary hover:text-text-primary transition-colors text-[9px] font-bold tracking-super uppercase">
-                      <span className="w-1 h-1 bg-accent-purple animate-pulse shadow-[0_0_8px_currentColor]" />
-                      6 Signals
+                    <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-accent-purple/10 border border-accent-purple/20 text-accent-purple text-[10px] font-medium font-mono">
+                      <span className="w-1.5 h-1.5 rounded-full bg-accent-purple animate-pulse" />
+                      <span>6 Live Signals</span>
                     </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+                    {/* Real Search Input with ⌘K */}
+                    <div className="relative group flex-1 sm:w-52">
+                      <div className="absolute -inset-[1px] bg-gradient-to-r from-accent-purple/20 via-accent-mint/20 to-accent-purple/20 rounded-xl blur-sm opacity-40 group-hover:opacity-100 transition-opacity duration-300" />
+                      <div className="relative flex items-center bg-code-bg/90 border border-white/[0.08] rounded-xl px-2.5 py-1 shadow-sm focus-within:ring-1 focus-within:ring-white/20">
+                        <MagnifyingGlassIcon className="w-3.5 h-3.5 text-text-secondary mr-1.5 shrink-0" />
+                        <input
+                          type="text"
+                          placeholder="Search signals... (⌘K)"
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="w-full bg-transparent border-none text-text-primary text-[11px] placeholder:text-text-secondary/50 focus:outline-none focus:ring-0 py-0.5"
+                        />
+                        {searchQuery && (
+                          <button
+                            onClick={() => setSearchQuery('')}
+                            className="px-1 text-[10px] font-medium text-accent-purple hover:text-accent-purple/80 transition-colors"
+                          >
+                            Clear
+                          </button>
+                        )}
+                        <span className="px-1 py-0.2 rounded bg-white/5 border border-white/10 text-[9px] font-mono text-text-secondary shrink-0">
+                          ⌘K
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* View Mode Toggle */}
+                    <div className="flex items-center bg-[#1b1c1d] border border-white/[0.08] rounded-xl p-0.5 shadow-sm shrink-0">
+                      <button
+                        onClick={() => setViewMode('grid')}
+                        type="button"
+                        className={`p-1.5 rounded-lg transition-all ${
+                          viewMode === 'grid'
+                            ? 'bg-white/10 text-white shadow-sm'
+                            : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
+                        }`}
+                        title="Classic Grid View"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          strokeWidth={1.5}
+                          stroke="currentColor"
+                          className="w-3.5 h-3.5"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z"
+                          />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => setViewMode('pipeline')}
+                        type="button"
+                        className={`p-1.5 rounded-lg transition-all ${
+                          viewMode === 'pipeline'
+                            ? 'bg-primary/20 text-primary border border-primary/20 shadow-sm'
+                            : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
+                        }`}
+                        title="Pipeline Card View"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          strokeWidth={1.5}
+                          stroke="currentColor"
+                          className="w-3.5 h-3.5"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M9 4.5v15m6-15v15m-10.875 0h15.75c.621 0 1.125-.504 1.125-1.125V5.625c0-.621-.504-1.125-1.125-1.125H4.125C3.504 4.5 3 5.004 3 5.625v13.5c0 .621.504 1.125 1.125 1.125Z"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+
+                    {/* Sort Pill */}
+                    <div
+                      onClick={() =>
+                        setSortBy((prev) =>
+                          prev === 'newest'
+                            ? 'replyProbability'
+                            : prev === 'replyProbability'
+                              ? 'urgency'
+                              : 'newest',
+                        )
+                      }
+                      className="hidden sm:flex items-center gap-1 px-2 py-1 rounded-xl bg-code-bg/80 border border-white/[0.08] text-[11px] text-text-secondary cursor-pointer hover:border-white/15 transition-colors select-none"
+                      title="Click to cycle sort order"
+                    >
+                      <span>
+                        {sortBy === 'newest'
+                          ? 'Newest'
+                          : sortBy === 'replyProbability'
+                            ? 'High Reply'
+                            : 'Urgent'}
+                      </span>
+                      <ChevronDownIcon className="w-3 h-3 text-text-secondary" />
+                    </div>
+
+                    {/* Filters Button */}
+                    <button
+                      onClick={() => setIsFilterOpen(!isFilterOpen)}
+                      className={`flex items-center gap-1 px-2.5 py-1 rounded-xl bg-code-bg/80 border text-[11px] font-medium transition-all ${
+                        isFilterOpen
+                          ? 'border-accent-purple bg-accent-purple/10 text-accent-purple'
+                          : 'border-white/[0.08] text-text-secondary hover:text-text-primary hover:border-white/15'
+                      }`}
+                    >
+                      <AdjustmentsHorizontalIcon className="w-3.5 h-3.5" />
+                      <span>Filters</span>
+                    </button>
                   </div>
                 </div>
 
-                {/* Raycast-style Command Input */}
-                <div className="relative flex items-center bg-surface/80 border border-white/[0.08] rounded-xl p-2.5 shadow-xl shrink-0 select-none my-3">
-                  <MagnifyingGlassIcon className="w-[14px] h-[14px] text-text-secondary/40 ml-2" />
-                  <span className="text-[11px] text-text-secondary/40 flex-1 ml-2 font-normal">
-                    Ask AI or search signals... (Press ⌘K)
-                  </span>
-                  <div className="flex items-center gap-1.5 pr-1">
-                    <div className="flex items-center gap-1 px-2.5 py-1 rounded bg-white/5 border border-white/10 text-[9px] font-bold text-text-secondary">
-                      <SparklesIcon className="w-[11px] h-[11px] text-text-secondary" />
-                      <span>AI Filter</span>
-                    </div>
-                    <div className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-[9px] font-bold text-text-secondary">
-                      ⌘K
-                    </div>
-                  </div>
+                {/* Niche Filter Pills Row */}
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-hide shrink-0">
+                  {AUDIENCE_NICHES.map((niche) => {
+                    const isActive = selectedNicheId === niche.id
+                    return (
+                      <button
+                        key={niche.id}
+                        onClick={() => {
+                          setSelectedNicheId(niche.id)
+                          setActiveTab(niche.personaId)
+                        }}
+                        className={`px-3 py-1 text-[11px] font-semibold rounded-full border transition-all duration-200 whitespace-nowrap cursor-pointer ${
+                          isActive
+                            ? 'bg-accent-purple/10 border-accent-purple text-accent-purple shadow-[0_0_12px_rgba(168,85,247,0.18)]'
+                            : 'bg-white/5 border-white/[0.06] text-text-secondary hover:bg-white/10 hover:border-white/12 hover:text-text-primary'
+                        }`}
+                      >
+                        {niche.label}
+                      </button>
+                    )
+                  })}
                 </div>
 
                 {/* Spacious 3-card Lead Feed Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 md:gap-8 items-stretch overflow-hidden">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 items-stretch justify-center overflow-hidden max-w-[1100px] mx-auto w-full">
                   {/* Card 1: Secondary mock lead (SEO optimization signal) */}
-                  <div className="hidden xl:flex items-stretch h-full opacity-45 hover:opacity-75 transition-opacity duration-300">
-                    <PipelineLeadCard lead={mockLead1} />
+                  <div className="hidden md:flex items-stretch justify-center opacity-70 hover:opacity-100 transition-opacity duration-300">
+                    <div className="w-full max-w-[360px]">
+                      {viewMode === 'pipeline' ? (
+                        <PipelineLeadCard lead={mockLead1} index={0} />
+                      ) : (
+                        <LeadCard lead={mockLead1} index={0} />
+                      )}
+                    </div>
                   </div>
 
                   {/* Card 2: THE PRIMARY ACTIVE PERSONA LEAD CARD (clickable to reveal) */}
-                  <div className="flex items-stretch h-full">
-                    <PipelineLeadCard lead={appLead} onClick={() => handleReveal(activePersona.id)} />
+                  <div className="flex items-stretch justify-center">
+                    <div className="w-full max-w-[360px]">
+                      {viewMode === 'pipeline' ? (
+                        <PipelineLeadCard
+                          lead={appLead}
+                          index={1}
+                          isSelected={true}
+                          onReveal={() => handleReveal(activePersona.id)}
+                        />
+                      ) : (
+                        <LeadCard
+                          lead={appLead}
+                          index={1}
+                          isSelected={true}
+                          onReveal={() => handleReveal(activePersona.id)}
+                        />
+                      )}
+                    </div>
                   </div>
 
                   {/* Card 3: CRM migration signal */}
-                  <div className="hidden md:flex items-stretch h-full opacity-45 hover:opacity-75 transition-opacity duration-300">
-                    <PipelineLeadCard lead={mockLead2} />
+                  <div className="hidden md:flex items-stretch justify-center opacity-70 hover:opacity-100 transition-opacity duration-300">
+                    <div className="w-full max-w-[360px]">
+                      {viewMode === 'pipeline' ? (
+                        <PipelineLeadCard lead={mockLead2} index={2} />
+                      ) : (
+                        <LeadCard lead={mockLead2} index={2} />
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -531,7 +758,7 @@ export default function WhoItsForGrid() {
                         {/* AI strategy bar */}
                         <div className="flex items-center gap-2 mb-3 select-none overflow-x-auto pb-1">
                           <div className="flex items-center gap-1 px-2.5 py-1 rounded bg-surface-secondary border border-border-subtle text-text-secondary hover:text-text-primary transition-colors text-[8px] font-bold uppercase tracking-wider">
-                            <SparklesIcon className="w-2 h-2 animate-pulse" />
+                            <SparklesIcon className="w-2 h-2" />
                             <span>Buyer Context:</span>
                           </div>
                           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-surface-secondary border border-border-subtle text-[8px] font-bold text-text-secondary hover:text-text-primary transition-colors">
@@ -540,11 +767,11 @@ export default function WhoItsForGrid() {
                           </div>
                         </div>
 
-                        {/* Signal block */}
+                        {/* Signal block -> Core Scope (Intel) */}
                         <div className="text-[11px] text-text-secondary flex items-center gap-1.5 mb-2 select-none">
                           <span className="text-text-secondary/50 font-medium">Signal:</span>
                           <span className="text-text-primary font-semibold">
-                            {activePersona.lead.signalContext}
+                            {activePersona.lead.taskScope}
                           </span>
                         </div>
 
@@ -575,8 +802,8 @@ export default function WhoItsForGrid() {
                 )}
               </AnimatePresence>
 
-              {/* Bottom fade-out overlay (opaque gradient — no backdrop-blur for scroll perf) */}
-              <div className="absolute bottom-0 left-0 right-0 h-40 pointer-events-none z-20">
+              {/* Bottom fade-out overlay */}
+              <div className="absolute bottom-0 left-0 right-0 h-16 pointer-events-none z-20">
                 <div className="absolute inset-0 bg-gradient-to-t from-background via-background/90 via-60% to-transparent pointer-events-none" />
               </div>
             </div>
@@ -590,7 +817,7 @@ export default function WhoItsForGrid() {
             </div>
             <div className="flex items-center gap-1">
               <span>Active socket connection</span>
-              <ArrowRightIcon className="w-[9px] h-[9px] text-text-secondary animate-pulse" />
+              <ArrowRightIcon className="w-[9px] h-[9px] text-text-secondary" />
             </div>
           </div>
         </div>

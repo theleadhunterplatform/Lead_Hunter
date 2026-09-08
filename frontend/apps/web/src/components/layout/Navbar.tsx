@@ -9,10 +9,11 @@ import { Bars3Icon, XMarkIcon, ArrowRightIcon } from '@heroicons/react/24/solid'
 import { useAuth } from '@/hooks/useAuth'
 
 const navLinks = [
-  { name: 'How It Works', href: '#funnel' },
-  { name: 'Features', href: '#features' },
-  { name: 'Pricing', href: '#pricing' },
-  { name: 'FAQ', href: '#faq' },
+  { name: 'How It Works', href: '/#funnel' },
+  { name: 'Reviews', href: '/#testimonials' },
+  { name: 'Features', href: '/#features' },
+  { name: 'Pricing', href: '/#pricing' },
+  { name: 'FAQ', href: '/#faq' },
 ]
 
 const ease = [0.16, 1, 0.3, 1] as const
@@ -37,7 +38,7 @@ export default function Navbar() {
 
   // Active hash sync using Intersection Observer
   useEffect(() => {
-    const sections = ['funnel', 'features', 'pricing', 'faq']
+    const sections = ['funnel', 'testimonials', 'features', 'pricing', 'faq']
     const observerOptions = {
       root: null,
       rootMargin: '-40% 0px -50% 0px',
@@ -92,7 +93,6 @@ export default function Navbar() {
 
   const showDashboard = !loading && user
   const showLogin = !isScrolled || isHovered
-  const showSneakPeek = !isScrolled || isHovered
 
   return (
     <>
@@ -110,9 +110,9 @@ export default function Navbar() {
           className={`flex items-center justify-between w-full transition-all duration-500 ease-out ${
             isScrolled
               ? isHovered
-                ? 'max-w-[1200px] bg-background/90 backdrop-blur-2xl border border-white/[0.08] shadow-[0_12px_40px_rgba(0,0,0,0.6)] rounded-2xl px-5 py-3'
+                ? 'max-w-[1100px] bg-background/90 backdrop-blur-2xl border border-white/[0.08] shadow-[0_12px_40px_rgba(0,0,0,0.6)] rounded-2xl px-5 py-3'
                 : 'max-w-[760px] bg-background/90 backdrop-blur-2xl border border-white/[0.08] shadow-[0_12px_40px_rgba(0,0,0,0.6)] rounded-full px-5 py-2.5'
-              : 'max-w-[1200px] bg-transparent border border-transparent rounded-2xl px-5 py-3'
+              : 'max-w-[1100px] bg-transparent border border-transparent rounded-2xl px-5 py-3'
           }`}
         >
           {/* Left: Brand */}
@@ -135,22 +135,26 @@ export default function Navbar() {
           {/* Center: Links (Desktop) */}
           <div className="hidden md:flex items-center shrink-0 flex-nowrap">
             <div className="flex items-center gap-1 flex-nowrap">
-              {navLinks.map((link) => {
-                const isActive = activeHash === link.href
-                return (
-                  <a
-                    key={link.name}
-                    href={link.href}
-                    className={`relative px-4 py-2 text-[13px] font-medium transition-all duration-300 tracking-wide rounded-lg whitespace-nowrap ${
-                      isActive
-                        ? 'text-accent-orange bg-accent-orange/[0.04]'
-                        : 'text-text-secondary/70 hover:text-text-primary hover:bg-white/[0.04]'
-                    }`}
-                  >
-                    {link.name}
-                  </a>
-                )
-              })}
+               {navLinks.map((link) => {
+                 const isHash = link.href.includes('#')
+                 const hashPart = isHash ? link.href.substring(link.href.indexOf('#')) : ''
+                 const isActive = isHash 
+                   ? (pathname === '/' ? activeHash === hashPart : (hashPart === '#testimonials' && (pathname === '/reviews' || pathname === '/wall-of-love')))
+                   : pathname === link.href
+                 return (
+                    <Link
+                      key={link.name}
+                      href={link.href}
+                      className={`relative px-4 py-2 text-[13px] font-medium transition-colors duration-300 tracking-wide whitespace-nowrap ${
+                        isActive
+                          ? 'text-accent-orange'
+                          : 'text-text-secondary/70 hover:text-text-primary'
+                      }`}
+                    >
+                      {link.name}
+                    </Link>
+                 )
+               })}
             </div>
           </div>
 
@@ -190,21 +194,6 @@ export default function Navbar() {
                         className="text-[13px] font-medium text-text-secondary/70 hover:text-text-primary transition-colors duration-300 tracking-wide px-4 py-2 overflow-hidden whitespace-nowrap"
                       >
                         Log in
-                      </motion.a>
-                    )}
-                  </AnimatePresence>
-                  
-                  <AnimatePresence>
-                    {showSneakPeek && (
-                      <motion.a
-                        initial={isScrolled ? { opacity: 0, width: 0, scale: 0.95 } : false}
-                        animate={{ opacity: 1, width: 'auto', scale: 1 }}
-                        exit={{ opacity: 0, width: 0, scale: 0.95 }}
-                        transition={{ duration: 0.25, ease }}
-                        href="/sneak-peek"
-                        className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/[0.02] border border-white/[0.06] hover:border-accent-orange/20 hover:bg-accent-orange/[0.03] text-text-secondary hover:text-text-primary text-[13px] font-medium transition-all duration-300 overflow-hidden whitespace-nowrap"
-                      >
-                        <span>Sneak Peek</span>
                       </motion.a>
                     )}
                   </AnimatePresence>
@@ -271,18 +260,21 @@ export default function Navbar() {
             >
               <div className="space-y-1 mb-6">
                 {navLinks.map((link, i) => (
-                  <motion.a
+                  <motion.div
                     key={link.name}
-                    href={link.href}
-                    onClick={() => setMobileOpen(false)}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: i * 0.05, duration: 0.4, ease }}
-                    className="flex items-center justify-between px-4 py-3.5 rounded-xl text-[15px] font-medium text-text-secondary/80 hover:text-text-primary hover:bg-white/[0.04] transition-all duration-300"
                   >
-                    <span>{link.name}</span>
-                    <ArrowRightIcon className="w-[14px] h-[14px] text-text-secondary/30" />
-                  </motion.a>
+                    <Link
+                      href={link.href}
+                      onClick={() => setMobileOpen(false)}
+                      className="flex items-center justify-between px-4 py-3.5 rounded-xl text-[15px] font-medium text-text-secondary/80 hover:text-text-primary hover:bg-white/[0.04] transition-all duration-300"
+                    >
+                      <span>{link.name}</span>
+                      <ArrowRightIcon className="w-[14px] h-[14px] text-text-secondary/30" />
+                    </Link>
+                  </motion.div>
                 ))}
               </div>
 
@@ -298,13 +290,6 @@ export default function Navbar() {
                   </a>
                 ) : (
                   <>
-                    <a
-                      href="/sneak-peek"
-                      onClick={() => setMobileOpen(false)}
-                      className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-[14px] font-medium text-text-secondary hover:text-text-primary border border-white/[0.06] hover:border-accent-orange/20 hover:bg-accent-orange/[0.03] transition-all duration-300"
-                    >
-                      Sneak Peek
-                    </a>
                     <a
                       href="/login"
                       onClick={() => setMobileOpen(false)}

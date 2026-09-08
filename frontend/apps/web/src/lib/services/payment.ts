@@ -3,7 +3,7 @@ import type { Prisma } from '@prisma/client'
 import { getPlanCredits } from '@/lib/config/plans'
 import { expireRolloverInTx, rolloverOnRenewal } from '@/lib/services/rollover'
 
-export type PaymentProvider = 'stripe' | 'razorpay'
+export type PaymentProvider = 'razorpay'
 
 export interface ActivatePlanParams {
   userId: string
@@ -22,27 +22,11 @@ function providerFields(
   priceId?: string | null,
   periodEnd?: Date | null,
 ) {
-  if (provider === 'razorpay') {
-    return {
-      razorpayCustomerId: customerId ?? null,
-      razorpaySubscriptionId: subscriptionId ?? null,
-      razorpayPlanId: priceId ?? null,
-      razorpayCurrentPeriodEnd: periodEnd ?? null,
-      stripeCustomerId: null,
-      stripeSubscriptionId: null,
-      stripePriceId: null,
-      stripeCurrentPeriodEnd: null,
-    }
-  }
   return {
-    stripeCustomerId: customerId ?? null,
-    stripeSubscriptionId: subscriptionId ?? null,
-    stripePriceId: priceId ?? null,
-    stripeCurrentPeriodEnd: periodEnd ?? null,
-    razorpayCustomerId: null,
-    razorpaySubscriptionId: null,
-    razorpayPlanId: null,
-    razorpayCurrentPeriodEnd: null,
+    razorpayCustomerId: customerId ?? null,
+    razorpaySubscriptionId: subscriptionId ?? null,
+    razorpayPlanId: priceId ?? null,
+    razorpayCurrentPeriodEnd: periodEnd ?? null,
   }
 }
 
@@ -132,11 +116,8 @@ export const paymentService = {
       await expireRolloverInTx(tx, userId, account)
       const rollover = rolloverOnRenewal(account, account.subscriptionBalance)
 
-      const data: Prisma.UserUpdateInput = {}
-      if (provider === 'razorpay') {
-        data.razorpayCurrentPeriodEnd = renewalDate
-      } else {
-        data.stripeCurrentPeriodEnd = renewalDate
+      const data: Prisma.UserUpdateInput = {
+        razorpayCurrentPeriodEnd: renewalDate,
       }
 
       await tx.user.update({ where: { id: userId }, data })
@@ -192,7 +173,7 @@ export const paymentService = {
         where: { id: userId },
         data: {
           plan: 'FREE',
-          paymentProvider: 'stripe',
+          paymentProvider: 'razorpay',
           ...providerFields(provider),
         },
       })

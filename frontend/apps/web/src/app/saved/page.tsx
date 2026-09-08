@@ -11,8 +11,14 @@ import {
   DocumentArrowDownIcon,
   ClipboardDocumentListIcon,
   ArrowPathIcon,
+  ChevronDownIcon,
+  CheckIcon,
+  PaperAirplaneIcon,
+  PencilSquareIcon,
+  EnvelopeIcon,
+  TrashIcon,
+  LockClosedIcon,
 } from '@heroicons/react/24/solid'
-import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { AppLead } from '@/types/lead'
 import { Badge, Button, CustomLoader } from '@/components/ui'
@@ -22,11 +28,13 @@ import { toCsv, toTsv, downloadXlsx, leadsToRows } from '@/lib/csv'
 
 export default function SavedLeadsPage() {
   const [activeTab, setActiveTab] = useState('All Leads')
+  const [searchTerm, setSearchTerm] = useState('')
   const [savedLeads, setSavedLeads] = useState<AppLead[]>([])
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
   const [exporting, setExporting] = useState<'csv' | 'tsv' | 'sheet' | null>(null)
+  const [openActionDropdownId, setOpenActionDropdownId] = useState<string | null>(null)
   const { addToast } = useToast()
 
   const readyCount = savedLeads.filter(
@@ -72,6 +80,14 @@ export default function SavedLeadsPage() {
   ]
 
   const handleMarkStatus = async (leadId: string, status: string, label: string) => {
+    // 1. Optimistic UI update (instant response)
+    const prevLeads = savedLeads
+    setSavedLeads((prev) =>
+      prev.map((l) => (l.id === leadId ? { ...l, status: status as AppLead['status'] } : l)),
+    )
+    addToast({ type: 'success', message: `✓ Marked as ${label}` })
+
+    // 2. Background sync
     try {
       const token = await getFirebaseToken()
       const res = await fetch(`/api/leads/${leadId}`, {
@@ -82,13 +98,12 @@ export default function SavedLeadsPage() {
         },
         body: JSON.stringify({ status }),
       })
-      if (res.ok) {
-        setSavedLeads((prev) =>
-          prev.map((l) => (l.id === leadId ? { ...l, status: status as AppLead['status'] } : l)),
-        )
-        addToast({ type: 'success', message: `✓ Marked as ${label}` })
+      if (!res.ok) {
+        setSavedLeads(prevLeads)
+        addToast({ type: 'error', message: 'Failed to update status on server' })
       }
     } catch {
+      setSavedLeads(prevLeads)
       addToast({ type: 'error', message: 'Failed to update status' })
     }
   }
@@ -101,18 +116,20 @@ export default function SavedLeadsPage() {
     return leadsToRows(filteredLeads)
   }
 
-  const handleExportSheet = () => {
+  const handleExportSheet = async () => {
     const rows = getRows()
     if (!rows) return
     setExporting('sheet')
     try {
       const date = new Date().toISOString().slice(0, 10)
-      downloadXlsx(
+      await downloadXlsx(
         `leadhunter-leads-${date}.xlsx`,
         rows,
         `Exported ${date} | View: ${activeTab} | Count: ${filteredLeads.length}`,
       )
       addToast({ type: 'success', message: `✓ Downloaded ${filteredLeads.length} leads as Excel` })
+    } catch {
+      addToast({ type: 'error', message: 'Failed to download Excel file' })
     } finally {
       setExporting(null)
       setExportOpen(false)
@@ -127,7 +144,7 @@ export default function SavedLeadsPage() {
       await navigator.clipboard.writeText(toTsv(rows))
       addToast({
         type: 'success',
-        message: `✓ Copied ${filteredLeads.length} leads — paste into Excel/Sheets`,
+        message: `✓ Copied ${filteredLeads.length} leads · Paste into Excel/Sheets`,
       })
     } catch {
       addToast({ type: 'error', message: 'Clipboard access blocked' })
@@ -155,11 +172,61 @@ export default function SavedLeadsPage() {
     }
   }
 
+  const handleCopyEmail = async (lead: AppLead) => {
+    if (!lead.isRevealed) {
+      addToast({ type: 'info', message: 'Reveal contact info to view and copy email' })
+      return
+    }
+    if (!lead.email || lead.email.includes('hidden')) {
+      addToast({ type: 'error', message: 'No valid email available for this lead' })
+      return
+    }
+    try {
+      await navigator.clipboard.writeText(lead.email)
+      addToast({ type: 'success', message: `✓ Copied ${lead.email}` })
+    } catch {
+      addToast({ type: 'error', message: 'Clipboard access blocked' })
+    }
+  }
+
+  const handleRemoveSaved = async (leadId: string) => {
+    // 1. Optimistic UI update (instant response)
+    const prevLeads = savedLeads
+    setSavedLeads((prev) => prev.filter((l) => l.id !== leadId))
+    addToast({ type: 'success', message: '✓ Removed from saved leads' })
+
+    // 2. Background sync
+    try {
+      const token = await getFirebaseToken()
+      const res = await fetch(`/api/leads/${leadId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ isSaved: false, status: 'new' }),
+      })
+      if (!res.ok) {
+        setSavedLeads(prevLeads)
+        addToast({ type: 'error', message: 'Failed to remove from saved leads on server' })
+      }
+    } catch {
+      setSavedLeads(prevLeads)
+      addToast({ type: 'error', message: 'Network error removing lead' })
+    }
+  }
+
   useEffect(() => {
-    if (!exportOpen) return
-    const close = () => setExportOpen(false)
+    if (!exportOpen && !openActionDropdownId) return
+    const close = () => {
+      setExportOpen(false)
+      setOpenActionDropdownId(null)
+    }
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setExportOpen(false)
+      if (e.key === 'Escape') {
+        setExportOpen(false)
+        setOpenActionDropdownId(null)
+      }
     }
     window.addEventListener('click', close)
     window.addEventListener('keydown', onKey)
@@ -167,7 +234,7 @@ export default function SavedLeadsPage() {
       window.removeEventListener('click', close)
       window.removeEventListener('keydown', onKey)
     }
-  }, [exportOpen])
+  }, [exportOpen, openActionDropdownId])
 
   const handleSync = async () => {
     setSyncing(true)
@@ -217,13 +284,20 @@ export default function SavedLeadsPage() {
   }, [])
 
   const filteredLeads = savedLeads.filter((lead) => {
-    if (activeTab === 'All Leads') return true
     if (activeTab === 'In Progress') return ['drafting', 'sent', 'follow-up'].includes(lead.status)
     if (activeTab === 'Archived') return lead.status === 'replied'
+    const term = searchTerm.trim().toLowerCase()
+    if (term) {
+      const name = (lead.isRevealed ? lead.name : '').toLowerCase()
+      const email = (lead.isRevealed ? lead.email : '').toLowerCase()
+      const company = (lead.company ?? '').toLowerCase()
+      if (!(name.includes(term) || email.includes(term) || company.includes(term))) return false
+    }
     return true
   })
 
   const statusBadgeColor: Record<string, 'mint' | 'purple'> = {
+    new: 'mint',
     saved: 'mint',
     drafting: 'mint',
     sent: 'purple',
@@ -231,17 +305,26 @@ export default function SavedLeadsPage() {
     'follow-up': 'purple',
   }
 
+  const statusActionConfig: Record<
+    string,
+    { label: string; icon: typeof BookmarkIcon }
+  > = {
+    saved: { label: 'Mark as Saved', icon: BookmarkIcon },
+    new: { label: 'Mark as Saved', icon: BookmarkIcon },
+    drafting: { label: 'Mark as Drafting', icon: PencilSquareIcon },
+    sent: { label: 'Mark as Sent', icon: PaperAirplaneIcon },
+    'follow-up': { label: 'Mark as Follow-up', icon: ArrowPathIcon },
+    replied: { label: 'Mark as Replied', icon: ChatBubbleLeftRightIcon },
+  }
+
   return (
-    <main className="flex-1 overflow-y-auto px-8 py-10 relative scrollbar-hide">
+    <main data-lenis-prevent className="flex-1 h-full min-h-0 overflow-y-auto px-8 py-10 relative scrollbar-hide">
       <div className="max-w-[1400px] mx-auto relative z-10">
         {/* Summary Cards Row */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
-          {dynamicSummaryCards.map((card, i) => (
-            <motion.div
+          {dynamicSummaryCards.map((card) => (
+            <div
               key={card.label}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.1 }}
               className="group relative p-6 metallic-card transition-all duration-300 overflow-hidden"
             >
               <div className="flex justify-between items-start mb-6">
@@ -261,18 +344,18 @@ export default function SavedLeadsPage() {
               <div
                 className={`absolute bottom-0 left-0 w-full h-1 bg-accent-${card.accent}/20 group-hover:bg-accent-${card.accent}/40 transition-all`}
               />
-            </motion.div>
+            </div>
           ))}
         </div>
 
         {/* Table Controls */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-8">
-            <h2 className="text-2xl font-bold text-text-primary tracking-tight flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
+          <div className="flex flex-wrap items-center gap-4 sm:gap-8 shrink-0">
+            <h2 className="text-2xl font-bold text-text-primary tracking-tight flex items-center gap-3 whitespace-nowrap shrink-0">
               <BookmarkIcon className="w-6 h-6 text-text-secondary" />
               Saved Leads
             </h2>
-            <div className="flex items-center gap-1 bg-white/5 p-1 rounded-xl border border-white/5">
+            <div className="flex items-center gap-1 bg-white/5 p-1 rounded-xl border border-white/5 shrink-0">
               {['All Leads', 'In Progress', 'Archived'].map((tab) => (
                 <button
                   key={tab}
@@ -289,13 +372,15 @@ export default function SavedLeadsPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3 shrink-0">
             <div className="relative group">
               <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
               <input
                 type="text"
-                placeholder="Search pipeline..."
-                className="bg-surface-secondary/50 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-xs focus:outline-none focus:border-border-subtle transition-all w-64"
+                placeholder="Search by name, email, or company..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="bg-surface-secondary/50 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-xs focus:outline-none focus:border-border-subtle transition-all w-48 sm:w-60 focus:w-64"
               />
             </div>
 
@@ -327,7 +412,7 @@ export default function SavedLeadsPage() {
                     <ClipboardDocumentListIcon className="w-4 h-4 text-accent-mint shrink-0" />
                     <span>
                       <span className="block text-xs font-bold text-text-primary">Copy as CSV</span>
-                      <span className="block text-[10px] text-text-secondary mt-0.5">Comma-separated — for any app</span>
+                      <span className="block text-[10px] text-text-secondary mt-0.5">Comma-separated · Universal format</span>
                     </span>
                   </button>
                   <div className="h-px bg-white/[0.05]" />
@@ -338,7 +423,7 @@ export default function SavedLeadsPage() {
                     <ClipboardDocumentListIcon className="w-4 h-4 text-accent-purple shrink-0" />
                     <span>
                       <span className="block text-xs font-bold text-text-primary">Copy as TSV</span>
-                      <span className="block text-[10px] text-text-secondary mt-0.5">Tab-separated — paste into Sheets/Excel</span>
+                      <span className="block text-[10px] text-text-secondary mt-0.5">Tab-separated · Paste into Sheets/Excel</span>
                     </span>
                   </button>
                   <div className="h-px bg-white/[0.05]" />
@@ -349,7 +434,7 @@ export default function SavedLeadsPage() {
                     <DocumentArrowDownIcon className="w-4 h-4 text-accent-mint shrink-0" />
                     <span>
                       <span className="block text-xs font-bold text-text-primary">Download Sheet</span>
-                      <span className="block text-[10px] text-text-secondary mt-0.5">Formatted .xlsx — headers, filters, frozen row</span>
+                      <span className="block text-[10px] text-text-secondary mt-0.5">Formatted .xlsx · Headers, filters, frozen row</span>
                     </span>
                   </button>
                 </div>
@@ -359,7 +444,7 @@ export default function SavedLeadsPage() {
         </div>
 
         {/* Pipeline Table */}
-        <div className="metallic-card overflow-hidden">
+        <div className="metallic-card min-h-[420px] pb-16">
           {filteredLeads.length === 0 && !loading && (
             <div className="p-12 text-center">
               <p className="text-text-secondary text-sm">No leads match this view.</p>
@@ -375,107 +460,279 @@ export default function SavedLeadsPage() {
           )}
 
           {filteredLeads.length > 0 && (
-            <>
-              <div className="grid grid-cols-12 gap-4 px-8 py-4 border-b border-white/[0.05] text-xxs font-bold text-text-secondary uppercase tracking-super">
-                <div className="col-span-1">Status</div>
-                <div className="col-span-3">Lead</div>
-                <div className="col-span-2">Stage</div>
-                <div className="col-span-3">Urgency</div>
-                <div className="col-span-3 text-right">Actions</div>
-              </div>
+            <div className="overflow-x-auto scrollbar-hide">
+              <div className="min-w-[760px]">
+                <div className="grid grid-cols-12 gap-4 px-6 sm:px-8 py-4 border-b border-white/[0.05] text-xxs font-bold text-text-secondary uppercase tracking-super">
+                  <div className="col-span-1">Status</div>
+                  <div className="col-span-4">Lead</div>
+                  <div className="col-span-2">Stage</div>
+                  <div className="col-span-2">Urgency</div>
+                  <div className="col-span-3 text-right pr-2">Actions</div>
+                </div>
 
-              <div className="divide-y divide-white/[0.03]">
-                {filteredLeads.map((lead, i) => (
-                  <motion.div
-                    key={lead.id}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.4 + i * 0.05 }}
-                    className="grid grid-cols-12 gap-4 px-8 py-4 items-center group hover:bg-white/[0.02] transition-colors"
-                  >
-                    <div className="col-span-1 flex items-center">
+                <div className="divide-y divide-white/[0.03]">
+                  {filteredLeads.map((lead, index) => {
+                    const isDropdownOpen = openActionDropdownId === lead.id
+                    const isNearBottom = index > 0 && (filteredLeads.length <= 3 || index >= filteredLeads.length - 2)
+
+                    return (
                       <div
-                        className={`w-2.5 h-2.5 rounded-full ${
-                          lead.status === 'replied'
-                            ? 'bg-accent-purple'
-                            : lead.status === 'sent' || lead.status === 'follow-up'
-                              ? 'bg-accent-purple'
-                              : 'bg-accent-mint'
-                        } ${lead.isActionable ? 'animate-pulse ring-4 ring-accent-purple/20' : ''}`}
-                      />
-                    </div>
-
-                    <div className="col-span-3 flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-surface-elevated border border-white/10 flex items-center justify-center text-11 font-bold text-text-primary overflow-hidden shrink-0">
-                        {lead.isRevealed
-                          ? lead.name.split(' ').map((n) => n[0]).join('')
-                          : '??'}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-sm font-bold text-text-primary truncate">
-                          {lead.isRevealed ? lead.name : 'Unlocked Contact'}
+                        key={lead.id}
+                        className={`grid grid-cols-12 gap-4 px-6 sm:px-8 py-4 items-center group hover:bg-white/[0.02] transition-colors relative ${
+                          isDropdownOpen ? 'z-30' : 'z-10'
+                        }`}
+                      >
+                        <div className="col-span-1 flex items-center">
+                          <div
+                            className={`w-2.5 h-2.5 rounded-full ${
+                              lead.status === 'replied'
+                                ? 'bg-accent-purple'
+                                : lead.status === 'sent' || lead.status === 'follow-up'
+                                  ? 'bg-accent-purple'
+                                  : 'bg-accent-mint'
+                            } ${lead.isActionable ? 'animate-pulse ring-4 ring-accent-purple/20' : ''}`}
+                          />
                         </div>
-                        <div className="text-xxs text-text-secondary truncate">
-                          {lead.isRevealed ? lead.email : 'unlocked@leadhunterclub.com'}
+
+                        <div className="col-span-4 flex items-center gap-3">
+                          <div className={`w-9 h-9 rounded-full border flex items-center justify-center text-11 font-bold overflow-hidden shrink-0 ${
+                            lead.isRevealed
+                              ? 'bg-surface-elevated border-white/10 text-text-primary'
+                              : 'bg-accent-purple/10 border-accent-purple/20 text-accent-purple'
+                          }`}>
+                            {lead.isRevealed
+                              ? lead.name.split(' ').map((n) => n[0]).join('')
+                              : <LockClosedIcon className="w-3.5 h-3.5" />}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-sm font-bold text-text-primary truncate flex items-center gap-1.5">
+                              {lead.isRevealed ? lead.name : (lead.title || lead.category || 'Saved Lead')}
+                              {!lead.isRevealed && (
+                                <span className="text-[9px] font-bold uppercase tracking-wider text-accent-purple bg-accent-purple/10 px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                                  Locked
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-xxs text-text-secondary truncate">
+                              {lead.isRevealed
+                                ? lead.email
+                                : (lead.nicheTags?.slice(0, 3).join(' · ') || lead.category || 'Reveal to see contact')}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="col-span-2">
+                          <Badge size="sm" color={statusBadgeColor[lead.status] || 'mint'}>
+                            {lead.status}
+                          </Badge>
+                        </div>
+
+                        <div className="col-span-2">
+                          <div className="flex items-center gap-2">
+                            <Badge
+                              size="sm"
+                              color={
+                                lead.urgency === 'critical' || lead.urgency === 'high'
+                                  ? 'mint'
+                                  : 'purple'
+                              }
+                            >
+                              {lead.urgency}
+                            </Badge>
+                            {lead.replyProbability > 0 && (
+                              <span className="text-xxs text-text-secondary">
+                                {lead.replyProbability}%
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="col-span-3 text-right flex items-center justify-end relative pr-2">
+                          <div className="relative inline-block text-left" onClick={(e) => e.stopPropagation()}>
+                            {(() => {
+                              const currentAction = statusActionConfig[lead.status] || {
+                                label: 'Actions',
+                                icon: BookmarkIcon,
+                              }
+                              const ActionIcon = currentAction.icon
+
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={() => setOpenActionDropdownId(isDropdownOpen ? null : lead.id)}
+                                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                                    isDropdownOpen
+                                      ? 'bg-white/15 text-text-primary border-primary/40 shadow-sm'
+                                      : 'bg-white/5 hover:bg-white/10 text-text-secondary hover:text-text-primary border-white/10'
+                                  }`}
+                                  aria-expanded={isDropdownOpen}
+                                  aria-haspopup="true"
+                                >
+                                  <ActionIcon className="w-3.5 h-3.5 text-primary shrink-0" />
+                                  <span>{currentAction.label}</span>
+                                  <ChevronDownIcon
+                                    className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                                      isDropdownOpen ? 'rotate-180 text-primary' : 'text-text-secondary'
+                                    }`}
+                                  />
+                                </button>
+                              )
+                            })()}
+
+                            {isDropdownOpen && (
+                              <div
+                                className={`absolute right-0 ${
+                                  isNearBottom ? 'bottom-full mb-2 origin-bottom-right' : 'top-full mt-2 origin-top-right'
+                                } w-52 max-h-[320px] overflow-y-auto scrollbar-hide rounded-2xl bg-surface-elevated/95 border border-white/10 shadow-2xl shadow-black/80 py-2 z-50 text-left backdrop-blur-xl`}
+                              >
+                                <div className="px-3 pb-1 pt-0.5 text-[10px] font-bold uppercase tracking-wider text-text-secondary/70">
+                                  Stage / Status
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    handleMarkStatus(lead.id, 'saved', 'Saved')
+                                    setOpenActionDropdownId(null)
+                                  }}
+                                  className={`w-full flex items-center justify-between px-3 py-1.5 text-xs transition-colors hover:bg-white/5 ${
+                                    lead.status === 'saved' || lead.status === 'new'
+                                      ? 'text-primary font-semibold bg-primary/10'
+                                      : 'text-text-primary'
+                                  }`}
+                                >
+                                  <span className="flex items-center gap-2">
+                                    <BookmarkIcon className={`w-3.5 h-3.5 shrink-0 ${lead.status === 'saved' || lead.status === 'new' ? 'text-primary' : 'text-text-secondary'}`} />
+                                    Mark as Saved
+                                  </span>
+                                  {(lead.status === 'saved' || lead.status === 'new') && (
+                                    <CheckIcon className="w-3.5 h-3.5 text-primary" />
+                                  )}
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    handleMarkStatus(lead.id, 'drafting', 'Drafting')
+                                    setOpenActionDropdownId(null)
+                                  }}
+                                  className={`w-full flex items-center justify-between px-3 py-1.5 text-xs transition-colors hover:bg-white/5 ${
+                                    lead.status === 'drafting'
+                                      ? 'text-primary font-semibold bg-primary/10'
+                                      : 'text-text-primary'
+                                  }`}
+                                >
+                                  <span className="flex items-center gap-2">
+                                    <PencilSquareIcon className={`w-3.5 h-3.5 shrink-0 ${lead.status === 'drafting' ? 'text-primary' : 'text-text-secondary'}`} />
+                                    Mark as Drafting
+                                  </span>
+                                  {lead.status === 'drafting' && (
+                                    <CheckIcon className="w-3.5 h-3.5 text-primary" />
+                                  )}
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    handleMarkStatus(lead.id, 'sent', 'Sent')
+                                    setOpenActionDropdownId(null)
+                                  }}
+                                  className={`w-full flex items-center justify-between px-3 py-1.5 text-xs transition-colors hover:bg-white/5 ${
+                                    lead.status === 'sent'
+                                      ? 'text-primary font-semibold bg-primary/10'
+                                      : 'text-text-primary'
+                                  }`}
+                                >
+                                  <span className="flex items-center gap-2">
+                                    <PaperAirplaneIcon className={`w-3.5 h-3.5 shrink-0 ${lead.status === 'sent' ? 'text-primary' : 'text-text-secondary'}`} />
+                                    Mark as Sent
+                                  </span>
+                                  {lead.status === 'sent' && (
+                                    <CheckIcon className="w-3.5 h-3.5 text-primary" />
+                                  )}
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    handleMarkStatus(lead.id, 'follow-up', 'Follow-up')
+                                    setOpenActionDropdownId(null)
+                                  }}
+                                  className={`w-full flex items-center justify-between px-3 py-1.5 text-xs transition-colors hover:bg-white/5 ${
+                                    lead.status === 'follow-up'
+                                      ? 'text-primary font-semibold bg-primary/10'
+                                      : 'text-text-primary'
+                                  }`}
+                                >
+                                  <span className="flex items-center gap-2">
+                                    <ArrowPathIcon className={`w-3.5 h-3.5 shrink-0 ${lead.status === 'follow-up' ? 'text-primary' : 'text-text-secondary'}`} />
+                                    Mark as Follow-up
+                                  </span>
+                                  {lead.status === 'follow-up' && (
+                                    <CheckIcon className="w-3.5 h-3.5 text-primary" />
+                                  )}
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    handleMarkStatus(lead.id, 'replied', 'Replied')
+                                    setOpenActionDropdownId(null)
+                                  }}
+                                  className={`w-full flex items-center justify-between px-3 py-1.5 text-xs transition-colors hover:bg-white/5 ${
+                                    lead.status === 'replied'
+                                      ? 'text-primary font-semibold bg-primary/10'
+                                      : 'text-text-primary'
+                                  }`}
+                                >
+                                  <span className="flex items-center gap-2">
+                                    <ChatBubbleLeftRightIcon className={`w-3.5 h-3.5 shrink-0 ${lead.status === 'replied' ? 'text-primary' : 'text-text-secondary'}`} />
+                                    Mark as Replied
+                                  </span>
+                                  {lead.status === 'replied' && (
+                                    <CheckIcon className="w-3.5 h-3.5 text-primary" />
+                                  )}
+                                </button>
+
+                                <div className="h-px bg-white/[0.08] my-1" />
+
+                                <div className="px-3 pb-1 pt-0.5 text-[10px] font-bold uppercase tracking-wider text-text-secondary/70">
+                                  Lead Actions
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    handleCopyEmail(lead)
+                                    setOpenActionDropdownId(null)
+                                  }}
+                                  className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-text-primary hover:bg-white/5 transition-colors"
+                                >
+                                  <EnvelopeIcon className="w-3.5 h-3.5 text-text-secondary shrink-0" />
+                                  Copy Email
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    handleRemoveSaved(lead.id)
+                                    setOpenActionDropdownId(null)
+                                  }}
+                                  className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-red-400 hover:bg-red-500/10 transition-colors"
+                                >
+                                  <TrashIcon className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                                  Remove from Saved
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-
-                    <div className="col-span-2">
-                      <Badge size="sm" color={statusBadgeColor[lead.status] || 'mint'}>
-                        {lead.status}
-                      </Badge>
-                    </div>
-
-                    <div className="col-span-3">
-                      <div className="flex items-center gap-2">
-                        <Badge
-                          size="sm"
-                          color={
-                            lead.urgency === 'critical' || lead.urgency === 'high'
-                              ? 'mint'
-                              : 'purple'
-                          }
-                        >
-                          {lead.urgency}
-                        </Badge>
-                        {lead.replyProbability > 0 && (
-                          <span className="text-xxs text-text-secondary">
-                            {lead.replyProbability}%
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="col-span-3 text-right flex items-center justify-end gap-2">
-                      {lead.status === 'saved' || lead.status === 'new' ? (
-                        <Button
-                          variant="ghost"
-                          color="mint"
-                          size="sm"
-                          onClick={() => handleMarkStatus(lead.id, 'sent', 'Sent')}
-                        >
-                          Mark Sent
-                        </Button>
-                      ) : lead.status === 'sent' || lead.status === 'follow-up' ? (
-                        <Button
-                          variant="ghost"
-                          color="purple"
-                          size="sm"
-                          onClick={() => handleMarkStatus(lead.id, 'replied', 'Replied')}
-                        >
-                          Replied
-                        </Button>
-                      ) : lead.status === 'replied' ? (
-                        <Badge size="sm" color="purple">
-                          Done
-                        </Badge>
-                      ) : null}
-                    </div>
-                  </motion.div>
-                ))}
+                    )
+                  })}
+                </div>
               </div>
-            </>
+            </div>
           )}
 
           {loading && <CustomLoader page="saved" />}

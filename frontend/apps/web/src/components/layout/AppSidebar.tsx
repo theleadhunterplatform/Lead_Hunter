@@ -4,7 +4,6 @@ import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/hooks/useAuth'
 import {
   Squares2X2Icon,
@@ -49,61 +48,84 @@ export default function AppSidebar({
   const creditPercentage = Math.min(100, (creditTotal / planMax) * 100)
 
   return (
-    <motion.aside
-      initial={false}
-      animate={{ width: isCollapsed ? '64px' : isDemo ? '180px' : '240px' }}
+    <aside
+      style={{
+        width: isCollapsed ? '68px' : isDemo ? '170px' : '215px',
+        transition: 'width 200ms cubic-bezier(0.4, 0, 0.2, 1)',
+      }}
       className={
         isDemo
-          ? 'h-full bg-surface/90 border-r border-white/[0.06] flex flex-col z-40 transition-colors rounded-l-[24px] overflow-hidden select-none shrink-0'
-          : 'h-[calc(100vh-32px)] my-4 ml-4 bg-surface/70 backdrop-blur-lg border border-white/[0.06] shadow-2xl flex flex-col z-40 transition-colors rounded-4xl overflow-hidden'
+          ? 'h-full bg-surface/90 border-r border-white/[0.06] flex flex-col z-40 transition-colors rounded-l-[16px] overflow-hidden select-none shrink-0'
+          : 'h-[calc(100vh-24px)] my-3 ml-3 bg-surface/70 backdrop-blur-lg border border-white/[0.06] shadow-2xl flex flex-col z-40 transition-all duration-200 rounded-2xl overflow-hidden shrink-0'
       }
     >
       {/* Sidebar Header */}
-      <div className="h-24 flex items-center px-6 justify-between">
-        <AnimatePresence mode="wait">
-          {!isCollapsed && (
-            <motion.div
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -10 }}
-              className="flex items-center gap-3"
-            >
+      <div
+        className={`h-14 flex items-center shrink-0 border-b border-white/[0.04] transition-all duration-200 ${
+          isCollapsed ? 'justify-center px-2' : 'justify-between px-3.5'
+        }`}
+      >
+        {!isCollapsed ? (
+          <>
+            <div className="flex items-center gap-2.5 overflow-hidden whitespace-nowrap min-w-0">
               <Image
                 src="/logo.svg"
                 alt="Lead Hunter Club"
-                width={32}
-                height={32}
-                className="w-8 h-8 rounded-xl"
+                width={24}
+                height={24}
+                className="w-6 h-6 rounded-lg shrink-0"
               />
-              <span className="font-semibold text-text-primary tracking-tight">
+              <span className="font-semibold text-sm text-text-primary tracking-tight truncate">
                 Lead Hunter Club
               </span>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            </div>
 
-        <button
-          onClick={() => setIsCollapsed(!isCollapsed)}
-          className="p-1.5 rounded-lg hover:bg-white/5 text-text-secondary hover:text-text-primary transition-colors active:scale-95"
-        >
-          {isCollapsed ? (
-            <ChevronRightIcon className="w-4 h-4" />
-          ) : (
-            <ChevronLeftIcon className="w-4 h-4" />
-          )}
-        </button>
+            <button
+              onClick={() => setIsCollapsed(true)}
+              title="Collapse sidebar"
+              className="p-1.5 rounded-lg hover:bg-white/5 text-text-secondary hover:text-text-primary transition-colors active:scale-95 shrink-0"
+            >
+              <ChevronLeftIcon className="w-4 h-4" />
+            </button>
+          </>
+        ) : (
+          <button
+            onClick={() => setIsCollapsed(false)}
+            title="Expand sidebar"
+            className="w-10 h-10 rounded-xl hover:bg-white/5 flex items-center justify-center text-text-secondary hover:text-text-primary transition-all relative group"
+          >
+            <Image
+              src="/logo.svg"
+              alt="Lead Hunter Club"
+              width={22}
+              height={22}
+              className="w-[22px] h-[22px] rounded-md transition-transform group-hover:scale-95 shrink-0"
+            />
+            <span className="absolute -right-0.5 -bottom-0.5 w-4 h-4 bg-surface border border-white/10 rounded-full flex items-center justify-center text-text-secondary group-hover:text-accent-orange transition-colors shadow-sm">
+              <ChevronRightIcon className="w-2.5 h-2.5" />
+            </span>
+          </button>
+        )}
       </div>
 
       {/* Nav Items */}
-      <div className="flex-1 py-2 px-4 space-y-2">
+      <div
+        className={`flex-1 py-3 space-y-1.5 overflow-y-auto scrollbar-hide ${
+          isCollapsed ? 'px-2' : 'px-3'
+        }`}
+      >
         {navItems.map((item) => {
-          const isActive = pathname === item.href || (isSneakPeek && item.name === 'Lead Feed')
+          const isActive =
+            pathname === item.href ||
+            (item.href !== '/' && pathname.startsWith(item.href + '/')) ||
+            (isSneakPeek && item.name === 'Lead Feed')
           const isBlurred = isSneakPeek && item.name !== 'Lead Feed'
 
           return (
             <Link
               key={item.href}
               href={isDemo || isBlurred ? '#' : item.href}
+              title={isCollapsed ? item.name : undefined}
               onClick={(e) => {
                 if (isDemo || isBlurred) {
                   e.preventDefault()
@@ -114,96 +136,140 @@ export default function AppSidebar({
               }}
               className={`block relative ${isBlurred ? 'opacity-40 blur-[2px] cursor-not-allowed select-none' : ''}`}
             >
-              <motion.div
-                whileHover={{ x: isActive || isBlurred ? 0 : 4 }}
-                className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-colors duration-300 relative z-10 ${
-                  isActive
-                    ? 'text-accent-orange'
-                    : 'text-text-secondary hover:text-text-primary hover:bg-white/[0.03]'
+              <div
+                className={`flex items-center rounded-xl transition-all duration-200 ${
+                  isCollapsed
+                    ? `w-10 h-10 mx-auto justify-center ${
+                        isActive
+                          ? 'text-accent-orange bg-accent-orange/10 border border-accent-orange/25 shadow-[inset_0_0_12px_rgba(var(--rgb-accent-orange),0.15)]'
+                          : 'text-text-secondary hover:text-text-primary hover:bg-white/[0.04]'
+                      }`
+                    : `gap-3 px-3 py-2.5 ${
+                        isActive
+                          ? 'text-accent-orange bg-accent-orange/10 border border-accent-orange/20 shadow-[inset_0_0_12px_rgba(var(--rgb-accent-orange),0.15)]'
+                          : 'text-text-secondary hover:text-text-primary hover:bg-white/[0.03]'
+                      }`
                 }`}
               >
-                <item.icon className="w-[18px] h-[18px] text-current" />
+                <item.icon className="w-[18px] h-[18px] text-current shrink-0" />
 
-                <AnimatePresence>
-                  {!isCollapsed && (
-                    <motion.span
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -10 }}
-                      className="text-sm font-medium whitespace-nowrap"
-                    >
-                      {item.name}
-                    </motion.span>
-                  )}
-                </AnimatePresence>
-              </motion.div>
-
-              {/* Active Pill Highlight */}
-              {isActive && (
-                <motion.div
-                  layoutId="sidebar-active"
-                  className="absolute inset-0 bg-accent-orange/10 border border-accent-orange/20 rounded-xl shadow-[inset_0_0_12px_rgba(var(--rgb-accent-orange),0.15)] z-0"
-                />
-              )}
+                {!isCollapsed && (
+                  <span className="text-sm font-medium whitespace-nowrap overflow-hidden truncate">
+                    {item.name}
+                  </span>
+                )}
+              </div>
             </Link>
           )
         })}
       </div>
 
       {/* Token Status */}
-      <AnimatePresence>
-        {!isCollapsed && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
-            className="px-6 mb-6"
-          >
-            <div className="p-4 rounded-2xl bg-white/5 border border-white/5 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <BanknotesIcon className="w-[14px] h-[14px] text-accent-orange" />
-                  <span className="text-xxs font-bold text-text-primary uppercase tracking-widest">
-                    Credits
-                  </span>
-                </div>
-                <span className="text-xxs font-bold text-text-secondary">
-                  {creditTotal} / {planMax}
+      {!isCollapsed ? (
+        <div className="px-3 mb-4 shrink-0 overflow-hidden whitespace-nowrap">
+          <div className="p-3.5 rounded-2xl bg-white/5 border border-white/5 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <BanknotesIcon className="w-[14px] h-[14px] text-accent-orange" />
+                <span className="text-xxs font-bold text-text-primary uppercase tracking-widest">
+                  Credits
                 </span>
               </div>
-
-              <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${creditPercentage}%` }}
-                  className="h-full bg-accent-orange shadow-[0_0_10px_rgba(var(--rgb-accent-orange),0.5)]"
-                />
-              </div>
-
-              {user?.creditAccount?.rolloverBalance ? (
-                <div className="flex items-center justify-between text-xxs">
-                  <span className="text-text-secondary">Rollover</span>
-                  <span className="font-bold text-accent-orange">
-                    {user.creditAccount.rolloverBalance}
-                    {user.creditAccount.rolloverExpiresAt
-                      ? ` · expires ${new Date(user.creditAccount.rolloverExpiresAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
-                      : ''}
-                  </span>
-                </div>
-              ) : null}
-
-              <button className="text-9 font-bold text-accent-orange uppercase tracking-super hover:opacity-80 transition-opacity">
-                Refill Pipeline →
-              </button>
+              <span className="text-xxs font-bold text-text-secondary tabular-nums">
+                {creditTotal} / {planMax}
+              </span>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+
+            <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+              <div
+                style={{ width: `${creditPercentage}%`, transition: 'width 400ms ease' }}
+                className="h-full bg-accent-orange shadow-[0_0_10px_rgba(var(--rgb-accent-orange),0.5)]"
+              />
+            </div>
+
+            {user?.creditAccount?.rolloverBalance ? (
+              <div className="flex items-center justify-between text-xxs">
+                <span className="text-text-secondary">Rollover</span>
+                <span className="font-bold text-accent-orange">
+                  {user.creditAccount.rolloverBalance}
+                  {user.creditAccount.rolloverExpiresAt
+                    ? ` · expires ${new Date(user.creditAccount.rolloverExpiresAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+                    : ''}
+                </span>
+              </div>
+            ) : null}
+
+            <button className="text-9 font-bold text-accent-orange uppercase tracking-super hover:opacity-80 transition-opacity block pt-0.5">
+              Refill Pipeline →
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="px-2 mb-3 shrink-0 flex justify-center group/credit relative">
+          <div
+            className="w-10 h-10 rounded-xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center relative cursor-default hover:border-accent-orange/30 hover:bg-white/[0.06] transition-all duration-300"
+          >
+            {/* Dynamic Radial Progress SVG */}
+            <svg className="w-8 h-8 -rotate-90 transform" viewBox="0 0 36 36">
+              {/* Background ring */}
+              <circle
+                cx="18"
+                cy="18"
+                r="14"
+                className="text-white/10"
+                strokeWidth="2.5"
+                stroke="currentColor"
+                fill="none"
+              />
+              {/* Progress ring */}
+              <circle
+                cx="18"
+                cy="18"
+                r="14"
+                className="text-accent-orange transition-all duration-700 ease-out"
+                strokeWidth="2.5"
+                strokeDasharray={2 * Math.PI * 14}
+                strokeDashoffset={2 * Math.PI * 14 * (1 - creditPercentage / 100)}
+                strokeLinecap="round"
+                stroke="currentColor"
+                fill="none"
+                style={{
+                  filter: 'drop-shadow(0 0 4px rgba(255, 184, 107, 0.45))',
+                }}
+              />
+            </svg>
+
+            {/* Center Icon */}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <BanknotesIcon className="w-3.5 h-3.5 text-accent-orange group-hover/credit:scale-110 transition-transform duration-200" />
+            </div>
+          </div>
+
+          {/* Hover Tooltip */}
+          <div className="absolute left-full ml-2.5 top-1/2 -translate-y-1/2 px-2.5 py-1.5 rounded-xl bg-surface-elevated border border-white/10 shadow-2xl backdrop-blur-xl opacity-0 pointer-events-none group-hover/credit:opacity-100 group-hover/credit:pointer-events-auto transition-all duration-200 z-50 whitespace-nowrap">
+            <div className="flex items-center gap-1.5 text-xxs font-bold text-text-primary">
+              <span className="w-1.5 h-1.5 rounded-full bg-accent-orange animate-pulse" />
+              <span>Credits: {creditTotal} / {planMax}</span>
+              <span className="text-text-secondary font-normal">({Math.round(creditPercentage)}%)</span>
+            </div>
+            {user?.creditAccount?.rolloverBalance ? (
+              <div className="text-[10px] text-accent-orange font-medium mt-0.5">
+                +{user.creditAccount.rolloverBalance} Rollover
+              </div>
+            ) : null}
+          </div>
+        </div>
+      )}
 
       {/* Sidebar Footer */}
-      <div className="p-4 space-y-2">
+      <div
+        className={`py-3 border-t border-white/[0.04] space-y-1 shrink-0 ${
+          isCollapsed ? 'px-2' : 'px-3'
+        }`}
+      >
         <Link
           href={isDemo || isSneakPeek ? '#' : '/settings'}
+          title={isCollapsed ? 'Settings' : undefined}
           onClick={(e) => {
             if (isDemo || isSneakPeek) {
               e.preventDefault()
@@ -214,37 +280,32 @@ export default function AppSidebar({
           }}
           className={`block relative ${isSneakPeek ? 'opacity-40 blur-[2px] cursor-not-allowed select-none' : ''}`}
         >
-          <motion.div
-            whileHover={{ x: pathname === '/settings' || isSneakPeek ? 0 : 4 }}
-            className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-colors duration-300 relative z-10 ${
-              pathname === '/settings'
-                ? 'text-accent-orange'
-                : 'text-text-secondary hover:text-text-primary hover:bg-white/[0.03]'
+          <div
+            className={`flex items-center rounded-xl transition-all duration-200 ${
+              isCollapsed
+                ? `w-10 h-10 mx-auto justify-center ${
+                    pathname === '/settings' || pathname.startsWith('/settings/')
+                      ? 'text-accent-orange bg-accent-orange/10 border border-accent-orange/25'
+                      : 'text-text-secondary hover:text-text-primary hover:bg-white/[0.04]'
+                  }`
+                : `gap-3 px-3 py-2.5 ${
+                    pathname === '/settings' || pathname.startsWith('/settings/')
+                      ? 'text-accent-orange bg-accent-orange/10 border border-accent-orange/20'
+                      : 'text-text-secondary hover:text-text-primary hover:bg-white/[0.03]'
+                  }`
             }`}
           >
-            <Cog6ToothIcon className="w-[18px] h-[18px] text-current" />
-            <AnimatePresence>
-              {!isCollapsed && (
-                <motion.span
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -10 }}
-                  className="text-sm font-medium whitespace-nowrap"
-                >
-                  Settings
-                </motion.span>
-              )}
-            </AnimatePresence>
-          </motion.div>
-          {pathname === '/settings' && !isSneakPeek && (
-            <motion.div
-              layoutId="sidebar-active"
-              className="absolute inset-0 bg-accent-orange/10 border border-accent-orange/20 rounded-xl shadow-[inset_0_0_12px_rgba(var(--rgb-accent-orange),0.15)] z-0"
-            />
-          )}
+            <Cog6ToothIcon className="w-[18px] h-[18px] text-current shrink-0" />
+            {!isCollapsed && (
+              <span className="text-sm font-medium whitespace-nowrap overflow-hidden truncate">
+                Settings
+              </span>
+            )}
+          </div>
         </Link>
         <button
           className={`w-full relative ${isSneakPeek ? 'opacity-40 blur-[2px] cursor-not-allowed select-none' : ''}`}
+          title={isCollapsed ? 'Sign Out' : undefined}
           onClick={(e) => {
             if (isSneakPeek) {
               e.preventDefault()
@@ -253,26 +314,20 @@ export default function AppSidebar({
             logout()
           }}
         >
-          <motion.div
-            whileHover={{ x: isSneakPeek ? 0 : 4 }}
-            className="flex items-center gap-3 px-3 py-3 rounded-xl text-text-secondary hover:bg-red-500/10 hover:text-red-400 transition-colors duration-300 relative z-10"
+          <div
+            className={`flex items-center rounded-xl text-text-secondary hover:bg-red-500/10 hover:text-red-400 transition-colors duration-200 ${
+              isCollapsed ? 'w-10 h-10 mx-auto justify-center' : 'gap-3 px-3 py-2.5'
+            }`}
           >
-            <ArrowLeftStartOnRectangleIcon className="w-[18px] h-[18px] text-current" />
-            <AnimatePresence>
-              {!isCollapsed && (
-                <motion.span
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -10 }}
-                  className="text-sm font-medium whitespace-nowrap"
-                >
-                  Sign Out
-                </motion.span>
-              )}
-            </AnimatePresence>
-          </motion.div>
+            <ArrowLeftStartOnRectangleIcon className="w-[18px] h-[18px] text-current shrink-0" />
+            {!isCollapsed && (
+              <span className="text-sm font-medium whitespace-nowrap overflow-hidden truncate">
+                Sign Out
+              </span>
+            )}
+          </div>
         </button>
       </div>
-    </motion.aside>
+    </aside>
   )
 }

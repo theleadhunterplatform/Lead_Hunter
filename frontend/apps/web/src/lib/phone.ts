@@ -1,4 +1,4 @@
-export function normalizePhone(input: string): string {
+export function normalizePhone(input: string, defaultCountryCode: string = '91'): string {
   const cleaned = input.replace(/[^\d+]/g, '')
 
   if (cleaned.startsWith('+')) return cleaned
@@ -7,7 +7,7 @@ export function normalizePhone(input: string): string {
 
   if (cleaned.startsWith('011')) return `+${cleaned.slice(3)}`
 
-  if (cleaned.length === 10) return `+1${cleaned}`
+  if (cleaned.length === 10) return `+${defaultCountryCode}${cleaned}`
 
-  return cleaned
+  return cleaned.length > 0 ? `+${cleaned}` : cleaned
 }

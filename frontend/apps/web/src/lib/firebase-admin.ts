@@ -11,10 +11,31 @@ export async function getAdminAuthInstance() {
   const apps = getApps()
   if (apps.length) return getAuth(apps[0])
 
-  const jsonFromEnv = process.env.FIREBASE_SERVICE_ACCOUNT_KEY
-  if (!jsonFromEnv) throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY not configured')
+  let serviceAccount: any = null
 
-  const serviceAccount = JSON.parse(jsonFromEnv)
+  if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+    const raw = process.env.FIREBASE_SERVICE_ACCOUNT_KEY.trim()
+    try {
+      serviceAccount = JSON.parse(raw)
+    } catch {
+      try {
+        const decoded = Buffer.from(raw, 'base64').toString('utf-8')
+        serviceAccount = JSON.parse(decoded)
+      } catch {
+        throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY is invalid JSON or base64')
+      }
+    }
+  } else if (process.env.FIREBASE_SERVICE_ACCOUNT_PATH) {
+    const fs = await import('fs')
+    const fileContent = fs.readFileSync(process.env.FIREBASE_SERVICE_ACCOUNT_PATH, 'utf-8')
+    serviceAccount = JSON.parse(fileContent)
+  }
+
+  if (!serviceAccount) {
+    throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY or FIREBASE_SERVICE_ACCOUNT_PATH not configured')
+  }
+
   const app = initializeApp({ credential: cert(serviceAccount) })
   return getAuth(app)
 }
+

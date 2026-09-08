@@ -9,7 +9,7 @@ const publicPrefixes = ['/api']
 
 const adminPrefixes = ['/admin']
 
-const protectedPrefixes = ['/dashboard', '/leads', '/outreach', '/saved', '/analytics', '/settings']
+const protectedPrefixes = ['/dashboard', '/leads', '/outreach', '/saved', '/analytics', '/settings', '/support']
 
 function addSecurityHeaders(response: NextResponse): NextResponse {
   const origin = response.headers.get('origin') || ''

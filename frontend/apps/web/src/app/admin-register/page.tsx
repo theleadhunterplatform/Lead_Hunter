@@ -148,7 +148,7 @@ export default function AdminRegisterPage() {
 
   return (
     <main className="min-h-screen bg-bg-main flex flex-col items-center justify-center px-4">
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[radial-gradient(circle_at_center,rgba(var(--rgb-accent-mint),0.06)_0%,transparent_60%)] pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[radial-gradient(circle_at_center,rgba(var(--rgb-primary),0.08)_0%,transparent_60%)] pointer-events-none" />
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -157,8 +157,8 @@ export default function AdminRegisterPage() {
       >
         <div className="bg-surface/40 backdrop-blur-xl border border-white/[0.06] rounded-3xl shadow-elevation-4 w-full p-8 md:p-10">
           <div className="text-center mb-8">
-            <div className="w-12 h-12 rounded-full bg-accent-mint/10 border border-accent-mint/20 flex items-center justify-center mx-auto mb-4">
-              <ShieldCheckIcon className="w-6 h-6 text-accent-mint" />
+            <div className="w-12 h-12 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-4">
+              <ShieldCheckIcon className="w-6 h-6 text-primary" />
             </div>
             <h1 className="text-2xl font-bold text-text-primary tracking-tight">
               Admin Registration
@@ -179,7 +179,7 @@ export default function AdminRegisterPage() {
                   onChange={(e) => setRegistrationKey(e.target.value)}
                   type="password"
                   placeholder="Enter your team registration key"
-                  className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all px-4 py-3"
+                  className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3"
                   required
                 />
               </div>
@@ -193,7 +193,7 @@ export default function AdminRegisterPage() {
               <button
                 type="submit"
                 disabled={keyLoading}
-                className="mt-2 bg-accent-mint hover:bg-accent-mint/90 text-white rounded-xl active:scale-98 transition-all shadow-[0_4px_20px_rgba(var(--rgb-accent-mint),0.15)] px-4 py-3 font-medium"
+                className="mt-2 bg-primary hover:bg-primary/90 text-black font-semibold rounded-xl active:scale-98 transition-all shadow-[0_4px_20px_rgba(var(--rgb-primary),0.25)] px-4 py-3"
               >
                 {keyLoading ? 'Checking...' : 'Continue'}
               </button>
@@ -208,7 +208,7 @@ export default function AdminRegisterPage() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Your full name"
-                  className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all px-4 py-3"
+                  className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3"
                   required
                 />
               </div>
@@ -222,7 +222,7 @@ export default function AdminRegisterPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   type="email"
                   placeholder="you@company.com"
-                  className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all px-4 py-3"
+                  className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3"
                   required
                 />
               </div>
@@ -236,7 +236,7 @@ export default function AdminRegisterPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   type="password"
                   placeholder="Min 8 characters"
-                  className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all px-4 py-3"
+                  className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3"
                   required
                   minLength={8}
                 />
@@ -251,11 +251,11 @@ export default function AdminRegisterPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="mt-2 bg-accent-mint hover:bg-accent-mint/90 text-white rounded-xl active:scale-98 transition-all shadow-[0_4px_20px_rgba(var(--rgb-accent-mint),0.15)] px-4 py-3 font-medium flex items-center justify-center gap-2"
+                className="mt-2 bg-primary hover:bg-primary/90 text-black font-semibold rounded-xl active:scale-98 transition-all shadow-[0_4px_20px_rgba(var(--rgb-primary),0.25)] px-4 py-3 flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <>
-                    <div className="w-5 h-5 rounded-full border-2 border-white/20 border-t-white animate-spin" />
+                    <div className="w-5 h-5 rounded-full border-2 border-black/20 border-t-black animate-spin" />
                     Creating admin account...
                   </>
                 ) : (

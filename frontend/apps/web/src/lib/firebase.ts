@@ -13,6 +13,7 @@ import {
   PhoneAuthProvider,
   linkWithCredential,
   EmailAuthProvider,
+  applyActionCode,
   type User as FirebaseUser,
   type ConfirmationResult,
 } from 'firebase/auth'
@@ -102,5 +103,6 @@ export {
   PhoneAuthProvider,
   linkWithCredential,
   EmailAuthProvider,
+  applyActionCode,
 }
 export type { FirebaseUser, ConfirmationResult }

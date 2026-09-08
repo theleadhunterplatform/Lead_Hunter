@@ -24,10 +24,6 @@ export interface User {
   provider: AuthProvider
   emailVerified: string | null
   plan: string
-  stripeCustomerId?: string | null
-  stripeSubscriptionId?: string | null
-  stripePriceId?: string | null
-  stripeCurrentPeriodEnd?: string | null
   status?: string
   hasCompletedOnboarding?: boolean
   createdAt: string

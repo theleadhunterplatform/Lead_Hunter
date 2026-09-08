@@ -27,9 +27,7 @@ export const env = {
   firebaseServiceAccountKey: optionalEnv('FIREBASE_SERVICE_ACCOUNT_KEY', ''),
   firebaseServiceAccountPath: optionalEnv('FIREBASE_SERVICE_ACCOUNT_PATH', ''),
 
-  // Payments (Stripe + Razorpay — both optional, at least one must be configured)
-  stripeSecretKey: optionalEnv('STRIPE_SECRET_KEY', ''),
-  stripeWebhookSecret: optionalEnv('STRIPE_WEBHOOK_SECRET', ''),
+  // Payments (Razorpay)
   razorpayKeyId: optionalEnv('RAZORPAY_KEY_ID', ''),
   razorpayKeySecret: optionalEnv('RAZORPAY_KEY_SECRET', ''),
   razorpayWebhookSecret: optionalEnv('RAZORPAY_WEBHOOK_SECRET', ''),

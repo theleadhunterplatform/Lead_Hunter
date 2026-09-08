@@ -8,6 +8,7 @@ import {
   renderOnboardingComplete,
   renderNewsletterConfirmation,
   renderNewsletter,
+  renderEmailVerification,
 } from '@/lib/email-templates'
 import { randomUUID } from 'crypto'
 
@@ -141,6 +142,17 @@ export const emailService = {
     const { subject, text, html } = renderOnboardingComplete({ name: user.name, appUrl: APP_URL })
     return send('onboarding_complete', user.email, subject, text, { html })
   },
+
+  async sendEmailVerification(user: { name?: string; email: string }, verificationUrl: string) {
+    const { subject, text, html } = renderEmailVerification({
+      name: user.name,
+      email: user.email,
+      verificationUrl,
+      appUrl: APP_URL,
+    })
+    return send('email_verification', user.email, subject, text, { html })
+  },
+
 
   async notifyAdmin(type: string, data: Record<string, unknown>) {
     if (!ADMIN_NOTIFICATION_EMAIL) {

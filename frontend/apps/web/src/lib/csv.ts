@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 import type { AppLead } from '@/types/lead'
 
 const TRUNCATE_LENGTH = 200
@@ -69,10 +69,9 @@ export function toTsv(rows: Record<string, string | number | null | undefined>[]
   return lines.join('\r\n')
 }
 
-const HEADER_FILL = { fgColor: { rgb: '0F172A' } }
-const HEADER_FONT = { bold: true, color: { rgb: 'FFFFFF' } }
+const HEADER_FILL = '0F172A'
 const WIDE_COLS = new Set(['Lead Intelligence'])
-export function downloadXlsx(
+export async function downloadXlsx(
   filename: string,
   rows: Record<string, string | number | null | undefined>[],
   metadata?: string,
@@ -80,36 +79,49 @@ export function downloadXlsx(
   if (rows.length === 0) return
 
   const headers = Object.keys(rows[0] ?? {})
-  const aoa: (string | number)[][] = [headers]
-  for (const row of rows) {
-    aoa.push(headers.map((h) => (row[h] === null || row[h] === undefined ? '' : row[h]) as string | number))
-  }
+  const workbook = new ExcelJS.Workbook()
+  workbook.creator = metadata || 'LeadHunter'
+  const sheet = workbook.addWorksheet('Leads')
 
-  const ws = XLSX.utils.aoa_to_sheet(aoa)
-  ws['!cols'] = headers.map((h) => ({
-    wch: Math.min(
+  sheet.columns = headers.map((h) => ({
+    header: h,
+    key: h,
+    width: Math.min(
       Math.max(
         WIDE_COLS.has(h) ? 55 : 18,
-        ...aoa.slice(1).map((r) => String(r[headers.indexOf(h)] ?? '').length + 2),
+        ...rows.map((r) => String(r[h] ?? '').length + 2),
       ),
       75,
     ),
   }))
-  ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: aoa.length - 1, c: headers.length - 1 } }) }
-  ws['!freeze'] = { x: 0, y: 1 }
 
-  for (let c = 0; c < headers.length; c++) {
-    const cell = ws[XLSX.utils.encode_cell({ r: 0, c })]
-    if (cell) {
-      cell.s = { fill: HEADER_FILL, font: HEADER_FONT }
+  for (const row of rows) {
+    const out: Record<string, string | number> = {}
+    for (const h of headers) {
+      const v = row[h]
+      out[h] = v === null || v === undefined ? '' : (v as string | number)
     }
+    sheet.addRow(out)
   }
 
-  const wb = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(wb, ws, 'Leads')
-  if (metadata) {
-    wb.Props = wb.Props || {}
-    wb.Props.Title = metadata
-  }
-  XLSX.writeFile(wb, filename)
+  const headerRow = sheet.getRow(1)
+  headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } }
+  headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HEADER_FILL } }
+  headerRow.height = 20
+
+  sheet.views = [{ state: 'frozen', ySplit: 1 }]
+  sheet.autoFilter = { from: { row: 1, column: 1 }, to: { row: rows.length + 1, column: headers.length } }
+
+  const buffer = await workbook.xlsx.writeBuffer()
+  const blob = new Blob([buffer], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
 }

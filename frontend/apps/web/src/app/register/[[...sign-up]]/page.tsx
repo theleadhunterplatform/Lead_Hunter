@@ -95,14 +95,28 @@ export default function RegisterPage() {
     setResending(true)
     try {
       if (auth.currentUser) {
-        await sendEmailVerification(auth.currentUser)
+        const token = await auth.currentUser.getIdToken().catch(() => null)
+        const res = await fetch('/api/auth/send-verification', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ email: auth.currentUser.email }),
+        })
+        if (!res.ok) {
+          await sendEmailVerification(auth.currentUser).catch(() => {})
+        }
       }
     } catch {
-      // silently fail
+      if (auth.currentUser) {
+        await sendEmailVerification(auth.currentUser).catch(() => {})
+      }
     } finally {
       setResending(false)
     }
   }
+
 
   const handleSendOtp = async () => {
     if (!phoneNumber.trim()) return
@@ -177,7 +191,22 @@ export default function RegisterPage() {
 
     try {
       await createUserWithEmailAndPassword(auth, email, password)
-      await sendEmailVerification(auth.currentUser!)
+      try {
+        const token = await auth.currentUser?.getIdToken().catch(() => null)
+        const res = await fetch('/api/auth/send-verification', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ email }),
+        })
+        if (!res.ok) {
+          await sendEmailVerification(auth.currentUser!).catch(() => {})
+        }
+      } catch {
+        await sendEmailVerification(auth.currentUser!).catch(() => {})
+      }
       setPhoneStep('send')
     } catch (err: unknown) {
       setError(
@@ -190,7 +219,7 @@ export default function RegisterPage() {
 
   return (
     <main className="min-h-screen bg-bg-main flex flex-col items-center justify-center px-4 relative overflow-hidden">
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[radial-gradient(circle_at_center,rgba(var(--rgb-accent-mint),0.08)_0%,transparent_60%)] pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[radial-gradient(circle_at_center,rgba(var(--rgb-primary),0.08)_0%,transparent_60%)] pointer-events-none" />
 
       <motion.div
         initial={{ opacity: 0, x: -10 }}
@@ -219,7 +248,7 @@ export default function RegisterPage() {
               alt="Lead Hunter Club"
               width={48}
               height={48}
-              className="w-12 h-12 rounded-xl mx-auto mb-4 shadow-[0_0_20px_rgba(var(--rgb-accent-mint),0.15)] hover:scale-105 transition-transform duration-300"
+              className="w-12 h-12 rounded-xl mx-auto mb-4 shadow-[0_0_20px_rgba(var(--rgb-primary),0.15)] hover:scale-105 transition-transform duration-300"
             />
           </Link>
           <h1 className="text-2xl font-bold text-text-primary tracking-tight">
@@ -299,7 +328,7 @@ export default function RegisterPage() {
                       onChange={(e) => setPhoneNumber(e.target.value)}
                       type="tel"
                       placeholder="+1 (555) 123-4567"
-                      className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all px-4 py-3"
+                      className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3"
                     />
                   </div>
 
@@ -313,10 +342,10 @@ export default function RegisterPage() {
                     type="button"
                     onClick={handleSendOtp}
                     disabled={phoneLoading || !phoneNumber.trim()}
-                    className="mt-2 bg-accent-mint hover:bg-accent-mint/90 text-white rounded-xl active:scale-98 transition-all shadow-[0_4px_20px_rgba(var(--rgb-accent-mint),0.15)] px-4 py-3 font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="mt-2 bg-primary hover:bg-primary/90 text-black font-semibold rounded-xl active:scale-98 transition-all shadow-[0_4px_20px_rgba(var(--rgb-primary),0.25)] px-4 py-3 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {phoneLoading ? (
-                      <div className="w-5 h-5 rounded-full border-2 border-white/20 border-t-white animate-spin" />
+                      <div className="w-5 h-5 rounded-full border-2 border-black/20 border-t-black animate-spin" />
                     ) : (
                       'Send OTP'
                     )}
@@ -329,7 +358,7 @@ export default function RegisterPage() {
                     className="text-xs text-text-secondary/40 hover:text-text-secondary transition-colors text-center disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {emailVerified
-                      ? 'Skip — I’ll do this later'
+                      ? 'Skip · I’ll do this later'
                       : 'Verify your email first to continue'}
                   </button>
                 </>
@@ -355,7 +384,7 @@ export default function RegisterPage() {
                       inputMode="numeric"
                       placeholder="000000"
                       maxLength={6}
-                      className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all px-4 py-3 text-center text-lg tracking-ultra"
+                      className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3 text-center text-lg tracking-ultra"
                     />
                   </div>
 
@@ -369,10 +398,10 @@ export default function RegisterPage() {
                     type="button"
                     onClick={handleVerifyOtp}
                     disabled={phoneLoading || verificationCode.length < 6 || !emailVerified}
-                    className="mt-2 bg-accent-mint hover:bg-accent-mint/90 text-white rounded-xl active:scale-98 transition-all shadow-[0_4px_20px_rgba(var(--rgb-accent-mint),0.15)] px-4 py-3 font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="mt-2 bg-primary hover:bg-primary/90 text-black font-semibold rounded-xl active:scale-98 transition-all shadow-[0_4px_20px_rgba(var(--rgb-primary),0.25)] px-4 py-3 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {phoneLoading ? (
-                      <div className="w-5 h-5 rounded-full border-2 border-white/20 border-t-white animate-spin" />
+                      <div className="w-5 h-5 rounded-full border-2 border-black/20 border-t-black animate-spin" />
                     ) : (
                       'Verify & Continue'
                     )}
@@ -385,7 +414,7 @@ export default function RegisterPage() {
                     className="text-xs text-text-secondary/40 hover:text-text-secondary transition-colors text-center disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {emailVerified
-                      ? 'Skip — I’ll do this later'
+                      ? 'Skip · I’ll do this later'
                       : 'Verify your email first to continue'}
                   </button>
                 </>
@@ -406,7 +435,7 @@ export default function RegisterPage() {
                   name="email"
                   type="email"
                   placeholder="you@example.com"
-                  className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all px-4 py-3"
+                  className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3"
                   required
                 />
               </div>
@@ -418,7 +447,7 @@ export default function RegisterPage() {
                   name="password"
                   type="password"
                   placeholder="Create a password"
-                  className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all px-4 py-3"
+                  className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3"
                   required
                   minLength={6}
                 />
@@ -431,7 +460,7 @@ export default function RegisterPage() {
                   name="confirm-password"
                   type="password"
                   placeholder="Confirm your password"
-                  className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all px-4 py-3"
+                  className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3"
                   required
                   minLength={6}
                 />
@@ -440,10 +469,10 @@ export default function RegisterPage() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="mt-2 bg-accent-mint hover:bg-accent-mint/90 text-white rounded-xl active:scale-98 transition-all shadow-[0_4px_20px_rgba(var(--rgb-accent-mint),0.15)] px-4 py-3 font-medium flex items-center justify-center gap-2"
+                className="mt-2 bg-primary hover:bg-primary/90 text-black font-semibold rounded-xl active:scale-98 transition-all shadow-[0_4px_20px_rgba(var(--rgb-primary),0.25)] px-4 py-3 flex items-center justify-center gap-2"
               >
                 {isLoading ? (
-                  <div className="w-5 h-5 rounded-full border-2 border-white/20 border-t-white animate-spin" />
+                  <div className="w-5 h-5 rounded-full border-2 border-black/20 border-t-black animate-spin" />
                 ) : (
                   'Create Account'
                 )}
@@ -454,7 +483,7 @@ export default function RegisterPage() {
                   Already have an account?{' '}
                   <Link
                     href="/login"
-                    className="text-accent-mint hover:text-accent-mint/80 font-semibold"
+                    className="text-primary hover:text-primary/80 font-semibold"
                   >
                     Sign in
                   </Link>

@@ -4,6 +4,7 @@
 
 @layer base {
   html {
+    font-size: 14px;
     scrollbar-width: none;
     -ms-overflow-style: none;
   }

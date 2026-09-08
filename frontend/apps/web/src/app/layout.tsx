@@ -20,7 +20,7 @@ const inter = Inter({
 const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://leadhunterclub.com'
 
 export const metadata: Metadata = {
-  title: 'LeadHunterClub — AI-Powered Lead Generation & Sales Intelligence',
+  title: 'LeadHunterClub · Verified Buyer-Intent & Sales Intelligence',
   description:
     'Find and close more deals with AI-powered lead generation, buyer-intent signals, and advanced analytics. The all-in-one platform for modern sales teams.',
   icons: {
@@ -28,7 +28,7 @@ export const metadata: Metadata = {
     apple: '/logo.svg',
   },
   openGraph: {
-    title: 'LeadHunterClub — AI-Powered Lead Generation & Sales Intelligence',
+    title: 'LeadHunterClub · Verified Buyer-Intent & Sales Intelligence',
     description:
       'Find and close more deals with AI-powered lead generation, buyer-intent signals, and advanced analytics.',
     url: appUrl,
@@ -38,7 +38,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'LeadHunterClub — AI-Powered Lead Generation & Sales Intelligence',
+    title: 'LeadHunterClub · Verified Buyer-Intent & Sales Intelligence',
     description:
       'Find and close more deals with AI-powered lead generation, buyer-intent signals, and advanced analytics.',
     images: [`${appUrl}/logo.svg`],

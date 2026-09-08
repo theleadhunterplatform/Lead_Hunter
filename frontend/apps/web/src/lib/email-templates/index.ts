@@ -152,3 +152,35 @@ export function renderNewsletter(data: NewsletterData) {
   `)
   return { subject, text, html }
 }
+
+export interface EmailVerificationData {
+  name?: string
+  email: string
+  verificationUrl: string
+  appUrl: string
+}
+
+export function renderEmailVerification(data: EmailVerificationData) {
+  const greeting = data.name ? `Hi ${data.name},` : 'Welcome to Lead Hunter Club,'
+  const subject = `Verify your email address — Lead Hunter Club`
+  const text = `${greeting}\n\nThanks for signing up for Lead Hunter Club! Please verify your email address by clicking the link below:\n\n${data.verificationUrl}\n\nThis verification link will expire in 24 hours.\n\nIf you did not create an account, you can safely ignore this email.\n\n${data.appUrl}`
+  const html = wrapHtml(`
+    <h2 style="margin:16px 0 8px;font-size:18px;font-weight:600;color:#ffffff;letter-spacing:-0.01em">Verify your email address</h2>
+    <p style="margin:16px 0;font-size:15px;color:#ccc;line-height:1.6">${greeting}</p>
+    <p style="margin:16px 0;font-size:15px;color:#ccc;line-height:1.6">Thanks for signing up for <strong style="color:#ffffff">Lead Hunter Club</strong>. To secure your account and start finding high-converting leads, please verify your email address.</p>
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0">
+      <tr>
+        <td align="center" style="border-radius:10px;background:#dc3b4c">
+          <a href="${data.verificationUrl}" target="_blank" style="display:inline-block;padding:12px 32px;background:#dc3b4c;color:#ffffff;border-radius:10px;text-decoration:none;font-size:14px;font-weight:600;letter-spacing:0.01em">Verify Email Address</a>
+        </td>
+      </tr>
+    </table>
+    <p style="margin:16px 0 8px;font-size:13px;color:#888;line-height:1.6">Button not working? Copy and paste this link into your browser:</p>
+    <p style="margin:0 0 16px;font-size:12px;color:#666;word-break:break-all;line-height:1.5">
+      <a href="${data.verificationUrl}" style="color:#dc3b4c;text-decoration:underline">${data.verificationUrl}</a>
+    </p>
+    <p style="margin:16px 0 0;font-size:12px;color:#777;line-height:1.5">This verification link will expire in 24 hours. If you did not create an account with Lead Hunter Club, no further action is required.</p>
+  `)
+  return { subject, text, html }
+}
+

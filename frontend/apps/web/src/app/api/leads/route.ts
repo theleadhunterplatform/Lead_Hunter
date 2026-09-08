@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import type { Lead } from '@prisma/client'
 import {
   requireFullyAuthorized,
   AuthRequiredError,
@@ -13,11 +14,13 @@ import { oracleDb } from '@/lib/oracle-db'
 import { mapLeadPostToExternal } from '@/lib/oracle-mapper'
 import type { AppLead } from '@/types/lead'
 import { getLeadRevealCost } from '@/lib/config/coins'
+import { extractNiches, sanitizePublicText, extractCleanNicheTags, sanitizeHeadline } from '@/lib/claim-reveal'
 
 export const dynamic = 'force-dynamic'
 
 function formatTimeAgo(dateStr: string): string {
-  const seconds = Math.floor((new Date().getTime() - new Date(dateStr).getTime()) / 1000)
+  const diffMs = new Date().getTime() - new Date(dateStr).getTime()
+  const seconds = Math.max(0, Math.floor(diffMs / 1000))
   if (seconds < 60) return 'Just now'
   const minutes = Math.floor(seconds / 60)
   if (minutes < 60) return `${minutes}m ago`
@@ -30,8 +33,24 @@ function formatTimeAgo(dateStr: string): string {
 
 function extractTags(post: ExternalPost): string[] {
   const tags: string[] = []
-  if (post.keyword) tags.push(post.keyword.replace(/^watchlist:/, ''))
-  if (post.platform) tags.push(post.platform)
+  const platform = (post.platform || '').toLowerCase()
+  const authorName = (post.author?.name || '').toLowerCase()
+  const company = (post.contact_info?.company_name || '').toLowerCase()
+
+  if (post.keyword) {
+    const rawTag = post.keyword.replace(/^watchlist:/, '')
+    const tagLower = rawTag.toLowerCase()
+    
+    // Filter out platform source, author name, and company name matches
+    const isPlatform = tagLower === platform || ['linkedin', 'reddit', 'twitter', 'github', 'seed', 'external'].includes(tagLower)
+    const isAuthor = authorName && (authorName.includes(tagLower) || tagLower.includes(authorName))
+    const isCompany = company && (company.includes(tagLower) || tagLower.includes(company))
+
+    if (!isPlatform && !isAuthor && !isCompany) {
+      tags.push(rawTag)
+    }
+  }
+
   return tags
 }
 
@@ -69,24 +88,37 @@ function externalPostToAppLead(
   const email = post.email || post.contact_info?.emails?.[0]?.email || ''
   const intel = post.intelligence || ''
 
+  const niches = extractNiches(post.keyword, post.content || '', post.intelligence)
+  const cleanTags = extractCleanNicheTags(post, niches)
+  const cleanTitle = sanitizeHeadline(post.author?.info || post.keyword || '', niches[0])
+  const cleanScope = sanitizePublicText(
+    extractSection(intel, 'Context You Might Miss') ||
+      extractSection(intel, 'What They Actually Want') ||
+      extractSection(intel, 'One-Liner') ||
+      post.content ||
+      '',
+  )
+
   return {
     id: post.id,
     name: isRevealed ? post.author?.name || 'Unknown' : 'Unlocked Contact',
     email: isRevealed ? email : 'unlocked@leadhunterclub.com',
-    company: post.contact_info?.company_name || post.author?.name || post.platform || '',
-    source: post.platform || 'Unknown',
-    category: extractSection(intel, 'One-Liner') || post.author?.info || post.keyword?.replace(/^watchlist:/, '') || post.platform || 'General',
-    title: post.author?.info || post.keyword || post.platform || 'Lead Signal',
-    signalContext: isRevealed ? post.content || '' : redactContact(post.content || ''),
-    role: post.author?.info || extractSection(intel, 'One-Liner'),
-    taskScope: extractSection(intel, 'Context You Might Miss'),
-    mustHave: extractSection(intel, 'What They Actually Want'),
-    nicheBonus: extractSection(intel, 'How to Win'),
-    buyerType: intel,
+    company: isRevealed
+      ? post.contact_info?.company_name || post.author?.name || post.platform || ''
+      : 'Confidential Client',
+    source: 'Lead Signal',
+    category: niches[0] || 'General',
+    title: cleanTitle,
+    signalContext: isRevealed ? post.content || '' : sanitizePublicText(post.content || ''),
+    role: sanitizePublicText(post.author?.info || extractSection(intel, 'One-Liner')),
+    taskScope: cleanScope,
+    mustHave: sanitizePublicText(extractSection(intel, 'What They Actually Want')),
+    nicheBonus: sanitizePublicText(extractSection(intel, 'How to Win')),
+    buyerType: sanitizePublicText(intel),
     urgency: 'medium',
     winProb: 'medium',
-    nicheTags: extractTags(post),
-    niches: [],
+    nicheTags: cleanTags,
+    niches,
     hashtags: [],
     replyProbability: Math.max(post.ai_score || 0, 60),
     accent: 'mint',
@@ -97,7 +129,47 @@ function externalPostToAppLead(
     isClaimable: isLeadClaimable(post),
     hasPhone: !!phone,
     revealCost: getLeadRevealCost(post),
-    phone,
+    phone: isRevealed ? phone : null,
+  }
+}
+
+function dbLeadToAppLead(
+  lead: Lead,
+  userState?: { isSaved: boolean; isRevealed: boolean; status: string } | null,
+): AppLead {
+  const isRevealed = userState?.isRevealed || false
+  const phone = lead.phone || null
+  const email = lead.email || ''
+
+  return {
+    id: lead.id,
+    name: isRevealed ? lead.name : 'Unlocked Contact',
+    email: isRevealed ? email : 'unlocked@leadhunterclub.com',
+    company: isRevealed ? lead.company : 'Confidential Client',
+    source: lead.source || 'Lead Signal',
+    category: lead.category || 'General',
+    title: lead.title,
+    signalContext: isRevealed ? lead.signalContext : sanitizePublicText(lead.signalContext || ''),
+    role: sanitizePublicText(lead.role || ''),
+    taskScope: sanitizePublicText(lead.taskScope || ''),
+    mustHave: sanitizePublicText(lead.mustHave || ''),
+    nicheBonus: sanitizePublicText(lead.nicheBonus || ''),
+    buyerType: sanitizePublicText(lead.buyerType || ''),
+    urgency: (lead.urgency as AppLead['urgency']) || 'medium',
+    winProb: (lead.winProb as AppLead['winProb']) || 'medium',
+    nicheTags: lead.nicheTags || [],
+    niches: lead.niches || [],
+    hashtags: lead.hashtags || [],
+    replyProbability: lead.replyProbability || 60,
+    accent: (lead.accent as AppLead['accent']) || 'mint',
+    status: (userState?.status || 'saved') as AppLead['status'],
+    timestamp: formatTimeAgo(lead.createdAt.toISOString()),
+    isSaved: userState?.isSaved ?? true,
+    isRevealed,
+    isClaimable: true,
+    hasPhone: !!phone,
+    revealCost: 1,
+    phone: isRevealed ? phone : null,
   }
 }
 
@@ -119,7 +191,7 @@ export async function GET(request: NextRequest) {
     if (isSavedView || isOutreachView) {
       const userStates = await db.userLeadState.findMany({
         where: isSavedView
-          ? { userId, isSaved: true }
+          ? { userId, isSaved: true, isRevealed: true }
           : { userId, status: { in: ['drafting', 'sent', 'replied', 'follow-up'] } },
         include: { lead: true },
       })

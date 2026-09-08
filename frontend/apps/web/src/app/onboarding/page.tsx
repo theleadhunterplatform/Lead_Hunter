@@ -6,6 +6,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/hooks/useAuth'
 import { api } from '@/lib/api/client'
 import { normalizePhone } from '@/lib/phone'
+import { PhoneInputWithCountry } from '@/components/ui/PhoneInputWithCountry'
+import { extractCountryAndLocalNumber } from '@/lib/countries'
 import {
   auth,
   signInWithPhoneNumber,
@@ -21,74 +23,150 @@ import {
   SparklesIcon,
   ArrowPathIcon,
   ShieldExclamationIcon,
+  ChevronDownIcon,
 } from '@heroicons/react/24/solid'
 
-const SERVICES = [
-  // Development
-  'Web Development',
-  'Mobile App Development',
-  'Software Development',
-  'API Development & Integration',
-  'E-commerce Development',
-  'WordPress Development',
-  'CRM Development & Integration',
-  'Cloud Infrastructure (AWS/GCP/Azure)',
-  'DevOps & CI/CD',
-  'Database Design & Management',
-  'AI / Machine Learning',
-  // Design
-  'UI/UX Design',
-  'Graphic Design',
-  'Brand Identity & Logo Design',
-  'Packaging Design',
-  'Print Design',
-  'Motion Graphics',
-  '3D Modeling & Animation',
-  'Product Design',
-  'Presentation Design',
-  'Illustration',
-  // Marketing
-  'SEO / Growth',
-  'Social Media Management',
-  'Email Marketing',
-  'Paid Ads (Google/Meta/etc.)',
-  'Content Marketing',
-  'Influencer Marketing',
-  'Affiliate Marketing',
-  'Marketing Automation',
-  'Conversion Rate Optimization (CRO)',
-  // Content
-  'Copywriting',
-  'Video Production',
-  'Photography',
-  'Podcast Production',
-  'Technical Writing',
-  'Scriptwriting',
-  // Business
-  'Marketing Strategy',
-  'Sales Consulting',
-  'Business Consulting',
-  'Lead Generation',
-  'Data Analysis & Analytics',
-  'Project Management',
-  'Brand Strategy',
-  'CRM Setup & Management',
-  'Other',
+interface CategoryGroup {
+  id: string
+  name: string
+  icon: string
+  items: string[]
+}
+
+const SERVICE_CATEGORIES: CategoryGroup[] = [
+  {
+    id: 'dev',
+    name: 'Development & Engineering',
+    icon: '💻',
+    items: [
+      'Web Development',
+      'Mobile App Development',
+      'Software & Full-Stack',
+      'AI & Machine Learning',
+      'DevOps & Cloud Infrastructure',
+      'WordPress & Webflow',
+    ],
+  },
+  {
+    id: 'design',
+    name: 'Design & Creative',
+    icon: '🎨',
+    items: [
+      'UI/UX & Product Design',
+      'Graphic & Brand Identity',
+      'Motion Graphics & 3D',
+      'Packaging & Print Design',
+      'Presentations & Pitch Decks',
+    ],
+  },
+  {
+    id: 'marketing',
+    name: 'Marketing & Growth',
+    icon: '🚀',
+    items: [
+      'SEO & Organic Growth',
+      'Paid Ads (Google / Meta / TikTok)',
+      'Social Media Marketing',
+      'Email Marketing & Lifecycle',
+      'Conversion Rate Optimization (CRO)',
+      'Influencer & Affiliate Marketing',
+    ],
+  },
+  {
+    id: 'content',
+    name: 'Content & Media',
+    icon: '✍️',
+    items: [
+      'Copywriting & Messaging',
+      'Content Marketing & SEO Blogs',
+      'Video Production & Editing',
+      'Podcast & Audio Production',
+      'Technical Writing',
+    ],
+  },
+  {
+    id: 'sales',
+    name: 'Sales & Business Operations',
+    icon: '💼',
+    items: [
+      'Lead Generation & Cold Outreach',
+      'Sales Consulting & GTM Strategy',
+      'CRM & Workflow Automation',
+      'Data Analytics & Business Intelligence',
+      'Project Management',
+    ],
+  },
 ]
 
-const LEAD_CATEGORIES = [
-  'SaaS',
-  'E-commerce',
-  'Agency',
-  'Healthcare',
-  'Finance',
-  'Real Estate',
-  'Education',
-  'Enterprise',
-  'B2B Services',
-  'DTC / Consumer',
-  'Marketplaces',
-  'Other',
+const CLIENT_NICHE_CATEGORIES: CategoryGroup[] = [
+  {
+    id: 'tech',
+    name: 'Tech & Software',
+    icon: '⚡',
+    items: [
+      'B2B SaaS',
+      'AI & DeepTech',
+      'Mobile Apps & Marketplaces',
+      'FinTech & InsurTech',
+      'DevTools & Infrastructure',
+    ],
+  },
+  {
+    id: 'commerce',
+    name: 'E-Commerce & Retail',
+    icon: '🛍️',
+    items: [
+      'DTC Brands & E-commerce',
+      'Amazon & Marketplace Sellers',
+      'Fashion, Apparel & Luxury',
+      'Food & Beverage / CPG',
+    ],
+  },
+  {
+    id: 'professional',
+    name: 'Professional & B2B Services',
+    icon: '🏢',
+    items: [
+      'Agencies & Consultancies',
+      'Corporate & Enterprise Services',
+      'Financial & Legal Services',
+      'Logistics & Supply Chain',
+    ],
+  },
+  {
+    id: 'real-estate',
+    name: 'Real Estate & Construction',
+    icon: '🏡',
+    items: [
+      'Commercial & Residential Real Estate',
+      'Property Management & Development',
+      'Home Services & Contractors',
+      'Architecture & Interior Design',
+    ],
+  },
+  {
+    id: 'health-edu',
+    name: 'Health, Wellness & Education',
+    icon: '🩺',
+    items: [
+      'Healthcare & Medical Practices',
+      'HealthTech & Digital Health',
+      'Fitness, Wellness & Beauty',
+      'EdTech & Online Learning',
+    ],
+  },
+  {
+    id: 'other',
+    name: 'Other Sectors',
+    icon: '🌐',
+    items: [
+      'Web3 & Crypto',
+      'Non-Profit & Social Impact',
+      'Hospitality, Travel & Leisure',
+      'Media, Entertainment & Gaming',
+      'Other',
+    ],
+  },
 ]
 
 const EXPERIENCE_LEVELS = [
@@ -120,6 +198,13 @@ const DISCOVERY_SOURCES = [
 ]
 
 const MAX_OTP_ATTEMPTS = 3
+
+function formatUrl(url: string): string {
+  const trimmed = url.trim()
+  if (!trimmed) return ''
+  if (/^https?:\/\//i.test(trimmed)) return trimmed
+  return `https://${trimmed}`
+}
 
 function OnboardingSkeleton() {
   return (
@@ -159,6 +244,7 @@ export default function OnboardingPage() {
   const [resending, setResending] = useState(false)
   const [checkingVerification, setCheckingVerification] = useState(true)
 
+  const [countryCode, setCountryCode] = useState('+91')
   const [phoneNumber, setPhoneNumber] = useState('')
   const [verificationCode, setVerificationCode] = useState('')
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null)
@@ -180,6 +266,36 @@ export default function OnboardingPage() {
   const [outreachExperience, setOutreachExperience] = useState('')
   const [discoverySource, setDiscoverySource] = useState('')
   const [step1Error, setStep1Error] = useState('')
+  const [openServices, setOpenServices] = useState<string[]>(['dev'])
+  const [openNiches, setOpenNiches] = useState<string[]>(['tech'])
+
+  const toggleOpenService = (id: string) => {
+    setOpenServices((prev) =>
+      prev.includes(id) ? prev.filter((catId) => catId !== id) : [...prev, id],
+    )
+  }
+
+  const toggleOpenNiche = (id: string) => {
+    setOpenNiches((prev) =>
+      prev.includes(id) ? prev.filter((catId) => catId !== id) : [...prev, id],
+    )
+  }
+
+  const toggleAllServices = () => {
+    if (openServices.length === SERVICE_CATEGORIES.length) {
+      setOpenServices([])
+    } else {
+      setOpenServices(SERVICE_CATEGORIES.map((c) => c.id))
+    }
+  }
+
+  const toggleAllNiches = () => {
+    if (openNiches.length === CLIENT_NICHE_CATEGORIES.length) {
+      setOpenNiches([])
+    } else {
+      setOpenNiches(CLIENT_NICHE_CATEGORIES.map((c) => c.id))
+    }
+  }
 
   useEffect(() => {
     const saved = localStorage.getItem('onboarding_step')
@@ -200,6 +316,16 @@ export default function OnboardingPage() {
         setPreferredLeadCategories(data.preferredLeadCategories || [])
         setOutreachExperience(data.outreachExperience || '')
         setDiscoverySource(data.discoverySource || '')
+        if (data.countryCode) {
+          setCountryCode(data.countryCode)
+        }
+        if (data.phoneNumber) {
+          setPhoneNumber(data.phoneNumber)
+        } else if (data.phone) {
+          const parsed = extractCountryAndLocalNumber(data.phone)
+          setCountryCode(parsed.dialCode)
+          setPhoneNumber(parsed.localNumber)
+        }
       } catch {}
     }
   }, [])
@@ -208,6 +334,9 @@ export default function OnboardingPage() {
     if (step < 1 || step > 3) return
     localStorage.setItem('onboarding_step', step.toString())
     const data = {
+      countryCode,
+      phoneNumber,
+      phone: `${countryCode} ${phoneNumber.trim()}`,
       portfolio,
       website,
       linkedin,
@@ -222,7 +351,7 @@ export default function OnboardingPage() {
       discoverySource,
     }
     localStorage.setItem('onboarding_data', JSON.stringify(data))
-  }, [step, portfolio, website, linkedin, instagram, dribbble, behance, github, twitter, servicesOffered, preferredLeadCategories, outreachExperience, discoverySource])
+  }, [step, countryCode, phoneNumber, portfolio, website, linkedin, instagram, dribbble, behance, github, twitter, servicesOffered, preferredLeadCategories, outreachExperience, discoverySource])
 
   useEffect(() => {
     if (otpCountdown <= 0) return
@@ -271,9 +400,20 @@ export default function OnboardingPage() {
     if (!auth.currentUser) return
     setResending(true)
     try {
-      await sendEmailVerification(auth.currentUser)
+      const token = await auth.currentUser.getIdToken().catch(() => null)
+      const res = await fetch('/api/auth/send-verification', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ email: auth.currentUser.email }),
+      })
+      if (!res.ok) {
+        await sendEmailVerification(auth.currentUser).catch(() => {})
+      }
     } catch {
-      // silently fail
+      await sendEmailVerification(auth.currentUser).catch(() => {})
     } finally {
       setResending(false)
     }
@@ -298,7 +438,7 @@ export default function OnboardingPage() {
   if (!emailVerified) {
     return (
       <main className="min-h-dvh bg-bg-main flex items-center justify-center px-4 relative overflow-hidden">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[radial-gradient(circle_at_center,rgba(var(--rgb-accent-mint),0.06)_0%,transparent_60%)] pointer-events-none" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[radial-gradient(circle_at_center,rgba(var(--rgb-primary),0.08)_0%,transparent_60%)] pointer-events-none" />
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -306,7 +446,7 @@ export default function OnboardingPage() {
           transition={{ duration: 0.4 }}
           className="relative z-10 w-full max-w-md bg-surface/40 backdrop-blur-xl border border-white/[0.06] rounded-3xl shadow-elevation-4 p-8 text-center"
         >
-          <ShieldExclamationIcon className="w-10 h-10 text-accent-mint mx-auto mb-4" />
+          <ShieldExclamationIcon className="w-10 h-10 text-primary mx-auto mb-4" />
           <h1 className="text-xl font-bold text-text-primary tracking-tight">Verify your email</h1>
           <p className="text-sm text-text-secondary mt-2 leading-relaxed">
             We sent a verification link to{' '}
@@ -321,10 +461,10 @@ export default function OnboardingPage() {
             <button
               onClick={handleResendVerification}
               disabled={resending}
-              className="px-5 py-3 rounded-xl bg-accent-mint hover:bg-accent-mint/90 text-white text-sm font-medium transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              className="px-5 py-3 rounded-xl bg-primary hover:bg-primary/90 text-black font-semibold text-sm transition-all shadow-[0_4px_20px_rgba(var(--rgb-primary),0.25)] active:scale-98 disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {resending ? (
-                <div className="w-5 h-5 rounded-full border-2 border-white/20 border-t-white animate-spin" />
+                <div className="w-5 h-5 rounded-full border-2 border-black/20 border-t-black animate-spin" />
               ) : (
                 <>
                   <ArrowPathIcon className="w-4 h-4" />
@@ -375,7 +515,10 @@ export default function OnboardingPage() {
     setPhoneLoading(true)
     setPhoneError('')
     try {
-      const normalized = normalizePhone(phoneNumber.trim())
+      const fullPhone = phoneNumber.trim().startsWith('+')
+        ? phoneNumber.trim()
+        : `${countryCode}${phoneNumber.trim()}`
+      const normalized = normalizePhone(fullPhone)
       const verifier = await createRecaptchaVerifier()
       if (!verifier) {
         setPhoneError('Recaptcha failed to load. You can skip this step and add phone later.')
@@ -425,10 +568,8 @@ export default function OnboardingPage() {
 
   const handleSubmit = async () => {
     if (!discoverySource) return
+    if (!linkedin.trim()) { setError('LinkedIn profile link is required'); return }
     if (!phoneNumber.trim()) { setError('Phone number is required'); return }
-    if (!portfolio && !website && !linkedin && !instagram && !dribbble && !behance && !github && !twitter) {
-      setError('At least one profile link is required'); return
-    }
     if (servicesOffered.length === 0) { setError('Select at least one service'); return }
     if (preferredLeadCategories.length === 0) { setError('Select at least one lead category'); return }
     if (!outreachExperience) { setError('Select your outreach experience'); return }
@@ -437,12 +578,16 @@ export default function OnboardingPage() {
     setError('')
     setSubmitRetry(false)
 
+    const fullPhone = phoneNumber.trim().startsWith('+')
+      ? phoneNumber.trim()
+      : `${countryCode} ${phoneNumber.trim()}`
+
     try {
       await api.post('/onboarding', {
-        phone: phoneNumber,
-        portfolio: portfolio || undefined,
-        website: website || undefined,
-        linkedin: linkedin || undefined,
+        phone: fullPhone,
+        portfolio: portfolio ? formatUrl(portfolio) : undefined,
+        website: website ? formatUrl(website) : undefined,
+        linkedin: formatUrl(linkedin),
         instagram: instagram || undefined,
         dribbble: dribbble || undefined,
         behance: behance || undefined,
@@ -466,7 +611,7 @@ export default function OnboardingPage() {
 
   return (
     <main className="min-h-dvh bg-bg-main flex flex-col items-center justify-start px-4 relative overflow-y-auto pt-12 pb-8 scrollbar-hide">
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[radial-gradient(circle_at_center,rgba(var(--rgb-accent-mint),0.06)_0%,transparent_60%)] pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[radial-gradient(circle_at_center,rgba(var(--rgb-primary),0.08)_0%,transparent_60%)] pointer-events-none" />
 
       {step > 1 && (
         <motion.button
@@ -492,18 +637,18 @@ export default function OnboardingPage() {
               <div
                 className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
                   s < step
-                    ? 'bg-accent-mint text-black'
+                    ? 'bg-primary text-black'
                     : s === step
-                      ? 'bg-accent-mint text-white shadow-[0_0_16px_rgba(var(--rgb-accent-mint),0.3)]'
+                      ? 'bg-primary text-black shadow-[0_0_16px_rgba(var(--rgb-primary),0.35)]'
                       : 'bg-white/5 text-text-secondary/40'
                 }`}
               >
-                {s < step ? <CheckCircleIcon className="w-4 h-4" /> : s}
+                {s < step ? <CheckCircleIcon className="w-4 h-4 text-black" /> : s}
               </div>
               {s < 3 && (
                 <div
                   className={`w-12 h-px transition-all duration-300 ${
-                    s < step ? 'bg-accent-mint' : 'bg-white/5'
+                    s < step ? 'bg-primary' : 'bg-white/5'
                   }`}
                 />
               )}
@@ -522,19 +667,36 @@ export default function OnboardingPage() {
                   transition={{ duration: 0.3 }}
                 >
                   <div className="text-center mb-8">
-                    <SparklesIcon className="w-8 h-8 text-accent-mint mx-auto mb-3" />
+                    <SparklesIcon className="w-8 h-8 text-primary mx-auto mb-3" />
                     <h1 className="text-2xl font-bold text-text-primary tracking-tight">
                       Let&apos;s set up your profile
                     </h1>
                     <p className="text-sm text-text-secondary mt-2">
                       Add your profile links so leads know who they&apos;re talking to
                     </p>
-                    <p className="text-xs text-accent-mint mt-1 font-medium">
-                      At least one profile link required
+                    <p className="text-xs text-primary mt-1 font-medium">
+                      LinkedIn profile and phone number are required
                     </p>
                   </div>
 
                   <div className="flex flex-col gap-4">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider flex items-center justify-between">
+                        <span>
+                          LinkedIn Profile <span className="text-primary">*</span>
+                        </span>
+                        <span className="text-[10px] text-primary font-medium normal-case">
+                          Required
+                        </span>
+                      </label>
+                      <input
+                        value={linkedin}
+                        onChange={(e) => { setLinkedin(e.target.value); setStep1Error('') }}
+                        placeholder="https://linkedin.com/in/your-profile"
+                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3"
+                      />
+                    </div>
+
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
                         Portfolio URL
@@ -543,7 +705,7 @@ export default function OnboardingPage() {
                         value={portfolio}
                         onChange={(e) => { setPortfolio(e.target.value); setStep1Error('') }}
                         placeholder="https://your-portfolio.com"
-                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all px-4 py-3"
+                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3"
                       />
                     </div>
 
@@ -555,19 +717,7 @@ export default function OnboardingPage() {
                         value={website}
                         onChange={(e) => { setWebsite(e.target.value); setStep1Error('') }}
                         placeholder="https://your-company.com"
-                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all px-4 py-3"
-                      />
-                    </div>
-
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
-                        LinkedIn
-                      </label>
-                      <input
-                        value={linkedin}
-                        onChange={(e) => { setLinkedin(e.target.value); setStep1Error('') }}
-                        placeholder="https://linkedin.com/in/your-profile"
-                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all px-4 py-3"
+                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3"
                       />
                     </div>
 
@@ -579,7 +729,7 @@ export default function OnboardingPage() {
                         value={instagram}
                         onChange={(e) => { setInstagram(e.target.value); setStep1Error('') }}
                         placeholder="https://instagram.com/your-handle"
-                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all px-4 py-3"
+                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3"
                       />
                     </div>
 
@@ -591,7 +741,7 @@ export default function OnboardingPage() {
                         value={dribbble}
                         onChange={(e) => { setDribbble(e.target.value); setStep1Error('') }}
                         placeholder="https://dribbble.com/your-handle"
-                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all px-4 py-3"
+                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3"
                       />
                     </div>
 
@@ -603,7 +753,7 @@ export default function OnboardingPage() {
                         value={behance}
                         onChange={(e) => { setBehance(e.target.value); setStep1Error('') }}
                         placeholder="https://behance.net/your-profile"
-                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all px-4 py-3"
+                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3"
                       />
                     </div>
 
@@ -615,7 +765,7 @@ export default function OnboardingPage() {
                         value={github}
                         onChange={(e) => { setGithub(e.target.value); setStep1Error('') }}
                         placeholder="https://github.com/your-handle"
-                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all px-4 py-3"
+                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3"
                       />
                     </div>
 
@@ -627,24 +777,35 @@ export default function OnboardingPage() {
                         value={twitter}
                         onChange={(e) => { setTwitter(e.target.value); setStep1Error('') }}
                         placeholder="https://twitter.com/your-handle"
-                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all px-4 py-3"
+                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3"
                       />
                     </div>
 
                     <div className="border-t border-white/[0.06] pt-4">
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
-                          Phone number <span className="text-red-400">*</span>
+                        <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider flex items-center justify-between">
+                          <span>
+                            Phone number <span className="text-primary">*</span>
+                          </span>
+                          <span className="text-[10px] text-primary font-medium normal-case">
+                            Required
+                          </span>
                         </label>
-                        <input
-                          value={phoneNumber}
-                          onChange={(e) => { setPhoneNumber(e.target.value); setStep1Error('') }}
-                          type="tel"
-                          placeholder="+1 (555) 123-4567"
-                          className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all px-4 py-3"
+                        <PhoneInputWithCountry
+                          countryCode={countryCode}
+                          onCountryCodeChange={(code) => {
+                            setCountryCode(code)
+                            setStep1Error('')
+                          }}
+                          phoneNumber={phoneNumber}
+                          onPhoneNumberChange={(num) => {
+                            setPhoneNumber(num)
+                            setStep1Error('')
+                          }}
+                          error={step1Error && !phoneNumber.trim() ? step1Error : undefined}
                         />
                         <p className="text-xs text-text-secondary/60 mt-0.5">
-                          We need this number to contact you, so provide your real number only
+                          Defaulted to India (+91). Select your country code if outside India.
                         </p>
                       </div>
                     </div>
@@ -659,9 +820,8 @@ export default function OnboardingPage() {
 
                   <button
                     onClick={() => {
-                      const hasAnyLink = portfolio || website || linkedin || instagram || dribbble || behance || github || twitter
-                      if (!hasAnyLink) {
-                        setStep1Error('Please provide at least one profile link to continue')
+                      if (!linkedin.trim()) {
+                        setStep1Error('LinkedIn profile link is required')
                         return
                       }
                       if (!phoneNumber.trim()) {
@@ -671,7 +831,7 @@ export default function OnboardingPage() {
                       setStep1Error('')
                       setStep(2)
                     }}
-                    className="mt-6 w-full bg-accent-mint hover:bg-accent-mint/90 text-white rounded-xl active:scale-98 transition-all shadow-[0_4px_20px_rgba(var(--rgb-accent-mint),0.15)] px-4 py-3 font-medium"
+                    className="mt-6 w-full bg-primary hover:bg-primary/90 text-black font-semibold rounded-xl active:scale-98 transition-all shadow-[0_4px_20px_rgba(var(--rgb-primary),0.25)] px-4 py-3"
                   >
                     Continue
                   </button>
@@ -696,7 +856,7 @@ export default function OnboardingPage() {
                   transition={{ duration: 0.3 }}
                 >
                   <div className="text-center mb-8">
-                    <SparklesIcon className="w-8 h-8 text-accent-mint mx-auto mb-3" />
+                    <SparklesIcon className="w-8 h-8 text-primary mx-auto mb-3" />
                     <h1 className="text-2xl font-bold text-text-primary tracking-tight">
                       What do you offer?
                     </h1>
@@ -706,49 +866,213 @@ export default function OnboardingPage() {
                   </div>
 
                   <div className="flex flex-col gap-6">
-                    <div className="flex flex-col gap-2">
-                      <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
-                        Services you offer
-                      </label>
-                      <div className="flex flex-wrap gap-2">
-                        {SERVICES.map((s) => (
-                          <button
-                            key={s}
-                            onClick={() => setServicesOffered(toggleArrayItem(servicesOffered, s))}
-                            className={`px-3 py-2 rounded-xl text-xs font-medium border transition-all duration-200 ${
-                              servicesOffered.includes(s)
-                                ? 'bg-accent-mint/20 border-accent-mint/40 text-accent-mint'
-                                : 'bg-white/[0.02] border-white/[0.06] text-text-secondary hover:text-text-primary hover:bg-white/5'
-                            }`}
-                          >
-                            {s}
-                          </button>
-                        ))}
+                    {/* Services Section */}
+                    <div className="flex flex-col gap-2.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider flex items-center gap-1.5">
+                          <span>Services you offer</span>
+                          {servicesOffered.length > 0 && (
+                            <span className="text-[11px] text-primary font-bold normal-case">
+                              ({servicesOffered.length} selected)
+                            </span>
+                          )}
+                        </label>
+                        <button
+                          type="button"
+                          onClick={toggleAllServices}
+                          className="text-[11px] text-text-secondary/60 hover:text-primary transition-colors font-medium"
+                        >
+                          {openServices.length === SERVICE_CATEGORIES.length
+                            ? 'Collapse all'
+                            : 'Expand all'}
+                        </button>
+                      </div>
+
+                      <div className="flex flex-col gap-2">
+                        {SERVICE_CATEGORIES.map((cat) => {
+                          const isOpen = openServices.includes(cat.id)
+                          const selectedCount = cat.items.filter((item) =>
+                            servicesOffered.includes(item),
+                          ).length
+
+                          return (
+                            <div
+                              key={cat.id}
+                              className={`rounded-2xl border transition-all duration-200 overflow-hidden ${
+                                selectedCount > 0
+                                  ? 'border-primary/30 bg-white/[0.03]'
+                                  : 'border-white/[0.06] bg-white/[0.015] hover:border-white/10'
+                              }`}
+                            >
+                              <button
+                                type="button"
+                                onClick={() => toggleOpenService(cat.id)}
+                                className="w-full px-4 py-3 flex items-center justify-between text-left transition-colors"
+                              >
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  <span className="text-base leading-none">{cat.icon}</span>
+                                  <span className="text-xs font-semibold text-text-primary tracking-tight">
+                                    {cat.name}
+                                  </span>
+                                </div>
+
+                                <div className="flex items-center gap-2 shrink-0">
+                                  {selectedCount > 0 && (
+                                    <span className="px-2 py-0.5 rounded-md bg-primary/20 border border-primary/30 text-primary text-[10px] font-bold">
+                                      {selectedCount} selected
+                                    </span>
+                                  )}
+                                  <ChevronDownIcon
+                                    className={`w-3.5 h-3.5 text-text-secondary/60 transition-transform duration-200 ${
+                                      isOpen ? 'rotate-180 text-primary' : ''
+                                    }`}
+                                  />
+                                </div>
+                              </button>
+
+                              <AnimatePresence initial={false}>
+                                {isOpen && (
+                                  <motion.div
+                                    key="content"
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: 'auto', opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="overflow-hidden"
+                                  >
+                                    <div className="px-4 pb-3.5 pt-1 flex flex-wrap gap-1.5 border-t border-white/[0.04]">
+                                      {cat.items.map((s) => {
+                                        const isSelected = servicesOffered.includes(s)
+                                        return (
+                                          <button
+                                            key={s}
+                                            type="button"
+                                            onClick={() =>
+                                              setServicesOffered(toggleArrayItem(servicesOffered, s))
+                                            }
+                                            className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-all duration-200 ${
+                                              isSelected
+                                                ? 'bg-primary/15 border-primary/40 text-primary font-semibold shadow-[0_0_12px_rgba(var(--rgb-primary),0.12)]'
+                                                : 'bg-white/[0.02] border-white/[0.06] text-text-secondary hover:text-text-primary hover:bg-white/5 hover:border-white/10'
+                                            }`}
+                                          >
+                                            {s}
+                                          </button>
+                                        )
+                                      })}
+                                    </div>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </div>
+                          )
+                        })}
                       </div>
                     </div>
 
-                    <div className="flex flex-col gap-2">
-                      <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
-                        Preferred lead categories
-                      </label>
-                      <div className="flex flex-wrap gap-2">
-                        {LEAD_CATEGORIES.map((c) => (
-                          <button
-                            key={c}
-                            onClick={() =>
-                              setPreferredLeadCategories(
-                                toggleArrayItem(preferredLeadCategories, c),
-                              )
-                            }
-                            className={`px-3 py-2 rounded-xl text-xs font-medium border transition-all duration-200 ${
-                              preferredLeadCategories.includes(c)
-                                ? 'bg-accent-mint/20 border-accent-mint/40 text-accent-mint'
-                                : 'bg-white/[0.02] border-white/[0.06] text-text-secondary hover:text-text-primary hover:bg-white/5'
-                            }`}
-                          >
-                            {c}
-                          </button>
-                        ))}
+                    {/* Client Niches Section */}
+                    <div className="flex flex-col gap-2.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider flex items-center gap-1.5">
+                          <span>Target Client Niches</span>
+                          {preferredLeadCategories.length > 0 && (
+                            <span className="text-[11px] text-primary font-bold normal-case">
+                              ({preferredLeadCategories.length} selected)
+                            </span>
+                          )}
+                        </label>
+                        <button
+                          type="button"
+                          onClick={toggleAllNiches}
+                          className="text-[11px] text-text-secondary/60 hover:text-primary transition-colors font-medium"
+                        >
+                          {openNiches.length === CLIENT_NICHE_CATEGORIES.length
+                            ? 'Collapse all'
+                            : 'Expand all'}
+                        </button>
+                      </div>
+
+                      <div className="flex flex-col gap-2">
+                        {CLIENT_NICHE_CATEGORIES.map((cat) => {
+                          const isOpen = openNiches.includes(cat.id)
+                          const selectedCount = cat.items.filter((item) =>
+                            preferredLeadCategories.includes(item),
+                          ).length
+
+                          return (
+                            <div
+                              key={cat.id}
+                              className={`rounded-2xl border transition-all duration-200 overflow-hidden ${
+                                selectedCount > 0
+                                  ? 'border-primary/30 bg-white/[0.03]'
+                                  : 'border-white/[0.06] bg-white/[0.015] hover:border-white/10'
+                              }`}
+                            >
+                              <button
+                                type="button"
+                                onClick={() => toggleOpenNiche(cat.id)}
+                                className="w-full px-4 py-3 flex items-center justify-between text-left transition-colors"
+                              >
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  <span className="text-base leading-none">{cat.icon}</span>
+                                  <span className="text-xs font-semibold text-text-primary tracking-tight">
+                                    {cat.name}
+                                  </span>
+                                </div>
+
+                                <div className="flex items-center gap-2 shrink-0">
+                                  {selectedCount > 0 && (
+                                    <span className="px-2 py-0.5 rounded-md bg-primary/20 border border-primary/30 text-primary text-[10px] font-bold">
+                                      {selectedCount} selected
+                                    </span>
+                                  )}
+                                  <ChevronDownIcon
+                                    className={`w-3.5 h-3.5 text-text-secondary/60 transition-transform duration-200 ${
+                                      isOpen ? 'rotate-180 text-primary' : ''
+                                    }`}
+                                  />
+                                </div>
+                              </button>
+
+                              <AnimatePresence initial={false}>
+                                {isOpen && (
+                                  <motion.div
+                                    key="content"
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: 'auto', opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="overflow-hidden"
+                                  >
+                                    <div className="px-4 pb-3.5 pt-1 flex flex-wrap gap-1.5 border-t border-white/[0.04]">
+                                      {cat.items.map((c) => {
+                                        const isSelected = preferredLeadCategories.includes(c)
+                                        return (
+                                          <button
+                                            key={c}
+                                            type="button"
+                                            onClick={() =>
+                                              setPreferredLeadCategories(
+                                                toggleArrayItem(preferredLeadCategories, c),
+                                              )
+                                            }
+                                            className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-all duration-200 ${
+                                              isSelected
+                                                ? 'bg-primary/15 border-primary/40 text-primary font-semibold shadow-[0_0_12px_rgba(var(--rgb-primary),0.12)]'
+                                                : 'bg-white/[0.02] border-white/[0.06] text-text-secondary hover:text-text-primary hover:bg-white/5 hover:border-white/10'
+                                            }`}
+                                          >
+                                            {c}
+                                          </button>
+                                        )
+                                      })}
+                                    </div>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </div>
+                          )
+                        })}
                       </div>
                     </div>
 
@@ -759,13 +1083,13 @@ export default function OnboardingPage() {
                       <select
                         value={outreachExperience}
                         onChange={(e) => setOutreachExperience(e.target.value)}
-                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all px-4 py-3"
+                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3"
                       >
                         <option value="" disabled>
                           Select your experience level
                         </option>
                         {EXPERIENCE_LEVELS.map((el) => (
-                          <option key={el.value} value={el.value}>
+                          <option key={el.value} value={el.value} className="bg-[#161718] text-white">
                             {el.label}
                           </option>
                         ))}
@@ -776,9 +1100,9 @@ export default function OnboardingPage() {
                   <button
                     onClick={() => setStep(3)}
                     disabled={!canProceedFromStep2}
-                    className={`mt-8 w-full rounded-xl active:scale-98 transition-all px-4 py-3 font-medium ${
+                    className={`mt-8 w-full rounded-xl active:scale-98 transition-all px-4 py-3 font-semibold ${
                       canProceedFromStep2
-                        ? 'bg-accent-mint hover:bg-accent-mint/90 text-white shadow-[0_4px_20px_rgba(var(--rgb-accent-mint),0.15)]'
+                        ? 'bg-primary hover:bg-primary/90 text-black shadow-[0_4px_20px_rgba(var(--rgb-primary),0.25)]'
                         : 'bg-white/5 text-text-secondary/40 cursor-not-allowed'
                     }`}
                   >
@@ -805,12 +1129,12 @@ export default function OnboardingPage() {
                   transition={{ duration: 0.3 }}
                 >
                   <div className="text-center mb-8">
-                    <SparklesIcon className="w-8 h-8 text-accent-mint mx-auto mb-3" />
+                    <SparklesIcon className="w-8 h-8 text-primary mx-auto mb-3" />
                     <h1 className="text-2xl font-bold text-text-primary tracking-tight">
                       Almost there!
                     </h1>
                     <p className="text-sm text-text-secondary mt-2">
-                      One last thing — how did you find us?
+                      One last thing: how did you find us?
                     </p>
                   </div>
 
@@ -822,8 +1146,8 @@ export default function OnboardingPage() {
                           onClick={() => setDiscoverySource(s)}
                           className={`px-4 py-3 rounded-xl text-sm font-medium border transition-all duration-200 ${
                             discoverySource === s
-                              ? 'bg-accent-mint/20 border-accent-mint/40 text-accent-mint'
-                              : 'bg-white/[0.02] border-white/[0.06] text-text-secondary hover:text-text-primary hover:bg-white/5'
+                              ? 'bg-primary/15 border-primary/40 text-primary font-semibold shadow-[0_0_12px_rgba(var(--rgb-primary),0.12)]'
+                              : 'bg-white/[0.02] border-white/[0.06] text-text-secondary hover:text-text-primary hover:bg-white/5 hover:border-white/10'
                           }`}
                         >
                           {s}
@@ -850,15 +1174,15 @@ export default function OnboardingPage() {
                   <button
                     onClick={handleSubmit}
                     disabled={!discoverySource || isSubmitting}
-                    className={`mt-8 w-full rounded-xl active:scale-98 transition-all px-4 py-3 font-medium flex items-center justify-center gap-2 ${
+                    className={`mt-8 w-full rounded-xl active:scale-98 transition-all px-4 py-3 font-semibold flex items-center justify-center gap-2 ${
                       discoverySource && !isSubmitting
-                        ? 'bg-accent-mint hover:bg-accent-mint/90 text-white shadow-[0_4px_20px_rgba(var(--rgb-accent-mint),0.15)]'
+                        ? 'bg-primary hover:bg-primary/90 text-black shadow-[0_4px_20px_rgba(var(--rgb-primary),0.25)]'
                         : 'bg-white/5 text-text-secondary/40 cursor-not-allowed'
                     }`}
                   >
                     {isSubmitting ? (
                       <>
-                        <div className="w-5 h-5 rounded-full border-2 border-white/20 border-t-white animate-spin" />
+                        <div className="w-5 h-5 rounded-full border-2 border-black/20 border-t-black animate-spin" />
                         Submitting...
                       </>
                     ) : (

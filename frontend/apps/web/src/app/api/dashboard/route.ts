@@ -39,10 +39,20 @@ export async function GET(request: NextRequest) {
       totalLeadsCount = 0
     }
 
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+
     const activeConversationsCount = await db.userLeadState.count({
       where: {
         userId,
         status: { in: ['drafting', 'sent', 'replied', 'follow-up'] },
+      },
+    })
+
+    const activeConversationsThisWeek = await db.userLeadState.count({
+      where: {
+        userId,
+        status: { in: ['drafting', 'sent', 'replied', 'follow-up'] },
+        lastActionDate: { gte: sevenDaysAgo },
       },
     })
 
@@ -53,17 +63,20 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    const savedLeadsWithScore = await db.userLeadState.findMany({
-      where: { userId, isSaved: true },
-      include: { lead: { select: { ai_score: true } } },
+    const repliedCount = await db.userLeadState.count({
+      where: { userId, status: 'replied' },
     })
-    const scores = savedLeadsWithScore
-      .map((s) => (s.lead ? Math.max(s.lead.ai_score || 0, 60) : 0))
-      .filter(Boolean)
-    const avgReplyProbability =
-      scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0
+    const contactedCount = await db.userLeadState.count({
+      where: { userId, status: { in: ['sent', 'follow-up', 'replied'] } },
+    })
+    const responseRate =
+      contactedCount > 0 ? Math.round((repliedCount / contactedCount) * 100) : 0
 
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+    const savedLeadsCount = await db.userLeadState.count({
+      where: { userId, isSaved: true },
+    })
+
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
     const recentActivity = await db.userLeadState.findMany({
       where: {
         userId,
@@ -71,7 +84,6 @@ export async function GET(request: NextRequest) {
       },
       select: { lastActionDate: true },
     })
-    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
     const activityMap = new Map<string, number>()
     dayNames.forEach((d) => activityMap.set(d, 0))
     recentActivity.forEach((state) => {
@@ -108,22 +120,22 @@ export async function GET(request: NextRequest) {
       {
         label: 'Signals Intercepted',
         value: totalLeadsCount.toLocaleString(),
-        trend: `${scores.length} saved`,
-        trendUp: true,
+        trend: `${savedLeadsCount} saved`,
+        trendUp: savedLeadsCount > 0,
         accent: 'mint' as const,
       },
       {
         label: 'Active Conversations',
         value: activeConversationsCount.toString(),
-        trend: '+5',
-        trendUp: true,
+        trend: `${activeConversationsThisWeek} active this week`,
+        trendUp: activeConversationsThisWeek > 0,
         accent: 'purple' as const,
       },
       {
-        label: 'Avg. Reply Probability',
-        value: avgReplyProbability > 0 ? `${avgReplyProbability}%` : '--',
-        trend: avgReplyProbability > 0 ? `based on ${scores.length} leads` : 'No data',
-        trendUp: avgReplyProbability >= 60,
+        label: 'Response Rate',
+        value: contactedCount > 0 ? `${responseRate}%` : '--',
+        trend: contactedCount > 0 ? `${repliedCount}/${contactedCount} replied` : 'No contacts yet',
+        trendUp: responseRate >= 20,
         accent: 'mint' as const,
       },
       {

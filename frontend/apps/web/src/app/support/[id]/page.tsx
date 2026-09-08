@@ -1,9 +1,17 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { LifebuoyIcon, ArrowLeftIcon, PaperAirplaneIcon, CheckCircleIcon } from '@heroicons/react/24/solid'
+import {
+  LifebuoyIcon,
+  ArrowLeftIcon,
+  PaperAirplaneIcon,
+  CheckCircleIcon,
+  ChevronRightIcon,
+  HomeIcon,
+} from '@heroicons/react/24/solid'
 import { Badge, Button, CustomLoader } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
 import { getFirebaseToken } from '@/lib/firebase'
@@ -129,45 +137,84 @@ export default function SupportThreadPage() {
   }
 
   return (
-    <main className="flex-1 overflow-y-auto px-8 py-10 relative scrollbar-hide">
+    <main className="flex-1 overflow-y-auto px-6 sm:px-10 py-8 pb-24 relative scrollbar-hide">
+      <div className="absolute top-[-10%] left-1/2 -translate-x-1/2 w-[800px] h-[400px] glow-mint-soft pointer-events-none" />
+
       <div className="max-w-[900px] mx-auto relative z-10">
-        <button
-          onClick={() => router.push('/support')}
-          className="flex items-center gap-2 text-sm text-text-secondary hover:text-text-primary transition-colors mb-6"
-        >
-          <ArrowLeftIcon className="w-4 h-4" />
-          Back to Support
-        </button>
+        {/* Breadcrumb Navigation & Back Link */}
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+          <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-xs text-text-secondary">
+            <Link
+              href="/dashboard"
+              className="flex items-center gap-1.5 hover:text-text-primary transition-colors"
+            >
+              <HomeIcon className="w-3.5 h-3.5" />
+              <span>Dashboard</span>
+            </Link>
+            <ChevronRightIcon className="w-3 h-3 text-text-secondary/40" />
+            <Link
+              href="/support"
+              className="hover:text-text-primary transition-colors flex items-center gap-1.5"
+            >
+              <LifebuoyIcon className="w-3.5 h-3.5 text-accent-orange" />
+              <span>Support</span>
+            </Link>
+            <ChevronRightIcon className="w-3 h-3 text-text-secondary/40" />
+            <span className="text-text-primary font-medium font-mono text-xxs truncate max-w-[200px]">
+              #{ticketId?.slice(0, 8)}
+            </span>
+          </nav>
+
+          <Link
+            href="/support"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-text-secondary hover:text-text-primary hover:bg-white/5 border border-white/10 transition-colors"
+          >
+            <ArrowLeftIcon className="w-3.5 h-3.5" />
+            <span>All Tickets</span>
+          </Link>
+        </div>
 
         {loading && <CustomLoader page="default" />}
 
         {!loading && ticket && (
           <>
-            <div className="flex items-center justify-between mb-8">
-              <div className="flex items-center gap-3">
-                <LifebuoyIcon className="w-6 h-6 text-text-secondary" />
-                <div>
-                  <h2 className="text-xl font-bold text-text-primary tracking-tight">{ticket.subject}</h2>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-xxs text-text-secondary capitalize">{ticket.category}</span>
-                    <Badge size="sm" color={statusColor[ticket.status] || 'purple'}>
-                      {ticket.status.replace('_', ' ')}
-                    </Badge>
-                    <span className="text-xxs text-text-secondary capitalize">· {ticket.priority} priority</span>
+            <div className="metallic-card p-6 rounded-2xl border border-white/[0.06] mb-8">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-start gap-4">
+                  <div className="w-11 h-11 rounded-xl bg-accent-orange/10 border border-accent-orange/20 flex items-center justify-center text-accent-orange shrink-0 mt-0.5 shadow-[0_0_15px_rgba(var(--rgb-accent-orange),0.12)]">
+                    <LifebuoyIcon className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-text-primary tracking-tight">{ticket.subject}</h2>
+                    <div className="flex flex-wrap items-center gap-2.5 mt-2">
+                      <span className="text-10 font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-white/5 border border-white/5 text-text-secondary capitalize">
+                        {ticket.category}
+                      </span>
+                      <Badge size="sm" color={statusColor[ticket.status] || 'purple'}>
+                        {ticket.status.replace('_', ' ')}
+                      </Badge>
+                      <span className="text-xs text-text-secondary capitalize">
+                        · {ticket.priority} priority
+                      </span>
+                      <span className="text-xs text-text-secondary">
+                        · Opened {new Date(ticket.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </span>
+                    </div>
                   </div>
                 </div>
+                {ticket.status !== 'CLOSED' && (
+                  <Button
+                    variant="outline"
+                    color="mint"
+                    size="sm"
+                    onClick={handleClose}
+                    className="self-start sm:self-center shrink-0"
+                  >
+                    <CheckCircleIcon className="w-3.5 h-3.5" />
+                    Close Ticket
+                  </Button>
+                )}
               </div>
-              {ticket.status !== 'CLOSED' && (
-                <Button
-                  variant="outline"
-                  color="mint"
-                  size="sm"
-                  onClick={handleClose}
-                >
-                  <CheckCircleIcon className="w-3 h-3" />
-                  Close Ticket
-                </Button>
-              )}
             </div>
 
             {/* Messages */}

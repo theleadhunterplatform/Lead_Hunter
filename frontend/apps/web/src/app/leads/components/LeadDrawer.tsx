@@ -17,6 +17,9 @@ import { Badge, Modal, Button } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
 import { getFirebaseToken } from '@/lib/firebase'
 
+import { sanitizePublicText } from '@/lib/claim-reveal'
+import { triggerUnlockConfetti } from '@/lib/confetti'
+
 const themeMap = {
   mint: {
     textAccent: 'text-text-secondary hover:text-text-primary transition-colors',
@@ -56,6 +59,14 @@ export default function LeadDrawer({
   const { addToast } = useToast()
   const tokenCost = lead.revealCost ?? null
 
+  const displayTitle = !lead.isRevealed
+    ? lead.title || 'OPPORTUNITY FOR —'
+    : lead.title && lead.title !== '--' && lead.title !== '-'
+      ? lead.title.replace(/FOR —|FOR -/i, `FOR ${lead.company || lead.name}`)
+      : lead.company || lead.name || 'Lead Signal'
+
+  const taskScopeDisplay = lead.isRevealed ? lead.taskScope : sanitizePublicText(lead.taskScope || '')
+
   const handleRevealClick = async () => {
     if (!lead.isClaimable) {
       setErrorMsg('This lead is not yet approved. Intelligence is still being generated.')
@@ -69,6 +80,27 @@ export default function LeadDrawer({
   }
 
   const confirmReveal = async () => {
+    // Smooth reveal for demo/mock leads
+    if (
+      lead.id.startsWith('mock') ||
+      lead.id.startsWith('hero') ||
+      lead.id.startsWith('card') ||
+      ['checkout', 'shopify', 'rebrand', 'freelancers', 'agencies', 'consultants'].includes(lead.id)
+    ) {
+      setIsRevealing(true)
+      setErrorMsg(null)
+      setShowCreditModal(false)
+      await new Promise((resolve) => setTimeout(resolve, 550))
+      onReveal(lead.name, lead.email, lead.phone)
+      triggerUnlockConfetti()
+      addToast({
+        type: 'success',
+        message: `✓ Contact information unlocked for ${lead.name}`,
+      })
+      setIsRevealing(false)
+      return
+    }
+
     try {
       setIsRevealing(true)
       setErrorMsg(null)
@@ -85,6 +117,7 @@ export default function LeadDrawer({
       const json = await res.json()
       if (res.ok && json.success) {
         onReveal(json.name, json.email, json.phone)
+        triggerUnlockConfetti()
         addToast({
           type: 'success',
           message: `✓ Contact information unlocked${json.coinsUsed ? ` · ${json.coinsUsed} coins` : ''}`,
@@ -150,23 +183,23 @@ export default function LeadDrawer({
       </div>
 
       {/* Scrollable Content */}
-      <div className="flex-1 overflow-y-auto p-6 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+      <div
+        className="flex-1 overflow-y-auto p-6 scrollbar-hide [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+      >
         <div className="flex items-start justify-between gap-4 mb-4">
           <h2 className="text-[24px] font-bold tracking-tight text-text-primary leading-[1.2]">
-            {lead.title}
+            {displayTitle}
           </h2>
-          {lead.urgency === 'high' || lead.urgency === 'critical' ? (
-            <Badge size="sm" color="mint">
-              <ChartBarSquareIcon className="w-3 h-3 mr-1" /> {lead.urgency}
-            </Badge>
-          ) : null}
         </div>
 
-        <div className="mb-8 mt-2">
-          <h3 className="text-[16px] font-medium leading-relaxed text-text-primary/90 italic border-l-2 border-border-subtle pl-4 py-1">
-            &quot;{lead.signalContext}&quot;
-          </h3>
-        </div>
+        {taskScopeDisplay && taskScopeDisplay.trim() !== '' && (
+          <div className="mb-8 mt-2">
+            <h3 className="text-[16px] font-medium leading-relaxed text-text-primary/90 italic border-l-2 border-border-subtle pl-4 py-1">
+              &quot;{taskScopeDisplay}&quot;
+            </h3>
+          </div>
+        )}
 
         <div className="w-full h-px bg-border-subtle mb-8" />
 
@@ -207,18 +240,13 @@ export default function LeadDrawer({
           ))}
         </div>
 
-        <div className="flex items-center gap-4">
-          {lead.winProb === 'high' && (
+        {lead.winProb === 'high' && (
+          <div className="flex items-center gap-4">
             <div className="text-[12px] font-medium text-emerald-400">
               Win Probability: <span className="font-bold">HIGH</span>
             </div>
-          )}
-          {lead.replyProbability > 80 && (
-            <div className="text-[12px] font-medium text-text-secondary hover:text-text-primary transition-colors flex items-center gap-1">
-              <CheckCircleIcon className="w-[14px] h-[14px]" /> {lead.replyProbability}% Reply Match
-            </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Footer Area */}

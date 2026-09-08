@@ -8,7 +8,7 @@ import {
   ArrowPathIcon,
   CheckCircleIcon,
 } from '@heroicons/react/24/solid'
-import { auth, sendEmailVerification, firebaseSignOut } from '@/lib/firebase'
+import { auth, sendEmailVerification, applyActionCode, firebaseSignOut } from '@/lib/firebase'
 import { CustomLoader } from '@/components/ui/CustomLoader'
 
 function VerifyEmailContent() {
@@ -16,6 +16,7 @@ function VerifyEmailContent() {
   const searchParams = useSearchParams()
   const redirectTo = searchParams.get('redirect') || ''
   const [resending, setResending] = useState(false)
+  const [resendMessage, setResendMessage] = useState('')
   const [checking, setChecking] = useState(true)
   const [verified, setVerified] = useState(false)
 
@@ -26,6 +27,26 @@ function VerifyEmailContent() {
         : '/onboarding'
     router.replace(target)
   }
+
+  // Handle direct verification link (oobCode) if present
+  useEffect(() => {
+    const oobCode = searchParams.get('oobCode')
+    if (oobCode) {
+      applyActionCode(auth, oobCode)
+        .then(async () => {
+          if (auth.currentUser) {
+            await auth.currentUser.reload()
+            await auth.currentUser.getIdToken(true).catch(() => {})
+          }
+          setVerified(true)
+          setChecking(false)
+        })
+        .catch((err) => {
+          console.error('[Verify Email] Failed to apply action code:', err)
+          setChecking(false)
+        })
+    }
+  }, [searchParams])
 
   useEffect(() => {
     let active = true
@@ -67,10 +88,26 @@ function VerifyEmailContent() {
   const handleResend = async () => {
     if (!auth.currentUser) return
     setResending(true)
+    setResendMessage('')
     try {
-      await sendEmailVerification(auth.currentUser)
+      const token = await auth.currentUser.getIdToken().catch(() => null)
+      const res = await fetch('/api/auth/send-verification', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ email: auth.currentUser.email }),
+      })
+      if (res.ok) {
+        setResendMessage('Verification email sent! Check your inbox.')
+      } else {
+        await sendEmailVerification(auth.currentUser)
+        setResendMessage('Verification email sent! Check your inbox.')
+      }
     } catch {
-      // silently fail
+      await sendEmailVerification(auth.currentUser).catch(() => {})
+      setResendMessage('Verification email sent! Check your inbox.')
     } finally {
       setResending(false)
     }
@@ -82,7 +119,7 @@ function VerifyEmailContent() {
 
   return (
     <main className="min-h-screen bg-bg-main flex items-center justify-center px-4 relative overflow-hidden">
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[radial-gradient(circle_at_center,rgba(var(--rgb-accent-mint),0.06)_0%,transparent_60%)] pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[radial-gradient(circle_at_center,rgba(var(--rgb-primary),0.08)_0%,transparent_60%)] pointer-events-none" />
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -104,15 +141,15 @@ function VerifyEmailContent() {
               </p>
               <button
                 onClick={handleVerified}
-                className="w-full px-5 py-3 rounded-xl bg-accent-mint hover:bg-accent-mint/90 text-white text-sm font-medium transition-all"
+                className="w-full px-5 py-3 rounded-xl bg-primary hover:bg-primary/90 text-black font-semibold text-sm transition-all shadow-[0_4px_20px_rgba(var(--rgb-primary),0.25)] active:scale-98"
               >
                 Continue
               </button>
             </>
           ) : (
             <>
-              <div className="w-16 h-16 rounded-full bg-accent-mint/10 border border-accent-mint/20 flex items-center justify-center mx-auto mb-6">
-                <EnvelopeIcon className="w-8 h-8 text-accent-mint" />
+              <div className="w-16 h-16 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-6">
+                <EnvelopeIcon className="w-8 h-8 text-primary" />
               </div>
 
               <h1 className="text-2xl font-bold text-text-primary tracking-tight mb-3">
@@ -129,14 +166,20 @@ function VerifyEmailContent() {
                 Didn&apos;t receive it? Check your spam folder or click Resend below.
               </p>
 
+              {resendMessage && (
+                <div className="mb-4 p-3 rounded-xl bg-primary/10 border border-primary/20 text-xs text-primary font-medium">
+                  {resendMessage}
+                </div>
+              )}
+
               <div className="flex flex-col gap-3">
                 <button
                   onClick={handleResend}
                   disabled={resending}
-                  className="w-full px-5 py-3 rounded-xl bg-accent-mint hover:bg-accent-mint/90 text-white text-sm font-medium transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="w-full px-5 py-3 rounded-xl bg-primary hover:bg-primary/90 text-black font-semibold text-sm transition-all shadow-[0_4px_20px_rgba(var(--rgb-primary),0.25)] active:scale-98 disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {resending ? (
-                    <div className="w-5 h-5 rounded-full border-2 border-white/20 border-t-white animate-spin" />
+                    <div className="w-5 h-5 rounded-full border-2 border-black/20 border-t-black animate-spin" />
                   ) : (
                     <>
                       <ArrowPathIcon className="w-4 h-4" />

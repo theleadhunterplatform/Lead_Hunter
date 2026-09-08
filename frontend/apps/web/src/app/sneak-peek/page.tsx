@@ -11,6 +11,7 @@ import {
   BanknotesIcon,
 } from '@heroicons/react/24/solid'
 import Link from 'next/link'
+import { notFound } from 'next/navigation'
 
 const ease = [0.16, 1, 0.3, 1] as const
 
@@ -79,7 +80,14 @@ const sneakPeekLeads = [
   },
 ]
 
+// Sneak peek page is currently disabled for users. Set SNEAK_PEEK_ENABLED to true to re-enable.
+const SNEAK_PEEK_ENABLED = false
+
 export default function SneakPeekPage() {
+  if (!SNEAK_PEEK_ENABLED) {
+    notFound()
+  }
+
   return (
     <div className="flex h-screen bg-bg-main overflow-hidden font-sans relative">
       <AppSidebar isSneakPeek={true} />
@@ -104,7 +112,7 @@ export default function SneakPeekPage() {
               <div>
                 <span className="text-sm font-bold text-text-primary">Sneak Peek Mode</span>
                 <span className="text-xs text-text-secondary/60 ml-2">
-                  — You&apos;re previewing the lead feed. Lead details are locked until you have
+                  · You&apos;re previewing the lead feed. Lead details are locked until you have
                   tokens.
                 </span>
               </div>

@@ -87,7 +87,7 @@ export default function PendingApprovalPage() {
           </h1>
           <Link
             href="/login"
-            className="inline-block bg-accent-mint hover:bg-accent-mint/90 text-white rounded-xl px-6 py-3 font-medium transition-all"
+            className="inline-block bg-primary hover:bg-primary/90 text-black font-semibold shadow-[0_4px_20px_rgba(var(--rgb-primary),0.25)] rounded-xl px-6 py-3 transition-all active:scale-98"
           >
             Sign In
           </Link>
@@ -100,7 +100,7 @@ export default function PendingApprovalPage() {
 
   return (
     <main className="min-h-screen bg-bg-main flex flex-col items-center justify-center px-4 relative overflow-hidden">
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[radial-gradient(circle_at_center,rgba(var(--rgb-accent-mint),0.06)_0%,transparent_60%)] pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[radial-gradient(circle_at_center,rgba(var(--rgb-primary),0.08)_0%,transparent_60%)] pointer-events-none" />
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -124,8 +124,8 @@ export default function PendingApprovalPage() {
             </>
           ) : (
             <>
-              <div className="w-16 h-16 rounded-full bg-accent-mint/10 border border-accent-mint/20 flex items-center justify-center mx-auto mb-6">
-                <ClockIcon className="w-8 h-8 text-accent-mint" />
+              <div className="w-16 h-16 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-6">
+                <ClockIcon className="w-8 h-8 text-primary" />
               </div>
 
               <h1 className="text-2xl font-bold text-text-primary tracking-tight mb-3">
@@ -134,7 +134,7 @@ export default function PendingApprovalPage() {
 
               <p className="text-sm text-text-secondary leading-relaxed mb-8">
                 Thanks for completing your profile! Our team is reviewing your application. This
-                page refreshes automatically — you&apos;ll be redirected to the dashboard once
+                page refreshes automatically: you&apos;ll be redirected to the dashboard once
                 approved.
               </p>
 
@@ -150,7 +150,7 @@ export default function PendingApprovalPage() {
                     'Start hunting leads and closing clients',
                   ].map((item, i) => (
                     <li key={i} className="flex items-start gap-3 text-xs text-text-secondary">
-                      <span className="w-1.5 h-1.5 rounded-full bg-accent-mint mt-1 shrink-0" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary mt-1 shrink-0" />
                       {item}
                     </li>
                   ))}
@@ -159,7 +159,7 @@ export default function PendingApprovalPage() {
 
               {checking && (
                 <div className="flex items-center justify-center gap-2 mb-4">
-                  <div className="w-3 h-3 rounded-full border-2 border-white/20 border-t-white animate-spin" />
+                  <div className="w-3 h-3 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
                   <span className="text-xs text-text-secondary/60">Checking status...</span>
                 </div>
               )}

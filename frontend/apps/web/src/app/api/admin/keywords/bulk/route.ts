@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin, ForbiddenError } from '@/lib/auth'
 import { createKeyword, deleteKeyword } from '@/lib/external-api/client'
 
+export const dynamic = 'force-dynamic'
+
 export async function POST(request: NextRequest) {
   try {
     await requireAdmin(request)

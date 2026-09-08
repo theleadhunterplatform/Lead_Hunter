@@ -29,18 +29,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const hasAnyLink =
-      parsed.data.portfolio ||
-      parsed.data.website ||
-      parsed.data.linkedin ||
-      parsed.data.instagram ||
-      parsed.data.dribbble ||
-      parsed.data.behance ||
-      parsed.data.github ||
-      parsed.data.twitter
-    if (!hasAnyLink) {
+    if (!parsed.data.linkedin || !parsed.data.linkedin.trim()) {
       return NextResponse.json(
-        { code: 'VALIDATION_ERROR', message: 'At least one profile link is required' },
+        { code: 'VALIDATION_ERROR', message: 'LinkedIn profile link is required' },
         { status: 400 },
       )
     }
