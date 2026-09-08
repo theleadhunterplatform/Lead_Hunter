@@ -21,22 +21,22 @@ async function assertAiConfigured(): Promise<void> {
 }
 
 async function removeStaleIntelJob(postId: string) {
-    const stableJobId = `intel-${postId}`;
-    const existing = await intelligenceQueue.getJob(stableJobId);
-    if (existing) {
-        const state = await existing.getState();
-        if (state === 'failed' || state === 'completed') {
-            await existing.remove().catch(() => undefined);
+    try {
+        const jobs = await intelligenceQueue.getJobs(['failed', 'completed', 'waiting', 'delayed']);
+        for (const job of jobs) {
+            if (job.data?.postId === postId || job.id?.startsWith(`intel-${postId}`)) {
+                await job.remove().catch(() => undefined);
+            }
         }
+    } catch {
+        // ignore
     }
 }
 
-export async function enqueueLeadIntelligence(postId: string, options?: { force?: boolean }) {
-    if (options?.force) {
-        await removeStaleIntelJob(postId);
-    }
+export async function enqueueLeadIntelligence(postId: string, _options?: { force?: boolean }) {
+    await removeStaleIntelJob(postId);
 
-    const jobId = options?.force ? `intel-${postId}-${Date.now()}` : `intel-${postId}`;
+    const jobId = `intel-${postId}-${Date.now()}`;
 
     await intelligenceQueue.add(
         jobId,
@@ -44,8 +44,10 @@ export async function enqueueLeadIntelligence(postId: string, options?: { force?
         {
             jobId,
             removeOnComplete: true,
+            removeOnFail: true,
         }
     );
+    console.log(`📥 [IntelligenceQueue] Enqueued job ${jobId} for post ${postId}`);
 }
 
 /** Queue intel generation, or run inline when Redis/workers are unavailable. */

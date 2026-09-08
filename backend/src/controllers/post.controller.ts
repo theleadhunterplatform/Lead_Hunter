@@ -513,19 +513,24 @@ export const bulkTitlePosts = asyncHandler(async (req: Request, res: Response, _
 // @route   POST /api/posts/bulk-intelligence
 // @access  Private (lead:hunt)
 export const bulkGenerateIntelligencePost = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
-    const filter = postService.buildLeadListFilter(req.body?.filters || req.body || {});
+    const rawFilter = req.body?.filters || req.body || {};
+    const filter = postService.buildLeadListFilter(rawFilter);
     const posts = await LeadPost.find(filter, { lean: true }) as Array<{ _id: string; intelligence?: string | null }>;
+
+    console.log(`🧠 [BulkIntel] Request received for status "${rawFilter.status || 'unknown'}", matched ${posts.length} lead(s)`);
 
     if (posts.length === 0) {
         return res.status(200).json({ success: true, queued: 0, message: 'No leads found in this section.' });
     }
 
     const missing = posts.filter((p) => !p.intelligence);
-    const toProcess = req.body?.force ? posts : (missing.length > 0 ? missing : posts);
+    const toProcess = (req.body?.force || missing.length === 0) ? posts : missing;
+
+    console.log(`🧠 [BulkIntel] Enqueueing ${toProcess.length} lead(s) (${missing.length} missing intel)...`);
 
     for (const post of toProcess) {
-        await requestLeadIntelligence(post._id.toString()).catch((err) =>
-            console.warn(`[BulkIntel] Failed to enqueue intel for ${post._id}:`, err?.message || err)
+        await requestLeadIntelligence(post._id.toString(), { force: true }).catch((err) =>
+            console.error(`[BulkIntel] Failed to enqueue intel for ${post._id}:`, err?.message || err)
         );
     }
 
