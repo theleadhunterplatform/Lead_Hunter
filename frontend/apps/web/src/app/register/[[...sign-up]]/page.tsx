@@ -201,7 +201,8 @@ export default function RegisterPage() {
           },
           body: JSON.stringify({ email }),
         })
-        if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        if (!res.ok || data?.data?.fallback) {
           await sendEmailVerification(auth.currentUser!).catch(() => {})
         }
       } catch {

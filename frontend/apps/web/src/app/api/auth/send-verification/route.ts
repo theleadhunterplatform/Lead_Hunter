@@ -54,7 +54,21 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const adminAuth = await getAdminAuthInstance()
+    // Check if email sending infrastructure is configured
+    if (!process.env.RESEND_API_KEY) {
+      return NextResponse.json({
+        data: { success: false, fallback: true, message: 'Server email sender not configured, falling back to client.' },
+      })
+    }
+
+    let adminAuth: any
+    try {
+      adminAuth = await getAdminAuthInstance()
+    } catch {
+      return NextResponse.json({
+        data: { success: false, fallback: true, message: 'Firebase Admin not configured, falling back to client.' },
+      })
+    }
 
     // Verify user status in Firebase Auth
     try {
@@ -92,20 +106,18 @@ export async function POST(request: NextRequest) {
     )
 
     if (sendResult.id === 'error') {
-      return NextResponse.json(
-        { code: 'EMAIL_SEND_FAILED', message: 'Failed to send verification email. Please try again.' },
-        { status: 500 },
-      )
+      return NextResponse.json({
+        data: { success: false, fallback: true, message: 'Email dispatch failed, falling back to client.' },
+      })
     }
 
     return NextResponse.json({
       data: { success: true, message: 'Verification email sent successfully.' },
     })
   } catch (error) {
-    console.error('[Send Verification API] Error:', error)
-    return NextResponse.json(
-      { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to process verification request.' },
-      { status: 500 },
-    )
+    console.warn('[Send Verification API] Non-fatal error, falling back to client:', error)
+    return NextResponse.json({
+      data: { success: false, fallback: true, message: 'Verification request falling back to client.' },
+    })
   }
 }

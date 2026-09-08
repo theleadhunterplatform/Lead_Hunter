@@ -99,7 +99,8 @@ function VerifyEmailContent() {
         },
         body: JSON.stringify({ email: auth.currentUser.email }),
       })
-      if (res.ok) {
+      const data = await res.json().catch(() => null)
+      if (res.ok && data?.data?.success && !data?.data?.fallback) {
         setResendMessage('Verification email sent! Check your inbox.')
       } else {
         await sendEmailVerification(auth.currentUser)
