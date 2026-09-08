@@ -4,10 +4,17 @@ import { generateLeadIntelligence } from '../services/intelligence.service';
 import config from '../config';
 import ErrorResponse from '../utils/error-response.utils';
 
-function assertOpenRouterConfigured(): void {
-    if (!config.openRouter.apiKey?.trim()) {
+import { getSetting } from '../services/setting.service';
+
+async function assertAiConfigured(): Promise<void> {
+    const dbKey = await getSetting('openrouter_api_key').catch(() => null);
+    const hasOpenRouter = Boolean((dbKey as string) || config.openRouter.apiKey?.trim());
+    const hasGroq = Boolean(config.groq.apiKey?.trim());
+    const hasGemini = Boolean(config.gemini.apiKey?.trim());
+
+    if (!hasOpenRouter && !hasGroq && !hasGemini) {
         throw new ErrorResponse(
-            'OPEN_ROUTER_API is not set. For local dev add it to backend/.env and restart the backend. On Render add it under backend → Environment and redeploy.',
+            'No AI provider configured. Set OPEN_ROUTER_API, GROQ_API_KEY, or GEMINI_API_KEY in backend/.env',
             503
         );
     }
@@ -52,7 +59,7 @@ export async function requestLeadIntelligence(postId: string, options?: { force?
         return { mode: 'ready' as const, post };
     }
 
-    assertOpenRouterConfigured();
+    await assertAiConfigured();
 
     try {
         await enqueueLeadIntelligence(postId, options);
