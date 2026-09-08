@@ -76,11 +76,11 @@ const config = {
     },
     groq: {
         apiKey: process.env.GROQ_API_KEY || '',
-        intelModel: process.env.GROQ_INTEL_MODEL || 'llama-3.3-70b-versatile',
+        intelModel: process.env.GROQ_INTEL_MODEL || 'llama-3.1-8b-instant',
     },
     gemini: {
         apiKey: process.env.GEMINI_API_KEY || '',
-        intelModel: process.env.GEMINI_INTEL_MODEL || 'gemini-1.5-flash',
+        intelModel: process.env.GEMINI_INTEL_MODEL || 'gemini-2.0-flash',
     },
     redis: {
         url: resolveRedisUrl(),

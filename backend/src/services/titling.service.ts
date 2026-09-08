@@ -17,73 +17,117 @@ Return ONLY the title, nothing else.`;
 }
 
 async function callOpenRouter(prompt: string, apiKey: string): Promise<string> {
-    const res = await axios.post(
-        'https://openrouter.ai/api/v1/chat/completions',
-        {
-            model: config.openRouter.intelModel,
-            max_tokens: 30,
-            temperature: 0.3,
-            messages: [
-                { role: 'system', content: SYSTEM_PROMPT },
-                { role: 'user', content: prompt },
-            ],
-        },
-        {
-            headers: {
-                Authorization: `Bearer ${apiKey}`,
-                'HTTP-Referer': 'https://leadhunterclub.com',
-                'X-Title': 'Lead Hunter Club',
-                'Content-Type': 'application/json',
-            },
-            timeout: 20000,
-        },
-    );
-    const content = res.data?.choices?.[0]?.message?.content?.trim();
-    if (!content) throw new Error('No content from OpenRouter');
-    return content;
+    const rawModel = config.openRouter.intelModel || 'google/gemini-2.0-flash-001';
+    const modelsToTry = [rawModel];
+    for (const m of ['google/gemini-2.0-flash-001', 'meta-llama/llama-3.3-70b-instruct', 'google/gemini-flash-1.5']) {
+        if (!modelsToTry.includes(m)) modelsToTry.push(m);
+    }
+
+    let lastErr: any = null;
+    for (const model of modelsToTry) {
+        try {
+            const res = await axios.post(
+                'https://openrouter.ai/api/v1/chat/completions',
+                {
+                    model,
+                    max_tokens: 30,
+                    temperature: 0.3,
+                    messages: [
+                        { role: 'system', content: SYSTEM_PROMPT },
+                        { role: 'user', content: prompt },
+                    ],
+                },
+                {
+                    headers: {
+                        Authorization: `Bearer ${apiKey}`,
+                        'HTTP-Referer': 'https://leadhunterclub.com',
+                        'X-Title': 'Lead Hunter Club',
+                        'Content-Type': 'application/json',
+                    },
+                    timeout: 20000,
+                },
+            );
+            const content = res.data?.choices?.[0]?.message?.content?.trim();
+            if (content) return content;
+        } catch (err: any) {
+            lastErr = err;
+            const status = err.response?.status;
+            if (status !== 404 && status !== 400 && status !== 403) throw err;
+        }
+    }
+    throw lastErr || new Error('No content from OpenRouter');
 }
 
 async function callGroq(prompt: string, apiKey: string): Promise<string> {
-    const res = await axios.post(
-        'https://api.groq.com/openai/v1/chat/completions',
-        {
-            model: config.groq.intelModel,
-            max_tokens: 30,
-            temperature: 0.3,
-            messages: [
-                { role: 'system', content: SYSTEM_PROMPT },
-                { role: 'user', content: prompt },
-            ],
-        },
-        {
-            headers: {
-                Authorization: `Bearer ${apiKey}`,
-                'Content-Type': 'application/json',
-            },
-            timeout: 20000,
-        },
-    );
-    const content = res.data?.choices?.[0]?.message?.content?.trim();
-    if (!content) throw new Error('No content from Groq');
-    return content;
+    const rawModel = config.groq.intelModel || 'llama-3.1-8b-instant';
+    const modelsToTry = [rawModel];
+    for (const m of ['llama-3.1-8b-instant', 'llama-3.3-70b-versatile', 'mixtral-8x7b-32768']) {
+        if (!modelsToTry.includes(m)) modelsToTry.push(m);
+    }
+
+    let lastErr: any = null;
+    for (const model of modelsToTry) {
+        try {
+            const res = await axios.post(
+                'https://api.groq.com/openai/v1/chat/completions',
+                {
+                    model,
+                    max_tokens: 30,
+                    temperature: 0.3,
+                    messages: [
+                        { role: 'system', content: SYSTEM_PROMPT },
+                        { role: 'user', content: prompt },
+                    ],
+                },
+                {
+                    headers: {
+                        Authorization: `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json',
+                    },
+                    timeout: 20000,
+                },
+            );
+            const content = res.data?.choices?.[0]?.message?.content?.trim();
+            if (content) return content;
+        } catch (err: any) {
+            lastErr = err;
+            const status = err.response?.status;
+            if (status !== 404 && status !== 400 && status !== 403) throw err;
+        }
+    }
+    throw lastErr || new Error('No content from Groq');
 }
 
 async function callGemini(prompt: string, apiKey: string): Promise<string> {
-    const model = (config.gemini.intelModel || 'gemini-1.5-flash').replace(/^models\//, '');
-    const res = await axios.post(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-        {
-            contents: [{ parts: [{ text: `${SYSTEM_PROMPT}\n\n${prompt}` }] }],
-            generationConfig: { maxOutputTokens: 30, temperature: 0.3 },
-        },
-        {
-            headers: { 'Content-Type': 'application/json' },
-            timeout: 20000,
-        },
-    );
-    const content = res.data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-    if (!content) throw new Error('No content from Gemini');
-    return content;
+    const rawModel = (config.gemini.intelModel || 'gemini-2.0-flash').replace(/^models\//, '');
+    const modelsToTry = [rawModel];
+    for (const m of ['gemini-2.0-flash', 'gemini-1.5-flash-latest', 'gemini-1.5-flash']) {
+        if (!modelsToTry.includes(m)) modelsToTry.push(m);
+    }
+
+    let lastErr: any = null;
+    for (const model of modelsToTry) {
+        try {
+            const res = await axios.post(
+                `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+                {
+                    contents: [{ parts: [{ text: `${SYSTEM_PROMPT}\n\n${prompt}` }] }],
+                    generationConfig: { maxOutputTokens: 30, temperature: 0.3 },
+                },
+                {
+                    headers: { 'Content-Type': 'application/json' },
+                    timeout: 20000,
+                },
+            );
+            const content = res.data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+            if (content) return content;
+        } catch (err: any) {
+            lastErr = err;
+            const status = err.response?.status;
+            if (status !== 404 && status !== 400) throw err;
+        }
+    }
+    throw lastErr || new Error('No content from Gemini');
 }
 
 function cleanTitle(raw: string): string {
