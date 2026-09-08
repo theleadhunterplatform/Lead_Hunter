@@ -216,6 +216,7 @@ export interface ExternalPost {
   enriched_at: string | null
   intelligence: string | null
   title: string | null
+  niche: string | null
   review_status: string | null
   reviewed_at: string | null
   reviewed_by_id: string | null

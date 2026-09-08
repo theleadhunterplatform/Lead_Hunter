@@ -138,6 +138,8 @@ const LeadPost = {
                 enrichment_message: data.enrichment_message || null,
                 enriched_at: data.enriched_at || null,
                 intelligence: data.intelligence || null,
+                title: data.title || null,
+                niche: data.niche || null,
                 review_status: data.review_status ?? null,
                 reviewed_at: data.reviewed_at || null,
                 reviewed_by_id: data.reviewed_by_id || null,

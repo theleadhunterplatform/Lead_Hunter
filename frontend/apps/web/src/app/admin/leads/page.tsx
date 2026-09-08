@@ -23,6 +23,7 @@ import ReactMarkdown from 'react-markdown'
 
 import { LinkedinLogo, XLogo, RedditLogo, ThreadsLogo } from '@/components/BrandIcons'
 import ManualLeadModal from './ManualLeadModal'
+import { NicheBadge } from '@/components/ui/NicheBadge'
 import RefineLeadModal from './RefineLeadModal'
 import { useToast } from '@/components/ui/Toast'
 import { getFirebaseToken } from '@/lib/firebase'
@@ -1129,12 +1130,13 @@ export default function AdminLeadsPage() {
                       </div>
                     </div>
 
-                    {/* Lead Title */}
-                    {(lead as any).title && (
-                      <div className="mb-3 flex items-center gap-2">
+                    {/* Lead Title & Niche */}
+                    <div className="mb-3 flex items-center gap-2 flex-wrap">
+                      <NicheBadge niche={(lead as any).niche} keyword={lead.keyword} content={lead.content} intelligence={lead.intelligence} />
+                      {(lead as any).title && (
                         <span className="text-sm font-bold text-white">{(lead as any).title}</span>
-                      </div>
-                    )}
+                      )}
+                    </div>
 
                     {lead.qualification_reason && lead.status !== 'pending' && (
                       <div className={`mb-4 p-3 border border-l-2 rounded-lg ${

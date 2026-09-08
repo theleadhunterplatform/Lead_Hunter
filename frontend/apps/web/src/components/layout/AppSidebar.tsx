@@ -41,10 +41,22 @@ export default function AppSidebar({
   const pathname = activePathOverride || routerPathname
   const { user, logout } = useAuth()
   const router = useRouter()
+  const [realtimeCredits, setRealtimeCredits] = useState<number | null>(null)
+
+  useEffect(() => {
+    const handleCreditsUpdated = (e: Event) => {
+      const customEvent = e as CustomEvent<{ creditsRemaining?: number }>
+      if (typeof customEvent.detail?.creditsRemaining === 'number') {
+        setRealtimeCredits(customEvent.detail.creditsRemaining)
+      }
+    }
+    window.addEventListener('credits-updated', handleCreditsUpdated)
+    return () => window.removeEventListener('credits-updated', handleCreditsUpdated)
+  }, [])
 
   const planLimits: Record<string, number> = { FREE: 50, FREELANCER: 500, AGENCY: 1000 }
   const planMax = planLimits[user?.plan ?? 'FREE'] ?? 50
-  const creditTotal = user?.creditAccount?.total ?? 0
+  const creditTotal = realtimeCredits !== null ? realtimeCredits : (user?.creditAccount?.total ?? 0)
   const creditPercentage = Math.min(100, (creditTotal / planMax) * 100)
 
   return (
@@ -199,7 +211,10 @@ export default function AppSidebar({
               </div>
             ) : null}
 
-            <button className="text-9 font-bold text-accent-orange uppercase tracking-super hover:opacity-80 transition-opacity block pt-0.5">
+            <button
+              onClick={() => router.push('/refill')}
+              className="text-9 font-bold text-accent-orange uppercase tracking-super hover:opacity-80 transition-opacity block pt-0.5 cursor-pointer text-left"
+            >
               Refill Pipeline →
             </button>
           </div>
@@ -207,7 +222,9 @@ export default function AppSidebar({
       ) : (
         <div className="px-2 mb-3 shrink-0 flex justify-center group/credit relative">
           <div
-            className="w-10 h-10 rounded-xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center relative cursor-default hover:border-accent-orange/30 hover:bg-white/[0.06] transition-all duration-300"
+            onClick={() => router.push('/refill')}
+            className="w-10 h-10 rounded-xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center relative cursor-pointer hover:border-accent-orange/30 hover:bg-white/[0.06] transition-all duration-300"
+            title="Refill Pipeline"
           >
             {/* Dynamic Radial Progress SVG */}
             <svg className="w-8 h-8 -rotate-90 transform" viewBox="0 0 36 36">

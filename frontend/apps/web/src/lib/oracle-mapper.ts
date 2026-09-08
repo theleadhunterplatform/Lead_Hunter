@@ -33,6 +33,7 @@ export interface RawLeadPost {
   enriched_at?: Date | null
   intelligence?: string | null
   title?: string | null
+  niche?: string | null
   review_status?: string | null
   reviewed_at?: Date | null
   reviewed_by_id?: string | null
@@ -97,6 +98,7 @@ export function mapLeadPostToExternal(p: RawLeadPost | LeadPost): ExternalPost {
     enriched_at: p.enriched_at?.toISOString() || null,
     intelligence: p.intelligence || null,
     title: p.title || null,
+    niche: (p as any).niche || null,
     review_status: p.review_status || null,
     reviewed_at: p.reviewed_at?.toISOString() || null,
     reviewed_by_id: p.reviewed_by_id || null,

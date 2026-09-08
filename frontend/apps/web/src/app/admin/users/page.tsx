@@ -38,9 +38,12 @@ interface AdminUser {
   behance: string | null
   github: string | null
   twitter: string | null
+  phone?: string | null
   outreachExperience: string | null
   discoverySource: string | null
   preferredLeadCategories: string[]
+  hasDuplicatePhone?: boolean
+  duplicatePhoneMatches?: Array<{ id: string; email: string; name: string; status: string; createdAt: string }>
 }
 
 const PLAN_BADGES: Record<string, string> = {
@@ -263,6 +266,13 @@ export default function AdminUsersPage() {
                           {u.name}
                         </Link>
                         <p className="text-xs text-text-secondary mt-0.5">{u.email}</p>
+                        {u.hasDuplicatePhone && (
+                          <div className="mt-1">
+                            <span className="inline-flex items-center gap-1 text-[9.5px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded">
+                              ⚠️ Duplicate Phone ({u.duplicatePhoneMatches?.length})
+                            </span>
+                          </div>
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         <span

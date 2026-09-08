@@ -124,11 +124,30 @@ export function useAuth() {
       }
     }, 5 * 60 * 1000)
 
+    const handleCreditsUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent<{ creditsRemaining?: number }>
+      if (typeof customEvent.detail?.creditsRemaining === 'number' && isMounted) {
+        setUser((prev) => {
+          if (!prev) return prev
+          const prevAccount = prev.creditAccount || { subscriptionBalance: 0, bonusBalance: 0, rolloverBalance: 0, total: 0 }
+          return {
+            ...prev,
+            creditAccount: {
+              ...prevAccount,
+              total: customEvent.detail.creditsRemaining!,
+            },
+          }
+        })
+      }
+    }
+    window.addEventListener('credits-updated', handleCreditsUpdate)
+
     return () => {
       isMounted = false
       unsubToken()
       unsubAuth()
       document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('credits-updated', handleCreditsUpdate)
       clearInterval(syncInterval)
     }
   }, [router])

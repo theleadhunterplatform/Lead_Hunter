@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import {
   auth,
@@ -42,6 +43,7 @@ const PLAN_CREDITS: Record<string, number> = {
 }
 
 export default function SettingsPage() {
+  const router = useRouter()
   const { user, logout } = useAuth()
   const [isEditing, setIsEditing] = useState(false)
   const [displayName, setDisplayName] = useState(user?.name || '')
@@ -573,12 +575,11 @@ export default function SettingsPage() {
             </div>
 
             <button
-              onClick={handleRefillCredits}
-              disabled={paymentLoading}
-              className="w-full py-3.5 rounded-xl bg-accent-purple text-white font-bold text-sm flex items-center justify-center gap-2 hover:bg-surface-secondary transition-all shadow-[0_0_20px_rgba(var(--rgb-tab-purple),0.15)] hover:bg-accent-purple/90 disabled:opacity-50"
+              onClick={() => router.push('/refill')}
+              className="w-full py-3.5 rounded-xl bg-accent-purple text-white font-bold text-sm flex items-center justify-center gap-2 hover:bg-surface-secondary transition-all shadow-[0_0_20px_rgba(var(--rgb-tab-purple),0.15)] hover:bg-accent-purple/90 cursor-pointer"
             >
               <BoltIcon className="w-4 h-4" />
-              {paymentLoading ? 'Processing...' : 'Refill Credits'}
+              Refill Credits
               <ArrowTopRightOnSquareIcon className="w-4 h-4" />
             </button>
           </motion.div>
@@ -637,9 +638,8 @@ export default function SettingsPage() {
 
             <div className="mt-4 flex gap-2">
               <button
-                onClick={() => handleChangePlan('paid')}
-                disabled={paymentLoading}
-                className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/[0.06] text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-white/10 transition-all disabled:opacity-50"
+                onClick={() => router.push('/pricing')}
+                className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/[0.06] text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-white/10 transition-all cursor-pointer"
               >
                 Change Plan
               </button>

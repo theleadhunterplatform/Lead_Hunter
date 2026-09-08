@@ -277,6 +277,34 @@ export default function AdminUserDetailPage() {
         </div>
       </div>
 
+      {(user as any).hasDuplicatePhone && (user as any).duplicatePhoneMatches?.length > 0 && (
+        <div className="mb-6 p-4 rounded-2xl bg-red-500/10 border border-red-500/30 text-xs">
+          <div className="flex items-center gap-2 text-red-400 font-bold text-sm mb-1">
+            <span>⚠️ DUPLICATE PHONE NUMBER DETECTED</span>
+          </div>
+          <p className="text-zinc-300 mb-3">
+            This account&apos;s phone number (<strong className="text-white font-mono">{user.phone}</strong>) is also linked to {(user as any).duplicatePhoneMatches.length} other registered account{(user as any).duplicatePhoneMatches.length > 1 ? 's' : ''}:
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {(user as any).duplicatePhoneMatches.map((match: any) => (
+              <Link
+                key={match.id}
+                href={`/admin/users/${match.id}`}
+                className="flex items-center justify-between p-2.5 rounded-xl bg-black/40 border border-white/10 hover:border-accent-mint/50 transition-colors"
+              >
+                <div>
+                  <p className="text-white font-medium">{match.name}</p>
+                  <p className="text-zinc-400 text-[11px]">{match.email}</p>
+                </div>
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-white/10 text-zinc-300">
+                  {match.status}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="flex gap-1 mb-6 border-b border-white/[0.06]">
         {TABS.map((tab) => (
           <button

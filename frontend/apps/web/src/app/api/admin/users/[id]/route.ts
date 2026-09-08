@@ -56,8 +56,27 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ code: 'NOT_FOUND', message: 'User not found' }, { status: 404 })
     }
 
+    const duplicatePhoneMatches = user.phone
+      ? await db.user.findMany({
+          where: {
+            phone: user.phone.trim(),
+            id: { not: user.id },
+          },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            status: true,
+            plan: true,
+            createdAt: true,
+          },
+        })
+      : []
+
     const userWithCredit = {
       ...user,
+      duplicatePhoneMatches,
+      hasDuplicatePhone: duplicatePhoneMatches.length > 0,
       creditAccount: user.creditAccount
         ? {
             subscriptionBalance: user.creditAccount.subscriptionBalance,

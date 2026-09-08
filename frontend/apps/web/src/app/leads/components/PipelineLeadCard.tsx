@@ -8,6 +8,7 @@ import { useToast } from '@/components/ui/Toast'
 import { getFirebaseToken } from '@/lib/firebase'
 import { sanitizePublicText, sanitizeHeadline } from '@/lib/claim-reveal'
 import { triggerUnlockConfetti } from '@/lib/confetti'
+import { NicheBadge } from '@/components/ui/NicheBadge'
 
 const themeMap = {
   mint: {
@@ -216,6 +217,12 @@ export default function PipelineLeadCard({
         message: `Unlocked contact for ${json.name || 'lead'}!`,
       })
 
+      if (typeof json.creditsRemaining === 'number') {
+        window.dispatchEvent(
+          new CustomEvent('credits-updated', { detail: { creditsRemaining: json.creditsRemaining } }),
+        )
+      }
+
       if (onReveal) {
         onReveal(lead.id, json.name, json.email, json.phone)
       }
@@ -253,13 +260,10 @@ export default function PipelineLeadCard({
     >
       {/* Top & Content Section */}
       <div className="flex flex-col flex-1 min-h-0">
-        {/* Header: Clean Niche Category without Intent Score */}
-        <div className="flex items-center justify-between mb-2 w-full select-none shrink-0 h-[18px]">
+        {/* Header: Niche Badge & Timestamp */}
+        <div className="flex items-center justify-between mb-2 w-full select-none shrink-0 h-[22px]">
           <div className="flex items-center gap-1.5 min-w-0">
-            <div className={`w-1.5 h-1.5 rounded-full bg-current shrink-0 ${theme.text}`} />
-            <span className={`text-[10px] font-bold tracking-[0.16em] uppercase truncate ${theme.textMuted}`}>
-              {topCategory}
-            </span>
+            <NicheBadge niche={(lead as any).niche} keyword={lead.category} content={lead.signalContext} />
           </div>
 
           {lead.timestamp && (

@@ -36,6 +36,8 @@ interface ReviewUser {
   preferredLeadCategories: string[]
   outreachExperience: string | null
   discoverySource: string | null
+  duplicatePhoneMatches?: Array<{ id: string; email: string; name: string; status: string; createdAt: string }>
+  hasDuplicatePhone?: boolean
 }
 
 const PLANS = [
@@ -154,6 +156,29 @@ export default function AdminReviewPage() {
                     </span>
                   </div>
                 </div>
+
+                {u.hasDuplicatePhone && u.duplicatePhoneMatches && u.duplicatePhoneMatches.length > 0 && (
+                  <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-xs">
+                    <div className="flex items-center gap-1.5 text-red-400 font-bold mb-1">
+                      <span>⚠️ DUPLICATE PHONE NUMBER DETECTED</span>
+                    </div>
+                    <p className="text-zinc-300 text-[11px] mb-2">
+                      Mobile number <strong className="text-white font-mono">{u.phone}</strong> is also used by {u.duplicatePhoneMatches.length} other account{u.duplicatePhoneMatches.length > 1 ? 's' : ''}:
+                    </p>
+                    <div className="space-y-1.5">
+                      {u.duplicatePhoneMatches.map((match) => (
+                        <div key={match.id} className="flex items-center justify-between text-[11px] bg-black/40 px-3 py-1.5 rounded-lg border border-white/5">
+                          <Link href={`/admin/users/${match.id}`} className="text-accent-mint hover:underline font-semibold">
+                            {match.name} ({match.email})
+                          </Link>
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-white/10 text-zinc-300">
+                            {match.status}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <div className="space-y-3">
                   <div>

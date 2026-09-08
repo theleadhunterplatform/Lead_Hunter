@@ -370,6 +370,7 @@ model LeadPost {
   enriched_at          DateTime?
   intelligence         String?
   title                String?
+  niche                String?
   review_status        String?
   reviewed_at          DateTime?
   reviewed_by_id       String?

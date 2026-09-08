@@ -19,6 +19,7 @@ import { getFirebaseToken } from '@/lib/firebase'
 
 import { sanitizePublicText } from '@/lib/claim-reveal'
 import { triggerUnlockConfetti } from '@/lib/confetti'
+import { NicheBadge } from '@/components/ui/NicheBadge'
 
 const themeMap = {
   mint: {
@@ -122,6 +123,11 @@ export default function LeadDrawer({
           type: 'success',
           message: `✓ Contact information unlocked${json.coinsUsed ? ` · ${json.coinsUsed} coins` : ''}`,
         })
+        if (typeof json.creditsRemaining === 'number') {
+          window.dispatchEvent(
+            new CustomEvent('credits-updated', { detail: { creditsRemaining: json.creditsRemaining } }),
+          )
+        }
         window.dispatchEvent(new Event('user-refetch'))
       } else {
         setErrorMsg(json.message || 'Failed to unlock lead')
@@ -161,7 +167,7 @@ export default function LeadDrawer({
         </p>
       </Modal>
 
-      {/* Top subtle highlight */}
+      {/* Subtle top accent gradient */}
       <div
         className={`absolute top-0 left-0 right-0 h-[2px] opacity-40 bg-gradient-to-r from-transparent via-current to-transparent ${theme.textAccent}`}
       />
@@ -170,6 +176,7 @@ export default function LeadDrawer({
       <div className="flex items-center justify-between p-6 pb-4 border-b border-border-subtle shrink-0">
         <div className="flex items-center gap-3">
           <div className={`w-2.5 h-2.5 rounded-full bg-current ${theme.textAccent}`} />
+          <NicheBadge niche={(lead as any).niche} keyword={lead.category} content={lead.signalContext} />
           <Badge size="sm" color="purple">
             Lead Hunter Club
           </Badge>

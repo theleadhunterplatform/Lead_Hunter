@@ -67,16 +67,50 @@ export async function GET(request: NextRequest) {
 
     const totalPages = Math.ceil(total / pageSize)
 
-    const usersWithCredits = users.map((u) => ({
-      ...u,
-      creditAccount: u.creditAccount
-        ? {
-            subscriptionBalance: u.creditAccount.subscriptionBalance,
-            bonusBalance: u.creditAccount.bonusBalance,
-            total: u.creditAccount.subscriptionBalance + u.creditAccount.bonusBalance,
-          }
-        : { subscriptionBalance: 0, bonusBalance: 0, total: 0 },
-    }))
+    // Check for duplicate phone numbers across the user database
+    const phones = users.map((u) => u.phone?.trim()).filter(Boolean) as string[]
+    const duplicateMatchesMap = new Map<string, Array<{ id: string; email: string; name: string; status: string; createdAt: Date }>>()
+
+    if (phones.length > 0) {
+      const allMatches = await db.user.findMany({
+        where: {
+          phone: { in: phones },
+        },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          phone: true,
+          status: true,
+          createdAt: true,
+        },
+      })
+
+      for (const match of allMatches) {
+        if (!match.phone) continue
+        const existing = duplicateMatchesMap.get(match.phone.trim()) || []
+        existing.push(match)
+        duplicateMatchesMap.set(match.phone.trim(), existing)
+      }
+    }
+
+    const usersWithCredits = users.map((u) => {
+      const allPhoneMatches = u.phone ? (duplicateMatchesMap.get(u.phone.trim()) || []) : []
+      const duplicatePhoneMatches = allPhoneMatches.filter((m) => m.id !== u.id)
+
+      return {
+        ...u,
+        duplicatePhoneMatches,
+        hasDuplicatePhone: duplicatePhoneMatches.length > 0,
+        creditAccount: u.creditAccount
+          ? {
+              subscriptionBalance: u.creditAccount.subscriptionBalance,
+              bonusBalance: u.creditAccount.bonusBalance,
+              total: u.creditAccount.subscriptionBalance + u.creditAccount.bonusBalance,
+            }
+          : { subscriptionBalance: 0, bonusBalance: 0, total: 0 },
+      }
+    })
 
     return NextResponse.json({
       data: usersWithCredits,

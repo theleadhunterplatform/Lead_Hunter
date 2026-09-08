@@ -193,17 +193,57 @@ export async function generateLeadTitle(post: any): Promise<string> {
     throw new Error(`All titling providers failed: ${errors.join(' | ')}`);
 }
 
+export function inferNiche(post: any): string {
+    const kw = (post.keyword || '').toLowerCase().replace(/^watchlist:/, '');
+    const c = (post.content || '').toLowerCase();
+    const text = `${kw} ${c}`;
+
+    if (text.includes('nextjs') || text.includes('react') || text.includes('frontend') || text.includes('fullstack') || text.includes('web dev') || text.includes('web development') || text.includes('backend') || text.includes('node') || text.includes('python') || text.includes('wordpress') || text.includes('shopify') || text.includes('webflow')) {
+        return 'Web Development';
+    }
+    if (text.includes('mobile app') || text.includes('ios') || text.includes('android') || text.includes('flutter') || text.includes('react native')) {
+        return 'Mobile Development';
+    }
+    if (text.includes('ui/ux') || text.includes('figma') || text.includes('product design') || text.includes('landing page design') || text.includes('web design') || text.includes('ux design') || text.includes('ui design')) {
+        return 'UI/UX Design';
+    }
+    if (text.includes('graphic design') || text.includes('branding') || text.includes('logo') || text.includes('brand identity') || text.includes('illustrator')) {
+        return 'Branding & Design';
+    }
+    if (text.includes('seo') || text.includes('organic search') || text.includes('backlink') || text.includes('search engine')) {
+        return 'SEO & Organic Growth';
+    }
+    if (text.includes('paid ads') || text.includes('facebook ads') || text.includes('google ads') || text.includes('meta ads') || text.includes('performance marketing') || text.includes('media buyer')) {
+        return 'Paid Ads & Marketing';
+    }
+    if (text.includes('copywriting') || text.includes('copywriter') || text.includes('content writer') || text.includes('technical writing') || text.includes('blog writing') || text.includes('newsletter')) {
+        return 'Content & Copywriting';
+    }
+    if (text.includes('video editor') || text.includes('video editing') || text.includes('youtube editor') || text.includes('reels') || text.includes('motion graphics') || text.includes('animator')) {
+        return 'Video Production & Editing';
+    }
+    if (text.includes('cold email') || text.includes('lead gen') || text.includes('lead generation') || text.includes('outreach') || text.includes('sales rep') || text.includes('bdr') || text.includes('sdr') || text.includes('appointment setting')) {
+        return 'Sales & Lead Gen';
+    }
+    if (text.includes('ai agent') || text.includes('automation') || text.includes('n8n') || text.includes('zapier') || text.includes('make.com') || text.includes('chatbot') || text.includes('llm') || text.includes('workflow automation')) {
+        return 'AI & Automation';
+    }
+    return 'Consulting & Strategy';
+}
+
 export async function applyLeadTitle(postId: string): Promise<void> {
     const post = await LeadPost.findById(postId);
     if (!post) throw new Error(`Post not found: ${postId}`);
 
-    // Skip if already titled
-    if ((post as any).title) return;
+    const existingTitle = (post as any).title;
+    const existingNiche = (post as any).niche;
+    if (existingTitle && existingNiche) return;
 
-    const title = await generateLeadTitle(post);
+    const title = existingTitle || await generateLeadTitle(post);
+    const niche = existingNiche || inferNiche(post);
 
     await LeadPost.updateOne(
         { _id: post._id || post.id },
-        { title },
+        { title, niche },
     );
 }
