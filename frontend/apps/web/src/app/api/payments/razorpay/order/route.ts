@@ -13,13 +13,18 @@ export async function POST(request: NextRequest) {
     const authHeader = request.headers.get('Authorization') || ''
     const body = await request.json()
 
+    // Normalize frontend plan names to backend plan IDs
+    let plan = (body.plan || '').toLowerCase()
+    if (plan === 'freelancer') plan = 'paid'
+    if (plan === 'agency') plan = 'enterprise'
+
     const res = await fetch(`${API_URL}/payments/razorpay/order`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: authHeader,
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ ...body, plan }),
     })
 
     const data = await res.json()

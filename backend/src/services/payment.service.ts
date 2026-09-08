@@ -49,13 +49,17 @@ export function getPaymentCatalog() {
 export async function createRazorpayOrder(userId: string, planId: string) {
     assertRazorpayConfigured();
 
-    if (!isPlanId(planId) || planId === 'free') {
+    let resolvedPlan = (planId || '').toLowerCase();
+    if (resolvedPlan === 'freelancer') resolvedPlan = 'paid';
+    if (resolvedPlan === 'agency') resolvedPlan = 'enterprise';
+
+    if (!isPlanId(resolvedPlan) || resolvedPlan === 'free') {
         throw new ErrorResponse('Only paid or enterprise plans can be purchased.', 400);
     }
 
-    const plan = getPlanDefinition(planId);
+    const plan = getPlanDefinition(resolvedPlan);
     if (!plan.price_paise || plan.price_paise <= 0) {
-        throw new ErrorResponse(`Plan ${planId} has no price configured.`, 500);
+        throw new ErrorResponse(`Plan ${resolvedPlan} has no price configured.`, 500);
     }
 
     const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -78,7 +82,7 @@ export async function createRazorpayOrder(userId: string, planId: string) {
                 receipt,
                 notes: {
                     user_id: userId,
-                    plan: planId,
+                    plan: resolvedPlan,
                 },
             },
             { headers: authHeader(), timeout: 30000 }
@@ -98,7 +102,7 @@ export async function createRazorpayOrder(userId: string, planId: string) {
             userId,
             provider: 'razorpay',
             razorpay_order_id: order.id,
-            plan: planId,
+            plan: resolvedPlan,
             amount_paise: plan.price_paise,
             currency: plan.currency || 'INR',
             status: 'created',
@@ -110,7 +114,7 @@ export async function createRazorpayOrder(userId: string, planId: string) {
         order_id: order.id,
         amount: plan.price_paise,
         currency: plan.currency || 'INR',
-        plan: planId,
+        plan: resolvedPlan,
         plan_name: plan.name,
         key_id: config.razorpay.keyId,
         name: 'Lead Hunter',
@@ -150,6 +154,10 @@ export async function verifyRazorpayPayment(
     });
     if (!payment || payment.userId !== userId) {
         throw new ErrorResponse('Payment order not found.', 404);
+    }
+
+    if (payment.plan && payment.plan.startsWith('topup_')) {
+        return verifyTopupPayment(userId, input);
     }
 
     if (payment.status === 'paid') {

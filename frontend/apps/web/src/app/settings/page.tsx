@@ -11,6 +11,7 @@ import {
   type ConfirmationResult,
 } from '@/lib/firebase'
 import { normalizePhone } from '@/lib/phone'
+import { openRazorpayCheckout } from '@/lib/razorpay-client'
 import { motion } from 'framer-motion'
 import {
   UserIcon,
@@ -72,7 +73,7 @@ export default function SettingsPage() {
       })
       const data = await res.json()
       if (data.success && data.data?.order_id) {
-        const rzp = new (window as any).Razorpay({
+        await openRazorpayCheckout({
           key: data.data.key_id,
           order_id: data.data.order_id,
           amount: data.data.amount,
@@ -81,18 +82,25 @@ export default function SettingsPage() {
           description: data.data.description,
           prefill: data.data.prefill,
           handler: async (response: any) => {
-            await fetch('/api/payments/razorpay/verify', {
+            const vRes = await fetch('/api/payments/razorpay/verify', {
               method: 'POST',
               headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
               body: JSON.stringify(response),
             })
-            window.location.reload()
+            const vData = await vRes.json()
+            if (vRes.ok && vData.success) {
+              window.location.reload()
+            } else {
+              alert(vData.message || 'Payment verification failed')
+            }
           },
         })
-        rzp.open()
+      } else {
+        alert(data.message || 'Failed to initialize top-up order')
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Refill failed:', err)
+      alert(err.message || 'Payment failed')
     }
     setPaymentLoading(false)
   }
@@ -108,7 +116,7 @@ export default function SettingsPage() {
       })
       const data = await res.json()
       if (data.success && data.data?.order_id) {
-        const rzp = new (window as any).Razorpay({
+        await openRazorpayCheckout({
           key: data.data.key_id,
           order_id: data.data.order_id,
           amount: data.data.amount,
@@ -117,18 +125,25 @@ export default function SettingsPage() {
           description: data.data.description,
           prefill: data.data.prefill,
           handler: async (response: any) => {
-            await fetch('/api/payments/razorpay/verify', {
+            const vRes = await fetch('/api/payments/razorpay/verify', {
               method: 'POST',
               headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
               body: JSON.stringify(response),
             })
-            window.location.reload()
+            const vData = await vRes.json()
+            if (vRes.ok && vData.success) {
+              window.location.reload()
+            } else {
+              alert(vData.message || 'Payment verification failed')
+            }
           },
         })
-        rzp.open()
+      } else {
+        alert(data.message || 'Failed to initialize plan order')
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Change plan failed:', err)
+      alert(err.message || 'Payment failed')
     }
     setPaymentLoading(false)
   }
