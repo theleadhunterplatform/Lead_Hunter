@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Script from 'next/script'
 import { Space_Grotesk as SpaceGrotesk, Inter } from 'next/font/google'
 import { GeistSans } from 'geist/font/sans'
 import { GeistMono } from 'geist/font/mono'
@@ -78,6 +79,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body
         className={`${GeistSans.variable} ${GeistMono.variable} ${spaceGrotesk.variable} ${inter.variable} font-sans antialiased bg-page-bg text-white`}
       >
+        <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="afterInteractive" />
         <ClientLayout>{children}</ClientLayout>
       </body>
     </html>
