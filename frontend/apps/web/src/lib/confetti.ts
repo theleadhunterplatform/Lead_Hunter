@@ -1,11 +1,18 @@
-import confetti from 'canvas-confetti'
-
 /**
  * Triggers a celebratory confetti explosion when a lead contact is unlocked.
  * Guaranteed to fire visible, vibrant confetti even if coordinates are missing, undefined, or zero.
  */
-export function triggerUnlockConfetti(coords?: { x?: number; y?: number } | null) {
+export async function triggerUnlockConfetti(coords?: { x?: number; y?: number } | null) {
   if (typeof window === 'undefined') return
+
+  let confetti: any = null
+  try {
+    const mod = await import('canvas-confetti')
+    confetti = mod.default || mod
+  } catch {
+    return
+  }
+  if (typeof confetti !== 'function') return
 
   let originX = 0.5
   let originY = 0.55

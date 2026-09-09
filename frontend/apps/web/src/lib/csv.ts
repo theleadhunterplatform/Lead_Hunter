@@ -1,4 +1,3 @@
-import ExcelJS from 'exceljs'
 import type { AppLead } from '@/types/lead'
 
 const TRUNCATE_LENGTH = 200
@@ -77,6 +76,15 @@ export async function downloadXlsx(
   metadata?: string,
 ) {
   if (rows.length === 0) return
+
+  let ExcelJS: any
+  try {
+    const mod = await import('exceljs')
+    ExcelJS = mod.default || mod
+  } catch {
+    console.warn('ExcelJS not available, falling back to CSV')
+    return
+  }
 
   const headers = Object.keys(rows[0] ?? {})
   const workbook = new ExcelJS.Workbook()
