@@ -131,7 +131,7 @@ export default function AdminDashboard() {
       </div>
 
       {stats && stats.pendingUsers > 0 && (
-        <div className="bg-yellow-500/5 border border-yellow-500/20 rounded-2xl p-6">
+        <div className="bg-yellow-500/5 border border-yellow-500/20 rounded-2xl p-6 mb-6">
           <h3 className="text-sm font-semibold text-yellow-400 mb-2">Pending Reviews</h3>
           <p className="text-sm text-text-secondary">
             {stats.pendingUsers} user{stats.pendingUsers !== 1 ? 's' : ''} waiting for approval.{' '}
@@ -141,6 +141,38 @@ export default function AdminDashboard() {
           </p>
         </div>
       )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Link
+          href="/admin/plans"
+          className="group bg-surface/40 hover:bg-surface/60 border border-white/[0.06] hover:border-accent-mint/30 rounded-2xl p-6 transition-all"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-base font-semibold text-text-primary group-hover:text-accent-mint transition-colors">
+              Plans & Pricing Configuration
+            </h3>
+            <ArrowRightIcon className="w-4 h-4 text-text-secondary group-hover:text-accent-mint group-hover:translate-x-1 transition-all" />
+          </div>
+          <p className="text-xs text-text-secondary">
+            Configure subscription tiers, monthly tokens, prices in INR, and credit refill packs.
+          </p>
+        </Link>
+
+        <Link
+          href="/admin/leads"
+          className="group bg-surface/40 hover:bg-surface/60 border border-white/[0.06] hover:border-accent-mint/30 rounded-2xl p-6 transition-all"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-base font-semibold text-text-primary group-hover:text-accent-mint transition-colors">
+              Leads & Niches Monitor
+            </h3>
+            <ArrowRightIcon className="w-4 h-4 text-text-secondary group-hover:text-accent-mint group-hover:translate-x-1 transition-all" />
+          </div>
+          <p className="text-xs text-text-secondary">
+            View scraped leads, approve/reject posts, and inspect auto-classified niche badges.
+          </p>
+        </Link>
+      </div>
     </div>
   )
 }
