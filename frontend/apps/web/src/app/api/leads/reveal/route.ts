@@ -131,12 +131,9 @@ export async function POST(request: NextRequest) {
     }
 
     const claimedLead = await claimPost(leadId).catch((err) => {
-      // If backend rejects for token reasons, still proceed — credits already deducted on our side
-      if (err instanceof ExternalApiError && (err.status === 403 || err.status === 400)) {
-        console.warn('[Lead Reveal] Backend claim soft-error (token check):', err.externalMessage)
-        return externalLead // fall back to the lead data we already have
-      }
-      throw err
+      // Backend claim notification is best-effort — credits are deducted and lead state saved locally
+      console.warn('[Lead Reveal] Backend claim notification failed, proceeding with local reveal:', err?.message || err)
+      return externalLead
     })
 
     const txResult = await db.$transaction(

@@ -191,7 +191,7 @@ export async function GET(request: NextRequest) {
     if (isSavedView || isOutreachView) {
       const userStates = await db.userLeadState.findMany({
         where: isSavedView
-          ? { userId, isSaved: true, isRevealed: true }
+          ? { userId, OR: [{ isSaved: true }, { isRevealed: true }, { status: 'saved' }] }
           : { userId, status: { in: ['drafting', 'sent', 'replied', 'follow-up'] } },
         include: { lead: true },
       })
