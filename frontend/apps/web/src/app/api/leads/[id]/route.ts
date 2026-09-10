@@ -7,7 +7,7 @@ import {
   EmailNotVerifiedError,
   OnboardingRequiredError,
 } from '@/lib/auth'
-import { getPost } from '@/lib/external-api/client'
+import { getPost, claimPost } from '@/lib/external-api/client'
 import type { ExternalPost } from '@/lib/external-api/client'
 import { oracleDb } from '@/lib/oracle-db'
 import { mapLeadPostToExternal } from '@/lib/oracle-mapper'
@@ -15,6 +15,7 @@ import { updateLeadSchema } from '@/lib/validators/auth'
 import type { AppLead } from '@/types/lead'
 import { extractNiches, sanitizePublicText, extractCleanNicheTags, sanitizeHeadline } from '@/lib/claim-reveal'
 import { getLeadRevealCost } from '@/lib/config/coins'
+import { creditService } from '@/lib/services/credits'
 
 export const dynamic = 'force-dynamic'
 
@@ -196,7 +197,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     }
 
     const { status, isSaved } = parsed.data
-    const updateData: Record<string, string | boolean> = {}
+    const updateData: Record<string, string | boolean | Date> = {}
     if (status !== undefined) updateData.status = status
     if (isSaved !== undefined) updateData.isSaved = isSaved
 
@@ -204,6 +205,85 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       updateData.status = 'saved'
     } else if (isSaved === false && status === 'saved') {
       updateData.status = 'new'
+    }
+
+    // Step 1 Unified Flow: Saving a lead always unlocks the lead and deducts credits
+    if (isSaved === true || status === 'saved') {
+      const existingState = await db.userLeadState.findUnique({
+        where: { userId_leadId: { userId, leadId: params.id } },
+      })
+
+      if (!existingState?.isRevealed) {
+        const rawLead = await oracleDb.leadPost.findUnique({ where: { id: params.id } })
+        if (!rawLead) {
+          return NextResponse.json({ code: 'NOT_FOUND', message: 'Lead not found' }, { status: 404 })
+        }
+        const externalLead = mapLeadPostToExternal(rawLead)
+        const cost = getLeadRevealCost(externalLead) ?? 3
+
+        const balance = await creditService.getTotalBalance(userId)
+        if (balance < cost) {
+          return NextResponse.json(
+            {
+              code: 'INSUFFICIENT_CREDITS',
+              message: `Insufficient credits to save and unlock this lead (needs ${cost} credits, available: ${balance})`,
+              required: cost,
+              available: balance,
+            },
+            { status: 400 },
+          )
+        }
+
+        await claimPost(params.id).catch((err) => {
+          console.warn('[Lead Save] Backend claim notification failed:', err?.message || err)
+          return externalLead
+        })
+
+        const txResult = await db.$transaction(async (tx) => {
+          const deductRes = await creditService.deductInTx(tx, userId, cost, 'lead_save', {
+            leadId: params.id,
+            coinsUsed: cost,
+          })
+
+          const userState = await tx.userLeadState.upsert({
+            where: {
+              userId_leadId: {
+                userId,
+                leadId: params.id,
+              },
+            },
+            update: {
+              isSaved: true,
+              status: 'saved',
+              isRevealed: true,
+              revealedAt: new Date(),
+            },
+            create: {
+              userId,
+              leadId: params.id,
+              isSaved: true,
+              status: 'saved',
+              isRevealed: true,
+              revealedAt: new Date(),
+            },
+          })
+
+          return {
+            userState,
+            creditsRemaining: deductRes.subscriptionBalance + deductRes.bonusBalance,
+          }
+        })
+
+        return NextResponse.json({
+          data: {
+            leadId: params.id,
+            status: txResult.userState.status,
+            isSaved: txResult.userState.isSaved,
+            isRevealed: txResult.userState.isRevealed,
+            creditsRemaining: txResult.creditsRemaining,
+          },
+        })
+      }
     }
 
     if (isSaved === true || (status && status !== 'new')) {

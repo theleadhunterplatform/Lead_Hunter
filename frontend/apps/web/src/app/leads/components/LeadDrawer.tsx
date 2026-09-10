@@ -313,7 +313,7 @@ export default function LeadDrawer({
                 </>
               ) : (
                 <>
-                  Reveal Lead
+                  Unlock & Save Lead
                   <span className="flex items-center gap-1 text-[10px] text-text-secondary uppercase tracking-widest ml-1">
                     <BanknotesIcon className="w-3 h-3" /> -{tokenCost ?? '–'}
                   </span>

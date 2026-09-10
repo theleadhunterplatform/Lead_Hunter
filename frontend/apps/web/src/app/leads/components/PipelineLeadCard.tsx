@@ -331,7 +331,7 @@ export default function PipelineLeadCard({
                 </span>
               ) : (
                 <>
-                  <span>Reveal</span>
+                  <span>Unlock & Save</span>
                   <span className="flex items-center gap-0.5 opacity-90 text-[10px] font-semibold tabular-nums">
                     <Coins size={11} className="shrink-0" />
                     <span>-{lead.revealCost ?? 3}</span>
@@ -376,16 +376,12 @@ export default function PipelineLeadCard({
               </div>
             </motion.div>
 
-            {/* Scaled-down Save Button */}
-            <button
-              type="button"
-              onClick={handleSave}
-              className={`w-[66px] h-[30px] rounded-xl text-[9.5px] font-extrabold tracking-wider uppercase transition-all shrink-0 cursor-pointer border flex items-center justify-center ${
-                isSaved ? theme.savedButton : theme.saveButton
-              }`}
+            {/* Saved Indicator Badge */}
+            <div
+              className={`px-2.5 h-[30px] rounded-xl text-[9.5px] font-extrabold tracking-wider uppercase select-none border flex items-center justify-center shrink-0 ${theme.savedButton}`}
             >
-              {isSaved ? '✓ Saved' : 'Save'}
-            </button>
+              ✓ Saved
+            </div>
           </>
         )}
       </div>

@@ -35,7 +35,54 @@ export default function SavedLeadsPage() {
   const [exportOpen, setExportOpen] = useState(false)
   const [exporting, setExporting] = useState<'csv' | 'tsv' | 'sheet' | null>(null)
   const [openActionDropdownId, setOpenActionDropdownId] = useState<string | null>(null)
+  const [unlockingLeadId, setUnlockingLeadId] = useState<string | null>(null)
   const { addToast } = useToast()
+
+  const handleUnlockLead = async (leadId: string) => {
+    try {
+      setUnlockingLeadId(leadId)
+      const token = await getFirebaseToken()
+      const res = await fetch('/api/leads/reveal', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ leadId }),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        addToast({ type: 'error', message: json.message || 'Failed to unlock lead' })
+        return
+      }
+
+      setSavedLeads((prev) =>
+        prev.map((l) =>
+          l.id === leadId
+            ? {
+                ...l,
+                isRevealed: true,
+                name: json.name || l.name,
+                email: json.email || l.email,
+                phone: json.phone || l.phone,
+              }
+            : l,
+        ),
+      )
+
+      if (typeof json.creditsRemaining === 'number') {
+        window.dispatchEvent(
+          new CustomEvent('credits-updated', { detail: { creditsRemaining: json.creditsRemaining } }),
+        )
+      }
+
+      addToast({ type: 'success', message: `✓ Lead unlocked! Contact details revealed.` })
+    } catch {
+      addToast({ type: 'error', message: 'Failed to unlock lead' })
+    } finally {
+      setUnlockingLeadId(null)
+    }
+  }
 
   const readyCount = savedLeads.filter(
     (l) => l.isRevealed && (l.status === 'new' || l.status === 'saved'),
@@ -548,7 +595,19 @@ export default function SavedLeadsPage() {
                         </div>
 
                         <div className="col-span-3 text-right flex items-center justify-end relative pr-2">
-                          <div className="relative inline-block text-left" onClick={(e) => e.stopPropagation()}>
+                          {!lead.isRevealed ? (
+                            <Button
+                              variant="primary"
+                              color="mint"
+                              size="xs"
+                              onClick={() => handleUnlockLead(lead.id)}
+                              loading={unlockingLeadId === lead.id}
+                            >
+                              <LockClosedIcon className="w-3.5 h-3.5" />
+                              Unlock (-{lead.revealCost ?? 3})
+                            </Button>
+                          ) : (
+                            <div className="relative inline-block text-left" onClick={(e) => e.stopPropagation()}>
                             {(() => {
                               const currentAction = statusActionConfig[lead.status] || {
                                 label: 'Actions',
@@ -726,6 +785,7 @@ export default function SavedLeadsPage() {
                               </div>
                             )}
                           </div>
+                        )}
                         </div>
                       </div>
                     )
