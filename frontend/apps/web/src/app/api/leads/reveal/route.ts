@@ -65,34 +65,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if already claimed on external API side
-    if (externalLead.is_claimed) {
-      // Still return the contact info if we have it locally
-      const existingState = await db.userLeadState.findUnique({
-        where: { userId_leadId: { userId, leadId } },
-      })
-      if (existingState?.isRevealed) {
-        return NextResponse.json({
-          success: true,
-          isRevealed: true,
-          coinsUsed: 0,
-          contactBundle,
-          name: externalLead.author?.name || 'Unknown',
-          email: externalLead.email || externalLead.contact_info?.emails?.[0]?.email || '',
-          phone: externalLead.contact_info?.phone_numbers?.[0]?.number || null,
-        })
-      }
-      // External says claimed but we don't have it locally - return the contact info
-      return NextResponse.json({
-        success: true,
-        isRevealed: true,
-        coinsUsed: 0,
-        contactBundle,
-        name: externalLead.author?.name || 'Unknown',
-        email: externalLead.email || externalLead.contact_info?.emails?.[0]?.email || '',
-        phone: externalLead.contact_info?.phone_numbers?.[0]?.number || null,
-      })
-    }
 
     const existingState = await db.userLeadState.findUnique({
       where: {

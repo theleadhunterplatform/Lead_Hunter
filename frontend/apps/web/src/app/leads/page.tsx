@@ -401,7 +401,9 @@ export default function LeadsPage() {
                       onReveal={(leadId, name, email, phone) => {
                         setLeadsList((prev) =>
                           prev.map((l) =>
-                            l.id === leadId ? { ...l, isRevealed: true, name, email, phone } : l,
+                            l.id === leadId
+                              ? { ...l, isRevealed: true, isSaved: true, status: 'saved', name, email, phone }
+                              : l,
                           ),
                         )
                       }}
@@ -417,7 +419,9 @@ export default function LeadsPage() {
                       onReveal={(leadId, name, email, phone) => {
                         setLeadsList((prev) =>
                           prev.map((l) =>
-                            l.id === leadId ? { ...l, isRevealed: true, name, email, phone } : l,
+                            l.id === leadId
+                              ? { ...l, isRevealed: true, isSaved: true, status: 'saved', name, email, phone }
+                              : l,
                           ),
                         )
                       }}
@@ -444,7 +448,7 @@ export default function LeadsPage() {
                     setLeadsList((prev) =>
                       prev.map((l) =>
                         l.id === selectedLead.id
-                          ? { ...l, isRevealed: true, name, email, phone }
+                          ? { ...l, isRevealed: true, isSaved: true, status: 'saved', name, email, phone }
                           : l,
                       ),
                     )

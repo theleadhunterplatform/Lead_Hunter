@@ -5,6 +5,7 @@ const CSP_DIRECTIVES = {
   'default-src': ["'self'"],
   'script-src': [
     "'self'",
+    'blob:',
     'https://apis.google.com',
     'https://www.gstatic.com',
     'https://www.google.com',
@@ -14,6 +15,7 @@ const CSP_DIRECTIVES = {
     "'unsafe-eval'",
     "'unsafe-inline'",
   ],
+  'worker-src': ["'self'", 'blob:'],
   'style-src': [
     "'self'",
     "'unsafe-inline'",
