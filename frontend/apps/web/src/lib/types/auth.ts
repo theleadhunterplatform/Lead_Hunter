@@ -26,6 +26,9 @@ export interface User {
   plan: string
   status?: string
   hasCompletedOnboarding?: boolean
+  servicesOffered?: string[]
+  preferredLeadCategories?: string[]
   createdAt: string
   updatedAt: string
 }
+

@@ -16,6 +16,7 @@ import {
 import type { AppLead } from '@/types/lead'
 import { Select } from '@/components/ui'
 import { getFirebaseToken } from '@/lib/firebase'
+import { useAuth } from '@/hooks/useAuth'
 
 const primaryNiches = [
   'All',
@@ -30,20 +31,246 @@ const primaryNiches = [
   'Copywriting',
 ]
 
+function matchNicheFilter(lead: AppLead, activeNiche: string, userServices: string[] = []): boolean {
+  if (activeNiche === 'All') return true
+
+  if (activeNiche === '🎯 For You') {
+    if (!userServices || userServices.length === 0) return true
+    return userServices.some((service) => {
+      const s = service.toLowerCase()
+      const leadNiche = (lead.niche || lead.category || '').toLowerCase()
+      const allNiches = (lead.niches || []).map((n) => n.toLowerCase())
+      const tags = (lead.nicheTags || []).map((t) => t.toLowerCase())
+      const text = `${lead.title} ${lead.signalContext} ${lead.taskScope}`.toLowerCase()
+
+      if (s.includes('web dev') || s.includes('wordpress') || s.includes('webflow')) {
+        return (
+          leadNiche.includes('web develop') ||
+          allNiches.some((n) => n.includes('web dev') || n.includes('web develop')) ||
+          tags.some((t) => ['react', 'next.js', 'nextjs', 'node', 'fullstack', 'frontend', 'backend', 'developer', 'wordpress', 'webflow', 'shopify'].includes(t)) ||
+          text.includes('website') || text.includes('web dev')
+        )
+      }
+      if (s.includes('mobile')) {
+        return (
+          leadNiche.includes('mobile') ||
+          allNiches.some((n) => n.includes('mobile')) ||
+          tags.some((t) => ['mobile', 'react native', 'flutter', 'ios', 'android'].includes(t)) ||
+          text.includes('mobile app') || text.includes('ios') || text.includes('android')
+        )
+      }
+      if (s.includes('software') || s.includes('full-stack') || s.includes('engineering') || s.includes('devops')) {
+        return (
+          leadNiche.includes('develop') ||
+          allNiches.some((n) => n.includes('develop') || n.includes('software')) ||
+          tags.some((t) => ['developer', 'software', 'fullstack', 'coder', 'backend', 'frontend', 'devops'].includes(t))
+        )
+      }
+      if (s.includes('ui/ux') || s.includes('product design') || s.includes('design')) {
+        return (
+          leadNiche.includes('design') ||
+          leadNiche.includes('ui/ux') ||
+          allNiches.some((n) => n.includes('design') || n.includes('ui/ux')) ||
+          tags.some((t) => ['figma', 'ui/ux', 'design', 'graphic', 'landing page', 'branding'].includes(t))
+        )
+      }
+      if (s.includes('graphic') || s.includes('brand')) {
+        return (
+          leadNiche.includes('branding') ||
+          leadNiche.includes('design') ||
+          allNiches.some((n) => n.includes('branding') || n.includes('design')) ||
+          tags.some((t) => ['graphic', 'branding', 'logo'].includes(t))
+        )
+      }
+      if (s.includes('seo')) {
+        return (
+          leadNiche.includes('seo') ||
+          allNiches.some((n) => n.includes('seo')) ||
+          tags.some((t) => t.includes('seo')) ||
+          text.includes('seo') || text.includes('search engine')
+        )
+      }
+      if (s.includes('marketing') || s.includes('paid ads') || s.includes('social media')) {
+        return (
+          leadNiche.includes('market') ||
+          leadNiche.includes('ads') ||
+          leadNiche.includes('seo') ||
+          allNiches.some((n) => n.includes('market') || n.includes('ads'))
+        )
+      }
+      if (s.includes('copywriting') || s.includes('content') || s.includes('writing')) {
+        return (
+          leadNiche.includes('content') ||
+          leadNiche.includes('copywrit') ||
+          leadNiche.includes('writing') ||
+          allNiches.some((n) => n.includes('copywrit') || n.includes('content')) ||
+          tags.some((t) => ['copywriting', 'content', 'writer', 'blog'].includes(t))
+        )
+      }
+      if (s.includes('sales') || s.includes('lead gen') || s.includes('outreach') || s.includes('consulting')) {
+        return (
+          leadNiche.includes('sales') ||
+          leadNiche.includes('lead gen') ||
+          leadNiche.includes('consulting') ||
+          leadNiche.includes('strategy') ||
+          allNiches.some((n) => n.includes('sales') || n.includes('revops'))
+        )
+      }
+      if (s.includes('ai') || s.includes('automation') || s.includes('machine learning')) {
+        return (
+          leadNiche.includes('ai') ||
+          leadNiche.includes('automation') ||
+          allNiches.some((n) => n.includes('ai') || n.includes('automation')) ||
+          tags.some((t) => ['ai', 'automation', 'n8n', 'zapier', 'gpt', 'llm'].includes(t))
+        )
+      }
+      if (s.includes('video')) {
+        return (
+          leadNiche.includes('video') ||
+          allNiches.some((n) => n.includes('video')) ||
+          tags.some((t) => ['video', 'reels', 'motion'].includes(t))
+        )
+      }
+
+      return (
+        leadNiche.includes(s) ||
+        allNiches.some((n) => n.includes(s)) ||
+        tags.some((t) => t.includes(s))
+      )
+    })
+  }
+
+  const target = activeNiche.toLowerCase().trim()
+  const leadNiche = (lead.niche || lead.category || '').toLowerCase()
+  const allNiches = (lead.niches || []).map((n) => n.toLowerCase())
+  const tags = (lead.nicheTags || []).map((t) => t.toLowerCase())
+  const text = `${lead.title} ${lead.signalContext} ${lead.taskScope}`.toLowerCase()
+
+  switch (target) {
+    case 'development':
+      return (
+        leadNiche.includes('develop') ||
+        leadNiche.includes('web dev') ||
+        leadNiche.includes('mobile') ||
+        leadNiche.includes('software') ||
+        allNiches.some((n) => n.includes('develop') || n.includes('web dev') || n.includes('software') || n.includes('mobile')) ||
+        tags.some((t) =>
+          ['react', 'next.js', 'nextjs', 'node', 'fullstack', 'frontend', 'backend', 'developer', 'python', 'coder', 'wordpress', 'webflow'].includes(t),
+        )
+      )
+    case 'web dev':
+      return (
+        leadNiche.includes('web develop') ||
+        allNiches.some((n) => n.includes('web dev') || n.includes('web develop')) ||
+        tags.some((t) =>
+          ['web development', 'frontend', 'backend', 'fullstack', 'react', 'next.js', 'wordpress', 'webflow', 'shopify'].includes(t),
+        ) ||
+        (text.includes('website') && (text.includes('developer') || text.includes('development') || text.includes('build')))
+      )
+    case 'design':
+      return (
+        leadNiche.includes('design') ||
+        leadNiche.includes('ui/ux') ||
+        leadNiche.includes('branding') ||
+        allNiches.some((n) => n.includes('design') || n.includes('ui/ux') || n.includes('branding')) ||
+        tags.some((t) =>
+          ['ui/ux', 'figma', 'design', 'graphic', 'branding', 'logo', 'landing page'].includes(t),
+        )
+      )
+    case 'web design':
+      return (
+        leadNiche.includes('web design') ||
+        (leadNiche.includes('ui/ux') && (text.includes('web') || text.includes('landing'))) ||
+        allNiches.some((n) => n.includes('web design')) ||
+        tags.some((t) => ['web design', 'figma', 'ui/ux', 'landing page'].includes(t))
+      )
+    case 'marketing':
+      return (
+        leadNiche.includes('market') ||
+        leadNiche.includes('ads') ||
+        leadNiche.includes('seo') ||
+        leadNiche.includes('growth') ||
+        allNiches.some((n) => n.includes('market') || n.includes('ads') || n.includes('growth')) ||
+        tags.some((t) =>
+          ['marketing', 'paid ads', 'google ads', 'meta ads', 'growth', 'social media'].includes(t),
+        )
+      )
+    case 'seo':
+      return (
+        leadNiche.includes('seo') ||
+        allNiches.some((n) => n.includes('seo')) ||
+        tags.some((t) => t.includes('seo') || t.includes('search engine') || t.includes('backlink')) ||
+        text.includes('seo') || text.includes('search engine')
+      )
+    case 'ai & automation':
+      return (
+        leadNiche.includes('ai') ||
+        leadNiche.includes('automation') ||
+        allNiches.some((n) => n.includes('ai') || n.includes('automation')) ||
+        tags.some((t) => ['ai', 'automation', 'n8n', 'zapier', 'gpt', 'llm', 'make.com'].includes(t)) ||
+        text.includes('automation') || text.includes('ai agent')
+      )
+    case 'sales & revops':
+      return (
+        leadNiche.includes('sales') ||
+        leadNiche.includes('lead gen') ||
+        leadNiche.includes('consulting') ||
+        leadNiche.includes('strategy') ||
+        allNiches.some((n) => n.includes('sales') || n.includes('revops') || n.includes('consulting')) ||
+        tags.some((t) => ['sales', 'lead gen', 'cold outreach', 'crm', 'consulting', 'pipeline'].includes(t)) ||
+        text.includes('cold email') || text.includes('lead generation')
+      )
+    case 'copywriting':
+      return (
+        leadNiche.includes('content') ||
+        leadNiche.includes('copywrit') ||
+        leadNiche.includes('writing') ||
+        allNiches.some((n) => n.includes('copywrit') || n.includes('content')) ||
+        tags.some((t) => ['copywriting', 'content', 'writer', 'blog', 'technical writing'].includes(t)) ||
+        text.includes('copywriting') || text.includes('content writer')
+      )
+    default:
+      return (
+        leadNiche.includes(target) ||
+        allNiches.some((n) => n.includes(target)) ||
+        tags.some((t) => t.includes(target))
+      )
+  }
+}
+
 type SortOption = 'newest' | 'replyProbability' | 'urgency'
 
 export default function LeadsPage() {
+  const { user } = useAuth()
+  const userServices = useMemo(() => user?.servicesOffered || [], [user?.servicesOffered])
+  const hasTargetField = userServices.length > 0
+
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [isFilterOpen, setIsFilterOpen] = useState(false)
   const [activeNiche, setActiveNiche] = useState<string>('All')
+  const [hasInitializedNiche, setHasInitializedNiche] = useState(false)
   const [sortBy, setSortBy] = useState<SortOption>('newest')
   const [viewMode, setViewMode] = useState<'grid' | 'pipeline'>('pipeline')
 
   const [leadsList, setLeadsList] = useState<AppLead[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!hasInitializedNiche && hasTargetField) {
+      setActiveNiche('🎯 For You')
+      setHasInitializedNiche(true)
+    }
+  }, [hasInitializedNiche, hasTargetField])
+
+  const availableNiches = useMemo(() => {
+    if (hasTargetField) {
+      return ['🎯 For You', ...primaryNiches]
+    }
+    return primaryNiches
+  }, [hasTargetField])
 
   const fetchLeads = async () => {
     try {
@@ -98,9 +325,8 @@ export default function LeadsPage() {
 
   const filteredLeads = useMemo(() => {
     let result = leadsList.filter((lead) => {
-      if (activeNiche !== 'All') {
-        if (!lead.niches || !lead.niches.some((n) => n.toLowerCase() === activeNiche.toLowerCase())) return false
-      }
+      if (!matchNicheFilter(lead, activeNiche, userServices)) return false
+
       if (searchQuery.trim() !== '') {
         const query = searchQuery.toLowerCase()
         const matchesSearch =
@@ -108,6 +334,7 @@ export default function LeadsPage() {
           lead.signalContext.toLowerCase().includes(query) ||
           lead.company.toLowerCase().includes(query) ||
           lead.category.toLowerCase().includes(query) ||
+          (lead.niche && lead.niche.toLowerCase().includes(query)) ||
           lead.nicheTags.some((tag) => tag.toLowerCase().includes(query)) ||
           (lead.niches && lead.niches.some((n) => n.toLowerCase().includes(query)))
         if (!matchesSearch) return false
@@ -137,7 +364,7 @@ export default function LeadsPage() {
     }
 
     return result
-  }, [leadsList, activeNiche, searchQuery, selectedTags, sortBy])
+  }, [leadsList, activeNiche, userServices, searchQuery, selectedTags, sortBy])
 
   const selectedLead = leadsList.find((l) => l.id === selectedLeadId)
 
@@ -315,26 +542,55 @@ export default function LeadsPage() {
 
         {/* Niche Filter Pills */}
         <div
-          className="flex items-center gap-2 overflow-x-auto pb-4 mb-8 -mx-4 px-4 md:-mx-0 md:px-0 scrollbar-hide [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+          className="flex items-center gap-2 overflow-x-auto pb-4 mb-4 -mx-4 px-4 md:-mx-0 md:px-0 scrollbar-hide [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
-          {primaryNiches.map((niche) => {
+          {availableNiches.map((niche) => {
             const isActive = activeNiche === niche
+            const isForYou = niche === '🎯 For You'
             return (
               <button
                 key={niche}
-                onClick={() => setActiveNiche(niche)}
-                className={`px-4 py-2 text-xs font-semibold rounded-full border transition-all duration-300 whitespace-nowrap ${
+                onClick={() => {
+                  setActiveNiche(niche)
+                  setHasInitializedNiche(true)
+                }}
+                className={`px-4 py-2 text-xs font-semibold rounded-full border transition-all duration-300 whitespace-nowrap flex items-center gap-1.5 ${
                   isActive
-                    ? 'bg-accent-purple/10 border-accent-purple text-accent-purple shadow-[0_0_15px_rgba(168,85,247,0.15)]'
-                    : 'bg-white/5 border-white/[0.06] text-text-secondary hover:bg-white/10 hover:border-white/12 hover:text-text-primary'
+                    ? isForYou
+                      ? 'bg-primary/20 border-primary text-primary shadow-[0_0_15px_rgba(var(--rgb-primary),0.25)]'
+                      : 'bg-accent-purple/10 border-accent-purple text-accent-purple shadow-[0_0_15px_rgba(168,85,247,0.15)]'
+                    : isForYou
+                      ? 'bg-primary/10 border-primary/30 text-primary hover:bg-primary/15 hover:border-primary/50'
+                      : 'bg-white/5 border-white/[0.06] text-text-secondary hover:bg-white/10 hover:border-white/12 hover:text-text-primary'
                 }`}
               >
-                {niche}
+                <span>{niche}</span>
               </button>
             )
           })}
         </div>
+
+        {/* Personalized Target Field Banner */}
+        {hasTargetField && activeNiche === '🎯 For You' && (
+          <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-primary/10 border border-primary/25 mb-6 text-xs transition-all">
+            <div className="flex items-center gap-2 text-text-primary">
+              <span className="w-2 h-2 rounded-full bg-primary animate-pulse shrink-0" />
+              <span>
+                Showing leads tailored to your onboarding target field:{' '}
+                <strong className="text-primary font-semibold">
+                  {userServices.join(', ')}
+                </strong>
+              </span>
+            </div>
+            <button
+              onClick={() => setActiveNiche('All')}
+              className="text-primary hover:underline font-medium shrink-0 ml-auto transition-colors"
+            >
+              Browse all platform leads &rarr;
+            </button>
+          </div>
+        )}
 
         <div
           className={`grid gap-6 transition-all duration-300 ${selectedLeadId ? 'grid-cols-1 lg:grid-cols-3' : 'grid-cols-1'}`}

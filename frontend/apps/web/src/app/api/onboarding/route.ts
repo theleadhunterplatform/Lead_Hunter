@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { requireEmailVerified, AuthRequiredError, EmailNotVerifiedError } from '@/lib/auth'
 import { onboardingSchema } from '@/lib/validators/auth'
 import { emailService } from '@/lib/services/email'
+import { arePhonesMatching, normalizePhone } from '@/lib/phone'
 
 export const dynamic = 'force-dynamic'
 
@@ -45,10 +46,40 @@ export async function POST(request: NextRequest) {
     }
 
     const isAdmin = existingUser.role === 'admin'
+    const rawPhone = parsed.data.phone.trim()
+    const normalizedPhone = normalizePhone(rawPhone)
+
+    // Strictly enforce 1 single mobile number across accounts
+    const otherUsersWithPhone = await db.user.findMany({
+      where: {
+        id: { not: authUser.uid },
+        phone: { not: null },
+      },
+      select: {
+        id: true,
+        email: true,
+        phone: true,
+      },
+    })
+
+    const duplicateUser = otherUsersWithPhone.find((u) => arePhonesMatching(u.phone, rawPhone))
+
+    if (duplicateUser) {
+      return NextResponse.json(
+        {
+          code: 'DUPLICATE_PHONE',
+          message:
+            'This mobile number is already registered with another account. A single mobile number cannot be used for multiple accounts.',
+        },
+        { status: 400 },
+      )
+    }
+
     const updatedUser = await db.user.update({
       where: { id: authUser.uid },
       data: {
         ...parsed.data,
+        phone: normalizedPhone,
         status: isAdmin ? existingUser.status : 'PENDING',
       },
     })

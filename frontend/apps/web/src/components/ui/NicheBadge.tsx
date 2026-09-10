@@ -93,17 +93,33 @@ function resolveNiche(
   content?: string | null,
   intelligence?: string | null,
 ): string {
-  if (niche && niche.trim()) return niche.trim()
+  if (niche && niche.trim()) {
+    const raw = niche.trim()
+    if (NICHE_STYLES[raw]) return raw
+    const lower = raw.toLowerCase()
+    if (lower.includes('web develop') || lower === 'web dev' || lower === 'development') return 'Web Development'
+    if (lower.includes('mobile')) return 'Mobile Development'
+    if (lower.includes('ui/ux') || lower === 'design' || lower.includes('product design') || lower.includes('web design')) return 'UI/UX Design'
+    if (lower.includes('brand') || lower.includes('graphic')) return 'Branding & Design'
+    if (lower.includes('seo')) return 'SEO & Organic Growth'
+    if (lower.includes('paid ads') || lower.includes('marketing')) return 'Paid Ads & Marketing'
+    if (lower.includes('copywrit') || lower.includes('content') || lower === 'copywriting') return 'Content & Copywriting'
+    if (lower.includes('video')) return 'Video Production & Editing'
+    if (lower.includes('sales') || lower.includes('lead gen') || lower.includes('revops')) return 'Sales & Lead Gen'
+    if (lower.includes('ai') || lower.includes('automation')) return 'AI & Automation'
+    if (lower.includes('consulting') || lower.includes('strategy')) return 'Consulting & Strategy'
+    return raw
+  }
 
   const kw = (keyword || '').toLowerCase().replace(/^watchlist:/, '')
   const c = (content || '').toLowerCase()
   const intel = (intelligence || '').toLowerCase()
   const text = `${kw} ${c} ${intel}`
 
-  if (text.includes('nextjs') || text.includes('react') || text.includes('frontend') || text.includes('fullstack') || text.includes('web dev') || text.includes('web development') || text.includes('backend') || text.includes('node') || text.includes('wordpress') || text.includes('shopify') || text.includes('webflow')) {
+  if (text.includes('nextjs') || text.includes('react') || text.includes('frontend') || text.includes('fullstack') || text.includes('web dev') || text.includes('web development') || text.includes('backend') || text.includes('node') || text.includes('wordpress') || text.includes('shopify') || text.includes('webflow') || text.includes('website developer') || text.includes('web developer') || text.includes('software developer')) {
     return 'Web Development'
   }
-  if (text.includes('mobile app') || text.includes('ios') || text.includes('android') || text.includes('flutter')) {
+  if (text.includes('mobile app') || text.includes('ios') || text.includes('android') || text.includes('flutter') || text.includes('react native')) {
     return 'Mobile Development'
   }
   if (text.includes('ui/ux') || text.includes('figma') || text.includes('product design') || text.includes('web design') || text.includes('landing page')) {
@@ -118,17 +134,20 @@ function resolveNiche(
   if (text.includes('paid ads') || text.includes('facebook ads') || text.includes('google ads') || text.includes('performance marketing')) {
     return 'Paid Ads & Marketing'
   }
-  if (text.includes('copywrit') || text.includes('content writer') || text.includes('blog')) {
+  if (text.includes('copywrit') || text.includes('content writer') || text.includes('blog') || text.includes('copywriting')) {
     return 'Content & Copywriting'
   }
   if (text.includes('video edit') || text.includes('reels') || text.includes('motion')) {
     return 'Video Production & Editing'
   }
-  if (text.includes('cold email') || text.includes('lead gen') || text.includes('outreach') || text.includes('sales')) {
+  if (text.includes('cold email') || text.includes('lead gen') || text.includes('outreach') || text.includes('sales') || text.includes('revops')) {
     return 'Sales & Lead Gen'
   }
-  if (text.includes('ai agent') || text.includes('automation') || text.includes('n8n') || text.includes('zapier')) {
+  if (text.includes('ai agent') || text.includes('automation') || text.includes('n8n') || text.includes('zapier') || text.includes('artificial intelligence')) {
     return 'AI & Automation'
+  }
+  if (text.includes('consulting') || text.includes('consultant') || text.includes('strategy')) {
+    return 'Consulting & Strategy'
   }
 
   return 'General'

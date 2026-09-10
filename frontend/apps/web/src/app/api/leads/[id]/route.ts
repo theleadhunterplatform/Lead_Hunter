@@ -93,11 +93,11 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     const phone = externalLead.contact_info?.phone_numbers?.[0]?.number || null
     const email = externalLead.email || externalLead.contact_info?.emails?.[0]?.email || ''
     const isClaimable = externalLead.source === 'seed' || (externalLead.review_status === 'approved' && !!externalLead.intelligence)
-    const intel = externalLead.intelligence || ''
-
-    const niches = extractNiches(externalLead.keyword, externalLead.content || '', externalLead.intelligence)
+    const primaryNiche = externalLead.niche || null
+    const niches = extractNiches(externalLead.keyword, externalLead.content || '', externalLead.intelligence, primaryNiche)
     const cleanTags = extractCleanNicheTags(externalLead, niches)
-    const cleanTitle = sanitizeHeadline(externalLead.author?.info || externalLead.keyword || '', niches[0])
+    const resolvedNiche = primaryNiche || niches[0] || 'General'
+    const cleanTitle = sanitizeHeadline(externalLead.author?.info || externalLead.keyword || '', resolvedNiche)
     const cleanScope = sanitizePublicText(
       extractSection(intel, 'Context You Might Miss') ||
         extractSection(intel, 'What They Actually Want') ||
@@ -119,7 +119,8 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
           ''
         : 'Confidential Client',
       source: 'Lead Signal',
-      category: niches[0] || 'General',
+      category: resolvedNiche,
+      niche: resolvedNiche,
       title: cleanTitle,
       signalContext: isRevealed ? externalLead.content || '' : sanitizePublicText(externalLead.content || ''),
       role: sanitizePublicText(externalLead.author?.info || extractSection(intel, 'One-Liner')),

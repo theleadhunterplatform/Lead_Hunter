@@ -252,6 +252,7 @@ export default function OnboardingPage() {
   const [phoneLoading, setPhoneLoading] = useState(false)
   const [otpCountdown, setOtpCountdown] = useState(0)
   const [otpAttempts, setOtpAttempts] = useState(0)
+  const [isCheckingPhone, setIsCheckingPhone] = useState(false)
 
   const [portfolio, setPortfolio] = useState('')
   const [website, setWebsite] = useState('')
@@ -602,7 +603,12 @@ export default function OnboardingPage() {
       localStorage.removeItem('onboarding_data')
       router.push('/pending-approval')
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to submit onboarding')
+      const msg = err instanceof Error ? err.message : 'Failed to submit onboarding'
+      setError(msg)
+      if (msg.toLowerCase().includes('phone') || msg.toLowerCase().includes('mobile') || msg.toLowerCase().includes('duplicate')) {
+        setStep(1)
+        setStep1Error(msg)
+      }
       setSubmitRetry(true)
     } finally {
       setIsSubmitting(false)
@@ -819,7 +825,8 @@ export default function OnboardingPage() {
                   )}
 
                   <button
-                    onClick={() => {
+                    disabled={isCheckingPhone}
+                    onClick={async () => {
                       if (!linkedin.trim()) {
                         setStep1Error('LinkedIn profile link is required')
                         return
@@ -828,12 +835,47 @@ export default function OnboardingPage() {
                         setStep1Error('Phone number is required')
                         return
                       }
+
+                      // Check for duplicate mobile number
+                      setIsCheckingPhone(true)
+                      setStep1Error('')
+                      try {
+                        const fullPhone = phoneNumber.trim().startsWith('+')
+                          ? phoneNumber.trim()
+                          : `${countryCode} ${phoneNumber.trim()}`
+                        const res = await fetch('/api/auth/check-phone', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ phone: fullPhone }),
+                        })
+                        const json = await res.json()
+                        if (json && !json.isAvailable) {
+                          setStep1Error(
+                            json.message ||
+                              'This mobile number is already registered with another account. 1 single mobile number cannot be used for multiple accounts.',
+                          )
+                          setIsCheckingPhone(false)
+                          return
+                        }
+                      } catch {
+                        // ignore pre-check network error, server will strictly enforce on submission
+                      } finally {
+                        setIsCheckingPhone(false)
+                      }
+
                       setStep1Error('')
                       setStep(2)
                     }}
-                    className="mt-6 w-full bg-primary hover:bg-primary/90 text-black font-semibold rounded-xl active:scale-98 transition-all shadow-[0_4px_20px_rgba(var(--rgb-primary),0.25)] px-4 py-3"
+                    className="mt-6 w-full bg-primary hover:bg-primary/90 text-black font-semibold rounded-xl active:scale-98 transition-all shadow-[0_4px_20px_rgba(var(--rgb-primary),0.25)] px-4 py-3 disabled:opacity-50 flex items-center justify-center gap-2"
                   >
-                    Continue
+                    {isCheckingPhone ? (
+                      <>
+                        <div className="w-4 h-4 rounded-full border-2 border-black/20 border-t-black animate-spin" />
+                        <span>Validating number...</span>
+                      </>
+                    ) : (
+                      'Continue'
+                    )}
                   </button>
 
                   <div className="mt-4 text-center">

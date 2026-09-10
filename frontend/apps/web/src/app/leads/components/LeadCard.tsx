@@ -263,7 +263,7 @@ export default function LeadCard({
         {/* Header: Niche Badge & Timestamp */}
         <div className="flex items-center justify-between mb-2 w-full select-none shrink-0 h-[22px]">
           <div className="flex items-center gap-1.5 min-w-0">
-            <NicheBadge niche={(lead as any).niche} keyword={lead.category} content={lead.signalContext} />
+            <NicheBadge niche={lead.niche} keyword={lead.category} content={lead.signalContext} />
           </div>
 
           {lead.timestamp && (

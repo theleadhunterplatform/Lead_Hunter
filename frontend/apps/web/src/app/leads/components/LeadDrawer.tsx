@@ -176,7 +176,7 @@ export default function LeadDrawer({
       <div className="flex items-center justify-between p-6 pb-4 border-b border-border-subtle shrink-0">
         <div className="flex items-center gap-3">
           <div className={`w-2.5 h-2.5 rounded-full bg-current ${theme.textAccent}`} />
-          <NicheBadge niche={(lead as any).niche} keyword={lead.category} content={lead.signalContext} />
+          <NicheBadge niche={lead.niche} keyword={lead.category} content={lead.signalContext} />
           <Badge size="sm" color="purple">
             Lead Hunter Club
           </Badge>

@@ -87,10 +87,12 @@ function externalPostToAppLead(
   const phone = post.contact_info?.phone_numbers?.[0]?.number || null
   const email = post.email || post.contact_info?.emails?.[0]?.email || ''
   const intel = post.intelligence || ''
+  const primaryNiche = post.niche || null
 
-  const niches = extractNiches(post.keyword, post.content || '', post.intelligence)
+  const niches = extractNiches(post.keyword, post.content || '', post.intelligence, primaryNiche)
   const cleanTags = extractCleanNicheTags(post, niches)
-  const cleanTitle = sanitizeHeadline(post.author?.info || post.keyword || '', niches[0])
+  const resolvedNiche = primaryNiche || niches[0] || 'General'
+  const cleanTitle = sanitizeHeadline(post.author?.info || post.keyword || '', resolvedNiche)
   const cleanScope = sanitizePublicText(
     extractSection(intel, 'Context You Might Miss') ||
       extractSection(intel, 'What They Actually Want') ||
@@ -107,7 +109,8 @@ function externalPostToAppLead(
       ? post.contact_info?.company_name || post.author?.name || post.platform || ''
       : 'Confidential Client',
     source: 'Lead Signal',
-    category: niches[0] || 'General',
+    category: resolvedNiche,
+    niche: resolvedNiche,
     title: cleanTitle,
     signalContext: isRevealed ? post.content || '' : sanitizePublicText(post.content || ''),
     role: sanitizePublicText(post.author?.info || extractSection(intel, 'One-Liner')),
@@ -140,6 +143,7 @@ function dbLeadToAppLead(
   const isRevealed = userState?.isRevealed || false
   const phone = lead.phone || null
   const email = lead.email || ''
+  const resolvedNiche = lead.category || 'General'
 
   return {
     id: lead.id,
@@ -147,7 +151,8 @@ function dbLeadToAppLead(
     email: isRevealed ? email : 'unlocked@leadhunterclub.com',
     company: isRevealed ? lead.company : 'Confidential Client',
     source: lead.source || 'Lead Signal',
-    category: lead.category || 'General',
+    category: resolvedNiche,
+    niche: resolvedNiche,
     title: lead.title,
     signalContext: isRevealed ? lead.signalContext : sanitizePublicText(lead.signalContext || ''),
     role: sanitizePublicText(lead.role || ''),
@@ -158,7 +163,7 @@ function dbLeadToAppLead(
     urgency: (lead.urgency as AppLead['urgency']) || 'medium',
     winProb: (lead.winProb as AppLead['winProb']) || 'medium',
     nicheTags: lead.nicheTags || [],
-    niches: lead.niches || [],
+    niches: lead.niches || [resolvedNiche],
     hashtags: lead.hashtags || [],
     replyProbability: lead.replyProbability || 60,
     accent: (lead.accent as AppLead['accent']) || 'mint',

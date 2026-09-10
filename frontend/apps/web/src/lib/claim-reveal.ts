@@ -25,91 +25,111 @@ export function applyClaimResponseToLead(
 export function extractNiches(
   keyword: string | null,
   content: string,
-  intelligence: string | null
+  intelligence: string | null,
+  primaryNiche?: string | null,
 ): string[] {
   const niches: string[] = []
   const kw = keyword ? keyword.toLowerCase().replace(/^watchlist:/, '') : ''
   const c = (content || '').toLowerCase()
   const intel = (intelligence || '').toLowerCase()
+  const pNiche = (primaryNiche || '').trim().toLowerCase()
 
-  // 1. Map based on keyword match
-  if (kw) {
-    if (kw.includes('development') || kw.includes('coder') || kw.includes('software')) {
-      niches.push('development')
-    }
-    if (kw.includes('web dev') || kw.includes('frontend') || kw.includes('backend') || kw.includes('fullstack') || kw.includes('nextjs')) {
-      niches.push('web dev')
-      niches.push('development')
-    }
-    if (kw.includes('design') || kw.includes('ui/ux') || kw.includes('figma') || kw.includes('branding')) {
-      niches.push('design')
-    }
-    if (kw.includes('web design')) {
-      niches.push('web design')
-      niches.push('design')
-    }
-    if (kw.includes('marketing') || kw.includes('advertising') || kw.includes('ads') || kw.includes('ppc')) {
-      niches.push('marketing')
-    }
-    if (kw.includes('ai') || kw.includes('automation') || kw.includes('gpt') || kw.includes('agent')) {
-      niches.push('ai & automation')
-    }
-    if (kw.includes('seo') || kw.includes('ranking')) {
-      niches.push('seo')
-      niches.push('marketing')
-    }
-    if (kw.includes('copywriting') || kw.includes('writing') || kw.includes('content writer')) {
-      niches.push('copywriting')
-    }
-    if (kw.includes('sales') || kw.includes('revops') || kw.includes('crm') || kw.includes('pipeline')) {
-      niches.push('sales & revops')
+  // 1. If primaryNiche is provided, map it to relevant niche tokens
+  if (pNiche) {
+    niches.push(primaryNiche!.trim())
+    if (pNiche.includes('web develop') || pNiche.includes('fullstack') || pNiche.includes('frontend') || pNiche.includes('backend')) {
+      niches.push('Web Dev')
+      niches.push('Development')
+    } else if (pNiche.includes('mobile') || pNiche.includes('app develop') || pNiche.includes('software')) {
+      niches.push('Development')
+    } else if (pNiche.includes('ui/ux') || pNiche.includes('design') || pNiche.includes('brand')) {
+      niches.push('Design')
+      if (pNiche.includes('web')) niches.push('Web Design')
+    } else if (pNiche.includes('paid ads') || pNiche.includes('marketing') || pNiche.includes('growth')) {
+      niches.push('Marketing')
+    } else if (pNiche.includes('seo')) {
+      niches.push('SEO')
+      niches.push('Marketing')
+    } else if (pNiche.includes('copywriting') || pNiche.includes('content')) {
+      niches.push('Copywriting')
+    } else if (pNiche.includes('sales') || pNiche.includes('consulting') || pNiche.includes('lead gen') || pNiche.includes('strategy')) {
+      niches.push('Sales & RevOps')
+    } else if (pNiche.includes('ai') || pNiche.includes('automation')) {
+      niches.push('AI & Automation')
     }
   }
 
-  // 2. Fallback to keyword matching in content/intel if no niche has been found yet
+  // 2. Map based on keyword match
+  if (kw) {
+    if (kw.includes('development') || kw.includes('coder') || kw.includes('software')) {
+      niches.push('Development')
+    }
+    if (kw.includes('web dev') || kw.includes('frontend') || kw.includes('backend') || kw.includes('fullstack') || kw.includes('nextjs')) {
+      niches.push('Web Dev')
+      niches.push('Development')
+    }
+    if (kw.includes('design') || kw.includes('ui/ux') || kw.includes('figma') || kw.includes('branding')) {
+      niches.push('Design')
+    }
+    if (kw.includes('web design')) {
+      niches.push('Web Design')
+      niches.push('Design')
+    }
+    if (kw.includes('marketing') || kw.includes('advertising') || kw.includes('ads') || kw.includes('ppc')) {
+      niches.push('Marketing')
+    }
+    if (kw.includes('ai') || kw.includes('automation') || kw.includes('gpt') || kw.includes('agent')) {
+      niches.push('AI & Automation')
+    }
+    if (kw.includes('seo') || kw.includes('ranking')) {
+      niches.push('SEO')
+      niches.push('Marketing')
+    }
+    if (kw.includes('copywriting') || kw.includes('writing') || kw.includes('content writer')) {
+      niches.push('Copywriting')
+    }
+    if (kw.includes('sales') || kw.includes('revops') || kw.includes('crm') || kw.includes('pipeline')) {
+      niches.push('Sales & RevOps')
+    }
+  }
+
+  // 3. Fallback to keyword matching in content/intel if needed
   if (niches.length === 0) {
     if (c.includes('seo') || c.includes('search engine') || c.includes('backlink')) {
-      niches.push('seo')
+      niches.push('SEO')
+      niches.push('Marketing')
     }
-    if (c.includes('copywrit') || c.includes('writer') || c.includes('writing')) {
-      niches.push('copywriting')
+    if (c.includes('copywrit') || c.includes('writer') || c.includes('writing') || c.includes('content writ')) {
+      niches.push('Copywriting')
     }
     if (c.includes('design') || c.includes('ui/ux') || c.includes('figma') || c.includes('landing page')) {
-      niches.push('design')
+      niches.push('Design')
       if (c.includes('website design') || c.includes('web design')) {
-        niches.push('web design')
+        niches.push('Web Design')
       }
     }
-    if (c.includes('development') || c.includes('developer') || c.includes('code') || c.includes('nextjs') || c.includes('react')) {
-      niches.push('development')
-      if (c.includes('web dev') || c.includes('website dev') || c.includes('frontend') || c.includes('backend')) {
-        niches.push('web dev')
+    if (c.includes('development') || c.includes('developer') || c.includes('software') || c.includes('nextjs') || c.includes('react') || c.includes('website developer')) {
+      niches.push('Development')
+      if (c.includes('web dev') || c.includes('website dev') || c.includes('frontend') || c.includes('backend') || c.includes('website developer')) {
+        niches.push('Web Dev')
       }
     }
     if (c.includes('marketing') || c.includes('ad campaign') || c.includes('ads ') || c.includes('lead gen')) {
-      niches.push('marketing')
+      niches.push('Marketing')
     }
     if (c.includes('ai ') || c.includes('artificial intelligence') || c.includes('automation') || c.includes('n8n') || c.includes('make.com') || c.includes('zapier')) {
-      niches.push('ai & automation')
+      niches.push('AI & Automation')
     }
-    if (c.includes('sales') || c.includes('crm') || c.includes('revops')) {
-      niches.push('sales & revops')
+    if (c.includes('sales') || c.includes('crm') || c.includes('revops') || c.includes('consulting')) {
+      niches.push('Sales & RevOps')
     }
   }
 
-  // Deduplicate and capitalize to match filters
-  const formatted = Array.from(new Set(niches)).map(n => {
-    if (n === 'ai & automation') return 'AI & Automation'
-    if (n === 'web dev') return 'Web Dev'
-    if (n === 'web design') return 'Web Design'
-    if (n === 'seo') return 'SEO'
-    if (n === 'sales & revops') return 'Sales & RevOps'
-    return n.charAt(0).toUpperCase() + n.slice(1)
-  })
+  // Deduplicate and format
+  const formatted = Array.from(new Set(niches))
 
-  // Fallback to "Development" if still empty
   if (formatted.length === 0) {
-    formatted.push('Development')
+    formatted.push(primaryNiche ? primaryNiche.trim() : 'General')
   }
 
   return formatted

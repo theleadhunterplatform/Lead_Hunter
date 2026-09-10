@@ -31,4 +31,7 @@ export interface AppLead {
   revealCost?: number | null
   phone?: string | null
   accent?: 'mint' | 'purple' | 'cyan' | 'orange' | 'pink' | string
+  niche?: string | null
+  isTargetMatch?: boolean
 }
+

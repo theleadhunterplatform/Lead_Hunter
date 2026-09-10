@@ -231,6 +231,8 @@ export async function GET(request: NextRequest) {
         emailVerified: user.emailVerified?.toISOString() || null,
         plan: user.plan,
         hasCompletedOnboarding,
+        servicesOffered: user.servicesOffered || [],
+        preferredLeadCategories: user.preferredLeadCategories || [],
         createdAt: user.createdAt.toISOString(),
         updatedAt: user.updatedAt.toISOString(),
       },
