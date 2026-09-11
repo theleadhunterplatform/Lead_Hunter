@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { getFirebaseToken } from '@/lib/firebase'
@@ -149,6 +149,19 @@ export default function AdminUsersPage() {
   }
 
   const [approveDropdown, setApproveDropdown] = useState<string | null>(null)
+  const approveDropdownRef = useRef<HTMLDivElement>(null)
+
+  // Close approve dropdown on outside click
+  useEffect(() => {
+    if (!approveDropdown) return
+    const handleClick = (e: MouseEvent) => {
+      if (approveDropdownRef.current && !approveDropdownRef.current.contains(e.target as Node)) {
+        setApproveDropdown(null)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [approveDropdown])
 
   return (
     <div>
@@ -183,12 +196,17 @@ export default function AdminUsersPage() {
               setServiceFilter(e.target.value)
               setPage(1)
             }}
-            className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all px-3 py-2.5 text-sm appearance-none cursor-pointer min-w-[160px]"
+            className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all pl-3 pr-9 py-2.5 text-sm appearance-none cursor-pointer min-w-[160px] [&>option]:bg-[#292a2b] [&>option]:text-white"
+            style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: 'right 12px center',
+            }}
           >
-            <option value="">All Services</option>
+            <option value="" className="bg-[#292a2b] text-white">All Services</option>
             {users.length > 0 &&
               [...new Set(users.flatMap((u) => u.servicesOffered))].sort().map((s) => (
-                <option key={s} value={s}>
+                <option key={s} value={s} className="bg-[#292a2b] text-white">
                   {s}
                 </option>
               ))}

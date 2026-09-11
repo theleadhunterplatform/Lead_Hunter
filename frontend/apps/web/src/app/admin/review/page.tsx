@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { getFirebaseToken } from '@/lib/firebase'
 import Link from 'next/link'
 import {
@@ -284,10 +284,23 @@ function ReviewActions({
   onAction: (userId: string, action: string, plan?: string) => void
 }) {
   const [showPlans, setShowPlans] = useState(false)
+  const wrapperRef = useRef<HTMLDivElement>(null)
+
+  // Close on outside click
+  useEffect(() => {
+    if (!showPlans) return
+    const handleClick = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setShowPlans(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [showPlans])
 
   return (
     <>
-      <div className="relative">
+      <div ref={wrapperRef} className="relative">
         <button
           onClick={() => setShowPlans(!showPlans)}
           disabled={actionLoading === `${userId}-APPROVE` || actionLoading === `${userId}-REJECT`}
@@ -298,7 +311,7 @@ function ReviewActions({
           <ChevronDownIcon className="w-3.5 h-3.5" />
         </button>
         {showPlans && (
-          <div className="absolute top-full left-0 mt-1 z-50 w-48 bg-surface-elevated border border-white/[0.08] rounded-xl shadow-xl overflow-hidden">
+          <div className="absolute top-full left-0 mt-1 z-[100] w-48 bg-[#292a2b] border border-white/[0.12] rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.6)] overflow-hidden">
             {PLANS.map((p) => (
               <button
                 key={p.id}
@@ -306,10 +319,10 @@ function ReviewActions({
                   setShowPlans(false)
                   onAction(userId, 'APPROVE', p.id)
                 }}
-                className="w-full text-left px-4 py-2.5 text-sm text-text-primary hover:bg-white/[0.06] transition-colors"
+                className="w-full text-left px-4 py-2.5 text-sm text-white hover:bg-white/[0.08] transition-colors"
               >
                 <span className="font-medium">{p.label}</span>
-                <span className="text-text-secondary ml-2">({p.credits} credits)</span>
+                <span className="text-zinc-400 ml-2">({p.credits} credits)</span>
               </button>
             ))}
           </div>

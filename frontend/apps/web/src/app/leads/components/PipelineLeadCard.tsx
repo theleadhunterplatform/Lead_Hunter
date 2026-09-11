@@ -320,23 +320,23 @@ export default function PipelineLeadCard({
               type="button"
               onClick={handleReveal}
               disabled={isRevealing}
-              className={`w-[96px] h-[30px] rounded-xl font-bold text-[10.5px] shadow-sm flex items-center justify-center gap-1.5 transition-all active:scale-95 shrink-0 ${theme.button} ${
+              className={`h-[30px] px-3 rounded-xl font-bold text-[10.5px] shadow-sm flex items-center justify-center gap-1.5 transition-all active:scale-95 shrink-0 whitespace-nowrap ${theme.button} ${
                 isRevealing ? 'opacity-85 cursor-wait pointer-events-none' : 'cursor-pointer'
               }`}
             >
               {isRevealing ? (
-                <span className="flex items-center gap-1.5">
+                <span className="flex items-center gap-1.5 whitespace-nowrap">
                   <Loader2 size={12} className="animate-spin shrink-0" />
-                  <span className="text-[10px] font-semibold tracking-tight">Unlocking...</span>
+                  <span className="text-[10px] font-semibold tracking-tight whitespace-nowrap">Unlocking...</span>
                 </span>
               ) : (
-                <>
-                  <span>Unlock & Save</span>
-                  <span className="flex items-center gap-0.5 opacity-90 text-[10px] font-semibold tabular-nums">
+                <span className="flex items-center gap-1.5 whitespace-nowrap">
+                  <span className="whitespace-nowrap">Unlock & Save</span>
+                  <span className="flex items-center gap-0.5 opacity-90 text-[10px] font-semibold tabular-nums shrink-0 whitespace-nowrap">
                     <Coins size={11} className="shrink-0" />
                     <span>-{lead.revealCost ?? 3}</span>
                   </span>
-                </>
+                </span>
               )}
             </button>
           </>
