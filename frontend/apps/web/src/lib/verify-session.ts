@@ -18,29 +18,44 @@ function parseJwtPart(part: string): Record<string, unknown> | null {
   }
 }
 
+async function fetchGoogleKeys(): Promise<void> {
+  const now = Date.now()
+  const res = await fetch(
+    'https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com',
+    { cache: 'no-store' },
+  )
+  const data = (await res.json()) as { keys: JsonWebKey[] }
+
+  const keys: Record<string, JsonWebKey> = {}
+  for (const key of data.keys) {
+    const keyKid = (key as Record<string, unknown>).kid as string | undefined
+    if (keyKid) keys[keyKid] = key
+  }
+
+  cachedKeys = { keys, expiresAt: now + 6 * 60 * 60 * 1000 }
+}
+
 async function getPublicKey(kid: string): Promise<JsonWebKey | null> {
   const now = Date.now()
 
   if (!cachedKeys || now > cachedKeys.expiresAt) {
     try {
-      const res = await fetch(
-        'https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com',
-      )
-      const data = (await res.json()) as { keys: JsonWebKey[] }
-
-      const keys: Record<string, JsonWebKey> = {}
-      for (const key of data.keys) {
-        const keyKid = (key as Record<string, unknown>).kid as string | undefined
-        if (keyKid) keys[keyKid] = key
-      }
-
-      cachedKeys = { keys, expiresAt: now + 86_400_000 }
+      await fetchGoogleKeys()
     } catch {
       if (!cachedKeys) return null
     }
   }
 
-  const kidKey = cachedKeys.keys[kid]
+  // Cache miss check: If key is not in cache, Google key rotation occurred — fetch fresh keys
+  if (cachedKeys && !cachedKeys.keys[kid]) {
+    try {
+      await fetchGoogleKeys()
+    } catch {
+      // Continue with existing cache if network fails
+    }
+  }
+
+  const kidKey = cachedKeys?.keys[kid]
   return kidKey ?? null
 }
 

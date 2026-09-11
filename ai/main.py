@@ -2,7 +2,8 @@ import asyncio
 import os
 from typing import List, Optional
 
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException, Request
+from fastapi.responses import JSONResponse
 import numpy as np
 import cv2
 from PIL import Image, ImageFile
@@ -15,6 +16,16 @@ from classifier import LeadClassifier
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 app = FastAPI(title="Hunter AI OCR Service")
+
+@app.middleware("http")
+async def verify_internal_secret(request: Request, call_next):
+    secret = os.getenv("AI_INTERNAL_SECRET")
+    # Health endpoint is left open for local container checks
+    if secret and request.url.path != "/health":
+        auth_header = request.headers.get("x-ai-secret") or request.headers.get("Authorization")
+        if not auth_header or (auth_header != secret and auth_header != f"Bearer {secret}"):
+            return JSONResponse(status_code=401, content={"error": "Unauthorized internal AI service request"})
+    return await call_next(request)
 
 # Initialize Classifier
 classifier = LeadClassifier()

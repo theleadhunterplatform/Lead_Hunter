@@ -55,6 +55,11 @@ async function verifyFirebaseToken(token: string): Promise<{ uid: string; email?
             issuer: `https://securetoken.google.com/${FIREBASE_PROJECT_ID}`,
         }) as any;
 
+        // Strict verification: Reject unverified emails to prevent account takeover via email collision
+        if (!decoded.email_verified) {
+            return null;
+        }
+
         return {
             uid: decoded.uid || decoded.sub,
             email: decoded.email,

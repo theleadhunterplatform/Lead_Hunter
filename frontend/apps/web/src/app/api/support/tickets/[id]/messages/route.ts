@@ -78,8 +78,8 @@ export async function POST(
       await db.supportTicket.update({ where: { id: ticketId }, data: { status: 'OPEN' } })
     }
 
-    // Notify the other party via email
-    if (authorRole === 'admin' && ticket.user.email) {
+    // Notify the other party via email (Internal staff notes NEVER email the customer)
+    if (authorRole === 'admin' && !msgIsInternal && ticket.user.email) {
       void emailService
         .sendTicketReply({
           name: ticket.user.name,

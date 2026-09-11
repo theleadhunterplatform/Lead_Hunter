@@ -270,12 +270,18 @@ export async function GET(request: NextRequest) {
         })
       } catch (oracleErr: unknown) {
         const msg = oracleErr instanceof Error ? oracleErr.message : 'Oracle unreachable'
-        console.error('[Leads API] Oracle DB unavailable — returning empty feed:', msg)
-        return NextResponse.json({
-          data: [],
-          pagination: { page, pageSize, total: 0, totalPages: 0, hasNext: false, hasPrev: false },
-          warning: 'Lead data is temporarily unavailable. Please try again shortly.',
-        })
+        console.error('[Leads API] Oracle DB connection failure:', msg)
+        return NextResponse.json(
+          {
+            code: 'SERVICE_UNAVAILABLE',
+            message: 'Lead database is temporarily unreachable. Please retry shortly.',
+            retryable: true,
+          },
+          {
+            status: 503,
+            headers: { 'Retry-After': '5' },
+          },
+        )
       }
     }
 

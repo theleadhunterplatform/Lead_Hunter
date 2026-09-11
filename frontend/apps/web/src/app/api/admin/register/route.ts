@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { getAuthUser } from '@/lib/auth'
 import { adminRegisterSchema } from '@/lib/validators/auth'
 import { rateLimitByKey } from '@/lib/rate-limit'
+import crypto from 'crypto'
 
 export const dynamic = 'force-dynamic'
 
@@ -33,7 +34,18 @@ export async function POST(request: NextRequest) {
     const { key } = parsed.data
 
     const validKey = process.env.ADMIN_REGISTRATION_KEY
-    if (!validKey || key !== validKey) {
+    if (!validKey) {
+      return NextResponse.json(
+        { code: 'INVALID_KEY', message: 'Invalid registration key' },
+        { status: 403 },
+      )
+    }
+
+    const keyBuf = Buffer.from(key)
+    const validBuf = Buffer.from(validKey)
+    const isMatch = keyBuf.length === validBuf.length && crypto.timingSafeEqual(keyBuf, validBuf)
+
+    if (!isMatch) {
       return NextResponse.json(
         { code: 'INVALID_KEY', message: 'Invalid registration key' },
         { status: 403 },

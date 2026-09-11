@@ -161,11 +161,11 @@ function matchNicheFilter(lead: AppLead, activeNiche: string, userServices: stri
     case 'web dev':
       return (
         leadNiche.includes('web develop') ||
+        leadNiche.includes('web dev') ||
         allNiches.some((n) => n.includes('web dev') || n.includes('web develop')) ||
         tags.some((t) =>
           ['web development', 'frontend', 'backend', 'fullstack', 'react', 'next.js', 'wordpress', 'webflow', 'shopify'].includes(t),
-        ) ||
-        (text.includes('website') && (text.includes('developer') || text.includes('development') || text.includes('build')))
+        )
       )
     case 'design':
       return (
@@ -188,7 +188,6 @@ function matchNicheFilter(lead: AppLead, activeNiche: string, userServices: stri
       return (
         leadNiche.includes('market') ||
         leadNiche.includes('ads') ||
-        leadNiche.includes('seo') ||
         leadNiche.includes('growth') ||
         allNiches.some((n) => n.includes('market') || n.includes('ads') || n.includes('growth')) ||
         tags.some((t) =>
@@ -199,16 +198,14 @@ function matchNicheFilter(lead: AppLead, activeNiche: string, userServices: stri
       return (
         leadNiche.includes('seo') ||
         allNiches.some((n) => n.includes('seo')) ||
-        tags.some((t) => t.includes('seo') || t.includes('search engine') || t.includes('backlink')) ||
-        text.includes('seo') || text.includes('search engine')
+        tags.some((t) => ['seo', 'search engine optimization', 'backlinks', 'link building', 'technical seo'].includes(t))
       )
     case 'ai & automation':
       return (
         leadNiche.includes('ai') ||
         leadNiche.includes('automation') ||
         allNiches.some((n) => n.includes('ai') || n.includes('automation')) ||
-        tags.some((t) => ['ai', 'automation', 'n8n', 'zapier', 'gpt', 'llm', 'make.com'].includes(t)) ||
-        text.includes('automation') || text.includes('ai agent')
+        tags.some((t) => ['ai', 'automation', 'n8n', 'zapier', 'gpt', 'llm', 'make.com', 'ai agent'].includes(t))
       )
     case 'sales & revops':
       return (
@@ -217,8 +214,7 @@ function matchNicheFilter(lead: AppLead, activeNiche: string, userServices: stri
         leadNiche.includes('consulting') ||
         leadNiche.includes('strategy') ||
         allNiches.some((n) => n.includes('sales') || n.includes('revops') || n.includes('consulting')) ||
-        tags.some((t) => ['sales', 'lead gen', 'cold outreach', 'crm', 'consulting', 'pipeline'].includes(t)) ||
-        text.includes('cold email') || text.includes('lead generation')
+        tags.some((t) => ['sales', 'lead gen', 'cold outreach', 'crm', 'consulting', 'pipeline'].includes(t))
       )
     case 'copywriting':
       return (
@@ -226,8 +222,7 @@ function matchNicheFilter(lead: AppLead, activeNiche: string, userServices: stri
         leadNiche.includes('copywrit') ||
         leadNiche.includes('writing') ||
         allNiches.some((n) => n.includes('copywrit') || n.includes('content')) ||
-        tags.some((t) => ['copywriting', 'content', 'writer', 'blog', 'technical writing'].includes(t)) ||
-        text.includes('copywriting') || text.includes('content writer')
+        tags.some((t) => ['copywriting', 'content', 'writer', 'blog', 'technical writing'].includes(t))
       )
     default:
       return (

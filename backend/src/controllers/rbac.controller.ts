@@ -103,6 +103,18 @@ export const createRoleAssignment = asyncHandler(async (req: Request, res: Respo
         return next(new ErrorResponse(`Cannot assign a ${role.scopeType} role to a ${scope?.type} scope`, 400));
     }
 
+    // 3. Ceiling check: Cannot assign permissions greater than your own authority
+    const targetPerms = Array.isArray(role.permissions) ? role.permissions : [];
+    const isOwnerRole = role.slug === 'system_owner' || role.name?.toLowerCase().includes('owner');
+    if (isOwnerRole && !hasPermission(requesterPerms, '*')) {
+        return next(new ErrorResponse('Only system owners can assign the system owner role', 403));
+    }
+
+    const exceedsAuthority = targetPerms.some((perm: string) => !hasPermission(requesterPerms, perm));
+    if (exceedsAuthority && !hasPermission(requesterPerms, '*')) {
+        return next(new ErrorResponse('Cannot assign a role with permissions greater than your own', 403));
+    }
+
     const assignment = await RoleAssignment.create({
         userId,
         roleId,

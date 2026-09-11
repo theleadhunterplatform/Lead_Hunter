@@ -49,20 +49,17 @@ export async function POST(request: NextRequest) {
     const rawPhone = parsed.data.phone.trim()
     const normalizedPhone = normalizePhone(rawPhone)
 
-    // Strictly enforce 1 single mobile number across accounts
-    const otherUsersWithPhone = await db.user.findMany({
+    // Strictly enforce 1 single mobile number across accounts via indexed database query
+    const duplicateUser = await db.user.findFirst({
       where: {
         id: { not: authUser.uid },
-        phone: { not: null },
+        OR: [
+          { phone: normalizedPhone },
+          { phone: rawPhone },
+        ],
       },
-      select: {
-        id: true,
-        email: true,
-        phone: true,
-      },
+      select: { id: true },
     })
-
-    const duplicateUser = otherUsersWithPhone.find((u) => arePhonesMatching(u.phone, rawPhone))
 
     if (duplicateUser) {
       return NextResponse.json(

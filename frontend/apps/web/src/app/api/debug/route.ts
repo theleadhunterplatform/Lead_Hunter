@@ -3,10 +3,13 @@ import { NextResponse } from 'next/server'
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
+  if (process.env.NODE_ENV === 'production') {
+    return new NextResponse(null, { status: 404 })
+  }
+
   const results: any = {
     env: {
       FIREBASE_SERVICE_ACCOUNT_KEY_exists: !!process.env.FIREBASE_SERVICE_ACCOUNT_KEY,
-      FIREBASE_SERVICE_ACCOUNT_KEY_length: process.env.FIREBASE_SERVICE_ACCOUNT_KEY?.length ?? 0,
       FIREBASE_SERVICE_ACCOUNT_PATH_exists: !!process.env.FIREBASE_SERVICE_ACCOUNT_PATH,
       NEXT_PUBLIC_FIREBASE_PROJECT_ID: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
     },
@@ -24,10 +27,8 @@ export async function GET() {
   try {
     parsed = JSON.parse(raw)
     results.checks['parseJSON'] = 'OK'
-    results.checks['parsedKeys'] = Object.keys(parsed)
     results.checks['project_id'] = parsed.project_id
     results.checks['has_private_key'] = !!(parsed as Record<string, unknown>).private_key
-    results.checks['private_key_starts_with'] = ((parsed as Record<string, unknown>).private_key as string)?.substring(0, 30)
   } catch (e) {
     results.checks['parseJSON'] = 'FAILED: ' + (e instanceof Error ? e.message : String(e))
     return NextResponse.json(results)

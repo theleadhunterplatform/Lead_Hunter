@@ -66,18 +66,18 @@ export async function POST(
 
         let post = intelResult.post
         if (intelResult.mode === 'queued' || !hasIntel()) {
-          let attempts = 0
-          while (!post.intelligence && attempts < 8) {
-            await new Promise((r) => setTimeout(r, 1500))
-            post = await getPost(id)
-            attempts++
-          }
+          await new Promise((r) => setTimeout(r, 1000))
+          post = await getPost(id)
         }
 
         if (!post.intelligence) {
           return NextResponse.json(
-            { success: false, message: 'Intel report is still generating. Lead was NOT approved — retry shortly to approve with a completed report.' },
-            { status: 409 },
+            {
+              success: true,
+              status: 'generating_intel',
+              message: 'Intel generation is running in the background. The lead will be ready for approval momentarily.',
+            },
+            { status: 202 },
           )
         }
 

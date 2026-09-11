@@ -10,25 +10,29 @@ import { isValidId } from '../utils/serialize.utils';
 export async function getUserPermissions(userId: string, organizationId: string | null = null): Promise<Set<string>> {
     const permissions = new Set<string>();
 
+    const now = new Date();
     const query: any = {
         userId,
-        $or: [
-            { expiresAt: null },
-            { expiresAt: { $gt: new Date() } }
-        ]
-    };
-
-    if (organizationId && isValidId(organizationId.toString())) {
-        query.$or = [
-            { 'scope.type': 'global' },
+        $and: [
             {
-                'scope.type': 'organization',
-                'scope.organizationId': organizationId.toString()
-            }
-        ];
-    } else {
-        query['scope.type'] = 'global';
-    }
+                $or: [
+                    { expiresAt: null },
+                    { expiresAt: { $gt: now } },
+                ],
+            },
+            organizationId && isValidId(organizationId.toString())
+                ? {
+                    $or: [
+                        { 'scope.type': 'global' },
+                        {
+                            'scope.type': 'organization',
+                            'scope.organizationId': organizationId.toString(),
+                        },
+                    ],
+                }
+                : { 'scope.type': 'global' },
+        ],
+    };
 
     const assignments = await RoleAssignment.find(query, { populate: 'roleId' });
 

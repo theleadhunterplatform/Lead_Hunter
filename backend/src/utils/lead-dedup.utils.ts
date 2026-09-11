@@ -39,13 +39,34 @@ export async function findExistingLeadPost(options: {
     platform: string;
     url?: string | null;
     content?: string | null;
+    email?: string | null;
+    phone?: string | null;
 }) {
-    const { post_id, platform, url, content } = options;
+    const { post_id, platform, url, content, email, phone } = options;
     const base = { platform, is_deleted: false };
 
     if (post_id) {
         const byId = await LeadPost.findOne({ ...base, post_id });
         if (byId) return byId;
+    }
+
+    if (email && email.trim()) {
+        const normalizedEmail = email.trim().toLowerCase();
+        const byEmail = await prisma.leadPost.findFirst({
+            where: { is_deleted: false, email: normalizedEmail },
+        });
+        if (byEmail) return byEmail;
+    }
+
+    if (phone && phone.trim()) {
+        const cleanPhone = phone.trim();
+        const byPhone = await prisma.leadPost.findFirst({
+            where: {
+                is_deleted: false,
+                content: { contains: cleanPhone },
+            },
+        });
+        if (byPhone) return byPhone;
     }
 
     const activityId = extractLinkedInActivityId(url);

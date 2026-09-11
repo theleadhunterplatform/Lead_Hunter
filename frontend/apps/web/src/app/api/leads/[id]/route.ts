@@ -69,12 +69,13 @@ function extractTags(post: ExternalPost): string[] {
   return tags
 }
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params
     const authUser = await requireFullyAuthorized(request)
     const userId = authUser.uid
 
-    const rawLead = await oracleDb.leadPost.findUnique({ where: { id: params.id } })
+    const rawLead = await oracleDb.leadPost.findUnique({ where: { id } })
     if (!rawLead) {
       return NextResponse.json({ code: 'NOT_FOUND', message: 'Lead not found' }, { status: 404 })
     }
@@ -84,7 +85,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       where: {
         userId_leadId: {
           userId,
-          leadId: params.id,
+          leadId: id,
         },
       },
     })
@@ -179,8 +180,9 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params
     const authUser = await requireFullyAuthorized(request)
     const userId = authUser.uid
 
@@ -211,11 +213,11 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     // Step 1 Unified Flow: Saving a lead always unlocks the lead and deducts credits
     if (isSaved === true || status === 'saved') {
       const existingState = await db.userLeadState.findUnique({
-        where: { userId_leadId: { userId, leadId: params.id } },
+        where: { userId_leadId: { userId, leadId: id } },
       })
 
       if (!existingState?.isRevealed) {
-        const rawLead = await oracleDb.leadPost.findUnique({ where: { id: params.id } })
+        const rawLead = await oracleDb.leadPost.findUnique({ where: { id } })
         if (!rawLead) {
           return NextResponse.json({ code: 'NOT_FOUND', message: 'Lead not found' }, { status: 404 })
         }
@@ -235,14 +237,14 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
           )
         }
 
-        await claimPost(params.id).catch((err) => {
+        await claimPost(id).catch((err) => {
           console.warn('[Lead Save] Backend claim notification failed:', err?.message || err)
           return externalLead
         })
 
         const txResult = await db.$transaction(async (tx) => {
           const deductRes = await creditService.deductInTx(tx, userId, cost, 'lead_save', {
-            leadId: params.id,
+            leadId: id,
             coinsUsed: cost,
           })
 
@@ -250,7 +252,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
             where: {
               userId_leadId: {
                 userId,
-                leadId: params.id,
+                leadId: id,
               },
             },
             update: {
@@ -261,7 +263,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
             },
             create: {
               userId,
-              leadId: params.id,
+              leadId: id,
               isSaved: true,
               status: 'saved',
               isRevealed: true,
@@ -277,7 +279,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
         return NextResponse.json({
           data: {
-            leadId: params.id,
+            leadId: id,
             status: txResult.userState.status,
             isSaved: txResult.userState.isSaved,
             isRevealed: txResult.userState.isRevealed,
@@ -289,7 +291,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
     if (isSaved === true || (status && status !== 'new')) {
       const leadExists = await db.leadPost.findUnique({
-        where: { id: params.id },
+        where: { id },
         select: { id: true },
       })
       if (!leadExists) {
@@ -301,13 +303,13 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       where: {
         userId_leadId: {
           userId,
-          leadId: params.id,
+          leadId: id,
         },
       },
       update: updateData,
       create: {
         userId,
-        leadId: params.id,
+        leadId: id,
         status: (updateData.status as string) || 'new',
         isSaved: (updateData.isSaved as boolean) || false,
       },
@@ -315,7 +317,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
     return NextResponse.json({
       data: {
-        leadId: params.id,
+        leadId: id,
         status: userState.status,
         isSaved: userState.isSaved,
         isRevealed: userState.isRevealed,
@@ -354,15 +356,29 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params
     const authUser = await requireFullyAuthorized(request)
     const userId = authUser.uid
 
-    await db.userLeadState.deleteMany({
+    // Soft archival: Remove from saved pipeline while preserving isRevealed and revealedAt
+    await db.userLeadState.upsert({
       where: {
+        userId_leadId: {
+          userId,
+          leadId: id,
+        },
+      },
+      update: {
+        isSaved: false,
+        status: 'archived',
+      },
+      create: {
         userId,
-        leadId: params.id,
+        leadId: id,
+        isSaved: false,
+        status: 'archived',
       },
     })
 

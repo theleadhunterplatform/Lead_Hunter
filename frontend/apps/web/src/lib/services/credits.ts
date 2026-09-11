@@ -111,9 +111,23 @@ async function deductInTx(
     data.rolloverExpiresAt = null
   }
 
-  const updated = await tx.creditAccount.update({
-    where: { userId },
+  // Atomic conditional update: Guarantees balance cannot be decremented below available amounts
+  const updateResult = await tx.creditAccount.updateMany({
+    where: {
+      userId,
+      rolloverBalance: { gte: rolloverDeduction },
+      subscriptionBalance: { gte: subscriptionDeduction },
+      bonusBalance: { gte: bonusDeduction },
+    },
     data,
+  })
+
+  if (updateResult.count === 0) {
+    throw new InsufficientCreditsError(amount, 0)
+  }
+
+  const updated = await tx.creditAccount.findUniqueOrThrow({
+    where: { userId },
     select: {
       subscriptionBalance: true,
       bonusBalance: true,

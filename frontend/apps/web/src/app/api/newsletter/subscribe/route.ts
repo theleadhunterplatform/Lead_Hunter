@@ -3,12 +3,27 @@ import { db } from '@/lib/db'
 import { subscribeSchema } from '@/lib/validators/newsletter'
 import { emailService } from '@/lib/services/email'
 import { randomUUID } from 'crypto'
+import { rateLimitByKey } from '@/lib/rate-limit'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   try {
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+    const rl = await rateLimitByKey(`newsletter:${ip}`, 5, 60_000)
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { code: 'RATE_LIMITED', message: 'Too many subscription requests. Please try again later.' },
+        { status: 429 },
+      )
+    }
+
     const body = await request.json().catch(() => null)
+    // Honeypot check: Bots fill hidden fields
+    if (body?.hp_website_check) {
+      return NextResponse.json({ success: true, message: 'Subscribed' }, { status: 200 })
+    }
+
     const parsed = subscribeSchema.safeParse(body)
     if (!parsed.success) {
       return NextResponse.json(

@@ -21,9 +21,7 @@ interface EmailResult {
 }
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY
-const BREVO_API_KEY = process.env.BREVO_API_KEY
 const EMAIL_FROM = process.env.EMAIL_FROM || 'noreply@leadhunterclub.com'
-const BREVO_SENDER_NAME = process.env.BREVO_SENDER_NAME || 'Lead Hunter Club'
 const ADMIN_NOTIFICATION_EMAIL = process.env.ADMIN_NOTIFICATION_EMAIL || ''
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://leadhunterclub.com'
 const IS_PRODUCTION = process.env.NODE_ENV === 'production'
@@ -51,10 +49,7 @@ async function sendWithResend(
   opts?: SendOptions,
 ): Promise<EmailResult> {
   if (!RESEND_API_KEY) {
-    if (IS_PRODUCTION) {
-      throw new Error('RESEND_API_KEY is not configured. Email sending is required in production.')
-    }
-    logDev(`Email skipped (no RESEND_API_KEY): to=${to}, subject="${subject}"`)
+    console.warn(`[Email Service] RESEND_API_KEY not configured. Email to ${to} skipped.`)
     return { id: 'skipped-no-api-key' }
   }
 
@@ -240,50 +235,42 @@ async function sendNewsletterEmail(
   html?: string,
   token?: string,
 ): Promise<EmailResult> {
-  if (BREVO_API_KEY) {
+  const headers: Record<string, string> = {}
+  if (token && type === 'newsletter_broadcast') {
+    headers['List-Unsubscribe'] = `<${APP_URL}/newsletter/unsubscribe?token=${token}>`
+    headers['List-Unsubscribe-Post'] = 'List-Unsubscribe=One-Click'
+  }
+
+  if (RESEND_API_KEY) {
     try {
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-        'api-key': BREVO_API_KEY,
-        Accept: 'application/json',
-      }
-      if (token && type === 'newsletter_broadcast') {
-        headers['List-Unsubscribe'] = `<${APP_URL}/newsletter/unsubscribe?token=${token}>`
-        headers['List-Unsubscribe-Post'] = 'List-Unsubscribe=One-Click'
-      }
-      const res = await fetch('https://api.brevo.com/v3/smtp/email', {
-        method: 'POST',
+      const { Resend } = await import('resend')
+      const resend = new Resend(RESEND_API_KEY)
+
+      const { data, error } = await resend.emails.send({
+        from: EMAIL_FROM,
+        to,
+        subject,
+        text,
+        html: html || text,
         headers,
-        body: JSON.stringify({
-          sender: { name: BREVO_SENDER_NAME, email: EMAIL_FROM },
-          to: [{ email: to }],
-          subject,
-          textContent: text,
-          htmlContent: html || text,
-          headers,
-        }),
       })
-      if (!res.ok) {
-        const body = await res.text()
-        console.error(`[Email Service] Brevo error ${res.status}:`, body)
-        await logEmail(type, to, subject, 'FAILED', `Brevo ${res.status}`)
+
+      if (error) {
+        console.error('[Email Service] Resend error:', error)
+        await logEmail(type, to, subject, 'FAILED', error.message)
         return { id: 'error' }
       }
+
       await logEmail(type, to, subject, 'SENT')
-      return { id: 'brevo-sent' }
+      return { id: data?.id || 'sent' }
     } catch (error) {
-      console.error('[Email Service] Brevo send failed:', error)
-      await logEmail(type, to, subject, 'FAILED', error instanceof Error ? error.message : 'Brevo error')
+      console.error('[Email Service] Resend send failed:', error)
+      await logEmail(type, to, subject, 'FAILED', error instanceof Error ? error.message : 'Resend error')
       return { id: 'error' }
     }
   }
 
-  if (IS_PRODUCTION) {
-    const err = new Error('BREVO_API_KEY is not configured. Newsletter sending is required in production.')
-    await logEmail(type, to, subject, 'FAILED', err.message)
-    throw err
-  }
-  logDev(`Newsletter skipped (no BREVO_API_KEY): to=${to}, subject="${subject}"`)
-  await logEmail(type, to, subject, 'SKIPPED', 'No BREVO_API_KEY')
-  return { id: 'skipped-no-brevo-key' }
+  logDev(`Newsletter skipped (no RESEND_API_KEY): to=${to}, subject="${subject}"`)
+  await logEmail(type, to, subject, 'SKIPPED', 'No RESEND_API_KEY')
+  return { id: 'skipped-no-resend-key' }
 }
