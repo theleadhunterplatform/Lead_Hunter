@@ -99,7 +99,6 @@ export default function AdminLeadsPage() {
   const [enrichingIds, setEnrichingIds] = useState<string[]>([])
   const [reviewActionIds, setReviewActionIds] = useState<string[]>([])
   const [intelActionIds, setIntelActionIds] = useState<string[]>([])
-  const [titleActionIds, setTitleActionIds] = useState<string[]>([])
   const [deletingIds, setDeletingIds] = useState<string[]>([])
   const [selectedLeadIds, setSelectedLeadIds] = useState<string[]>([])
   const [bulkSelectionBusy, setBulkSelectionBusy] = useState(false)
@@ -113,7 +112,6 @@ export default function AdminLeadsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [counts, setCounts] = useState<LeadCounts>({})
   const [isTrainingAi, setIsTrainingAi] = useState(false)
-  const [isBulkTitling, setIsBulkTitling] = useState(false)
   const [isBulkInteling, setIsBulkInteling] = useState(false)
   const [intelConfigured, setIntelConfigured] = useState<boolean | null>(null)
   const [intelModel, setIntelModel] = useState('')
@@ -447,24 +445,6 @@ export default function AdminLeadsPage() {
     }
   }
 
-  const handleGenerateTitle = async (leadId: string) => {
-    try {
-      setTitleActionIds(prev => [...prev, leadId])
-      const res = await apiPost(`/api/admin/leads/${leadId}`, { action: 'generate-title' })
-      const json = await res.json()
-      if (!res.ok || !json.success) {
-        addToast({ type: 'error', message: json?.message || 'Failed to generate title.' })
-        return
-      }
-      addToast({ type: 'success', message: json.message || 'Title generated successfully.' })
-      fetchLeads(currentPage, activeTab, searchQuery, true)
-    } catch (err) {
-      addToast({ type: 'error', message: 'Failed to generate title.' })
-    } finally {
-      setTitleActionIds(prev => prev.filter(id => id !== leadId))
-    }
-  }
-
   const handleDeleteLead = async (lead: ExternalPost) => {
     const label = lead.author?.name || lead.keyword || 'this lead'
     if (!window.confirm(`Delete "${label}"? This cannot be undone.`)) return
@@ -523,19 +503,6 @@ export default function AdminLeadsPage() {
       addToast({ type: 'error', message: 'AI training failed. Ensure the Python AI service is running.' })
     } finally {
       setIsTrainingAi(false)
-    }
-  }
-
-  const handleBulkTitle = async () => {
-    try {
-      setIsBulkTitling(true)
-      const res = await apiPost('/api/admin/leads', { action: 'bulk-title', filters: getBulkFilters() })
-      const json = await res.json()
-      addToast({ type: 'success', message: json?.message || `Queued ${json?.queued || 0} leads for titling` })
-    } catch {
-      addToast({ type: 'error', message: 'Failed to queue titles' })
-    } finally {
-      setIsBulkTitling(false)
     }
   }
 
@@ -942,14 +909,6 @@ export default function AdminLeadsPage() {
                 {bulkRejecting ? 'Rejecting...' : 'Reject All'}
               </button>
               <button
-                onClick={handleBulkTitle}
-                disabled={isBulkTitling}
-                className="h-10 px-5 text-[10px] uppercase font-black rounded-xl flex items-center gap-2 bg-blue-500/10 text-blue-300 border border-blue-500/30 hover:bg-blue-500 hover:text-black transition-all disabled:opacity-50"
-              >
-                {isBulkTitling ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
-                {isBulkTitling ? 'Queueing...' : 'Generate Titles'}
-              </button>
-              <button
                 onClick={handleBulkIntel}
                 disabled={isBulkInteling}
                 className="h-10 px-5 text-[10px] uppercase font-black rounded-xl flex items-center gap-2 bg-purple-500/10 text-purple-300 border border-purple-500/30 hover:bg-purple-500 hover:text-black transition-all disabled:opacity-50"
@@ -959,22 +918,26 @@ export default function AdminLeadsPage() {
               </button>
             </>
           )}
-          <button
-            onClick={handleBulkReanalyse}
-            disabled={bulkReanalysing}
-            className="h-10 px-5 text-[10px] uppercase font-black rounded-xl flex items-center gap-2 bg-white/5 text-zinc-300 border border-white/10 hover:bg-accent-mint hover:text-black transition-all disabled:opacity-50"
-          >
-            {bulkReanalysing ? <Loader2 size={14} className="animate-spin" /> : <BrainCircuit size={14} />}
-            {bulkReanalysing ? 'Queueing...' : 'Re-analyse All'}
-          </button>
-          <button
-            onClick={handleBulkReEnrich}
-            disabled={bulkReenriching}
-            className="h-10 px-5 text-[10px] uppercase font-black rounded-xl flex items-center gap-2 bg-accent-mint/10 text-accent-mint border border-accent-mint/30 hover:bg-accent-mint hover:text-black transition-all disabled:opacity-50"
-          >
-            {bulkReenriching ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-            {bulkReenriching ? 'Queueing...' : 'Re-enrich All'}
-          </button>
+          {!['with_contact', 'review', 'approved'].includes(activeTab) && (
+            <>
+              <button
+                onClick={handleBulkReanalyse}
+                disabled={bulkReanalysing}
+                className="h-10 px-5 text-[10px] uppercase font-black rounded-xl flex items-center gap-2 bg-white/5 text-zinc-300 border border-white/10 hover:bg-accent-mint hover:text-black transition-all disabled:opacity-50"
+              >
+                {bulkReanalysing ? <Loader2 size={14} className="animate-spin" /> : <BrainCircuit size={14} />}
+                {bulkReanalysing ? 'Queueing...' : 'Re-analyse All'}
+              </button>
+              <button
+                onClick={handleBulkReEnrich}
+                disabled={bulkReenriching}
+                className="h-10 px-5 text-[10px] uppercase font-black rounded-xl flex items-center gap-2 bg-accent-mint/10 text-accent-mint border border-accent-mint/30 hover:bg-accent-mint hover:text-black transition-all disabled:opacity-50"
+              >
+                {bulkReenriching ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                {bulkReenriching ? 'Queueing...' : 'Re-enrich All'}
+              </button>
+            </>
+          )}
           <button
             onClick={() => setIsManualModalOpen(true)}
             className="h-10 px-5 text-[10px] uppercase font-black rounded-xl flex items-center gap-2 bg-white text-black border border-white hover:bg-accent-mint hover:text-black transition-all"
@@ -1133,8 +1096,10 @@ export default function AdminLeadsPage() {
                     {/* Lead Title & Niche */}
                     <div className="mb-3 flex items-center gap-2 flex-wrap">
                       <NicheBadge niche={(lead as any).niche} keyword={lead.keyword} content={lead.content} intelligence={lead.intelligence} />
-                      {(lead as any).title && (
-                        <span className="text-sm font-bold text-white">{(lead as any).title}</span>
+                      {((lead as any).title || (lead.intelligence ? lead.intelligence.match(/#*\s*(?:🔥)?\s*Lead Intelligence:\s*([^\n\r]+)/i)?.[1]?.replace(/^[#*_\s]+|[#*_\s]+$/g, '') : null)) && (
+                        <span className="text-sm font-bold text-white">
+                          {(lead as any).title || lead.intelligence?.match(/#*\s*(?:🔥)?\s*Lead Intelligence:\s*([^\n\r]+)/i)?.[1]?.replace(/^[#*_\s]+|[#*_\s]+$/g, '')}
+                        </span>
                       )}
                     </div>
 
@@ -1279,45 +1244,33 @@ export default function AdminLeadsPage() {
                           </div>
                           <div className="flex items-center gap-2">
                             {leadHasContactDetails(lead) && (
-                              <>
-                                <button
-                                  onClick={() => handleGenerateTitle(lead.id)}
-                                  disabled={titleActionIds.includes(lead.id)}
-                                  className="h-8 px-3 text-[9px] uppercase font-black rounded-lg flex items-center gap-1.5 bg-blue-500/10 text-blue-300 border border-blue-500/30 hover:bg-blue-500 hover:text-black transition-all disabled:opacity-50"
-                                >
-                                  {titleActionIds.includes(lead.id) ? (
-                                    <Loader2 size={12} className="animate-spin" />
-                                  ) : (
-                                    <Sparkles size={12} />
-                                  )}
-                                  {titleActionIds.includes(lead.id) ? 'Generating...' : 'Generate Title'}
-                                </button>
-                                <button
-                                  onClick={() => handleRegenerateIntel(lead.id)}
-                                  disabled={intelActionIds.includes(lead.id)}
-                                  className="h-8 px-3 text-[9px] uppercase font-black rounded-lg flex items-center gap-1.5 bg-purple-500/10 text-purple-300 border border-purple-500/30 hover:bg-purple-500 hover:text-black transition-all disabled:opacity-50"
-                                >
-                                  {intelActionIds.includes(lead.id) ? (
-                                    <Loader2 size={12} className="animate-spin" />
-                                  ) : (
-                                    <BrainCircuit size={12} />
-                                  )}
-                                  {intelActionIds.includes(lead.id) ? 'Generating...' : 'Generate Intel'}
-                                </button>
-                              </>
+                              <button
+                                onClick={() => handleRegenerateIntel(lead.id)}
+                                disabled={intelActionIds.includes(lead.id)}
+                                className="h-8 px-3 text-[9px] uppercase font-black rounded-lg flex items-center gap-1.5 bg-purple-500/10 text-purple-300 border border-purple-500/30 hover:bg-purple-500 hover:text-black transition-all disabled:opacity-50"
+                              >
+                                {intelActionIds.includes(lead.id) ? (
+                                  <Loader2 size={12} className="animate-spin" />
+                                ) : (
+                                  <BrainCircuit size={12} />
+                                )}
+                                {intelActionIds.includes(lead.id) ? 'Generating...' : 'Generate Intel'}
+                              </button>
                             )}
-                            <button
-                              onClick={() => handleReEnrichLead(lead.id)}
-                              disabled={enrichingIds.includes(lead.id)}
-                              className="h-8 px-3 text-[9px] uppercase font-black rounded-lg flex items-center gap-1.5 bg-accent-mint/10 text-accent-mint border border-accent-mint/30 hover:bg-accent-mint hover:text-black transition-all disabled:opacity-50"
-                            >
-                              {enrichingIds.includes(lead.id) ? (
-                                <Loader2 size={12} className="animate-spin" />
-                              ) : (
-                                <RefreshCw size={12} />
-                              )}
-                              {enrichingIds.includes(lead.id) ? 'Queueing...' : getEnrichButtonLabel(lead)}
-                            </button>
+                            {!['with_contact', 'review', 'approved'].includes(activeTab) && (
+                              <button
+                                onClick={() => handleReEnrichLead(lead.id)}
+                                disabled={enrichingIds.includes(lead.id)}
+                                className="h-8 px-3 text-[9px] uppercase font-black rounded-lg flex items-center gap-1.5 bg-accent-mint/10 text-accent-mint border border-accent-mint/30 hover:bg-accent-mint hover:text-black transition-all disabled:opacity-50"
+                              >
+                                {enrichingIds.includes(lead.id) ? (
+                                  <Loader2 size={12} className="animate-spin" />
+                                ) : (
+                                  <RefreshCw size={12} />
+                                )}
+                                {enrichingIds.includes(lead.id) ? 'Queueing...' : getEnrichButtonLabel(lead)}
+                              </button>
+                            )}
                           </div>
                         </div>
                         {(!lead.enrichment_status || lead.enrichment_status === 'pending') && (
@@ -1667,44 +1620,31 @@ export default function AdminLeadsPage() {
                             approved
                           </div>
                         )}
-                        {lead.review_status === 'approved' && lead.intelligence && (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                document.getElementById(`lead-intel-${lead.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                              }}
-                              className="h-7 text-[8px] uppercase font-black px-4 rounded-lg bg-surface-elevated text-white border border-white/10 hover:border-accent-mint flex items-center gap-2 transition-all"
-                            >
-                              <BrainCircuit size={12} /> View Intel
-                            </button>
-                            <Link href={`/leads`}>
-                              <button className="h-7 text-[8px] uppercase font-black px-4 rounded-lg bg-accent-mint text-black border border-black flex items-center gap-2 transition-all">
-                                <ExternalLink size={12} /> Hunter Preview
-                              </button>
-                            </Link>
-                          </>
+                        {lead.review_status === 'rejected' && (
+                          <div className="px-1.5 py-0.5 text-[7px] font-black uppercase tracking-tighter rounded border bg-red-500/10 text-red-400 border-red-500/50">
+                            rejected
+                          </div>
                         )}
                         {lead.review_status === 'approved' && (
-                          <button
-                            className={`h-7 text-[8px] uppercase font-black px-4 rounded-lg transition-all ${
-                              lead.is_claimed
-                                ? 'bg-surface-elevated text-zinc-500 border border-white/10 pointer-events-none'
-                                : 'bg-white text-black hover:bg-accent-mint hover:text-black border border-white'
-                            }`}
-                            onClick={() => handleClaim(lead.id)}
-                            disabled={claimingIds.includes(lead.id) || lead.is_claimed || !lead.intelligence}
-                          >
-                            {claimingIds.includes(lead.id) ? (
-                              <Loader2 size={12} className="animate-spin inline" />
-                            ) : lead.is_claimed ? (
-                              'Claimed'
-                            ) : !lead.intelligence ? (
-                              'Intel pending'
-                            ) : (
-                              `Claim (${lead.claimed_count || 0}/25)`
-                            )}
-                          </button>
+                          lead.is_claimed ? (
+                            <div className="h-7 text-[9px] uppercase font-bold px-3 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                              Claimed: {lead.claimed_count || 0} {lead.claimed_count === 1 ? 'user' : 'users'}
+                            </div>
+                          ) : (
+                            <button
+                              className="h-7 text-[8px] uppercase font-black px-4 rounded-lg bg-white text-black hover:bg-accent-mint hover:text-black border border-white transition-all disabled:opacity-50"
+                              onClick={() => handleClaim(lead.id)}
+                              disabled={claimingIds.includes(lead.id) || !lead.intelligence}
+                            >
+                              {claimingIds.includes(lead.id) ? (
+                                <Loader2 size={12} className="animate-spin inline" />
+                              ) : !lead.intelligence ? (
+                                'Intel pending'
+                              ) : (
+                                `Claim (${lead.claimed_count || 0}/25)`
+                              )}
+                            </button>
+                          )
                         )}
                         <button
                           onClick={() => handleDeleteLead(lead)}

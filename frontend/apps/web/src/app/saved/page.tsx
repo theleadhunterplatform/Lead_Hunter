@@ -511,9 +511,8 @@ export default function SavedLeadsPage() {
               <div className="min-w-[760px]">
                 <div className="grid grid-cols-12 gap-4 px-6 sm:px-8 py-4 border-b border-white/[0.05] text-xxs font-bold text-text-secondary uppercase tracking-super">
                   <div className="col-span-1">Status</div>
-                  <div className="col-span-4">Lead</div>
+                  <div className="col-span-6">Lead</div>
                   <div className="col-span-2">Stage</div>
-                  <div className="col-span-2">Urgency</div>
                   <div className="col-span-3 text-right pr-2">Actions</div>
                 </div>
 
@@ -541,7 +540,7 @@ export default function SavedLeadsPage() {
                           />
                         </div>
 
-                        <div className="col-span-4 flex items-center gap-3">
+                        <div className="col-span-6 flex items-center gap-3">
                           <div className={`w-9 h-9 rounded-full border flex items-center justify-center text-11 font-bold overflow-hidden shrink-0 ${
                             lead.isRevealed
                               ? 'bg-surface-elevated border-white/10 text-text-primary'
@@ -572,26 +571,6 @@ export default function SavedLeadsPage() {
                           <Badge size="sm" color={statusBadgeColor[lead.status] || 'mint'}>
                             {lead.status}
                           </Badge>
-                        </div>
-
-                        <div className="col-span-2">
-                          <div className="flex items-center gap-2">
-                            <Badge
-                              size="sm"
-                              color={
-                                lead.urgency === 'critical' || lead.urgency === 'high'
-                                  ? 'mint'
-                                  : 'purple'
-                              }
-                            >
-                              {lead.urgency}
-                            </Badge>
-                            {lead.replyProbability > 0 && (
-                              <span className="text-xxs text-text-secondary">
-                                {lead.replyProbability}%
-                              </span>
-                            )}
-                          </div>
                         </div>
 
                         <div className="col-span-3 text-right flex items-center justify-end relative pr-2">

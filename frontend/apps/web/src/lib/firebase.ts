@@ -14,6 +14,7 @@ import {
   linkWithCredential,
   EmailAuthProvider,
   applyActionCode,
+  updateProfile,
   type User as FirebaseUser,
   type ConfirmationResult,
 } from 'firebase/auth'
@@ -104,5 +105,6 @@ export {
   linkWithCredential,
   EmailAuthProvider,
   applyActionCode,
+  updateProfile,
 }
 export type { FirebaseUser, ConfirmationResult }

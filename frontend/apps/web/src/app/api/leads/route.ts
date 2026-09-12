@@ -92,7 +92,7 @@ function externalPostToAppLead(
   const niches = extractNiches(post.keyword, post.content || '', post.intelligence, primaryNiche)
   const cleanTags = extractCleanNicheTags(post, niches)
   const resolvedNiche = primaryNiche || niches[0] || 'General'
-  const cleanTitle = sanitizeHeadline(post.author?.info || post.keyword || '', resolvedNiche)
+  const cleanTitle = post.title?.trim() || sanitizeHeadline(post.author?.info || post.keyword || '', resolvedNiche)
   const cleanScope = sanitizePublicText(
     extractSection(intel, 'Context You Might Miss') ||
       extractSection(intel, 'What They Actually Want') ||
@@ -185,6 +185,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const saved = searchParams.get('saved')
     const search = searchParams.get('search')
+    const niche = searchParams.get('niche')
     const page = parseInt(searchParams.get('page') || '1', 10)
     const pageSize = parseInt(searchParams.get('pageSize') || '20', 10)
 
@@ -207,11 +208,14 @@ export async function GET(request: NextRequest) {
       let externalLeads: ExternalPost[] = []
       try {
         // Direct Prisma query to oracle schema — no HTTP roundtrip to Oracle VM
-        const where = {
+        const where: any = {
           is_deleted: false,
           review_status: 'approved',
           intelligence: { not: null as string | null },
           source: { not: 'seed' },
+        }
+        if (niche && niche !== 'All') {
+          where.niche = niche
         }
         const [rawLeads, total] = await Promise.all([
           oracleDb.leadPost.findMany({

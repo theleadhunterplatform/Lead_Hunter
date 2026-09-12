@@ -78,6 +78,12 @@ const NICHE_STYLES: Record<string, { bg: string; text: string; border: string; i
     border: 'border-indigo-400/40',
     icon: '💼',
   },
+  'General': {
+    bg: 'bg-[#181a20]',
+    text: 'text-zinc-300',
+    border: 'border-zinc-500/30',
+    icon: '🎯',
+  },
 }
 
 const DEFAULT_STYLE = {

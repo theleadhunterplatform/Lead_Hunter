@@ -258,6 +258,15 @@ async function generateWithFallback(prompt: string): Promise<ProviderResult> {
 
 // ─── Main export ──────────────────────────────────────────────────────────────
 
+function extractTitleFromIntelligence(content: string): string | null {
+    if (!content) return null;
+    const match = content.match(/#*\s*(?:🔥)?\s*Lead Intelligence:\s*([^\n\r]+)/i);
+    if (match && match[1]) {
+        return match[1].replace(/^[#*_\s]+|[#*_\s]+$/g, '').trim();
+    }
+    return null;
+}
+
 /**
  * Generates strategic lead intelligence using a multi-provider fallback chain.
  * Order: OpenRouter → Groq → Gemini (direct)
@@ -271,6 +280,8 @@ export const generateLeadIntelligence = async (post: any) => {
 
     console.log(`✅ [Intelligence] Report generated via ${provider} for post: ${post.post_id}`);
 
+    const extractedTitle = extractTitleFromIntelligence(intelligenceContent);
+
     // Store in LeadIntelligence table
     const intelligence = await LeadIntelligence.findOneAndUpdate(
         { post_id: post._id },
@@ -279,11 +290,15 @@ export const generateLeadIntelligence = async (post: any) => {
     );
 
     // Sync to LeadPost for list-view access without joins
+    const updateData: any = { intelligence: intelligenceContent };
+    if (extractedTitle) {
+        updateData.title = extractedTitle;
+    }
     await LeadPost.updateOne(
         { _id: post._id || post.id },
-        { intelligence: intelligenceContent },
+        updateData,
     );
 
-    console.log(`✅ [Intelligence] Report saved for post: ${post.post_id}`);
+    console.log(`✅ [Intelligence] Report saved for post: ${post.post_id}${extractedTitle ? ` (Title: "${extractedTitle}")` : ''}`);
     return intelligence;
 };

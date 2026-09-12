@@ -13,6 +13,7 @@ import {
   PhoneAuthProvider,
   RecaptchaVerifier,
   linkWithCredential,
+  updateProfile,
   type ConfirmationResult,
   auth,
 } from '@/lib/firebase'
@@ -179,9 +180,23 @@ export default function RegisterPage() {
     setIsLoading(true)
 
     const formData = new FormData(e.currentTarget)
-    const email = formData.get('email') as string
+    const name = (formData.get('name') as string)?.trim()
+    const city = (formData.get('city') as string)?.trim()
+    const email = (formData.get('email') as string)?.trim()
     const password = formData.get('password') as string
     const confirmPassword = formData.get('confirm-password') as string
+
+    if (!name) {
+      setError('Please enter your full name')
+      setIsLoading(false)
+      return
+    }
+
+    if (!city) {
+      setError('Please enter your city')
+      setIsLoading(false)
+      return
+    }
 
     if (password !== confirmPassword) {
       setError('Passwords do not match')
@@ -190,7 +205,27 @@ export default function RegisterPage() {
     }
 
     try {
-      await createUserWithEmailAndPassword(auth, email, password)
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password)
+      if (name && userCredential.user) {
+        await updateProfile(userCredential.user, { displayName: name }).catch(() => {})
+      }
+
+      try {
+        const token = await userCredential.user?.getIdToken().catch(() => null)
+        if (token) {
+          await fetch('/api/auth/me', {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ name, city }),
+          }).catch(() => {})
+        }
+      } catch {
+        // Continue if profile sync fails
+      }
+
       try {
         const token = await auth.currentUser?.getIdToken().catch(() => null)
         const res = await fetch('/api/auth/send-verification', {
@@ -428,6 +463,30 @@ export default function RegisterPage() {
                   {error}
                 </div>
               )}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
+                  Full Name
+                </label>
+                <input
+                  name="name"
+                  type="text"
+                  placeholder="Alex Morgan"
+                  className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3"
+                  required
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
+                  City
+                </label>
+                <input
+                  name="city"
+                  type="text"
+                  placeholder="e.g. San Francisco or Mumbai"
+                  className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3"
+                  required
+                />
+              </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
                   Email address

@@ -224,6 +224,7 @@ export async function GET(request: NextRequest) {
         email: user.email,
         name: user.name,
         phone: user.phone || null,
+        city: (user as any).city || null,
         role: user.role,
         creditAccount,
         status: user.status,
@@ -248,6 +249,65 @@ export async function GET(request: NextRequest) {
           : 'An unexpected error occurred'
     return NextResponse.json(
       { code: 'INTERNAL_SERVER_ERROR', message },
+      { status: 500 },
+    )
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const authUser = await getAuthUser(request)
+    if (!authUser) {
+      return NextResponse.json(
+        { code: 'UNAUTHORIZED', message: 'Authentication required' },
+        { status: 401 },
+      )
+    }
+
+    const body = await request.json().catch(() => ({}))
+    const { name, city } = body
+
+    const updateData: any = {}
+    if (typeof name === 'string' && name.trim()) {
+      updateData.name = name.trim()
+    }
+    if (typeof city === 'string') {
+      updateData.city = city.trim()
+    }
+
+    const user = await db.user.upsert({
+      where: { id: authUser.uid },
+      update: updateData,
+      create: {
+        id: authUser.uid,
+        email: authUser.email || '',
+        name: typeof name === 'string' && name.trim() ? name.trim() : authUser.name || 'User',
+        phone: authUser.phone || null,
+        city: typeof city === 'string' ? city.trim() : null,
+        role: 'user',
+        status: 'PENDING',
+        creditAccount: {
+          create: {
+            subscriptionBalance: getPlanCredits('FREE'),
+            bonusBalance: 0,
+            renewalDate: new Date(Date.now() + 30 * 86400000),
+          },
+        },
+      },
+    })
+
+    return NextResponse.json({
+      data: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        city: (user as any).city || null,
+      },
+    })
+  } catch (error) {
+    console.error('[Auth Me PATCH] Error:', error)
+    return NextResponse.json(
+      { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to update profile' },
       { status: 500 },
     )
   }

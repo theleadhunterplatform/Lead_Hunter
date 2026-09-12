@@ -12,12 +12,20 @@ export async function GET(request: NextRequest) {
     const page = Math.max(1, Number(searchParams.get('page')) || 1)
     const pageSize = Math.min(50, Math.max(1, Number(searchParams.get('pageSize')) || 20))
     const status = searchParams.get('status')
+    const plan = searchParams.get('plan')
     const search = searchParams.get('search')?.trim()
     const serviceFilter = searchParams.get('service')?.trim()
 
     const where: Record<string, unknown> = {}
     if (status && ['PENDING', 'ACTIVE', 'REJECTED', 'SUSPENDED'].includes(status)) {
       where.status = status
+    }
+    if (plan === 'PAID') {
+      where.plan = { not: 'FREE' }
+    } else if (plan === 'FREE') {
+      where.plan = 'FREE'
+    } else if (plan && plan !== 'ALL') {
+      where.plan = plan
     }
     if (search) {
       where.OR = [
@@ -40,6 +48,7 @@ export async function GET(request: NextRequest) {
           email: true,
           name: true,
           phone: true,
+          city: true,
           role: true,
           status: true,
           plan: true,
