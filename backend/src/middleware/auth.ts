@@ -46,8 +46,13 @@ async function verifyFirebaseToken(token: string): Promise<{ uid: string; email?
         const header = JSON.parse(Buffer.from(token.split('.')[0], 'base64').toString());
         const kid = header.kid;
 
-        const keys = await getFirebasePublicKeys();
-        if (!keys[kid]) return null;
+        let keys = await getFirebasePublicKeys();
+        if (!keys[kid]) {
+            // Google rotated keys: clear stale cache and re-fetch once
+            firebaseKeyCache = null;
+            keys = await getFirebasePublicKeys();
+            if (!keys[kid]) return null;
+        }
 
         const decoded = jwt.verify(token, keys[kid], {
             algorithms: ['RS256'],

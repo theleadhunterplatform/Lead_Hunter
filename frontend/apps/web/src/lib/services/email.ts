@@ -196,16 +196,22 @@ export const emailService = {
     }
 
     let sent = 0
-    for (const sub of subscribers) {
-      const unsubscribeUrl = `${APP_URL}/newsletter/unsubscribe?token=${sub.unsubscribeToken}`
-      const { subject: s, text, html } = renderNewsletter({
-        subject,
-        bodyHtml,
-        bodyText,
-        unsubscribeUrl,
-      })
-      const result = await sendNewsletterEmail('newsletter_broadcast', sub.email, s, text, html, sub.unsubscribeToken)
-      if (result.id !== 'error') sent++
+    const BATCH_SIZE = 10
+    for (let i = 0; i < subscribers.length; i += BATCH_SIZE) {
+      const batch = subscribers.slice(i, i + BATCH_SIZE)
+      const results = await Promise.all(
+        batch.map(async (sub) => {
+          const unsubscribeUrl = `${APP_URL}/newsletter/unsubscribe?token=${sub.unsubscribeToken}`
+          const { subject: s, text, html } = renderNewsletter({
+            subject,
+            bodyHtml,
+            bodyText,
+            unsubscribeUrl,
+          })
+          return sendNewsletterEmail('newsletter_broadcast', sub.email, s, text, html, sub.unsubscribeToken)
+        })
+      )
+      sent += results.filter((r) => r.id !== 'error').length
     }
     return { id: 'broadcast', sent }
   },

@@ -182,6 +182,12 @@ export async function POST(request: NextRequest) {
         prompt = 'Write a standard, highly personalized outreach email.'
     }
 
+    const CREDIT_COST = 2
+    const balance = await creditService.getBalance(userId)
+    if (balance.total < CREDIT_COST) {
+      throw new InsufficientCreditsError(CREDIT_COST, balance.total)
+    }
+
     let generatedContent = await generateOutreach(prompt, context)
 
     const firstName = externalLead.author?.name?.split(' ')[0] || 'there'
@@ -194,7 +200,6 @@ export async function POST(request: NextRequest) {
       .replace(/\[Category\]/gi, niche)
       .replace(/\[Niche\]/gi, niche)
 
-    const CREDIT_COST = 2
     const deductResult = await db.$transaction(async (tx) => {
       return creditService.deductInTx(tx, userId, CREDIT_COST, 'outreach_generate', { leadId })
     })

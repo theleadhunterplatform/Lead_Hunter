@@ -48,6 +48,22 @@ export async function POST(
 
     switch (action) {
       case 'approve': {
+        // Optimization: If intelligence report already exists, approve immediately without re-calling LLMs
+        try {
+          const existing = await getPost(id)
+          if (existing && existing.intelligence && existing.intelligence.trim() !== '') {
+            const approved = await approvePost(id)
+            return NextResponse.json({
+              success: true,
+              data: approved,
+              mode: 'cached',
+              message: 'Lead approved and released to the feed with intelligence report.',
+            })
+          }
+        } catch (fetchErr) {
+          console.warn(`[Admin Leads] Pre-approval post fetch failed for ${id}, falling back to regenerate:`, fetchErr)
+        }
+
         // Gate approval on intelligence existing: a lead must have a completed
         // intel report before it is released to the user feed (the feed only
         // shows leads with `approved` + `intelligence`). Generate first, confirm,

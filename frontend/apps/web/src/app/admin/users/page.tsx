@@ -511,13 +511,26 @@ export default function AdminUsersPage() {
                               {actionLoading === `${u.id}-REJECT` ? '...' : 'Reject'}
                             </button>
                           </div>
+                        ) : u.status === 'REJECTED' || u.status === 'SUSPENDED' ? (
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-text-secondary/60 capitalize">
+                              {u.status.toLowerCase()}
+                            </span>
+                            <button
+                              onClick={() => handleAction(u.id, 'ACTIVATE')}
+                              disabled={actionLoading === `${u.id}-ACTIVATE`}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium hover:bg-emerald-500/20 transition-all disabled:opacity-50"
+                              title="Reactivate user"
+                            >
+                              <CheckCircleIcon className="w-3.5 h-3.5" />
+                              {actionLoading === `${u.id}-ACTIVATE` ? '...' : 'Reactivate'}
+                            </button>
+                          </div>
                         ) : (
                           <span className="text-xs text-text-secondary/60">
                             {u.status === 'ACTIVE'
                               ? 'Approved'
-                              : u.status === 'REJECTED'
-                                ? 'Rejected'
-                                : u.status}
+                              : u.status}
                           </span>
                         )}
                       </td>

@@ -308,9 +308,10 @@ export async function GET(request: NextRequest) {
 
     const total = data.length
     const totalPages = Math.ceil(total / pageSize)
+    const paginatedData = data.slice((page - 1) * pageSize, page * pageSize)
 
     return NextResponse.json({
-      data,
+      data: paginatedData,
       pagination: {
         page,
         pageSize,

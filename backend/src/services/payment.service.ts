@@ -260,6 +260,17 @@ export async function handleRazorpayWebhook(rawBody: Buffer | string, signature:
             },
         });
 
+        if (payment.plan && payment.plan.startsWith('topup_')) {
+            const tokens = parseInt(payment.plan.replace('topup_', ''), 10) || 0;
+            if (tokens > 0) {
+                const updated = await prisma.user.update({
+                    where: { id: payment.userId },
+                    data: { tokens: { increment: tokens } },
+                });
+                return { success: true, topup_tokens: tokens, tokens: updated.tokens, user_id: payment.userId };
+            }
+        }
+
         await setUserPlan(payment.userId, payment.plan, {
             refill_tokens: true,
             actorId: payment.userId,
