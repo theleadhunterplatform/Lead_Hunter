@@ -70,6 +70,50 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     return () => window.removeEventListener('show-upgrade-nudge', handler)
   }, [])
 
+  // Check for 1-time targeted popup notification whenever user lands on /dashboard
+  useEffect(() => {
+    if (loading || !user || pathname !== '/dashboard') return
+
+    let isSubscribed = true
+
+    const checkPopupNudge = async () => {
+      try {
+        const token = await getFirebaseToken()
+        if (!token || !isSubscribed) return
+        const res = await fetch('/api/notifications/popup-status', {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (!res.ok) return
+        const data = await res.json()
+        if (data.show && data.variant && isSubscribed) {
+          setNudgeVariant(data.variant)
+          setNudgeMeta({
+            plan: data.plan,
+            creditsRemaining: data.creditsRemaining,
+            planMax: data.planMax,
+            renewalDate: data.renewalDate,
+          })
+          setNudgeOpen(true)
+        }
+      } catch (err) {
+        console.warn('[Popup] Check failed:', err)
+      }
+    }
+
+    checkPopupNudge()
+
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        checkPopupNudge()
+      }
+    }, 30_000)
+
+    return () => {
+      isSubscribed = false
+      clearInterval(interval)
+    }
+  }, [user, loading, pathname])
+
   useEffect(() => {
     if (loading || error || !user) return
 
