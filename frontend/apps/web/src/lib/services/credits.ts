@@ -253,6 +253,10 @@ export const creditService = {
     }
   },
 
+  async getBalance(userId: string) {
+    return creditService.getBalances(userId)
+  },
+
   async getTotalBalance(userId: string) {
     const balances = await creditService.getBalances(userId)
     return balances.total

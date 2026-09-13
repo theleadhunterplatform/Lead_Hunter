@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireActiveUser, AuthRequiredError, ForbiddenError } from '@/lib/auth'
+import {
+  requireActiveUser,
+  AuthRequiredError,
+  ForbiddenError,
+  InactiveUserError,
+  EmailNotVerifiedError,
+  OnboardingRequiredError,
+  PendingApprovalError,
+} from '@/lib/auth'
 import { creditService } from '@/lib/services/credits'
 import { getPlanCredits } from '@/lib/config/plans'
 
@@ -19,7 +27,7 @@ export async function GET(request: NextRequest) {
     })
 
     if (!user) {
-      return NextResponse.json({ show: false, message: 'User not found' }, { status: 404 })
+      return NextResponse.json({ show: false, message: 'User not found' }, { status: 200 })
     }
 
     // Check which popups have already been shown and dismissed by this user
@@ -33,7 +41,7 @@ export async function GET(request: NextRequest) {
     })
     const dismissedVariants = new Set(dismissedLogs.map((l) => l.targetId))
 
-    const balance = await creditService.getBalance(userId)
+    const balance = await creditService.getBalances(userId)
     const plan = user.plan?.toUpperCase() || 'FREE'
     const planMax = getPlanCredits(plan)
     const renewalDate = user.creditAccount?.renewalDate || user.razorpayCurrentPeriodEnd
@@ -94,11 +102,18 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ show: false })
   } catch (error: unknown) {
-    if (error instanceof AuthRequiredError || error instanceof ForbiddenError) {
-      return NextResponse.json({ show: false, message: 'Unauthorized' }, { status: 401 })
+    if (
+      error instanceof AuthRequiredError ||
+      error instanceof ForbiddenError ||
+      error instanceof InactiveUserError ||
+      error instanceof EmailNotVerifiedError ||
+      error instanceof OnboardingRequiredError ||
+      error instanceof PendingApprovalError
+    ) {
+      return NextResponse.json({ show: false, message: 'User not active or unverified' }, { status: 200 })
     }
     console.error('[Popup Status API] Error:', error)
-    return NextResponse.json({ show: false, message: 'Internal error' }, { status: 500 })
+    return NextResponse.json({ show: false, message: 'Error checking popup status' }, { status: 200 })
   }
 }
 
@@ -141,10 +156,17 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true })
   } catch (error: unknown) {
-    if (error instanceof AuthRequiredError || error instanceof ForbiddenError) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 })
+    if (
+      error instanceof AuthRequiredError ||
+      error instanceof ForbiddenError ||
+      error instanceof InactiveUserError ||
+      error instanceof EmailNotVerifiedError ||
+      error instanceof OnboardingRequiredError ||
+      error instanceof PendingApprovalError
+    ) {
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 200 })
     }
     console.error('[Popup Status Dismiss API] Error:', error)
-    return NextResponse.json({ success: false, message: 'Internal error' }, { status: 500 })
+    return NextResponse.json({ success: false, message: 'Internal error' }, { status: 200 })
   }
 }
