@@ -13,7 +13,14 @@ import { oracleDb } from '@/lib/oracle-db'
 import { mapLeadPostToExternal } from '@/lib/oracle-mapper'
 import { updateLeadSchema } from '@/lib/validators/auth'
 import type { AppLead } from '@/types/lead'
-import { extractNiches, sanitizePublicText, extractCleanNicheTags, sanitizeHeadline } from '@/lib/claim-reveal'
+import {
+  extractNiches,
+  sanitizePublicText,
+  extractCleanNicheTags,
+  extractLeadBadges,
+  extractLeadSummaries,
+  sanitizeHeadline,
+} from '@/lib/claim-reveal'
 import { getLeadRevealCost } from '@/lib/config/coins'
 import { creditService } from '@/lib/services/credits'
 
@@ -95,17 +102,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const email = externalLead.email || externalLead.contact_info?.emails?.[0]?.email || ''
     const isClaimable = externalLead.source === 'seed' || (externalLead.review_status === 'approved' && !!externalLead.intelligence)
     const primaryNiche = externalLead.niche || null
+    const intel = externalLead.intelligence || ''
     const niches = extractNiches(externalLead.keyword, externalLead.content || '', externalLead.intelligence, primaryNiche)
-    const cleanTags = extractCleanNicheTags(externalLead, niches)
+    const cleanTags = extractLeadBadges(externalLead, niches)
     const resolvedNiche = primaryNiche || niches[0] || 'General'
     const cleanTitle = sanitizeHeadline(externalLead.author?.info || externalLead.keyword || '', resolvedNiche)
-    const cleanScope = sanitizePublicText(
-      extractSection(intel, 'Context You Might Miss') ||
-        extractSection(intel, 'What They Actually Want') ||
-        extractSection(intel, 'One-Liner') ||
-        externalLead.content ||
-        '',
-    )
+    const { summary, detailsSummary } = extractLeadSummaries(externalLead)
 
     const lead: AppLead = {
       id: externalLead.id,
@@ -125,8 +127,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       title: cleanTitle,
       signalContext: isRevealed ? externalLead.content || '' : sanitizePublicText(externalLead.content || ''),
       role: sanitizePublicText(externalLead.author?.info || extractSection(intel, 'One-Liner')),
-      taskScope: cleanScope,
-      mustHave: sanitizePublicText(extractSection(intel, 'What They Actually Want')),
+      taskScope: summary,
+      summary,
+      detailsSummary,
+      mustHave: sanitizePublicText(extractSection(intel, 'What They Actually Want') || detailsSummary),
       nicheBonus: sanitizePublicText(extractSection(intel, 'How to Win')),
       buyerType: sanitizePublicText(intel),
       urgency: 'medium',

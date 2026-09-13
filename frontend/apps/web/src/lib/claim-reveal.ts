@@ -160,44 +160,93 @@ export function sanitizePublicText(text: string): string {
     .trim()
 }
 
-const VALID_SKILL_KEYWORDS: Array<{ key: string; label: string }> = [
-  { key: 'woocommerce', label: 'WooCommerce' },
+export const VALID_SKILL_KEYWORDS: Array<{ key: string; label: string }> = [
+  // Modern Frontend & Fullstack
+  { key: 'next.js', label: 'Next.js' },
+  { key: 'nextjs', label: 'Next.js' },
+  { key: 'react native', label: 'React Native' },
+  { key: 'react', label: 'React' },
+  { key: 'typescript', label: 'TypeScript' },
+  { key: 'javascript', label: 'JavaScript' },
+  { key: 'tailwind', label: 'Tailwind CSS' },
+  { key: 'vue', label: 'Vue.js' },
+  { key: 'angular', label: 'Angular' },
+  { key: 'html/css', label: 'HTML/CSS' },
+  { key: 'redux', label: 'Redux' },
+
+  // Backend & Databases
+  { key: 'node.js', label: 'Node.js' },
+  { key: 'nodejs', label: 'Node.js' },
+  { key: 'node', label: 'Node.js' },
+  { key: 'express', label: 'Express' },
+  { key: 'mongodb', label: 'MongoDB' },
+  { key: 'mongo', label: 'MongoDB' },
+  { key: 'postgres', label: 'PostgreSQL' },
+  { key: 'postgresql', label: 'PostgreSQL' },
+  { key: 'mysql', label: 'MySQL' },
+  { key: 'supabase', label: 'Supabase' },
+  { key: 'firebase', label: 'Firebase' },
+  { key: 'graphql', label: 'GraphQL' },
+  { key: 'rest api', label: 'REST API' },
+  { key: 'prisma', label: 'Prisma' },
+
+  // CMS & E-Commerce
   { key: 'wordpress', label: 'WordPress' },
+  { key: 'woocommerce', label: 'WooCommerce' },
   { key: 'shopify', label: 'Shopify' },
   { key: 'elementor', label: 'Elementor' },
-  { key: 'nextjs', label: 'Next.js' },
-  { key: 'next.js', label: 'Next.js' },
-  { key: 'react', label: 'React' },
-  { key: 'php', label: 'PHP' },
-  { key: 'javascript', label: 'JavaScript' },
-  { key: 'typescript', label: 'TypeScript' },
+  { key: 'webflow', label: 'Webflow' },
+  { key: 'wix', label: 'Wix' },
+  { key: 'squarespace', label: 'Squarespace' },
+  { key: 'magento', label: 'Magento' },
+
+  // Languages & Frameworks
   { key: 'python', label: 'Python' },
+  { key: 'django', label: 'Django' },
+  { key: 'fastapi', label: 'FastAPI' },
+  { key: 'php', label: 'PHP' },
+  { key: 'laravel', label: 'Laravel' },
+  { key: 'flutter', label: 'Flutter' },
+  { key: 'swift', label: 'Swift' },
+  { key: 'ios', label: 'iOS' },
+  { key: 'android', label: 'Android' },
+  { key: 'docker', label: 'Docker' },
+  { key: 'aws', label: 'AWS' },
+
+  // Design, SEO, & Growth
   { key: 'figma', label: 'Figma' },
   { key: 'ui/ux', label: 'UI/UX' },
+  { key: 'ui ux', label: 'UI/UX' },
   { key: 'seo', label: 'SEO' },
   { key: 'b2b saas', label: 'B2B SaaS' },
   { key: 'saas', label: 'SaaS' },
-  { key: 'b2b', label: 'B2B' },
-  { key: 'dtc', label: 'DTC' },
-  { key: 'e-commerce', label: 'E-Commerce' },
-  { key: 'ecommerce', label: 'E-Commerce' },
   { key: 'automation', label: 'Automation' },
   { key: 'ai', label: 'AI' },
-  { key: 'revops', label: 'RevOps' },
-  { key: 'sales', label: 'Sales' },
-  { key: 'copywriting', label: 'Copywriting' },
-  { key: 'content', label: 'Content' },
-  { key: 'branding', label: 'Branding' },
   { key: 'marketing', label: 'Marketing' },
-  { key: 'outbound', label: 'Outbound' },
-  { key: 'web dev', label: 'Web Dev' },
-  { key: 'frontend', label: 'Frontend' },
-  { key: 'backend', label: 'Backend' },
-  { key: 'fullstack', label: 'Fullstack' },
+  { key: 'branding', label: 'Branding' },
+  { key: 'copywriting', label: 'Copywriting' },
   { key: 'consulting', label: 'Consulting' },
 ]
 
-export function extractCleanNicheTags(
+export function extractSection(text: string, heading: string): string {
+  if (!text) return ''
+  const escaped = heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const regex = new RegExp(`#+\\s*[^\\n]*?${escaped}[^\\n]*?\\n+([\\s\\S]*?)(?:\\n#+\\s|---|\$)`, 'i')
+  const match = text.match(regex)
+  return match ? match[1].replace(/^[\\s\-*#—]+|[\\s\-*#—]+$/g, '').trim() : ''
+}
+
+export function cleanLeadSummary(text: string): string {
+  if (!text) return ''
+  return sanitizePublicText(text)
+    .replace(/^#+\s*.*$/gm, '')
+    .replace(/^\s*[-*•]\s+/gm, '')
+    .replace(/^(?:hello everyone|hey all|hi all|we're hiring:?|hiring:?|looking for:?|#hiring)\s*/i, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+}
+
+export function extractLeadBadges(
   post: {
     keyword?: string | null
     content?: string | null
@@ -207,6 +256,22 @@ export function extractCleanNicheTags(
   },
   leadNiches?: string[]
 ): string[] {
+  const intel = post.intelligence || ''
+
+  // 1. Check if AI intelligence provided an explicit Badges section
+  const aiBadgesText = extractSection(intel, 'Badges')
+  if (aiBadgesText) {
+    const parsed = aiBadgesText
+      .split(/[,;\n•*]+/)
+      .map((t) => t.trim().replace(/^[-*•\s]+|[-*•\s]+$/g, ''))
+      .filter((t) => t.length >= 2 && t.length <= 25 && !t.toLowerCase().includes('badge'))
+
+    if (parsed.length > 0) {
+      return Array.from(new Set(parsed)).slice(0, 4)
+    }
+  }
+
+  // 2. Scan text corpus against our 50+ technology keywords
   const textCorpus = [
     post.keyword || '',
     post.content || '',
@@ -220,12 +285,13 @@ export function extractCleanNicheTags(
 
   for (const { key, label } of VALID_SKILL_KEYWORDS) {
     const regex = new RegExp(`\\b${key.replace('.', '\\.')}\\b`, 'i')
-    if (regex.test(textCorpus)) {
+    if (regex.test(textCorpus) && !matchedTags.includes(label)) {
       matchedTags.push(label)
     }
-    if (matchedTags.length >= 3) break
+    if (matchedTags.length >= 4) break
   }
 
+  // 3. Fallback to lead niches if tech tags are empty
   if (matchedTags.length === 0 && leadNiches && leadNiches.length > 0) {
     for (const niche of leadNiches) {
       if (!matchedTags.includes(niche)) matchedTags.push(niche)
@@ -233,11 +299,89 @@ export function extractCleanNicheTags(
   }
 
   if (matchedTags.length === 0) {
-    matchedTags.push('B2B', 'Verified Demand')
+    matchedTags.push('Verified Demand')
   }
 
-  return Array.from(new Set(matchedTags)).slice(0, 3)
+  return Array.from(new Set(matchedTags)).slice(0, 4)
 }
+
+export function extractLeadSummaries(post: {
+  content?: string | null
+  intelligence?: string | null
+  author?: { name?: string; info?: string } | null
+}): { summary: string; detailsSummary: string } {
+  const intel = post.intelligence || ''
+  const content = post.content || ''
+
+  // 1. Extract 2-line summary for card
+  let cardSummary =
+    extractSection(intel, '2-Line Summary') ||
+    extractSection(intel, 'Two-Line Summary') ||
+    extractSection(intel, 'One-Liner') ||
+    ''
+
+  if (!cardSummary) {
+    const generalSummary = extractSection(intel, 'Summary')
+    if (generalSummary) {
+      const sentences = generalSummary.split(/(?<=[.?!])\s+/).filter(Boolean)
+      cardSummary = sentences.slice(0, 2).join(' ')
+    }
+  }
+
+  if (!cardSummary && content) {
+    const cleaned = cleanLeadSummary(content)
+    const sentences = cleaned.split(/(?<=[.?!])\s+/).filter(Boolean)
+    cardSummary = sentences.slice(0, 2).join(' ') || cleaned.slice(0, 160)
+  }
+
+  cardSummary = cleanLeadSummary(cardSummary)
+
+  // 2. Extract 4-line summary for details drawer
+  let detailsSummary =
+    extractSection(intel, '4-Line Summary') ||
+    extractSection(intel, 'Four-Line Summary') ||
+    ''
+
+  if (!detailsSummary) {
+    const generalSummary = extractSection(intel, 'Summary')
+    if (generalSummary) {
+      detailsSummary = generalSummary
+    } else {
+      const oneLiner = extractSection(intel, 'One-Liner')
+      const whatTheyWant = extractSection(intel, 'What They Actually Want')
+      const context = extractSection(intel, 'Context You Might Miss')
+
+      const parts = [oneLiner, whatTheyWant, context].filter(Boolean)
+      if (parts.length > 0) {
+        detailsSummary = parts.join(' ')
+      }
+    }
+  }
+
+  if (!detailsSummary && content) {
+    const cleaned = cleanLeadSummary(content)
+    const sentences = cleaned.split(/(?<=[.?!])\s+/).filter(Boolean)
+    detailsSummary = sentences.slice(0, 4).join(' ') || cleaned.slice(0, 320)
+  }
+
+  detailsSummary = cleanLeadSummary(detailsSummary)
+
+  // Ensure cardSummary and detailsSummary fall back sensibly if one is empty
+  if (!cardSummary && detailsSummary) {
+    cardSummary = detailsSummary.split(/(?<=[.?!])\s+/).slice(0, 2).join(' ')
+  }
+  if (!detailsSummary && cardSummary) {
+    detailsSummary = cardSummary
+  }
+
+  return {
+    summary: cardSummary,
+    detailsSummary: detailsSummary,
+  }
+}
+
+// Backward-compatible alias for existing imports
+export const extractCleanNicheTags = extractLeadBadges
 
 export function sanitizeHeadline(rawTitle: string, primaryNiche?: string): string {
   if (!rawTitle || rawTitle === '--' || rawTitle === '-') {

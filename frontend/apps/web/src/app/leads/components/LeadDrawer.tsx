@@ -67,6 +67,12 @@ export default function LeadDrawer({
       : lead.company || lead.name || 'Lead Signal'
 
   const taskScopeDisplay = lead.isRevealed ? lead.taskScope : sanitizePublicText(lead.taskScope || '')
+  const detailsSummaryDisplay =
+    lead.detailsSummary && lead.detailsSummary.trim() !== ''
+      ? (lead.isRevealed ? lead.detailsSummary : sanitizePublicText(lead.detailsSummary))
+      : lead.summary && lead.summary.trim() !== ''
+        ? (lead.isRevealed ? lead.summary : sanitizePublicText(lead.summary))
+        : taskScopeDisplay
 
   const handleRevealClick = async () => {
     if (!lead.isClaimable) {
@@ -200,11 +206,32 @@ export default function LeadDrawer({
           </h2>
         </div>
 
-        {taskScopeDisplay && taskScopeDisplay.trim() !== '' && (
-          <div className="mb-8 mt-2">
-            <h3 className="text-[16px] font-medium leading-relaxed text-text-primary/90 italic border-l-2 border-border-subtle pl-4 py-1">
-              &quot;{taskScopeDisplay}&quot;
-            </h3>
+        {detailsSummaryDisplay && detailsSummaryDisplay.trim() !== '' && (
+          <div className="mb-6 p-4 rounded-xl bg-surface-elevated/70 border border-white/[0.08]">
+            <div className="flex items-center gap-1.5 mb-2">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-accent-mint">
+                Lead Summary
+              </span>
+            </div>
+            <p className="text-[13.5px] sm:text-[14px] font-medium leading-relaxed text-text-primary/95 line-clamp-4">
+              {detailsSummaryDisplay}
+            </p>
+          </div>
+        )}
+
+        {lead.nicheTags && lead.nicheTags.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap mb-6">
+            <span className="text-[11px] font-bold text-text-secondary uppercase tracking-wider mr-1">
+              Required Skills:
+            </span>
+            {lead.nicheTags.map((tag) => (
+              <span
+                key={tag}
+                className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-white/5 hover:bg-white/10 text-white border border-white/10 transition-colors"
+              >
+                {tag}
+              </span>
+            ))}
           </div>
         )}
 
@@ -233,19 +260,21 @@ export default function LeadDrawer({
 
         <div className="w-full h-px bg-border-subtle my-8" />
 
-        <div className="flex flex-wrap gap-2 mb-6">
-          <span className="text-[12px] text-text-secondary font-medium mr-2 self-center">
-            Hashtags:
-          </span>
-          {lead.hashtags.map((t) => (
-            <span
-              key={t}
-              className="text-[12px] font-medium text-text-secondary/80 px-2 py-1 rounded bg-white/5"
-            >
-              {t}
+        {lead.hashtags && lead.hashtags.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-6">
+            <span className="text-[12px] text-text-secondary font-medium mr-2 self-center">
+              Tags:
             </span>
-          ))}
-        </div>
+            {lead.hashtags.map((t) => (
+              <span
+                key={t}
+                className="text-[12px] font-medium text-text-secondary/80 px-2 py-1 rounded bg-white/5"
+              >
+                {t}
+              </span>
+            ))}
+          </div>
+        )}
 
         {lead.winProb === 'high' && (
           <div className="flex items-center gap-4">

@@ -11,6 +11,8 @@ export interface AppLead {
   signalContext: string
   role: string
   taskScope: string
+  summary?: string
+  detailsSummary?: string
   mustHave: string
   nicheBonus: string
   buyerType: string

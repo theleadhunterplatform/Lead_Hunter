@@ -14,7 +14,14 @@ import { oracleDb } from '@/lib/oracle-db'
 import { mapLeadPostToExternal } from '@/lib/oracle-mapper'
 import type { AppLead } from '@/types/lead'
 import { getLeadRevealCost } from '@/lib/config/coins'
-import { extractNiches, sanitizePublicText, extractCleanNicheTags, sanitizeHeadline } from '@/lib/claim-reveal'
+import {
+  extractNiches,
+  sanitizePublicText,
+  extractCleanNicheTags,
+  extractLeadBadges,
+  extractLeadSummaries,
+  sanitizeHeadline,
+} from '@/lib/claim-reveal'
 
 export const dynamic = 'force-dynamic'
 
@@ -90,16 +97,10 @@ function externalPostToAppLead(
   const primaryNiche = post.niche || null
 
   const niches = extractNiches(post.keyword, post.content || '', post.intelligence, primaryNiche)
-  const cleanTags = extractCleanNicheTags(post, niches)
+  const cleanTags = extractLeadBadges(post, niches)
   const resolvedNiche = primaryNiche || niches[0] || 'General'
   const cleanTitle = post.title?.trim() || sanitizeHeadline(post.author?.info || post.keyword || '', resolvedNiche)
-  const cleanScope = sanitizePublicText(
-    extractSection(intel, 'Context You Might Miss') ||
-      extractSection(intel, 'What They Actually Want') ||
-      extractSection(intel, 'One-Liner') ||
-      post.content ||
-      '',
-  )
+  const { summary, detailsSummary } = extractLeadSummaries(post)
 
   return {
     id: post.id,
@@ -114,8 +115,10 @@ function externalPostToAppLead(
     title: cleanTitle,
     signalContext: isRevealed ? post.content || '' : sanitizePublicText(post.content || ''),
     role: sanitizePublicText(post.author?.info || extractSection(intel, 'One-Liner')),
-    taskScope: cleanScope,
-    mustHave: sanitizePublicText(extractSection(intel, 'What They Actually Want')),
+    taskScope: summary,
+    summary,
+    detailsSummary,
+    mustHave: sanitizePublicText(extractSection(intel, 'What They Actually Want') || detailsSummary),
     nicheBonus: sanitizePublicText(extractSection(intel, 'How to Win')),
     buyerType: sanitizePublicText(intel),
     urgency: 'medium',
@@ -157,6 +160,8 @@ function dbLeadToAppLead(
     signalContext: isRevealed ? lead.signalContext : sanitizePublicText(lead.signalContext || ''),
     role: sanitizePublicText(lead.role || ''),
     taskScope: sanitizePublicText(lead.taskScope || ''),
+    summary: sanitizePublicText(lead.taskScope || ''),
+    detailsSummary: sanitizePublicText(lead.mustHave || lead.taskScope || ''),
     mustHave: sanitizePublicText(lead.mustHave || ''),
     nicheBonus: sanitizePublicText(lead.nicheBonus || ''),
     buyerType: sanitizePublicText(lead.buyerType || ''),

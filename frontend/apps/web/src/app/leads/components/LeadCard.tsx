@@ -126,15 +126,17 @@ export default function LeadCard({
   // Headline (sanitized to prevent person names, company names, or contacts)
   const displayHeadline = sanitizeHeadline(lead.title, topCategory)
 
-  // Main Quote content (strictly sanitized to prevent WhatsApp/phone/email/contact leaks)
-  const rawQuote =
-    lead.taskScope && lead.taskScope.trim() !== ''
-      ? lead.taskScope
-      : lead.category && lead.category.toLowerCase() !== 'general'
-        ? lead.category
-        : 'Verified service demand opportunity.'
+  // 2-line Summary content (strictly sanitized to prevent WhatsApp/phone/email/contact leaks)
+  const cardSummary =
+    lead.summary && lead.summary.trim() !== ''
+      ? lead.summary
+      : lead.taskScope && lead.taskScope.trim() !== ''
+        ? lead.taskScope
+        : lead.category && lead.category.toLowerCase() !== 'general'
+          ? `Verified ${lead.category} project opportunity.`
+          : 'Verified service demand opportunity.'
 
-  const quoteContent = sanitizePublicText(rawQuote)
+  const summaryContent = sanitizePublicText(cardSummary)
 
   const handleSave = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -247,7 +249,7 @@ export default function LeadCard({
       if (words.length >= 2 && words.length <= 3 && words.every((w) => /^[A-Z]{3,}$/.test(w))) return false
       return true
     })
-    .slice(0, 3)
+    .slice(0, 4)
 
   return (
     <motion.div
@@ -278,14 +280,14 @@ export default function LeadCard({
           {displayHeadline}
         </h4>
 
-        {/* Scaled-down Quote: fixed height container ensures 100% uniform card layout regardless of copy length */}
+        {/* 2-line Lead Summary */}
         <div className="h-[52px] mb-2.5 flex items-start select-none overflow-hidden shrink-0">
-          <h3 className={`text-[13px] sm:text-[13.5px] font-semibold tracking-tight leading-[1.35] line-clamp-2 ${theme.text}`}>
-            &quot;{quoteContent}&quot;
-          </h3>
+          <p className={`text-[12.5px] sm:text-[13px] font-medium tracking-tight leading-[1.38] line-clamp-2 ${theme.text}`}>
+            {summaryContent}
+          </p>
         </div>
 
-        {/* Clean Tags Row without match score badge */}
+        {/* Technology Badges Row */}
         <div className="flex items-center gap-1.5 mb-2.5 shrink-0 select-none overflow-hidden flex-nowrap h-[22px]">
           {visibleTags.map((tag) => (
             <span
