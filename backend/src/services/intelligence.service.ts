@@ -26,14 +26,10 @@ Format the output exactly like this example structure, using professional and hi
 [Single sentence summary of the lead and their core need]
 
 ### 📋 2-Line Summary
-[A concise 2-sentence summary tailored for a quick card preview. Summarize who is looking, what they need built, and key requirements.]
+[The first 2 sentences of the executive summary. Introduce who is looking, what they need built, and key context.]
 
 ### 📝 4-Line Summary
-[A thorough 4-sentence executive summary of the lead post for the detail view:
-1. Prospect identity and context (e.g. founder, agency lead, corporate buyer).
-2. The exact project or problem requiring a solution.
-3. Specific technology stack, qualifications, or deliverables required.
-4. Desired engagement model or outcome (timeline, budget indication, partnership type).]
+[The complete 4-sentence executive summary: MUST start with the exact same 2 sentences from the 2-Line Summary above word-for-word, and then seamlessly continue with 2 more sentences detailing specific technology stacks, deliverables, timeline/budget, and engagement model.]
 
 ### 🏷️ Badges
 [Comma-separated list of 3-5 specific technology stacks, tools, or domain skills required, e.g.: Next.js, React, TypeScript, MongoDB]

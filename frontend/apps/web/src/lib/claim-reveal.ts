@@ -313,39 +313,26 @@ export function extractLeadSummaries(post: {
   const intel = post.intelligence || ''
   const content = post.content || ''
 
-  // 1. Extract 2-line summary for card
-  let cardSummary =
+  // 1. Extract 4-line summary or general summary first
+  let detailsSummaryRaw =
+    extractSection(intel, '4-Line Summary') ||
+    extractSection(intel, 'Four-Line Summary') ||
+    extractSection(intel, 'Post Summary') ||
+    ''
+
+  let cardSummaryRaw =
     extractSection(intel, '2-Line Summary') ||
     extractSection(intel, 'Two-Line Summary') ||
     extractSection(intel, 'One-Liner') ||
     ''
 
-  if (!cardSummary) {
-    const generalSummary = extractSection(intel, 'Summary')
-    if (generalSummary) {
-      const sentences = generalSummary.split(/(?<=[.?!])\s+/).filter(Boolean)
-      cardSummary = sentences.slice(0, 2).join(' ')
-    }
-  }
-
-  if (!cardSummary && content) {
-    const cleaned = cleanLeadSummary(content)
-    const sentences = cleaned.split(/(?<=[.?!])\s+/).filter(Boolean)
-    cardSummary = sentences.slice(0, 2).join(' ') || cleaned.slice(0, 160)
-  }
-
-  cardSummary = cleanLeadSummary(cardSummary)
-
-  // 2. Extract 4-line summary for details drawer
-  let detailsSummary =
-    extractSection(intel, '4-Line Summary') ||
-    extractSection(intel, 'Four-Line Summary') ||
-    ''
+  let detailsSummary = cleanLeadSummary(detailsSummaryRaw)
+  let cardSummary = cleanLeadSummary(cardSummaryRaw)
 
   if (!detailsSummary) {
     const generalSummary = extractSection(intel, 'Summary')
     if (generalSummary) {
-      detailsSummary = generalSummary
+      detailsSummary = cleanLeadSummary(generalSummary)
     } else {
       const oneLiner = extractSection(intel, 'One-Liner')
       const whatTheyWant = extractSection(intel, 'What They Actually Want')
@@ -353,30 +340,42 @@ export function extractLeadSummaries(post: {
 
       const parts = [oneLiner, whatTheyWant, context].filter(Boolean)
       if (parts.length > 0) {
-        detailsSummary = parts.join(' ')
+        detailsSummary = cleanLeadSummary(parts.join(' '))
       }
     }
   }
 
-  if (!detailsSummary && content) {
+  // 2. Ensure continuity: the 2-line summary MUST be the exact first 2 sentences of the 4-line summary
+  if (detailsSummary) {
+    const detailSentences = detailsSummary.split(/(?<=[.?!])\s+/).filter(Boolean)
+    if (detailSentences.length >= 2) {
+      cardSummary = detailSentences.slice(0, 2).join(' ')
+    } else {
+      cardSummary = detailsSummary
+    }
+  } else if (cardSummary) {
+    // If detailsSummary is empty, use cardSummary as base and continue with additional context
+    const context = cleanLeadSummary(
+      extractSection(intel, 'What They Actually Want') ||
+      extractSection(intel, 'Context You Might Miss') ||
+      content
+    )
+    if (context) {
+      const moreSentences = context.split(/(?<=[.?!])\s+/).filter(Boolean).slice(0, 2).join(' ')
+      detailsSummary = `${cardSummary} ${moreSentences}`.trim()
+    } else {
+      detailsSummary = cardSummary
+    }
+  } else if (content) {
     const cleaned = cleanLeadSummary(content)
     const sentences = cleaned.split(/(?<=[.?!])\s+/).filter(Boolean)
+    cardSummary = sentences.slice(0, 2).join(' ') || cleaned.slice(0, 160)
     detailsSummary = sentences.slice(0, 4).join(' ') || cleaned.slice(0, 320)
-  }
-
-  detailsSummary = cleanLeadSummary(detailsSummary)
-
-  // Ensure cardSummary and detailsSummary fall back sensibly if one is empty
-  if (!cardSummary && detailsSummary) {
-    cardSummary = detailsSummary.split(/(?<=[.?!])\s+/).slice(0, 2).join(' ')
-  }
-  if (!detailsSummary && cardSummary) {
-    detailsSummary = cardSummary
   }
 
   return {
     summary: cardSummary,
-    detailsSummary: detailsSummary,
+    detailsSummary: detailsSummary || cardSummary,
   }
 }
 
