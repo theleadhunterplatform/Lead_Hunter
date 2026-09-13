@@ -213,7 +213,7 @@ export default function LeadDrawer({
                 Lead Summary
               </span>
             </div>
-            <p className="text-[13.5px] sm:text-[14px] font-medium leading-relaxed text-text-primary/95 line-clamp-4">
+            <p className="text-[13.5px] sm:text-[14px] font-medium leading-relaxed text-text-primary/95 whitespace-pre-line">
               {detailsSummaryDisplay}
             </p>
           </div>
