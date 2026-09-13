@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   MagnifyingGlassIcon,
   SparklesIcon,
@@ -21,6 +22,7 @@ import {
 } from '@heroicons/react/24/solid'
 import Link from 'next/link'
 import { AppLead } from '@/types/lead'
+import LeadDrawer from '../leads/components/LeadDrawer'
 import { Badge, Button, CustomLoader } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
 import { getFirebaseToken } from '@/lib/firebase'
@@ -36,6 +38,7 @@ export default function SavedLeadsPage() {
   const [exporting, setExporting] = useState<'csv' | 'tsv' | 'sheet' | null>(null)
   const [openActionDropdownId, setOpenActionDropdownId] = useState<string | null>(null)
   const [unlockingLeadId, setUnlockingLeadId] = useState<string | null>(null)
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null)
   const { addToast } = useToast()
 
   const handleUnlockLead = async (leadId: string) => {
@@ -240,6 +243,7 @@ export default function SavedLeadsPage() {
     // 1. Optimistic UI update (instant response)
     const prevLeads = savedLeads
     setSavedLeads((prev) => prev.filter((l) => l.id !== leadId))
+    if (selectedLeadId === leadId) setSelectedLeadId(null)
     addToast({ type: 'success', message: '✓ Removed from saved leads' })
 
     // 2. Background sync
@@ -343,8 +347,17 @@ export default function SavedLeadsPage() {
     return true
   })
 
-  const statusBadgeColor: Record<string, 'mint' | 'purple'> = {
-    new: 'mint',
+  const selectedLead = savedLeads.find((l) => l.id === selectedLeadId)
+
+  const handleDrawerReveal = (leadId: string, name: string, email: string, phone?: string | null) => {
+    setSavedLeads((prev) =>
+      prev.map((l) =>
+        l.id === leadId ? { ...l, isRevealed: true, name, email, phone } : l,
+      ),
+    )
+  }
+
+  const statusBadgeColor: Record<string, 'mint' | 'purple'> = {    new: 'mint',
     saved: 'mint',
     drafting: 'mint',
     sent: 'purple',
@@ -490,7 +503,11 @@ export default function SavedLeadsPage() {
           </div>
         </div>
 
-        {/* Pipeline Table */}
+        {/* Pipeline Table + Lead Detail (same drawer as Lead Feed) */}
+        <div
+          className={`grid gap-6 transition-all duration-300 ${selectedLeadId ? 'grid-cols-1 lg:grid-cols-3' : 'grid-cols-1'}`}
+        >
+          <div className={selectedLeadId ? 'lg:col-span-2 min-w-0' : 'col-span-1 min-w-0'}>
         <div className="metallic-card min-h-[420px] pb-16">
           {filteredLeads.length === 0 && !loading && (
             <div className="p-12 text-center">
@@ -551,14 +568,23 @@ export default function SavedLeadsPage() {
                               : <LockClosedIcon className="w-3.5 h-3.5" />}
                           </div>
                           <div className="min-w-0">
-                            <div className="text-sm font-bold text-text-primary truncate flex items-center gap-1.5">
-                              {lead.isRevealed ? lead.name : (lead.title || lead.category || 'Saved Lead')}
+                            <button
+                              type="button"
+                              onClick={() => setSelectedLeadId(lead.id)}
+                              title="View lead details"
+                              className={`text-sm font-bold truncate flex items-center gap-1.5 text-left hover:underline underline-offset-2 decoration-white/20 transition-colors ${
+                                selectedLeadId === lead.id ? 'text-primary' : 'text-text-primary'
+                              }`}
+                            >
+                              <span className="truncate">
+                                {lead.isRevealed ? lead.name : (lead.title || lead.category || 'Saved Lead')}
+                              </span>
                               {!lead.isRevealed && (
                                 <span className="text-[9px] font-bold uppercase tracking-wider text-accent-purple bg-accent-purple/10 px-1.5 py-0.5 rounded-full whitespace-nowrap">
                                   Locked
                                 </span>
                               )}
-                            </div>
+                            </button>
                             <div className="text-xxs text-text-secondary truncate">
                               {lead.isRevealed
                                 ? lead.email
@@ -785,6 +811,49 @@ export default function SavedLeadsPage() {
               </Link>
             </div>
           )}
+        </div>
+          </div>
+
+          <AnimatePresence>
+            {selectedLead && (
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                className="hidden lg:block lg:col-span-1 h-[calc(100vh-160px)] sticky top-0"
+              >
+                <LeadDrawer
+                  lead={selectedLead}
+                  onClose={() => setSelectedLeadId(null)}
+                  onReveal={(name, email, phone) =>
+                    handleDrawerReveal(selectedLead.id, name, email, phone)
+                  }
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Mobile detail fallback */}
+          <AnimatePresence>
+            {selectedLead && (
+              <motion.div
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 24 }}
+                transition={{ type: 'spring', damping: 28, stiffness: 260 }}
+                className="lg:hidden fixed inset-x-3 bottom-3 z-50 max-h-[82vh] overflow-y-auto rounded-2xl"
+              >
+                <LeadDrawer
+                  lead={selectedLead}
+                  onClose={() => setSelectedLeadId(null)}
+                  onReveal={(name, email, phone) =>
+                    handleDrawerReveal(selectedLead.id, name, email, phone)
+                  }
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </main>

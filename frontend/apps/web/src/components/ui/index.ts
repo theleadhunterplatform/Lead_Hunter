@@ -7,5 +7,6 @@ export { Select } from './Select'
 export { Input } from './Input'
 export { useToast, ToastProvider } from './Toast'
 export { Modal } from './Modal'
+export { UpgradeNudgePopup, type UpgradeNudgeVariant } from './UpgradeNudgePopup'
 export { CustomLoader } from './CustomLoader'
 
