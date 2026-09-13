@@ -99,61 +99,69 @@ function resolveNiche(
   content?: string | null,
   intelligence?: string | null,
 ): string {
-  if (niche && niche.trim()) {
-    const raw = niche.trim()
-    if (NICHE_STYLES[raw]) return raw
-    const lower = raw.toLowerCase()
-    if (lower.includes('web develop') || lower === 'web dev' || lower === 'development') return 'Web Development'
-    if (lower.includes('mobile')) return 'Mobile Development'
-    if (lower.includes('ui/ux') || lower === 'design' || lower.includes('product design') || lower.includes('web design')) return 'UI/UX Design'
-    if (lower.includes('brand') || lower.includes('graphic')) return 'Branding & Design'
-    if (lower.includes('seo')) return 'SEO & Organic Growth'
-    if (lower.includes('paid ads') || lower.includes('marketing')) return 'Paid Ads & Marketing'
-    if (lower.includes('copywrit') || lower.includes('content') || lower === 'copywriting') return 'Content & Copywriting'
-    if (lower.includes('video')) return 'Video Production & Editing'
-    if (lower.includes('sales') || lower.includes('lead gen') || lower.includes('revops')) return 'Sales & Lead Gen'
-    if (lower.includes('ai') || lower.includes('automation')) return 'AI & Automation'
-    if (lower.includes('consulting') || lower.includes('strategy')) return 'Consulting & Strategy'
-    return raw
-  }
-
   const kw = (keyword || '').toLowerCase().replace(/^watchlist:/, '')
   const c = (content || '').toLowerCase()
   const intel = (intelligence || '').toLowerCase()
   const text = `${kw} ${c} ${intel}`
 
-  if (text.includes('nextjs') || text.includes('react') || text.includes('frontend') || text.includes('fullstack') || text.includes('web dev') || text.includes('web development') || text.includes('backend') || text.includes('node') || text.includes('wordpress') || text.includes('shopify') || text.includes('webflow') || text.includes('website developer') || text.includes('web developer') || text.includes('software developer')) {
-    return 'Web Development'
-  }
-  if (text.includes('mobile app') || text.includes('ios') || text.includes('android') || text.includes('flutter') || text.includes('react native')) {
+  // 1. Web Development
+  const isWeb =
+    /\b(website|web app|web application|web dev|web developer|web development|frontend|front-end|backend|back-end|fullstack|full-stack|next\.?js|react|react\.?js|vue|angular|node|node\.?js|express|django|flask|laravel|php|wordpress|woocommerce|shopify|webflow|wix|html|css|javascript|typescript|tailwind|mongodb|postgres|postgresql|mysql|prisma|rest api|graphql)\b/i.test(text)
+
+  // 2. Mobile Development (strictly mobile, avoiding false positives on "web app" or "ios" in "portfolios")
+  const isMobile =
+    /\b(mobile app|ios app|android app|react native|flutter|swiftui|swift developer|kotlin|xcode)\b/i.test(text) ||
+    /\b(ios developer|android developer|mobile developer|flutter developer)\b/i.test(text) ||
+    (/\b(ios|android)\b/i.test(text) && /\b(app|mobile|sdk|play store|app store)\b/i.test(text))
+
+  // 3. Paid Ads & Performance Marketing
+  const isMarketing =
+    /\b(performance marketing|paid ads|facebook ads|meta ads|google ads|media buyer|digital marketing|ad campaign|ppc|sem|roas|social media agency|social media marketing)\b/i.test(text)
+
+  // 4. UI/UX Design
+  const isUiUx =
+    /\b(ui\/ux|ui ux|figma|product design|landing page design|web design|ux design|ui design|wireframe|wireframing|prototype|prototyping)\b/i.test(text)
+
+  // 5. Branding & Graphic Design
+  const isBranding =
+    /\b(branding|brand identity|graphic design|graphic designer|logo design|magazine design|illustrator|print design|publishing studio)\b/i.test(text)
+
+  // 6. SEO & Organic Growth
+  const isSeo =
+    /\b(seo|search engine optimization|organic traffic|backlinks|technical seo|link building)\b/i.test(text)
+
+  // 7. Video Production & Editing
+  const isVideo =
+    /\b(video edit|video editor|video editing|motion graphics|reels editor|animator|after effects|premiere pro|video production)\b/i.test(text)
+
+  // 8. Content & Copywriting
+  const isCopy =
+    /\b(copywriter|copywriting|content writer|content writing|technical writer|newsletter writer|editorial content|ghostwriter)\b/i.test(text)
+
+  // 9. AI & Automation
+  const isAi =
+    /\b(ai agent|automation|n8n|zapier|make\.com|chatbot|langchain|rag|workflow automation|ai developer)\b/i.test(text)
+
+  // Validate or infer:
+  if (isMarketing && !isWeb && !isMobile) return 'Paid Ads & Marketing'
+  if (isWeb && !isMobile) return 'Web Development'
+  if (isMobile && !isWeb) return 'Mobile Development'
+  if (isWeb && isMobile) {
+    if (/\b(web app|website|next\.?js|react|frontend|backend)\b/i.test(text) && !/\b(ios app|android app)\b/i.test(text)) {
+      return 'Web Development'
+    }
     return 'Mobile Development'
   }
-  if (text.includes('ui/ux') || text.includes('figma') || text.includes('product design') || text.includes('web design') || text.includes('landing page')) {
-    return 'UI/UX Design'
-  }
-  if (text.includes('branding') || text.includes('graphic design') || text.includes('logo')) {
-    return 'Branding & Design'
-  }
-  if (text.includes('seo') || text.includes('organic search') || text.includes('backlink')) {
-    return 'SEO & Organic Growth'
-  }
-  if (text.includes('paid ads') || text.includes('facebook ads') || text.includes('google ads') || text.includes('performance marketing')) {
-    return 'Paid Ads & Marketing'
-  }
-  if (text.includes('copywrit') || text.includes('content writer') || text.includes('blog') || text.includes('copywriting')) {
-    return 'Content & Copywriting'
-  }
-  if (text.includes('video edit') || text.includes('reels') || text.includes('motion')) {
-    return 'Video Production & Editing'
-  }
-  if (text.includes('cold email') || text.includes('lead gen') || text.includes('outreach') || text.includes('sales') || text.includes('revops')) {
-    return 'Sales & Lead Gen'
-  }
-  if (text.includes('ai agent') || text.includes('automation') || text.includes('n8n') || text.includes('zapier') || text.includes('artificial intelligence')) {
-    return 'AI & Automation'
-  }
-  if (text.includes('consulting') || text.includes('consultant') || text.includes('strategy')) {
-    return 'Consulting & Strategy'
+  if (isUiUx) return 'UI/UX Design'
+  if (isBranding) return 'Branding & Design'
+  if (isMarketing) return 'Paid Ads & Marketing'
+  if (isVideo) return 'Video Production & Editing'
+  if (isCopy) return 'Content & Copywriting'
+  if (isSeo) return 'SEO & Organic Growth'
+  if (isAi) return 'AI & Automation'
+
+  if (niche && niche.trim() && NICHE_STYLES[niche.trim()]) {
+    return niche.trim()
   }
 
   return 'General'

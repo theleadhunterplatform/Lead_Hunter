@@ -196,38 +196,65 @@ export async function generateLeadTitle(post: any): Promise<string> {
 export function inferNiche(post: any): string {
     const kw = (post.keyword || '').toLowerCase().replace(/^watchlist:/, '');
     const c = (post.content || '').toLowerCase();
-    const text = `${kw} ${c}`;
+    const intel = (post.intelligence || '').toLowerCase();
+    const title = (post.title || '').toLowerCase();
+    const text = `${kw} ${c} ${title} ${intel}`;
 
-    if (text.includes('nextjs') || text.includes('react') || text.includes('frontend') || text.includes('fullstack') || text.includes('web dev') || text.includes('web development') || text.includes('backend') || text.includes('node') || text.includes('python') || text.includes('wordpress') || text.includes('shopify') || text.includes('webflow')) {
-        return 'Web Development';
-    }
-    if (text.includes('mobile app') || text.includes('ios') || text.includes('android') || text.includes('flutter') || text.includes('react native')) {
+    // 1. Web Development
+    const isWeb =
+        /\b(website|web app|web application|web dev|web developer|web development|frontend|front-end|backend|back-end|fullstack|full-stack|next\.?js|react|react\.?js|vue|angular|node|node\.?js|express|django|flask|laravel|php|wordpress|woocommerce|shopify|webflow|wix|html|css|javascript|typescript|tailwind|mongodb|postgres|postgresql|mysql|prisma|rest api|graphql)\b/i.test(text);
+
+    // 2. Mobile Development (strictly mobile, avoiding false positives on "web app" or "ios" in "portfolios")
+    const isMobile =
+        /\b(mobile app|ios app|android app|react native|flutter|swiftui|swift developer|kotlin|xcode)\b/i.test(text) ||
+        /\b(ios developer|android developer|mobile developer|flutter developer)\b/i.test(text) ||
+        (/\b(ios|android)\b/i.test(text) && /\b(app|mobile|sdk|play store|app store)\b/i.test(text));
+
+    // 3. Paid Ads & Performance Marketing
+    const isMarketing =
+        /\b(performance marketing|paid ads|facebook ads|meta ads|google ads|media buyer|digital marketing|ad campaign|ppc|sem|roas|social media agency|social media marketing)\b/i.test(text);
+
+    // 4. UI/UX Design
+    const isUiUx =
+        /\b(ui\/ux|ui ux|figma|product design|landing page design|web design|ux design|ui design|wireframe|wireframing|prototype|prototyping)\b/i.test(text);
+
+    // 5. Branding & Graphic Design
+    const isBranding =
+        /\b(branding|brand identity|graphic design|graphic designer|logo design|magazine design|illustrator|print design|publishing studio)\b/i.test(text);
+
+    // 6. SEO & Organic Growth
+    const isSeo =
+        /\b(seo|search engine optimization|organic traffic|backlinks|technical seo|link building)\b/i.test(text);
+
+    // 7. Video Production & Editing
+    const isVideo =
+        /\b(video edit|video editor|video editing|motion graphics|reels editor|animator|after effects|premiere pro|video production)\b/i.test(text);
+
+    // 8. Content & Copywriting
+    const isCopy =
+        /\b(copywriter|copywriting|content writer|content writing|technical writer|newsletter writer|editorial content|ghostwriter)\b/i.test(text);
+
+    // 9. AI & Automation
+    const isAi =
+        /\b(ai agent|automation|n8n|zapier|make\.com|chatbot|langchain|rag|workflow automation|ai developer)\b/i.test(text);
+
+    if (isMarketing && !isWeb && !isMobile) return 'Paid Ads & Marketing';
+    if (isWeb && !isMobile) return 'Web Development';
+    if (isMobile && !isWeb) return 'Mobile Development';
+    if (isWeb && isMobile) {
+        if (/\b(web app|website|next\.?js|react|frontend|backend)\b/i.test(text) && !/\b(ios app|android app)\b/i.test(text)) {
+            return 'Web Development';
+        }
         return 'Mobile Development';
     }
-    if (text.includes('ui/ux') || text.includes('figma') || text.includes('product design') || text.includes('landing page design') || text.includes('web design') || text.includes('ux design') || text.includes('ui design')) {
-        return 'UI/UX Design';
-    }
-    if (text.includes('graphic design') || text.includes('branding') || text.includes('logo') || text.includes('brand identity') || text.includes('illustrator')) {
-        return 'Branding & Design';
-    }
-    if (text.includes('seo') || text.includes('organic search') || text.includes('backlink') || text.includes('search engine')) {
-        return 'SEO & Organic Growth';
-    }
-    if (text.includes('paid ads') || text.includes('facebook ads') || text.includes('google ads') || text.includes('meta ads') || text.includes('performance marketing') || text.includes('media buyer')) {
-        return 'Paid Ads & Marketing';
-    }
-    if (text.includes('copywriting') || text.includes('copywriter') || text.includes('content writer') || text.includes('technical writing') || text.includes('blog writing') || text.includes('newsletter')) {
-        return 'Content & Copywriting';
-    }
-    if (text.includes('video editor') || text.includes('video editing') || text.includes('youtube editor') || text.includes('reels') || text.includes('motion graphics') || text.includes('animator')) {
-        return 'Video Production & Editing';
-    }
-    if (text.includes('cold email') || text.includes('lead gen') || text.includes('lead generation') || text.includes('outreach') || text.includes('sales rep') || text.includes('bdr') || text.includes('sdr') || text.includes('appointment setting')) {
-        return 'Sales & Lead Gen';
-    }
-    if (text.includes('ai agent') || text.includes('automation') || text.includes('n8n') || text.includes('zapier') || text.includes('make.com') || text.includes('chatbot') || text.includes('llm') || text.includes('workflow automation')) {
-        return 'AI & Automation';
-    }
+    if (isUiUx) return 'UI/UX Design';
+    if (isBranding) return 'Branding & Design';
+    if (isMarketing) return 'Paid Ads & Marketing';
+    if (isVideo) return 'Video Production & Editing';
+    if (isCopy) return 'Content & Copywriting';
+    if (isSeo) return 'SEO & Organic Growth';
+    if (isAi) return 'AI & Automation';
+
     return 'Consulting & Strategy';
 }
 

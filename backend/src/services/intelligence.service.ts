@@ -32,7 +32,7 @@ Format the output exactly like this example structure, using professional and hi
 [The complete 4-sentence executive summary: MUST start with the exact same 2 sentences from the 2-Line Summary above word-for-word, and then seamlessly continue with 2 more sentences detailing specific technology stacks, deliverables, timeline/budget, and engagement model.]
 
 ### 🏷️ Badges
-[Comma-separated list of 3-5 specific technology stacks, tools, or domain skills required, e.g.: Next.js, React, TypeScript, MongoDB]
+[Comma-separated list of 3-5 concise, specific technology tools, platforms, or skills required (1-3 words max per badge, e.g.: Next.js, React, TypeScript, MongoDB for dev; Meta Ads, Google Ads, Performance Marketing, ROI for marketing; Figma, UI/UX, Webflow for design; Cold Email, Lead Gen, HubSpot for sales).]
 
 ---
 
