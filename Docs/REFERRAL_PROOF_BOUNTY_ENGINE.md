@@ -125,14 +125,83 @@ model MilestoneRewardConfig {
   creditsReward    Int           @default(10)
   updatedAt        DateTime      @updatedAt
 }
+
+// ── In-App Popup & Dashboard Announcements ─────────────────────────
+enum PopupTriggerType {
+  UPGRADE_PROMPT     // Free to Paid upsell
+  CREDIT_RENEWAL     // Upcoming or completed monthly token refill
+  LOW_CREDITS        // Credits <= 2 alert
+  ADMIN_BROADCAST    // Global or segmented admin announcement
+}
+
+model PopupNotification {
+  id               String            @id @default(uuid())
+  triggerType      PopupTriggerType
+  title            String
+  body             String
+  badgeText        String?           // e.g. "Limited Offer", "Renewal"
+  ctaText          String            // e.g. "Upgrade to Pro", "Refill Tokens"
+  ctaUrl           String            // e.g. "/pricing", "/refill"
+  secondaryText    String?           // e.g. "Maybe later"
+  targetPlan       String?           // e.g. "free", "all"
+  isActive         Boolean           @default(true)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  receipts         UserPopupReceipt[]
+}
+
+model UserPopupReceipt {
+  id               String            @id @default(uuid())
+  userId           String
+  popupId          String
+  seenAt           DateTime          @default(now())
+  dismissedAt      DateTime?
+  actionTaken      Boolean           @default(false)
+
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  popup            PopupNotification @relation(fields: [popupId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, popupId])
+}
 ```
 
 ---
 
-## 6. Execution Roadmap (When Resumed)
-1. **DB Migration:** Add `Referral`, `MilestoneProofSubmission`, and `MilestoneRewardConfig` models to Prisma schema.
-2. **Storage:** Configure S3/Supabase Storage bucket for proof uploads (`proof-screenshots`).
-3. **AI Vision Service:** Build `proof-verifier.service.ts` using Gemini 1.5 Flash.
-4. **User UI:** Create `/rewards` page with referral code card and upload modules.
-5. **Admin UI:** Create `/admin/rewards` with credit configuration inputs and approval table.
-6. **Notification:** Add notification/email dispatch when credits are approved and dispensed.
+## 7. In-App Targeted Dashboard Popup Engine
+
+### Core Goal
+Deliver high-conversion, contextual modal alerts on the user's dashboard (Upgrade Free to Paid, Credit Renewal, Low Credits Remaining, or Admin Broadcast) with a strict **"Show Exactly Once Per User"** guarantee.
+
+### Delivery Lifecycle
+1. **Real-time Push for Active Users:**
+   * When an announcement or trigger is created, active dashboard sessions receive a WebSocket / SSE / liveness poll event and trigger the modal immediately on screen without a reload.
+2. **Persistent Queue for Inactive Users:**
+   * Inactive users retain an unread popup record in the database. When they log in and open `/dashboard` at any point in the future, the dashboard fetches `GET /api/notifications/active-popups` on mount and displays it.
+3. **Single-View Guarantee (Database Receipts):**
+   * As soon as the modal is displayed or dismissed, the frontend sends `POST /api/notifications/dismiss { popupId }`.
+   * A unique `UserPopupReceipt` record is created. Subsequent visits will never re-show that specific popup to that user.
+
+### Trigger Matrix
+| Trigger Type | Condition | Target Audience | Modal Message / CTA |
+|--------------|-----------|-----------------|----------------------|
+| **`UPGRADE_PROMPT`** | User on Free plan after 3 days or 5 lead previews | `plan: "free"` | "Unlock Direct Phone Numbers & 50 Tokens/Month" $\rightarrow$ `/pricing` |
+| **`LOW_CREDITS`** | User balance $\le 2$ credits after lead reveal | Any plan | "You're down to 2 credits. Refill now so you don't miss new leads" $\rightarrow$ `/refill` |
+| **`CREDIT_RENEWAL`** | Monthly billing renewal completed or 3 days prior | Paid plans | "Your monthly credits have renewed! Ready to hunt?" $\rightarrow$ `/leads` |
+| **`ADMIN_BROADCAST`** | Admin writes a global announcement modal | Configurable | Custom title, message, badge, and target CTA button |
+
+---
+
+## 8. Execution Roadmap (When Resumed)
+1. **DB Schema:** Add `Referral`, `MilestoneProofSubmission`, `MilestoneRewardConfig`, `PopupNotification`, and `UserPopupReceipt` to Prisma.
+2. **Storage:** Set up storage bucket for milestone proof screenshots.
+3. **AI Vision Verifier:** Implement Gemini 1.5 Flash multimodal OCR for screenshot validation and confidence scoring.
+4. **User UI:**
+   * `/rewards`: Referral link generation, referral leaderboard, and proof submission dropzone.
+   * `DashboardPopupModal.tsx`: Global overlay component inside dashboard layout responding to active popups.
+5. **Admin UI:**
+   * `/admin/rewards`: Configure credit bounties + review queue for proof approvals.
+   * `/admin/notifications`: Create, schedule, and preview popup broadcast campaigns.
+6. **API Endpoints:**
+   * `GET /api/notifications/active-popups` & `POST /api/notifications/dismiss`
+   * `POST /api/rewards/submit-proof` & `POST /api/admin/rewards/dispense`
