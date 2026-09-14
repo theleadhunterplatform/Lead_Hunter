@@ -192,16 +192,59 @@ Deliver high-conversion, contextual modal alerts on the user's dashboard (Upgrad
 
 ---
 
-## 8. Execution Roadmap (When Resumed)
-1. **DB Schema:** Add `Referral`, `MilestoneProofSubmission`, `MilestoneRewardConfig`, `PopupNotification`, and `UserPopupReceipt` to Prisma.
-2. **Storage:** Set up storage bucket for milestone proof screenshots.
-3. **AI Vision Verifier:** Implement Gemini 1.5 Flash multimodal OCR for screenshot validation and confidence scoring.
-4. **User UI:**
-   * `/rewards`: Referral link generation, referral leaderboard, and proof submission dropzone.
-   * `DashboardPopupModal.tsx`: Global overlay component inside dashboard layout responding to active popups.
-5. **Admin UI:**
-   * `/admin/rewards`: Configure credit bounties + review queue for proof approvals.
-   * `/admin/notifications`: Create, schedule, and preview popup broadcast campaigns.
-6. **API Endpoints:**
-   * `GET /api/notifications/active-popups` & `POST /api/notifications/dismiss`
-   * `POST /api/rewards/submit-proof` & `POST /api/admin/rewards/dispense`
+## 8. Implementation Status
+* **Part 1: In-App Targeted Dashboard Popups** — ✅ **Completed & Deployed** (`UpgradeNudgePopup`, `/api/notifications/popup-status`, single-view `AuditLog` guarantee).
+* **Part 2A: User Referral & Reward Engine** — ✅ **Completed & Deployed** (`/referrals`, unique code generator, registration attribution, +10 / +5 bonus credits).
+* **Part 2B: Milestone Proof Screenshot Submission & AI Verifier** — ⏳ **Parked** (Ready for execution).
+* **Part 3: SMTP & Lifecycle Email Automation Engine** — 📝 **Added to Specification** (Details below).
+
+---
+
+## 9. Automated Lifecycle & Transactional Email Engine (SMTP & Resend Hybrid)
+
+### 9.1 Core Goal
+Deliver mission-critical platform communications, user nurture sequences before and after admin approval, and proactive inbox notifications corresponding to all **3 core popup trigger points** using standard **SMTP** (via `nodemailer`) with a fallback to Resend.
+
+### 9.2 SMTP Configuration & Credentials
+The engine supports any standard SMTP provider (Google Workspace, Hostinger, Zoho, AWS SES, Brevo):
+
+```env
+# ─── SMTP Email Configuration ───
+SMTP_HOST=smtp.gmail.com              # e.g. smtp.gmail.com, smtp.hostinger.com, smtp.zoho.com
+SMTP_PORT=465                         # 465 (SSL) or 587 (TLS)
+SMTP_SECURE=true                      # true for 465, false for 587
+SMTP_USER=noreply@leadhunterclub.com  # Account username/email
+SMTP_PASS=your-app-password           # App password or SMTP key
+EMAIL_FROM="Lead Hunter Club <noreply@leadhunterclub.com>"
+```
+
+### 9.3 Lifecycle Email Sequences
+
+#### A. Before Approval (`status: PENDING`)
+Keep prospective users engaged while waiting for admin approval:
+1. **Email 1 (Immediate upon signup): Application Under Review**
+   * Confirms registration, sets expectations (24–48 hr review), and includes email verification link.
+2. **Email 2 (Day 2 if pending): High-Intent Lead Teaser**
+   * Automatically queries top 3 newly verified leads in the user's selected niche and previews company names & deal sizes (masked) to build anticipation.
+3. **Email 3 (Day 4 if pending): Community & Outreach Tips**
+   * Walkthrough on how top agency owners book meetings using Lead Hunter's phone & email reveals.
+
+#### B. After Approval (`status: ACTIVE`)
+1. **Instant Approval Notice: "You're In! Access Granted"**
+   * Notifies user that account is active with 50 starting credits.
+   * 1-Click CTA button directing straight to the live Lead Feed (`/leads`).
+
+#### C. The 3 Core Popup Points as Inbox Notifications
+Automated transactional alerts matching the in-app popup triggers:
+
+| Alert Point | Trigger Condition | Target Audience | Subject & Key Message | CTA |
+| :--- | :--- | :--- | :--- | :--- |
+| **1. Free to Paid Upgrade** | 3 days after approval or after 3 reveals | `plan: "FREE"` | *"Ready to scale your pipeline? Unlock direct phone numbers & 500 monthly tokens."* | `/pricing` |
+| **2. Plan Renewal Notice** | 3 days prior to monthly renewal date | Paid plans (`FREELANCER`, `AGENCY`) | *"Your plan renews in 3 days. Your monthly allowance of [500/1000] credits is on the way."* | `/pricing` |
+| **3A. Low Credits Alert** | Balance $\le 2$ credits remaining | Any plan | *"Notice: You have 2 credits remaining. Top up now so reveals aren't interrupted."* | `/refill` |
+| **3B. Out of Credits Alert** | Total balance reaches exactly $0$ | Any plan | *"Unlocks paused: You have used all your credits. Top up or upgrade to resume."* | `/refill` |
+
+### 9.4 Delivery Safeguards & Anti-Spam
+* **Database Tracking (`EmailLog`)**: Every dispatched email records recipient, email type, and timestamp.
+* **Idempotency**: Threshold alerts (e.g. low credits or out-of-credits) are sent **at most once per billing cycle** to avoid spamming active users.
+
