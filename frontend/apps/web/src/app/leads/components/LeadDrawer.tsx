@@ -11,6 +11,8 @@ import {
   EnvelopeIcon,
   ArrowPathIcon,
   PhoneIcon,
+  ClockIcon,
+  SparklesIcon,
 } from '@heroicons/react/24/solid'
 import { AppLead } from '@/types/lead'
 import { Badge, Modal, Button } from '@/components/ui'
@@ -20,6 +22,22 @@ import { getFirebaseToken } from '@/lib/firebase'
 import { sanitizePublicText } from '@/lib/claim-reveal'
 import { triggerUnlockConfetti } from '@/lib/confetti'
 import { NicheBadge } from '@/components/ui/NicheBadge'
+
+function formatScrapedDate(isoStr?: string): string {
+  if (!isoStr) return ''
+  try {
+    const d = new Date(isoStr)
+    return d.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    })
+  } catch {
+    return ''
+  }
+}
 
 const themeMap = {
   mint: {
@@ -200,10 +218,42 @@ export default function LeadDrawer({
         className="flex-1 overflow-y-auto p-6 scrollbar-hide [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
-        <div className="flex items-start justify-between gap-4 mb-4">
+        <div className="flex items-start justify-between gap-4 mb-2">
           <h2 className="text-[24px] font-bold tracking-tight text-text-primary leading-[1.2]">
             {displayTitle}
           </h2>
+        </div>
+
+        {/* Scraped & Source Metadata Bar */}
+        <div className="flex flex-wrap items-center gap-2 mb-5 select-none text-[11px]">
+          {lead.scrapedAgo && (
+            <div
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-accent-mint/10 border border-accent-mint/20 text-accent-mint font-medium"
+              title={lead.scrapedAt ? `Scraped on ${formatScrapedDate(lead.scrapedAt)}` : undefined}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-accent-mint animate-pulse" />
+              <span>Scraped {lead.scrapedAgo}</span>
+              {lead.scrapedAt && (
+                <span className="text-accent-mint/60 font-mono text-[10px]">
+                  ({formatScrapedDate(lead.scrapedAt)})
+                </span>
+              )}
+            </div>
+          )}
+
+          {lead.timestamp && (
+            <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/[0.04] border border-white/[0.08] text-text-secondary">
+              <ClockIcon className="w-3 h-3 text-text-secondary/70" />
+              <span>Posted {lead.timestamp}</span>
+            </div>
+          )}
+
+          {lead.replyProbability > 0 && (
+            <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-accent-purple/10 border border-accent-purple/20 text-accent-purple font-medium">
+              <SparklesIcon className="w-3 h-3 text-accent-purple" />
+              <span>{lead.replyProbability}% AI Match</span>
+            </div>
+          )}
         </div>
 
         {detailsSummaryDisplay && detailsSummaryDisplay.trim() !== '' && (

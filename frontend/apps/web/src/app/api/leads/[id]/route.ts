@@ -142,6 +142,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       accent: 'mint',
       status: (userState?.status || 'new') as AppLead['status'],
       timestamp: externalLead.posted_at?.postedAgoShort || formatTimeAgo(externalLead.created_at),
+      scrapedAt: externalLead.created_at,
+      scrapedAgo: formatTimeAgo(externalLead.created_at),
       isSaved: userState?.isSaved || false,
       isRevealed,
       isClaimable,

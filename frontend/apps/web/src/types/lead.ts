@@ -35,5 +35,7 @@ export interface AppLead {
   accent?: 'mint' | 'purple' | 'cyan' | 'orange' | 'pink' | string
   niche?: string | null
   isTargetMatch?: boolean
+  scrapedAt?: string
+  scrapedAgo?: string
 }
 
