@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if email sending infrastructure is configured
-    if (!process.env.RESEND_API_KEY) {
+    if (!process.env.RESEND_API_KEY && !process.env.SMTP_HOST) {
       return NextResponse.json({
         data: { success: false, fallback: true, message: 'Server email sender not configured, falling back to client.' },
       })

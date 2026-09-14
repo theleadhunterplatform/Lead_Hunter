@@ -3,7 +3,7 @@ import { db } from '@/lib/db'
 import { requireEmailVerified, AuthRequiredError, EmailNotVerifiedError } from '@/lib/auth'
 import { onboardingSchema } from '@/lib/validators/auth'
 import { emailService } from '@/lib/services/email'
-import { arePhonesMatching, normalizePhone } from '@/lib/phone'
+import { normalizePhone } from '@/lib/phone'
 
 export const dynamic = 'force-dynamic'
 
@@ -81,7 +81,6 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    emailService.sendApplicationReceived({ name: updatedUser.name, email: updatedUser.email })
     emailService.sendOnboardingComplete({ name: updatedUser.name, email: updatedUser.email })
     emailService.notifyAdmin('New Application', {
       name: updatedUser.name,
