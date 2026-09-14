@@ -17,4 +17,4 @@ export const db =
       : undefined,
   })
 
-if (!isProduction) globalForPrisma.prisma = db
+globalForPrisma.prisma = db

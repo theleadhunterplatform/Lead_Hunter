@@ -59,71 +59,128 @@ async function clearClientAuthStorage() {
   }
 }
 
+let globalCachedUser: User | null = null
+let globalCachedTimestamp = 0
+let inFlightMePromise: Promise<User | null> | null = null
+const authSubscribers = new Set<(user: User | null) => void>()
+
+function updateGlobalCachedUser(user: User | null) {
+  globalCachedUser = user
+  globalCachedTimestamp = user ? Date.now() : 0
+  authSubscribers.forEach((fn) => {
+    try {
+      fn(user)
+    } catch {
+      // ignore subscriber errors
+    }
+  })
+}
+
 export function useAuth() {
   const router = useRouter()
-  const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [user, setUser] = useState<User | null>(globalCachedUser)
+  const [loading, setLoading] = useState(!globalCachedUser)
   const [error, setError] = useState<string | null>(null)
   const [firebaseUser, setFirebaseUser] = useState<import('firebase/auth').User | null>(null)
-  const [lastSynced, setLastSynced] = useState<number | null>(null)
+  const [lastSynced, setLastSynced] = useState<number | null>(globalCachedTimestamp || null)
   const [lastTokenRefresh, setLastTokenRefresh] = useState<number | null>(null)
   const fbUserRef = useRef<import('firebase/auth').User | null>(null)
 
   useEffect(() => {
+    const subscriber = (newUser: User | null) => {
+      setUser(newUser)
+      if (newUser) {
+        setLoading(false)
+        setLastSynced(Date.now())
+      }
+    }
+    authSubscribers.add(subscriber)
+    return () => {
+      authSubscribers.delete(subscriber)
+    }
+  }, [])
+
+  useEffect(() => {
     let isMounted = true
-    let lastSyncCall = 0
 
     const syncUser = async (fbUser: import('firebase/auth').User) => {
       const now = Date.now()
-      if (now - lastSyncCall < 2000) return
-      lastSyncCall = now
-
       fbUserRef.current = fbUser
       setFirebaseUser(fbUser)
       setError(null)
       setLastTokenRefresh(now)
 
-      try {
-        const token = await fbUser.getIdToken()
-        setSessionCookie(token)
-        const res = await fetch('/api/auth/me', {
-          headers: { Authorization: `Bearer ${token}` },
-        })
+      // 1. If we have a fresh user cache (< 10 seconds old) matching this UID, reuse immediately!
+      if (
+        globalCachedUser &&
+        globalCachedUser.id === fbUser.uid &&
+        now - globalCachedTimestamp < 10_000
+      ) {
+        setUser(globalCachedUser)
+        setLoading(false)
+        return
+      }
 
-        if (res.ok) {
-          const json = await res.json()
-          const userData = json.data?.data ?? json.data
-          if (isMounted && userData) {
-            setUser(userData)
-            setLastSynced(Date.now())
+      // 2. If an identical fetch is already in flight, reuse that exact promise
+      if (inFlightMePromise) {
+        try {
+          const u = await inFlightMePromise
+          if (isMounted && u) {
+            setUser(u)
             setLoading(false)
-
-            if (userData.status === 'SUSPENDED' || userData.status === 'REJECTED') {
-              setSessionCookie(null)
-              router.push('/pending-approval')
-            }
-            return
           }
+        } catch {
+          // Handled by creator of inFlightMePromise
+        }
+        return
+      }
 
-          if (res.ok && isMounted) {
-            console.error('[useAuth] Unexpected response shape:', json)
+      // 3. Otherwise, create the inFlight promise
+      inFlightMePromise = (async () => {
+        try {
+          const token = await fbUser.getIdToken()
+          setSessionCookie(token)
+          const res = await fetch('/api/auth/me', {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+
+          if (res.ok) {
+            const json = await res.json()
+            const userData = json.data?.data ?? json.data
+            if (userData) {
+              updateGlobalCachedUser(userData)
+              return userData as User
+            }
+          }
+          throw new Error(`Server returned ${res.status}`)
+        } finally {
+          inFlightMePromise = null
+        }
+      })()
+
+      try {
+        const userData = await inFlightMePromise
+        if (isMounted && userData) {
+          setUser(userData)
+          setLastSynced(Date.now())
+          setLoading(false)
+
+          if (userData.status === 'SUSPENDED' || userData.status === 'REJECTED') {
+            setSessionCookie(null)
+            router.push('/pending-approval')
           }
         }
-
-        throw new Error(`Server returned ${res.status}`)
       } catch (err) {
         console.error('[useAuth] Failed to sync user from /api/auth/me:', err)
         if (isMounted) {
           setError(err instanceof Error ? err.message : 'Failed to load user data')
-        }
-      } finally {
-        if (isMounted) {
           setLoading(false)
         }
       }
     }
 
     const clearAuthState = () => {
+      updateGlobalCachedUser(null)
       setFirebaseUser(null)
       setUser(null)
       setLoading(false)
@@ -164,18 +221,24 @@ export function useAuth() {
 
     const handleCreditsUpdate = (e: Event) => {
       const customEvent = e as CustomEvent<{ creditsRemaining?: number }>
-      if (typeof customEvent.detail?.creditsRemaining === 'number' && isMounted) {
-        setUser((prev) => {
-          if (!prev) return prev
-          const prevAccount = prev.creditAccount || { subscriptionBalance: 0, bonusBalance: 0, rolloverBalance: 0, total: 0 }
-          return {
-            ...prev,
+      if (typeof customEvent.detail?.creditsRemaining === 'number') {
+        const remaining = customEvent.detail.creditsRemaining
+        if (globalCachedUser) {
+          const prevAccount = globalCachedUser.creditAccount || {
+            subscriptionBalance: 0,
+            bonusBalance: 0,
+            rolloverBalance: 0,
+            total: 0,
+          }
+          const updated: User = {
+            ...globalCachedUser,
             creditAccount: {
               ...prevAccount,
-              total: customEvent.detail.creditsRemaining!,
+              total: remaining,
             },
           }
-        })
+          updateGlobalCachedUser(updated)
+        }
       }
     }
     window.addEventListener('credits-updated', handleCreditsUpdate)
@@ -192,6 +255,8 @@ export function useAuth() {
 
   const handleLogout = useCallback(async (redirectPath: string = '/login') => {
     // 1. Immediately wipe React in-memory state synchronously
+    updateGlobalCachedUser(null)
+    inFlightMePromise = null
     setUser(null)
     setFirebaseUser(null)
     fbUserRef.current = null

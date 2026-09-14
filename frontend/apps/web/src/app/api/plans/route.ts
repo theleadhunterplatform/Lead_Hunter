@@ -4,7 +4,22 @@ import { DEFAULT_PLANS, DEFAULT_REFILL_PACKS } from '@/app/api/admin/plans/route
 
 export const dynamic = 'force-dynamic'
 
+let cachedPlansData: any = null
+let cachedPlansExpiresAt = 0
+const MEMORY_CACHE_TTL_MS = 60_000
+
 export async function GET() {
+  const now = Date.now()
+  if (cachedPlansData && now < cachedPlansExpiresAt) {
+    return NextResponse.json(cachedPlansData, {
+      status: 200,
+      headers: {
+        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+        'X-Cache': 'HIT',
+      },
+    })
+  }
+
   try {
     const [plansSetting, refillSetting] = await Promise.all([
       db.setting.findUnique({ where: { key: 'plans_config' } }),
@@ -18,11 +33,20 @@ export async function GET() {
     const plans = rawPlans.filter((p: any) => p.isActive !== false)
     const refillPacks = rawRefillPacks.filter((p: any) => p.isActive !== false)
 
-    return NextResponse.json({
+    cachedPlansData = {
       success: true,
       data: {
         plans,
         refillPacks,
+      },
+    }
+    cachedPlansExpiresAt = now + MEMORY_CACHE_TTL_MS
+
+    return NextResponse.json(cachedPlansData, {
+      status: 200,
+      headers: {
+        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+        'X-Cache': 'MISS',
       },
     })
   } catch (error: unknown) {

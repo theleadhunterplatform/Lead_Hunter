@@ -180,7 +180,14 @@ export function hasCompletedOnboarding(user: OnboardingFields): boolean {
  * Use on routes that expose lead/app data (feed, reveal, outreach, dashboard, sheets).
  */
 export async function requireFullyAuthorized(request: Request): Promise<AuthUser> {
-  const user = await requireActiveUser(request)
+  const user = await getAuthUser(request)
+  if (!user) {
+    throw new AuthRequiredError()
+  }
+
+  if (user.emailVerified !== true) {
+    throw new EmailNotVerifiedError()
+  }
 
   const dbUser = await db.user.findUnique({
     where: { id: user.uid },
@@ -198,10 +205,14 @@ export async function requireFullyAuthorized(request: Request): Promise<AuthUser
     },
   })
 
-  // Admins bypass onboarding requirement
-  if (dbUser?.role === 'admin') return user
+  if (!dbUser || dbUser.status !== 'ACTIVE') {
+    throw new InactiveUserError()
+  }
 
-  if (!dbUser || !hasCompletedOnboarding(dbUser)) {
+  // Admins bypass onboarding requirement
+  if (dbUser.role === 'admin') return user
+
+  if (!hasCompletedOnboarding(dbUser)) {
     throw new OnboardingRequiredError()
   }
 
