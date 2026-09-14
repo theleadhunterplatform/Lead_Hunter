@@ -14,12 +14,14 @@ import {
   Cog6ToothIcon,
   ArrowLeftStartOnRectangleIcon,
   LifebuoyIcon,
+  GiftIcon,
 } from '@heroicons/react/24/solid'
 
 const navItems = [
   { name: 'Lead Feed', href: '/leads', icon: BanknotesIcon },
   { name: 'Saved Leads', href: '/saved', icon: BookmarkIcon },
   { name: 'Dashboard', href: '/dashboard', icon: Squares2X2Icon },
+  { name: 'Refer & Earn', href: '/referrals', icon: GiftIcon },
   { name: 'Support', href: '/support', icon: LifebuoyIcon },
 ]
 

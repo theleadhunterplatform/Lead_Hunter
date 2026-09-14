@@ -48,7 +48,25 @@ export default function RegisterPage() {
   const [phoneLoading, setPhoneLoading] = useState(false)
   const [emailVerified, setEmailVerified] = useState(!!auth.currentUser?.emailVerified)
   const [resending, setResending] = useState(false)
+  const [referralCode, setReferralCode] = useState<string | null>(null)
+  const [showReferralInput, setShowReferralInput] = useState(false)
   const verifierRef = useRef<RecaptchaVerifier | null>(null)
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    try {
+      const params = new URLSearchParams(window.location.search)
+      const refFromUrl = params.get('ref')
+      if (refFromUrl) {
+        const clean = refFromUrl.trim().toUpperCase()
+        setReferralCode(clean)
+        localStorage.setItem('lh_ref_code', clean)
+      } else {
+        const cached = localStorage.getItem('lh_ref_code')
+        if (cached) setReferralCode(cached.trim().toUpperCase())
+      }
+    } catch {}
+  }, [])
 
   useEffect(() => {
     const check = setInterval(async () => {
@@ -213,14 +231,20 @@ export default function RegisterPage() {
       try {
         const token = await userCredential.user?.getIdToken().catch(() => null)
         if (token) {
+          const codeToSend = (formData.get('referralCode') as string)?.trim() || referralCode || undefined
           await fetch('/api/auth/me', {
             method: 'PATCH',
             headers: {
               'Content-Type': 'application/json',
               Authorization: `Bearer ${token}`,
             },
-            body: JSON.stringify({ name, city }),
+            body: JSON.stringify({ name, city, referralCode: codeToSend }),
           }).catch(() => {})
+          if (referralCode) {
+            try {
+              localStorage.removeItem('lh_ref_code')
+            } catch {}
+          }
         }
       } catch {
         // Continue if profile sync fails
@@ -294,6 +318,34 @@ export default function RegisterPage() {
         </div>
 
         <div className="bg-surface/40 backdrop-blur-xl border border-white/[0.06] rounded-3xl shadow-elevation-4 w-full p-8">
+          {referralCode && !auth.currentUser && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="mb-5 px-3.5 py-2.5 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-between text-xs text-primary"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-base">🎁</span>
+                <span>
+                  Referral code <strong>{referralCode}</strong> applied! You&apos;ll get <strong>+5 bonus credits</strong> on signup.
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setReferralCode(null)
+                  try {
+                    localStorage.removeItem('lh_ref_code')
+                  } catch {}
+                }}
+                className="text-white/40 hover:text-white/80 transition-colors ml-2 font-mono"
+                title="Remove referral code"
+              >
+                ✕
+              </button>
+            </motion.div>
+          )}
+
           {auth.currentUser && !emailVerified && (
             <div className="mb-5 p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
               <div className="flex items-start gap-3">
@@ -525,6 +577,32 @@ export default function RegisterPage() {
                   minLength={6}
                 />
               </div>
+
+              {!referralCode && (
+                <div>
+                  {!showReferralInput ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowReferralInput(true)}
+                      className="text-xs text-text-secondary/60 hover:text-primary transition-colors flex items-center gap-1.5 py-0.5"
+                    >
+                      <span>🎁</span> Have a referral code?
+                    </button>
+                  ) : (
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
+                        Referral Code (Optional)
+                      </label>
+                      <input
+                        name="referralCode"
+                        type="text"
+                        placeholder="e.g. LH9K4M2P"
+                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3 uppercase text-sm tracking-wider font-mono"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
 
               <button
                 type="submit"

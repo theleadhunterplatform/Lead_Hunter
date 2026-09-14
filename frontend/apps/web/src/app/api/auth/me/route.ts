@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { getAuthUser } from '@/lib/auth'
 import { rateLimitByKey } from '@/lib/rate-limit'
 import { getPlanCredits } from '@/lib/config/plans'
+import { referralService } from '@/lib/services/referral'
 
 export const dynamic = 'force-dynamic'
 
@@ -265,7 +266,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json().catch(() => ({}))
-    const { name, city } = body
+    const { name, city, referralCode } = body
 
     const updateData: any = {}
     if (typeof name === 'string' && name.trim()) {
@@ -295,6 +296,17 @@ export async function PATCH(request: NextRequest) {
         },
       },
     })
+
+    if (typeof referralCode === 'string' && referralCode.trim()) {
+      try {
+        await referralService.attributeReferral({
+          referredUserId: authUser.uid,
+          referralCode: referralCode.trim(),
+        })
+      } catch (refErr) {
+        console.warn('[Auth Me PATCH] Failed to attribute referral:', refErr)
+      }
+    }
 
     return NextResponse.json({
       data: {

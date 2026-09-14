@@ -47,11 +47,30 @@ model User {
   updatedAt              DateTime  @updatedAt
 
   googleSheetId          String?
+  referralCode           String?   @unique
+  referredById           String?
   creditAccount          CreditAccount?
   leadStates             UserLeadState[]
   auditLogs              AuditLog[]
   adminNotes             AdminNote[]
   supportTickets         SupportTicket[]
+  referralsGiven         Referral[] @relation("ReferralsGiven")
+  referralReceived       Referral?  @relation("ReferralReceived")
+}
+
+model Referral {
+  id             String    @id @default(uuid())
+  referrerId     String
+  referredUserId String    @unique
+  code           String
+  creditsAwarded Int       @default(10)
+  status         String    @default("COMPLETED")
+  createdAt      DateTime  @default(now())
+
+  referrer       User      @relation("ReferralsGiven", fields: [referrerId], references: [id], onDelete: Cascade)
+  referredUser   User      @relation("ReferralReceived", fields: [referredUserId], references: [id], onDelete: Cascade)
+
+  @@map("referrals")
 }
 
 model CreditAccount {
