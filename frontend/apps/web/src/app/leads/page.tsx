@@ -336,7 +336,12 @@ export default function LeadsPage() {
     return result
   }, [leadsList, activeNiche, userServices, searchQuery, selectedTags, sortBy])
 
-  const selectedLead = leadsList.find((l) => l.id === selectedLeadId)
+  // Close the detail drawer whenever niche, search query, or tag filters change
+  useEffect(() => {
+    setSelectedLeadId(null)
+  }, [activeNiche, searchQuery, selectedTags])
+
+  const selectedLead = filteredLeads.find((l) => l.id === selectedLeadId)
 
   return (
     <main
