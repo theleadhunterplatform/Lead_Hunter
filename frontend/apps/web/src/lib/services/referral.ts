@@ -108,6 +108,34 @@ export const referralService = {
 
     // 4. In a transaction, record the referral and award bonuses
     return await db.$transaction(async (tx) => {
+      // Ensure both accounts have a credit account record initialized
+      const [refAccount, newUserAccount] = await Promise.all([
+        tx.creditAccount.findUnique({ where: { userId: referrer.id } }),
+        tx.creditAccount.findUnique({ where: { userId: referredUserId } }),
+      ])
+
+      if (!refAccount) {
+        await tx.creditAccount.create({
+          data: {
+            userId: referrer.id,
+            subscriptionBalance: 50,
+            bonusBalance: 0,
+            renewalDate: new Date(Date.now() + 30 * 86400000),
+          },
+        })
+      }
+
+      if (!newUserAccount) {
+        await tx.creditAccount.create({
+          data: {
+            userId: referredUserId,
+            subscriptionBalance: 50,
+            bonusBalance: 0,
+            renewalDate: new Date(Date.now() + 30 * 86400000),
+          },
+        })
+      }
+
       // Create referral record
       await tx.referral.create({
         data: {
@@ -125,18 +153,24 @@ export const referralService = {
         data: { referredById: referrer.id },
       })
 
-      // Award bonus credits to referrer (+10)
-      await creditService.grantBonus(
+      // Award bonus credits to referrer (+10) within the transaction
+      await creditService.grantInTx(
+        tx,
         referrer.id,
         REFERRER_BONUS_CREDITS,
         `Referral reward: invited user ${referredUserId.slice(0, 8)}`,
+        referrer.id,
+        'bonus',
       )
 
-      // Award welcome bonus credits to the referred user (+5)
-      await creditService.grantBonus(
+      // Award welcome bonus credits to the referred user (+5) within the transaction
+      await creditService.grantInTx(
+        tx,
         referredUserId,
         REFERRED_WELCOME_BONUS_CREDITS,
         `Welcome referral bonus using code ${normalizedCode}`,
+        referredUserId,
+        'bonus',
       )
 
       return {
