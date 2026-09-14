@@ -70,21 +70,36 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     return () => window.removeEventListener('show-upgrade-nudge', handler)
   }, [])
 
-  // Check for 1-time targeted popup notification whenever user lands on /dashboard
+  // Check for 1-time targeted popup notification whenever user is active in the app
   useEffect(() => {
-    if (loading || !user || pathname !== '/dashboard') return
+    if (loading || !user) return
+
+    const isExcludedRoute =
+      pathname === '/verify-email' ||
+      authRoutes.some((r) => pathname.startsWith(r)) ||
+      onboardingRoutes.some((r) => pathname.startsWith(r)) ||
+      adminRoutes.some((r) => pathname.startsWith(r))
+
+    if (isExcludedRoute) return
 
     let isSubscribed = true
 
     const checkPopupNudge = async () => {
       try {
-        const token = await getFirebaseToken()
+        let token = (await firebaseUser?.getIdToken()) || (await getFirebaseToken())
+        if (!token) {
+          // Allow brief Firebase auth token hydration
+          await new Promise((r) => setTimeout(r, 800))
+          token = (await firebaseUser?.getIdToken()) || (await getFirebaseToken())
+        }
         if (!token || !isSubscribed) return
+
         const res = await fetch('/api/notifications/popup-status', {
           headers: { Authorization: `Bearer ${token}` },
         })
         if (!res.ok) return
         const data = await res.json()
+        console.log('[LeadHunter Popup] Checked nudge status:', data)
         if (data.show && data.variant && isSubscribed) {
           setNudgeVariant(data.variant)
           setNudgeMeta({
@@ -112,7 +127,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
       isSubscribed = false
       clearInterval(interval)
     }
-  }, [user, loading, pathname])
+  }, [user, loading, firebaseUser, pathname])
 
   useEffect(() => {
     if (loading || error || !user) return

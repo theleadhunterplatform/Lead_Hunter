@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import {
-  requireActiveUser,
+  requireAuth,
   AuthRequiredError,
   ForbiddenError,
   InactiveUserError,
@@ -18,7 +18,7 @@ const VALID_VARIANTS = ['upgrade', 'renewal', 'low-credits', 'out-of-credits']
 
 export async function GET(request: NextRequest) {
   try {
-    const authUser = await requireActiveUser(request)
+    const authUser = await requireAuth(request)
     const userId = authUser.uid
 
     const user = await db.user.findUnique({
@@ -26,8 +26,8 @@ export async function GET(request: NextRequest) {
       include: { creditAccount: true },
     })
 
-    if (!user) {
-      return NextResponse.json({ show: false, message: 'User not found' }, { status: 200 })
+    if (!user || user.status !== 'ACTIVE') {
+      return NextResponse.json({ show: false, message: 'User not active or eligible' }, { status: 200 })
     }
 
     // Check which popups have already been shown and dismissed by this user
@@ -41,7 +41,16 @@ export async function GET(request: NextRequest) {
     })
     const dismissedVariants = new Set(dismissedLogs.map((l) => l.targetId))
 
-    const balance = await creditService.getBalances(userId)
+    let balance = { total: 0, subscription: 0, bonus: 0, rollover: 0 }
+    try {
+      balance = await creditService.getBalances(userId)
+    } catch (e) {
+      console.error('[Popup Status API] Error getting balance, falling back to creditAccount:', e)
+      const sub = user.creditAccount?.subscriptionBalance ?? 0
+      const bonus = user.creditAccount?.bonusBalance ?? 0
+      balance = { total: sub + bonus, subscription: sub, bonus, rollover: 0 }
+    }
+
     const plan = user.plan?.toUpperCase() || 'FREE'
     const planMax = getPlanCredits(plan)
     const renewalDate = user.creditAccount?.renewalDate || user.razorpayCurrentPeriodEnd
@@ -119,7 +128,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const authUser = await requireActiveUser(request)
+    const authUser = await requireAuth(request)
     const userId = authUser.uid
 
     const body = await request.json().catch(() => ({}))
