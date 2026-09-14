@@ -183,6 +183,42 @@ function dbLeadToAppLead(
   }
 }
 
+const LEAD_POST_SELECT = {
+  id: true,
+  post_id: true,
+  url: true,
+  content: true,
+  platform: true,
+  author: true,
+  posted_at: true,
+  engagement: true,
+  keyword: true,
+  keyword_id: true,
+  status: true,
+  source: true,
+  image_url: true,
+  ai_score: true,
+  is_training_data: true,
+  is_deleted: true,
+  email: true,
+  contact_info: true,
+  source_type: true,
+  source_profile: true,
+  qualification_reason: true,
+  enrichment_status: true,
+  enrichment_message: true,
+  enriched_at: true,
+  intelligence: true,
+  title: true,
+  niche: true,
+  review_status: true,
+  reviewed_at: true,
+  reviewed_by_id: true,
+  claimed_count: true,
+  created_at: true,
+  updated_at: true,
+} as const
+
 export async function GET(request: NextRequest) {
   try {
     const authUser = await requireFullyAuthorized(request)
@@ -204,11 +240,11 @@ export async function GET(request: NextRequest) {
         where: isSavedView
           ? { userId, OR: [{ isSaved: true }, { isRevealed: true }, { status: 'saved' }] }
           : { userId, status: { in: ['drafting', 'sent', 'replied', 'follow-up'] } },
-        include: { lead: true },
+        include: { lead: { select: LEAD_POST_SELECT } },
       })
       data = userStates
         .filter((s) => s.lead && !s.lead.is_deleted)
-        .map((s) => externalPostToAppLead(mapLeadPostToExternal(s.lead), s))
+        .map((s) => externalPostToAppLead(mapLeadPostToExternal(s.lead as any), s))
     } else {
       let externalLeads: ExternalPost[] = []
       try {
@@ -225,6 +261,7 @@ export async function GET(request: NextRequest) {
         const [rawLeads, total] = await Promise.all([
           oracleDb.leadPost.findMany({
             where,
+            select: LEAD_POST_SELECT,
             orderBy: { created_at: 'desc' },
             skip: (page - 1) * pageSize,
             take: pageSize,

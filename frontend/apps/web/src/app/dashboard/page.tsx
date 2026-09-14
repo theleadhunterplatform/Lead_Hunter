@@ -61,45 +61,6 @@ export default function DashboardPage() {
 
   useEffect(() => {
     load()
-
-    // Check for 1-time targeted popup notification on the dashboard
-    const checkPopupNudge = async () => {
-      try {
-        const token = await getFirebaseToken()
-        if (!token) return
-        const res = await fetch('/api/notifications/popup-status', {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        if (!res.ok) return
-        const data = await res.json()
-        if (data.show && data.variant) {
-          window.dispatchEvent(
-            new CustomEvent('show-upgrade-nudge', {
-              detail: {
-                variant: data.variant,
-                plan: data.plan,
-                creditsRemaining: data.creditsRemaining,
-                planMax: data.planMax,
-                renewalDate: data.renewalDate,
-              },
-            }),
-          )
-        }
-      } catch (err) {
-        console.warn('[Dashboard] Popup status check failed:', err)
-      }
-    }
-
-    checkPopupNudge()
-
-    // Liveness poll every 45s so active users on dashboard receive newly triggered popups
-    const interval = setInterval(() => {
-      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
-        checkPopupNudge()
-      }
-    }, 45_000)
-
-    return () => clearInterval(interval)
   }, [])
 
   if (loading) {

@@ -70,21 +70,18 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     return () => window.removeEventListener('show-upgrade-nudge', handler)
   }, [])
 
-  // Check for 1-time targeted popup notification whenever user is active in the app
+  // Check for 1-time targeted popup notification when user logs in or credits update
   useEffect(() => {
     if (loading || !user) return
 
-    const isExcludedRoute =
-      pathname === '/verify-email' ||
-      authRoutes.some((r) => pathname.startsWith(r)) ||
-      onboardingRoutes.some((r) => pathname.startsWith(r)) ||
-      adminRoutes.some((r) => pathname.startsWith(r))
-
-    if (isExcludedRoute) return
-
     let isSubscribed = true
+    let lastCheckedAt = 0
 
     const checkPopupNudge = async () => {
+      const now = Date.now()
+      if (now - lastCheckedAt < 30_000) return
+      lastCheckedAt = now
+
       try {
         let token = (await firebaseUser?.getIdToken()) || (await getFirebaseToken())
         if (!token) {
@@ -99,7 +96,6 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         })
         if (!res.ok) return
         const data = await res.json()
-        console.log('[LeadHunter Popup] Checked nudge status:', data)
         if (data.show && data.variant && isSubscribed) {
           setNudgeVariant(data.variant)
           setNudgeMeta({
@@ -117,17 +113,24 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
 
     checkPopupNudge()
 
+    const handleCredits = () => {
+      lastCheckedAt = 0
+      checkPopupNudge()
+    }
+    window.addEventListener('credits-updated', handleCredits)
+
     const interval = setInterval(() => {
       if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
         checkPopupNudge()
       }
-    }, 30_000)
+    }, 5 * 60_000) // Poll every 5 minutes instead of 30 seconds
 
     return () => {
       isSubscribed = false
+      window.removeEventListener('credits-updated', handleCredits)
       clearInterval(interval)
     }
-  }, [user, loading, firebaseUser, pathname])
+  }, [user?.id, loading, firebaseUser])
 
   useEffect(() => {
     if (loading || error || !user) return

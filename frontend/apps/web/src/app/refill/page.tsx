@@ -24,13 +24,19 @@ interface RefillPack {
   isActive?: boolean
 }
 
+const DEFAULT_REFILL_PACKS: RefillPack[] = [
+  { id: 'topup_10', tokens: 10, price: 99, label: '10 Credits' },
+  { id: 'topup_50', tokens: 50, price: 399, label: '50 Credits (Popular)' },
+  { id: 'topup_100', tokens: 100, price: 699, label: '100 Credits (Best Value)' },
+]
+
 export default function RefillPage() {
   const router = useRouter()
   const { user, loading: authLoading, getToken } = useAuth()
   const { addToast } = useToast()
 
-  const [packs, setPacks] = useState<RefillPack[]>([])
-  const [loading, setLoading] = useState(true)
+  const [packs, setPacks] = useState<RefillPack[]>(DEFAULT_REFILL_PACKS)
+  const [loading, setLoading] = useState(false)
   const [processingPack, setProcessingPack] = useState<string | null>(null)
 
   useEffect(() => {
@@ -45,12 +51,7 @@ export default function RefillPage() {
         setPacks(json.data.refillPacks)
       }
     } catch {
-      // Fallback packs
-      setPacks([
-        { id: 'topup_10', tokens: 10, price: 99, label: '10 Credits' },
-        { id: 'topup_50', tokens: 50, price: 399, label: '50 Credits (Popular)' },
-        { id: 'topup_100', tokens: 100, price: 699, label: '100 Credits (Best Value)' },
-      ])
+      setPacks(DEFAULT_REFILL_PACKS)
     } finally {
       setLoading(false)
     }

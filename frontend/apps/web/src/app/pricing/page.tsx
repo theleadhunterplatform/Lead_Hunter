@@ -24,13 +24,57 @@ interface PlanConfig {
   isActive?: boolean
 }
 
+const DEFAULT_PLANS: PlanConfig[] = [
+  {
+    id: 'FREE',
+    name: 'Free Starter',
+    credits: 50,
+    price: 0,
+    description: 'Explore verified leads with 50 monthly credits',
+    features: [
+      '50 credits renewed monthly',
+      'Full verified contact data reveal',
+      'AI Strategic Intelligence breakdown',
+      'Community Support',
+    ],
+  },
+  {
+    id: 'FREELANCER',
+    name: 'Freelancer Pro',
+    credits: 500,
+    price: 999,
+    description: 'Consistent lead pipeline for active independent contractors',
+    features: [
+      '500 credits renewed monthly',
+      'Unused credits rollover (up to 30 days)',
+      'Priority lead delivery & email reveals',
+      'Deep AI strategic intelligence report',
+      'Google Sheets export integration',
+    ],
+  },
+  {
+    id: 'AGENCY',
+    name: 'Agency Scale',
+    credits: 1000,
+    price: 2499,
+    description: 'Maximum velocity for high-growth agencies and teams',
+    features: [
+      '1,000 credits renewed monthly',
+      'Full 30-day rollover support',
+      'Automated CRM sync',
+      'VIP priority support channel',
+      'Multi-seat ready',
+    ],
+  },
+]
+
 export default function PricingPage() {
   const router = useRouter()
   const { user, loading: authLoading, getToken } = useAuth()
   const { addToast } = useToast()
 
-  const [plans, setPlans] = useState<PlanConfig[]>([])
-  const [loading, setLoading] = useState(true)
+  const [plans, setPlans] = useState<PlanConfig[]>(DEFAULT_PLANS)
+  const [loading, setLoading] = useState(false)
   const [subscribingPlan, setSubscribingPlan] = useState<string | null>(null)
 
   useEffect(() => {
@@ -45,49 +89,7 @@ export default function PricingPage() {
         setPlans(json.data.plans)
       }
     } catch {
-      setPlans([
-        {
-          id: 'FREE',
-          name: 'Free Starter',
-          credits: 50,
-          price: 0,
-          description: 'Explore verified leads with 50 monthly credits',
-          features: [
-            '50 credits renewed monthly',
-            'Full verified contact data reveal',
-            'AI Strategic Intelligence breakdown',
-            'Community Support',
-          ],
-        },
-        {
-          id: 'FREELANCER',
-          name: 'Freelancer Pro',
-          credits: 500,
-          price: 999,
-          description: 'Consistent lead pipeline for active independent contractors',
-          features: [
-            '500 credits renewed monthly',
-            'Unused credits rollover (up to 30 days)',
-            'Priority lead delivery & email reveals',
-            'Deep AI strategic intelligence report',
-            'Google Sheets export integration',
-          ],
-        },
-        {
-          id: 'AGENCY',
-          name: 'Agency Scale',
-          credits: 1000,
-          price: 2499,
-          description: 'Maximum velocity for high-growth agencies and teams',
-          features: [
-            '1,000 credits renewed monthly',
-            'Full 30-day rollover support',
-            'Automated CRM sync',
-            'VIP priority support channel',
-            'Multi-seat ready',
-          ],
-        },
-      ])
+      setPlans(DEFAULT_PLANS)
     } finally {
       setLoading(false)
     }

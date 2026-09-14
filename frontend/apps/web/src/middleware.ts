@@ -89,6 +89,16 @@ export default async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next|[^?]*\\.(?:html|css|js|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
+    '/dashboard/:path*',
+    '/leads/:path*',
+    '/outreach/:path*',
+    '/saved/:path*',
+    '/analytics/:path*',
+    '/settings/:path*',
+    '/support/:path*',
+    '/admin/:path*',
+    '/onboarding',
+    '/verify-email',
+    '/pending-approval',
   ],
 }

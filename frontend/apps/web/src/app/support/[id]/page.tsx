@@ -15,6 +15,7 @@ import {
 import { Badge, Button, CustomLoader } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
 import { getFirebaseToken } from '@/lib/firebase'
+import { useAuth } from '@/hooks/useAuth'
 
 interface Message {
   id: string
@@ -39,20 +40,21 @@ interface TicketDetail {
 const statusColor: Record<string, 'mint' | 'purple'> = {
   OPEN: 'mint',
   IN_PROGRESS: 'purple',
-  RESOLVED: 'purple',
+  WAITING_ON_USER: 'purple',
+  RESOLVED: 'mint',
   CLOSED: 'purple',
 }
 
-export default function SupportThreadPage() {
-  const params = useParams<{ id: string }>()
-  const ticketId = params.id
+export default function TicketDetailPage() {
+  const { id: ticketId } = useParams<{ id: string }>()
   const router = useRouter()
+  const { user } = useAuth()
   const { addToast } = useToast()
   const [ticket, setTicket] = useState<TicketDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [reply, setReply] = useState('')
   const [sending, setSending] = useState(false)
-  const [adminName, setAdminName] = useState('Support Team')
+  const adminName = user?.name || 'Support Team'
 
   useEffect(() => {
     const load = async () => {
@@ -64,11 +66,6 @@ export default function SupportThreadPage() {
         const json = await res.json()
         if (json.data) {
           setTicket(json.data)
-          const me = await fetch('/api/auth/me', {
-            headers: token ? { Authorization: `Bearer ${token}` } : {},
-          })
-          const meJson = await me.json()
-          if (meJson.data?.name) setAdminName(meJson.data.name)
         } else {
           addToast({ type: 'error', message: json.message || 'Ticket not found' })
         }
