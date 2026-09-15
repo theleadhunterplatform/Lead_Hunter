@@ -782,3 +782,31 @@ export async function scrapeAllTargets(): Promise<{ success: boolean; message: s
     body: JSON.stringify({}),
   })
 }
+
+export async function triggerKeywordScrape(
+  keywordId: string
+): Promise<{ success: boolean; message: string; data?: { keywordId: string; platforms: string[] } }> {
+  return fetchApi<{ success: boolean; message: string; data?: { keywordId: string; platforms: string[] } }>(
+    `/scrapers/keyword/${keywordId}`,
+    {
+      method: 'POST',
+      body: JSON.stringify({}),
+    }
+  )
+}
+
+export async function triggerAllScrapers(): Promise<{
+  success: boolean
+  message: string
+  data?: { totalJobs: number; platforms: Array<{ platform: string; keywords: number }> }
+}> {
+  return fetchApi<{
+    success: boolean
+    message: string
+    data?: { totalJobs: number; platforms: Array<{ platform: string; keywords: number }> }
+  }>(`/scrapers/all`, {
+    method: 'POST',
+    body: JSON.stringify({}),
+  })
+}
+

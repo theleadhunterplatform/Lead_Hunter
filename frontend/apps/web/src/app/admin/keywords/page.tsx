@@ -1,13 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { getFirebaseToken } from '@/lib/firebase'
 import {
   PlusIcon, TrashIcon, MagnifyingGlassIcon, PencilSquareIcon,
-  CheckIcon, XMarkIcon,
+  CheckIcon, XMarkIcon, PlayIcon, ArrowPathIcon,
 } from '@heroicons/react/24/solid'
 import { CustomLoader } from '@/components/ui/CustomLoader'
-
+import { useToast } from '@/components/ui/Toast'
 
 interface Keyword {
   _id: string
@@ -32,8 +32,13 @@ export default function AdminKeywordsPage() {
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [bulkPlatforms, setBulkPlatforms] = useState<string[]>(['linkedin'])
   const [search, setSearch] = useState('')
+  const [scrapingId, setScrapingId] = useState<string | null>(null)
+  const [isScrapingAll, setIsScrapingAll] = useState(false)
+  const [autoScrapeEnabled, setAutoScrapeEnabled] = useState<boolean | null>(null)
+  const [togglingAuto, setTogglingAuto] = useState(false)
+  const { addToast } = useToast()
 
-  const fetchKeywords = async () => {
+  const fetchKeywords = useCallback(async () => {
     const token = await getFirebaseToken()
     if (!token) return
     try {
@@ -44,9 +49,102 @@ export default function AdminKeywordsPage() {
       setKeywords(json.data || [])
     } catch (e) { console.error(e) }
     finally { setLoading(false) }
+  }, [])
+
+  const fetchAutoSettings = useCallback(async () => {
+    const token = await getFirebaseToken()
+    if (!token) return
+    try {
+      const res = await fetch('/api/admin/settings?service=automation', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const json = await res.json()
+      if (json?.data && typeof json.data.auto_scrape_enabled === 'boolean') {
+        setAutoScrapeEnabled(json.data.auto_scrape_enabled)
+      }
+    } catch (e) { console.error(e) }
+  }, [])
+
+  useEffect(() => {
+    fetchKeywords()
+    fetchAutoSettings()
+  }, [fetchKeywords, fetchAutoSettings])
+
+  const toggleAutoScrape = async () => {
+    if (autoScrapeEnabled === null) return
+    const nextVal = !autoScrapeEnabled
+    setTogglingAuto(true)
+    const token = await getFirebaseToken()
+    try {
+      const res = await fetch('/api/admin/settings?service=automation', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ auto_scrape_enabled: nextVal }),
+      })
+      if (res.ok) {
+        setAutoScrapeEnabled(nextVal)
+        addToast({
+          type: 'success',
+          message: nextVal ? 'Auto-scrape activated (runs every 30m)' : 'Auto-scrape paused',
+        })
+      } else {
+        throw new Error('Failed to toggle auto-scrape')
+      }
+    } catch (e) {
+      addToast({ type: 'error', message: e instanceof Error ? e.message : 'Error updating setting' })
+    } finally {
+      setTogglingAuto(false)
+    }
   }
 
-  useEffect(() => { fetchKeywords() }, [])
+  const handleScrapeSingle = async (id: string, text: string) => {
+    setScrapingId(id)
+    const token = await getFirebaseToken()
+    try {
+      const res = await fetch(`/api/admin/keywords/${id}/scrape`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const json = await res.json()
+      if (res.ok && json.success !== false) {
+        addToast({
+          type: 'success',
+          message: json.message || `Scrape queued for "${text}"`,
+        })
+      } else {
+        throw new Error(json.message || 'Scrape request failed')
+      }
+    } catch (e) {
+      addToast({ type: 'error', message: e instanceof Error ? e.message : 'Failed to trigger scrape' })
+    } finally {
+      setScrapingId(null)
+    }
+  }
+
+  const handleScrapeAll = async () => {
+    setIsScrapingAll(true)
+    const token = await getFirebaseToken()
+    try {
+      const res = await fetch('/api/admin/keywords/scrape-all', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const json = await res.json()
+      if (res.ok && json.success !== false) {
+        addToast({
+          type: 'success',
+          message: json.message || 'Scraping started for all active keywords',
+        })
+      } else {
+        throw new Error(json.message || 'Failed to trigger all scrapers')
+      }
+    } catch (e) {
+      addToast({ type: 'error', message: e instanceof Error ? e.message : 'Scrape all failed' })
+    } finally {
+      setIsScrapingAll(false)
+    }
+  }
+
 
   const addKeyword = async () => {
     if (!newKeyword.trim()) return
@@ -128,14 +226,48 @@ export default function AdminKeywordsPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="text-2xl font-bold text-text-primary tracking-tight">Search Keywords</h1>
-          <p className="text-sm text-text-secondary mt-1">Manage keywords for social media lead discovery</p>
+          <div className="flex flex-wrap items-center gap-2.5 mt-1.5">
+            <p className="text-sm text-text-secondary">Manage keywords for social media lead discovery</p>
+            {autoScrapeEnabled !== null && (
+              <>
+                <span className="text-text-secondary/30">•</span>
+                <button
+                  onClick={toggleAutoScrape}
+                  disabled={togglingAuto}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium transition-all ${
+                    autoScrapeEnabled
+                      ? 'bg-green-500/10 text-green-400 border border-green-500/20 hover:bg-green-500/20'
+                      : 'bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20'
+                  }`}
+                  title="Click to toggle periodic 30-minute auto-scraping"
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${autoScrapeEnabled ? 'bg-green-400 animate-pulse' : 'bg-amber-400'}`} />
+                  {autoScrapeEnabled ? 'Auto-Scrape: ON (every 30m)' : 'Auto-Scrape: PAUSED (Manual Only)'}
+                </button>
+              </>
+            )}
+          </div>
         </div>
-        <button onClick={() => setIsBulkAdd(!isBulkAdd)}
-          className="px-5 py-2.5 rounded-xl bg-accent-mint text-white text-sm font-medium hover:bg-accent-mint/90 transition-all"
-        >{isBulkAdd ? 'Single Add' : 'Bulk Add'}</button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleScrapeAll}
+            disabled={isScrapingAll || loading || keywords.filter(k => k.is_active).length === 0}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-accent-mint/30 bg-accent-mint/10 text-accent-mint text-sm font-medium hover:bg-accent-mint/20 transition-all disabled:opacity-40"
+            title="Trigger an immediate scrape across all active keywords and platforms"
+          >
+            <ArrowPathIcon className={`w-4 h-4 ${isScrapingAll ? 'animate-spin' : ''}`} />
+            <span>{isScrapingAll ? 'Queuing Scrapes...' : 'Scrape All Active'}</span>
+          </button>
+          <button
+            onClick={() => setIsBulkAdd(!isBulkAdd)}
+            className="px-5 py-2.5 rounded-xl bg-accent-mint text-white text-sm font-medium hover:bg-accent-mint/90 transition-all shadow-lg shadow-accent-mint/20"
+          >
+            {isBulkAdd ? 'Single Add' : 'Bulk Add'}
+          </button>
+        </div>
       </div>
 
       {isBulkAdd ? (
@@ -245,6 +377,18 @@ export default function AdminKeywordsPage() {
                         </>
                       ) : (
                         <>
+                          <button
+                            onClick={() => handleScrapeSingle(k._id || k.id, k.text)}
+                            disabled={scrapingId === (k._id || k.id) || !k.is_active}
+                            className="p-1.5 rounded-lg hover:bg-accent-mint/10 text-accent-mint transition-all disabled:opacity-30 disabled:hover:bg-transparent"
+                            title={k.is_active ? `Scrape "${k.text}" now on enabled platforms` : 'Activate keyword to scrape'}
+                          >
+                            {scrapingId === (k._id || k.id) ? (
+                              <ArrowPathIcon className="w-4 h-4 animate-spin text-accent-mint" />
+                            ) : (
+                              <PlayIcon className="w-4 h-4" />
+                            )}
+                          </button>
                           <button onClick={() => { setEditingId(k._id || k.id); setEditText(k.text); setEditPlatforms(k.platforms || []) }}
                             className="p-1.5 rounded-lg hover:bg-white/5 text-text-secondary transition-all">
                             <PencilSquareIcon className="w-4 h-4" />
