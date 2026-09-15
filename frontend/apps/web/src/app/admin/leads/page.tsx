@@ -84,6 +84,32 @@ interface EmailEntry {
   is_primary?: boolean
 }
 
+function formatScrapedTime(dateStr?: string | null): { relative: string; full: string } {
+  if (!dateStr) return { relative: 'Unknown', full: '' }
+  try {
+    const d = new Date(dateStr)
+    const diffMs = Date.now() - d.getTime()
+    const seconds = Math.max(0, Math.floor(diffMs / 1000))
+    let relative = 'Just now'
+    if (seconds < 60) relative = 'Just now'
+    else if (seconds < 3600) relative = `${Math.floor(seconds / 60)}m ago`
+    else if (seconds < 86400) relative = `${Math.floor(seconds / 3600)}h ago`
+    else if (seconds < 172800) relative = 'Yesterday'
+    else relative = `${Math.floor(seconds / 86400)}d ago`
+
+    const full = d.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+    return { relative, full }
+  } catch {
+    return { relative: 'Unknown', full: '' }
+  }
+}
+
 export default function AdminLeadsPage() {
   const [leads, setLeads] = useState<ExternalPost[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -1088,8 +1114,33 @@ export default function AdminLeadsPage() {
                           </div>
                         )}
                       </div>
-                      <div className="px-2 py-0.5 bg-surface-elevated border border-white/[0.08] text-zinc-400 text-[8px] font-black uppercase tracking-widest flex-shrink-0 rounded">
-                        KW: <span className="text-accent-mint">{lead.keyword}</span>
+                      <div className="flex items-center gap-2 flex-shrink-0 flex-wrap justify-end">
+                        {lead.created_at && (() => {
+                          const { relative, full } = formatScrapedTime(lead.created_at)
+                          return (
+                            <div
+                              className="px-2 py-0.5 bg-accent-mint/10 border border-accent-mint/30 text-accent-mint text-[8px] font-black uppercase tracking-wider flex items-center gap-1.5 rounded"
+                              title={`Scraped at: ${full}`}
+                            >
+                              <span className="w-1.5 h-1.5 rounded-full bg-accent-mint animate-pulse" />
+                              <span>Scraped {relative}</span>
+                              <span className="text-accent-mint/60 font-mono text-[8px] hidden md:inline">({full})</span>
+                            </div>
+                          )
+                        })()}
+
+                        {lead.posted_at?.postedAgoShort && (
+                          <div
+                            className="px-2 py-0.5 bg-surface-elevated border border-white/[0.08] text-zinc-400 text-[8px] font-black uppercase tracking-widest rounded"
+                            title={`Original Post Date: ${lead.posted_at.postedAgoText || lead.posted_at.postedAgoShort}`}
+                          >
+                            Posted: <span className="text-white">{lead.posted_at.postedAgoShort}</span>
+                          </div>
+                        )}
+
+                        <div className="px-2 py-0.5 bg-surface-elevated border border-white/[0.08] text-zinc-400 text-[8px] font-black uppercase tracking-widest flex-shrink-0 rounded">
+                          KW: <span className="text-accent-mint">{lead.keyword}</span>
+                        </div>
                       </div>
                     </div>
 
