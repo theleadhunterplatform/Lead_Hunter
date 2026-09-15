@@ -269,15 +269,6 @@ export default function LeadCard({
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0 ml-2">
-            {lead.scrapedAgo && (
-              <span
-                className="text-[9.5px] font-medium tracking-tight px-1.5 py-0.5 rounded-md bg-white/[0.05] border border-white/[0.08] text-accent-mint/90 flex items-center gap-1"
-                title={lead.scrapedAt ? `Scraped: ${new Date(lead.scrapedAt).toLocaleString()}` : undefined}
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-accent-mint animate-pulse" />
-                Scraped {lead.scrapedAgo}
-              </span>
-            )}
             {lead.timestamp && (
               <span
                 className={`text-[10px] font-medium tracking-tight opacity-50 ${theme.textMuted}`}
