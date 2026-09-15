@@ -72,7 +72,11 @@ export async function POST(request: NextRequest) {
 
       case 'train-ai': {
         const trainResult = await trainAiNow()
-        return NextResponse.json(trainResult)
+        return NextResponse.json({
+          success: true,
+          data: trainResult,
+          message: trainResult?.message || 'AI training complete.',
+        })
       }
 
       case 'bulk-title': {

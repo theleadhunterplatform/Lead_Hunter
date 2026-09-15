@@ -285,7 +285,8 @@ export function extractLeadIntent(content: string): LeadIntentAnalysis {
     const freelanceProjectBuyer = !isSellerPitch && hasFreelanceProjectBuyerContext(text);
 
     if (seeksContractorPartner || freelanceProjectBuyer) {
-        confidence = Math.max(confidence, freelanceProjectBuyer && !seeksContractorPartner ? 84 : 86);
+        // Dynamic base score for contractor/freelance buyer posts
+        confidence = Math.max(confidence, freelanceProjectBuyer && !seeksContractorPartner ? 76 : 78);
         if (!reasons.some((r) => r.includes('freelanc') || r.includes('agency') || r.includes('partner') || r.includes('buying'))) {
             reasons.push(
                 seeksContractorPartner
@@ -310,23 +311,74 @@ export function extractLeadIntent(content: string): LeadIntentAnalysis {
 
     // Precision: strong buying without employment → relevant
     if (serviceSignals >= 2 && jobSignals === 0) {
-        confidence = Math.max(confidence, 82);
+        confidence = Math.max(confidence, 78);
     } else if (serviceSignals >= 1 && jobSignals === 0 && nonLead.length === 0) {
         confidence = Math.max(confidence, 74);
     } else if ((seeksContractorPartner || freelanceProjectBuyer) && serviceSignals >= 1) {
-        confidence = Math.max(confidence, 84);
-    } else if (freelanceProjectBuyer && serviceSignals === 0) {
         confidence = Math.max(confidence, 80);
+    } else if (freelanceProjectBuyer && serviceSignals === 0) {
+        confidence = Math.max(confidence, 75);
     }
 
     // Mixed: employment + buying — contractor/agency/partner hires are relevant
     if (jobSignals >= 1 && serviceSignals >= 1) {
         if (seeksContractorPartner || freelanceProjectBuyer) {
-            confidence = Math.max(confidence, 82);
+            confidence = Math.max(confidence, 78);
             reasons.push('hiring hashtag present but buyer seeks freelancer, agency, or partner');
         } else {
             confidence = clamp(confidence, 38, 62);
             reasons.push('mixed employment and buying signals — needs manual review');
+        }
+    }
+
+    // --- Dynamic Score Modifiers for Relevant Buyer Posts ---
+    if ((seeksContractorPartner || freelanceProjectBuyer || serviceSignals >= 1) && !isSellerPitch && confidence >= 65) {
+        // 1. Budget & Compensation Clarity (+6% to +9%)
+        const hasExplicitBudget =
+            /(?:£|\$|€|₹|inr|usd|eur|gbp)\s*\d+[\d,.]*(?:\s*(?:k|per\s+(?:hour|hr|day|month|project)|\/hr|\/day|\/mo|p\/d|lakh))?/i.test(text) ||
+            /\b(?:budget|estimated\s+project\s+value|rate|remuneration|compensation)\s*[:=-]?\s*(?:£|\$|€|₹|\d+|competitive|negotiable|paid|fixed|\d+\s*lakh)/i.test(text) ||
+            /\b(?:paid\s+(?:contract|project|gig|internship)|hourly\s+rate|fixed\s+price|monthly\s+retainer)\b/i.test(text);
+
+        if (hasExplicitBudget) {
+            confidence += 8;
+            reasons.push('budget/pricing terms specified (+8%)');
+        }
+
+        // 2. High Urgency & Immediate Timeline (+4% to +6%)
+        const hasUrgency =
+            /\b(?:urgent(?:ly)?|asap|immediate(?:ly)?|start\s+(?:immediately|asap|today|this\s+week|next\s+week)|closing\s+soon|fast\s+turnaround|tight\s+deadline|quick\s+estimate)\b/i.test(text);
+
+        if (hasUrgency) {
+            confidence += 5;
+            reasons.push('high project urgency / immediate start (+5%)');
+        }
+
+        // 3. Technical & Scope Clarity (+4% to +7%)
+        const techStackMentions = (text.match(/\b(?:react|next\.?js|vue|angular|node|python|django|fastapi|typescript|flutter|swift|kotlin|php|laravel|wordpress|shopify|webflow|tailwind|figma|aws|docker|graphql|postgresql|mongodb|seo|ui\/?ux)\b/gi) || []).length;
+        const hasScopeKeywords = /\b(?:requirements?|deliverables?|scope\s+of\s+work|responsibilities?|qualifications?|must\s+have|features?|timeline)\b/i.test(text);
+
+        if (techStackMentions >= 2) {
+            confidence += 6;
+            reasons.push('concrete tech stack / role requirements specified (+6%)');
+        } else if (hasScopeKeywords || text.length >= 240) {
+            confidence += 4;
+            reasons.push('well-defined project scope (+4%)');
+        }
+
+        // 4. Direct Application Channel / Actionability (+3%)
+        const hasDirectAction =
+            /\b(?:(?:send|email|submit|share)\s+(?:your\s+)?(?:portfolio|cv|resume|deck|rates?|pricing|proposal)|contact\s+at\s+\S+@|portfolios?\s+to\s+\S+@|fill\s+(?:out\s+)?(?:this\s+)?form)\b/i.test(text) ||
+            /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/.test(text);
+
+        if (hasDirectAction) {
+            confidence += 3;
+            reasons.push('direct submission or contact channel (+3%)');
+        }
+
+        // 5. Brevity / Thin Context Penalty (-5%)
+        if (text.length < 80 && !hasExplicitBudget && !hasUrgency && techStackMentions === 0) {
+            confidence -= 5;
+            reasons.push('brief post with minimal context (-5%)');
         }
     }
 

@@ -23,22 +23,6 @@ import { sanitizePublicText } from '@/lib/claim-reveal'
 import { triggerUnlockConfetti } from '@/lib/confetti'
 import { NicheBadge } from '@/components/ui/NicheBadge'
 
-function formatScrapedDate(isoStr?: string): string {
-  if (!isoStr) return ''
-  try {
-    const d = new Date(isoStr)
-    return d.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-    })
-  } catch {
-    return ''
-  }
-}
-
 const themeMap = {
   mint: {
     textAccent: 'text-text-secondary hover:text-text-primary transition-colors',
@@ -226,20 +210,6 @@ export default function LeadDrawer({
 
         {/* Scraped & Source Metadata Bar */}
         <div className="flex flex-wrap items-center gap-2 mb-5 select-none text-[11px]">
-          {lead.scrapedAgo && (
-            <div
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-accent-mint/10 border border-accent-mint/20 text-accent-mint font-medium"
-              title={lead.scrapedAt ? `Scraped on ${formatScrapedDate(lead.scrapedAt)}` : undefined}
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-accent-mint animate-pulse" />
-              <span>Scraped {lead.scrapedAgo}</span>
-              {lead.scrapedAt && (
-                <span className="text-accent-mint/60 font-mono text-[10px]">
-                  ({formatScrapedDate(lead.scrapedAt)})
-                </span>
-              )}
-            </div>
-          )}
 
           {lead.timestamp && (
             <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/[0.04] border border-white/[0.08] text-text-secondary">
