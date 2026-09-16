@@ -20,26 +20,30 @@ import { useAuth } from '@/hooks/useAuth'
 
 const primaryNiches = [
   'All',
-  'Web Development',
-  'Mobile Development',
-  'UI/UX Design',
-  'Branding & Design',
+  'Development',
+  'Marketing',
+  'Design',
   'AI & Automation',
-  'SEO & Organic Growth',
-  'Paid Ads & Marketing',
-  'Video Production & Editing',
-  'Consulting & Strategy',
+  'Web Dev',
+  'Web Design',
+  'SEO',
+  'Sales & RevOps',
+  'Copywriting',
 ]
+
+type SortOption = 'newest' | 'replyProbability' | 'urgency'
+
+const FOR_YOU = 'For You'
 
 function matchNicheFilter(lead: AppLead, activeNiche: string, userServices: string[] = []): boolean {
   if (!activeNiche || activeNiche === 'All') return true
 
-  const leadNiche = (lead.niche || lead.category || '').toLowerCase().trim()
+  const leadNiche = (lead.category || '').toLowerCase().trim()
   const allNiches = (lead.niches || []).map((n) => n.toLowerCase().trim())
   const tags = (lead.nicheTags || []).map((t) => t.toLowerCase().trim())
   const text = `${lead.title || ''} ${lead.signalContext || ''} ${lead.taskScope || ''}`.toLowerCase()
 
-  if (activeNiche === '🎯 For You') {
+  if (activeNiche === FOR_YOU) {
     if (!userServices || userServices.length === 0) return true
     return userServices.some((service) => {
       const s = service.toLowerCase().trim()
@@ -48,8 +52,11 @@ function matchNicheFilter(lead: AppLead, activeNiche: string, userServices: stri
           leadNiche.includes('web develop') ||
           leadNiche.includes('web dev') ||
           allNiches.some((n) => n.includes('web dev') || n.includes('web develop')) ||
-          tags.some((t) => ['react', 'next.js', 'nextjs', 'node', 'fullstack', 'frontend', 'backend', 'developer', 'wordpress', 'webflow', 'shopify'].includes(t)) ||
-          text.includes('website') || text.includes('web dev')
+          tags.some((t) =>
+            ['react', 'next.js', 'nextjs', 'node', 'fullstack', 'frontend', 'backend', 'developer', 'wordpress', 'webflow', 'shopify'].includes(t),
+          ) ||
+          text.includes('website') ||
+          text.includes('web dev')
         )
       }
       if (s.includes('mobile')) {
@@ -57,7 +64,9 @@ function matchNicheFilter(lead: AppLead, activeNiche: string, userServices: stri
           leadNiche.includes('mobile') ||
           allNiches.some((n) => n.includes('mobile')) ||
           tags.some((t) => ['mobile', 'react native', 'flutter', 'ios', 'android'].includes(t)) ||
-          text.includes('mobile app') || text.includes('ios') || text.includes('android')
+          text.includes('mobile app') ||
+          text.includes('ios') ||
+          text.includes('android')
         )
       }
       if (s.includes('ui/ux') || s.includes('product design') || s.includes('design')) {
@@ -81,7 +90,8 @@ function matchNicheFilter(lead: AppLead, activeNiche: string, userServices: stri
           leadNiche.includes('seo') ||
           allNiches.some((n) => n.includes('seo')) ||
           tags.some((t) => t.includes('seo')) ||
-          text.includes('seo') || text.includes('search engine')
+          text.includes('seo') ||
+          text.includes('search engine')
         )
       }
       if (s.includes('marketing') || s.includes('paid ads') || s.includes('ads')) {
@@ -125,7 +135,7 @@ function matchNicheFilter(lead: AppLead, activeNiche: string, userServices: stri
 
   const target = activeNiche.toLowerCase().trim()
 
-  // 1. Direct match on lead.niche or lead.niches
+  // 1. Direct match on lead category or niches
   if (leadNiche === target || allNiches.includes(target)) return true
 
   // 2. Specific matching rules for primary niches
@@ -135,15 +145,20 @@ function matchNicheFilter(lead: AppLead, activeNiche: string, userServices: stri
         leadNiche.includes('web develop') ||
         leadNiche.includes('web dev') ||
         allNiches.some((n) => n.includes('web dev') || n.includes('web develop')) ||
-        tags.some((t) => ['web development', 'frontend', 'backend', 'fullstack', 'react', 'next.js', 'nextjs', 'wordpress', 'webflow', 'shopify', 'developer'].includes(t)) ||
-        text.includes('website') || text.includes('web dev')
+        tags.some((t) =>
+          ['web development', 'frontend', 'backend', 'fullstack', 'react', 'next.js', 'nextjs', 'wordpress', 'webflow', 'shopify', 'developer'].includes(t),
+        ) ||
+        text.includes('website') ||
+        text.includes('web dev')
       )
     case 'mobile development':
       return (
         leadNiche.includes('mobile') ||
         allNiches.some((n) => n.includes('mobile')) ||
         tags.some((t) => ['mobile', 'react native', 'flutter', 'ios', 'android'].includes(t)) ||
-        text.includes('mobile app') || text.includes('ios') || text.includes('android')
+        text.includes('mobile app') ||
+        text.includes('ios') ||
+        text.includes('android')
       )
     case 'ui/ux design':
       return (
@@ -208,8 +223,6 @@ function matchNicheFilter(lead: AppLead, activeNiche: string, userServices: stri
   }
 }
 
-type SortOption = 'newest' | 'replyProbability' | 'urgency'
-
 export default function LeadsPage() {
   const { user } = useAuth()
   const userServices = useMemo(() => user?.servicesOffered || [], [user?.servicesOffered])
@@ -227,20 +240,6 @@ export default function LeadsPage() {
   const [leadsList, setLeadsList] = useState<AppLead[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!hasInitializedNiche && hasTargetField) {
-      setActiveNiche('🎯 For You')
-      setHasInitializedNiche(true)
-    }
-  }, [hasInitializedNiche, hasTargetField])
-
-  const availableNiches = useMemo(() => {
-    if (hasTargetField) {
-      return ['🎯 For You', ...primaryNiches]
-    }
-    return primaryNiches
-  }, [hasTargetField])
 
   const fetchLeads = async () => {
     try {
@@ -267,6 +266,20 @@ export default function LeadsPage() {
   useEffect(() => {
     fetchLeads()
   }, [])
+
+  useEffect(() => {
+    if (!hasInitializedNiche && hasTargetField) {
+      setActiveNiche(FOR_YOU)
+      setHasInitializedNiche(true)
+    }
+  }, [hasInitializedNiche, hasTargetField])
+
+  const availableNiches = useMemo(() => {
+    if (hasTargetField) {
+      return [FOR_YOU, ...primaryNiches]
+    }
+    return primaryNiches
+  }, [hasTargetField])
 
   const handleSaveToggle = async (leadId: string, isSaved: boolean) => {
     try {
@@ -296,7 +309,6 @@ export default function LeadsPage() {
   const filteredLeads = useMemo(() => {
     let result = leadsList.filter((lead) => {
       if (!matchNicheFilter(lead, activeNiche, userServices)) return false
-
       if (searchQuery.trim() !== '') {
         const query = searchQuery.toLowerCase()
         const matchesSearch =
@@ -304,7 +316,6 @@ export default function LeadsPage() {
           lead.signalContext.toLowerCase().includes(query) ||
           lead.company.toLowerCase().includes(query) ||
           lead.category.toLowerCase().includes(query) ||
-          (lead.niche && lead.niche.toLowerCase().includes(query)) ||
           lead.nicheTags.some((tag) => tag.toLowerCase().includes(query)) ||
           (lead.niches && lead.niches.some((n) => n.toLowerCase().includes(query)))
         if (!matchesSearch) return false
@@ -348,9 +359,6 @@ export default function LeadsPage() {
       data-lenis-prevent
       className="flex-1 h-full min-h-0 overflow-y-auto px-8 py-8 pb-32 relative scrollbar-hide"
     >
-      <div className="absolute top-[-10%] left-1/2 -translate-x-1/2 w-[800px] h-[400px] glow-purple-medium pointer-events-none" />
-      <div className="absolute top-[20%] right-[-5%] w-[600px] h-[600px] glow-mint-soft pointer-events-none" />
-
       <div className="max-w-[1400px] mx-auto relative z-10">
         <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-10 mt-2">
           <div className="flex flex-col md:flex-row items-start md:items-center gap-6 flex-1 w-full">
@@ -359,8 +367,7 @@ export default function LeadsPage() {
             </div>
 
             <div className="relative group flex-1 w-full">
-              <div className="absolute -inset-[1px] bg-gradient-to-r from-accent-purple/20 via-accent-mint/20 to-accent-mint/20 rounded-xl blur-sm opacity-50 group-hover:opacity-100 transition-opacity duration-500" />
-              <div className="relative flex items-center bg-code-bg/80 backdrop-blur-xl border border-white/[0.08] rounded-xl p-1.5 shadow-lg focus-within:ring-1 focus-within:ring-white/20 transition-all">
+              <div className="relative flex items-center bg-code-bg/80 backdrop-blur-xl border border-white/[0.08] rounded-xl p-1.5 shadow-lg focus-within:border-white/20 transition-all">
                 <div className="pl-3 pr-2 text-text-secondary">
                   <MagnifyingGlassIcon className="w-4 h-4 text-current" />
                 </div>
@@ -454,7 +461,7 @@ export default function LeadsPage() {
             <AnimatePresence>
               {isFilterOpen && (
                 <>
-                  <div className="fixed inset-0 z-40" onClick={() => setIsFilterOpen(false)} />
+                  <div className="fixed inset-0 z-45" onClick={() => setIsFilterOpen(false)} />
                   <motion.div
                     initial={{ opacity: 0, y: 10, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -522,7 +529,7 @@ export default function LeadsPage() {
         >
           {availableNiches.map((niche) => {
             const isActive = activeNiche === niche
-            const isForYou = niche === '🎯 For You'
+            const isForYou = niche === FOR_YOU
             return (
               <button
                 key={niche}
@@ -533,10 +540,10 @@ export default function LeadsPage() {
                 className={`px-4 py-2 text-xs font-semibold rounded-full border transition-all duration-300 whitespace-nowrap flex items-center gap-1.5 ${
                   isActive
                     ? isForYou
-                      ? 'bg-primary/20 border-primary text-primary shadow-[0_0_15px_rgba(var(--rgb-primary),0.25)]'
-                      : 'bg-accent-purple/10 border-accent-purple text-accent-purple shadow-[0_0_15px_rgba(168,85,247,0.15)]'
+                      ? 'bg-primary/20 border-primary/60 text-primary'
+                      : 'bg-accent-purple/10 border-accent-purple/60 text-accent-purple'
                     : isForYou
-                      ? 'bg-primary/10 border-primary/30 text-primary hover:bg-primary/15 hover:border-primary/50'
+                      ? 'bg-primary/[0.07] border-primary/25 text-primary/80 hover:bg-primary/15 hover:border-primary/50 hover:text-primary'
                       : 'bg-white/5 border-white/[0.06] text-text-secondary hover:bg-white/10 hover:border-white/12 hover:text-text-primary'
                 }`}
               >
@@ -547,15 +554,13 @@ export default function LeadsPage() {
         </div>
 
         {/* Personalized Target Field Banner */}
-        {hasTargetField && activeNiche === '🎯 For You' && (
+        {hasTargetField && activeNiche === FOR_YOU && (
           <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-primary/10 border border-primary/25 mb-6 text-xs transition-all">
             <div className="flex items-center gap-2 text-text-primary">
-              <span className="w-2 h-2 rounded-full bg-primary animate-pulse shrink-0" />
+              <span className="w-2 h-2 rounded-full bg-primary shrink-0" />
               <span>
                 Showing leads tailored to your onboarding target field:{' '}
-                <strong className="text-primary font-semibold">
-                  {userServices.join(', ')}
-                </strong>
+                <strong className="text-primary font-semibold">{userServices.join(', ')}</strong>
               </span>
             </div>
             <button
@@ -632,9 +637,7 @@ export default function LeadsPage() {
                       onReveal={(leadId, name, email, phone) => {
                         setLeadsList((prev) =>
                           prev.map((l) =>
-                            l.id === leadId
-                              ? { ...l, isRevealed: true, isSaved: true, status: 'saved', name, email, phone }
-                              : l,
+                            l.id === leadId ? { ...l, isRevealed: true, name, email, phone } : l,
                           ),
                         )
                       }}
@@ -650,9 +653,7 @@ export default function LeadsPage() {
                       onReveal={(leadId, name, email, phone) => {
                         setLeadsList((prev) =>
                           prev.map((l) =>
-                            l.id === leadId
-                              ? { ...l, isRevealed: true, isSaved: true, status: 'saved', name, email, phone }
-                              : l,
+                            l.id === leadId ? { ...l, isRevealed: true, name, email, phone } : l,
                           ),
                         )
                       }}
@@ -679,7 +680,7 @@ export default function LeadsPage() {
                     setLeadsList((prev) =>
                       prev.map((l) =>
                         l.id === selectedLead.id
-                          ? { ...l, isRevealed: true, isSaved: true, status: 'saved', name, email, phone }
+                          ? { ...l, isRevealed: true, name, email, phone }
                           : l,
                       ),
                     )

@@ -7,12 +7,13 @@
 
 ## Executive Summary
 
-Phase 5 encompasses the entire user retention, viral growth, and lifecycle communication system for **Lead Hunter Club**. It is structured into 4 distinct pillars:
+Phase 5 encompasses the entire user retention, viral growth, and lifecycle communication system for **Lead Hunter Club**. It is structured into 5 distinct pillars:
 
 1. **Part 1: User Referral & Bonus Credits Engine** *(COMPLETED & LIVE)*
 2. **Part 2: SMTP Email Infrastructure & Automated Lifecycle Notifications** *(NEXT UP)*
 3. **Part 3: Admin Targeted Email Broadcast Center** *(NEXT UP)*
-4. **Part 4: Outreach Milestone Proof Engine** *(PARKED FOR FUTURE)*
+4. **Part 4: Newsletter Engine & Public Subscriber Broadcasts** *(NEXT UP)*
+5. **Part 5: Outreach Milestone Proof Engine** *(PARKED FOR FUTURE)*
 
 ---
 
@@ -76,7 +77,27 @@ Phase 5 encompasses the entire user retention, viral growth, and lifecycle commu
 
 ---
 
-## Part 4: Outreach Milestone Screenshot Proof Engine 📌 (PARKED FOR FUTURE)
+## Part 4: Newsletter Engine & Public Subscriber Broadcasts ⏳ (READY TO IMPLEMENT)
+
+* **Public Subscriber Capture & Double Opt-in**:
+  * Embedded landing page capture widget ([`NewsletterSignup.tsx`](file:///d:/work/Clients_work/Lead_Hunter/frontend/apps/web/src/app/components/NewsletterSignup.tsx)).
+  * Verification email dispatch with secure tokenized confirmation link (`/newsletter/confirm`).
+  * Automated welcome email featuring platform introduction and sample high-intent lead preview.
+* **Admin Newsletter Dashboard (`/admin/newsletter`)**:
+  * Subscriber management table displaying email, status (`SUBSCRIBED`, `UNSUBSCRIBED`, `BOUNCED`), source channel, and subscription date.
+  * Manual subscriber addition and bulk export capability.
+* **Automated & Curated Weekly Lead Digest**:
+  * Fast digest composer: 1-click pull of the top 5 highest-scoring verified leads of the week into the newsletter body.
+  * Formatted with intent badges, estimated project budgets, and direct CTA buttons directing subscribers to sign up / unlock full details.
+* **Unified SMTP / Resend Bulk Dispatch Engine**:
+  * Connects directly to the Phase 5 hybrid SMTP engine (`nodemailer` with Resend fallback).
+  * Controlled batch delivery (10–20 emails per burst) to safeguard domain reputation and avoid rate limits.
+  * RFC-compliant headers (`List-Unsubscribe`, `List-Unsubscribe-Post`) for 1-click spam-safe unsubscribes (`/newsletter/unsubscribe?token=...`).
+  * Full delivery audit logging in `EmailLog` table.
+
+---
+
+## Part 5: Outreach Milestone Screenshot Proof Engine 📌 (PARKED FOR FUTURE)
 
 * **User Proof Submissions**:
   * Users upload screenshot evidence of outreach success (Positive Reply, Meeting Scheduled, Deal Closed).

@@ -1,17 +1,17 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { CustomLoader } from '@/components/ui/CustomLoader'
+import { useToast } from '@/components/ui/Toast'
 import { useAuth } from '@/hooks/useAuth'
 import { openRazorpayCheckout } from '@/lib/razorpay-client'
-import { useToast } from '@/components/ui/Toast'
-import { CustomLoader } from '@/components/ui/CustomLoader'
 import {
+  ArrowLeftIcon,
   CheckIcon,
   SparklesIcon,
-  ArrowLeftIcon,
   StarIcon,
 } from '@heroicons/react/24/solid'
+import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
 
 interface PlanConfig {
   id: string
@@ -203,13 +203,12 @@ export default function PricingPage() {
             return (
               <div
                 key={plan.id}
-                className={`relative flex flex-col justify-between p-8 rounded-4xl border transition-all duration-300 ${
-                  isCurrent
+                className={`relative flex flex-col justify-between p-8 rounded-4xl border transition-all duration-300 ${isCurrent
                     ? 'bg-surface/60 border-accent-mint/40 shadow-2xl ring-2 ring-accent-mint/40'
                     : isPopular
                       ? 'bg-gradient-to-b from-surface-elevated to-surface/50 border-accent-purple/40 shadow-2xl ring-1 ring-accent-purple/30'
                       : 'bg-surface/40 border-white/[0.08] hover:border-white/20'
-                }`}
+                  }`}
               >
                 {isCurrent && (
                   <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-3.5 py-1 rounded-full bg-accent-mint text-black font-extrabold text-[10px] tracking-wider uppercase shadow-md">
@@ -260,13 +259,12 @@ export default function PricingPage() {
                   <button
                     onClick={() => handleSelectPlan(plan)}
                     disabled={isCurrent || subscribingPlan === plan.id}
-                    className={`w-full py-3.5 rounded-2xl font-bold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-lg disabled:opacity-50 ${
-                      isCurrent
+                    className={`w-full py-3.5 rounded-2xl font-bold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-lg disabled:opacity-50 ${isCurrent
                         ? 'bg-white/5 text-text-secondary border border-white/10 cursor-default'
                         : isPopular
                           ? 'bg-accent-purple text-white hover:bg-accent-purple/90 shadow-accent-purple/20'
                           : 'bg-white text-black hover:bg-white/90'
-                    }`}
+                      }`}
                   >
                     {isCurrent
                       ? 'Active Plan'

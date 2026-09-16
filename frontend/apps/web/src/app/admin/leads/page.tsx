@@ -1138,9 +1138,19 @@ export default function AdminLeadsPage() {
                           </div>
                         )}
 
-                        <div className="px-2 py-0.5 bg-surface-elevated border border-white/[0.08] text-zinc-400 text-[8px] font-black uppercase tracking-widest flex-shrink-0 rounded">
-                          KW: <span className="text-accent-mint">{lead.keyword}</span>
-                        </div>
+                        {lead.keyword && (
+                          <div className="px-2 py-0.5 bg-surface-elevated border border-white/[0.08] text-zinc-400 text-[9px] font-bold tracking-wide flex-shrink-0 rounded">
+                            {lead.keyword.toLowerCase().startsWith('watchlist:') ? (
+                              <>
+                                Watchlist: <span className="text-purple-400 font-semibold">{lead.keyword.replace(/^watchlist:\s*/i, '')}</span>
+                              </>
+                            ) : (
+                              <>
+                                KeyWord: <span className="text-accent-mint font-semibold">{lead.keyword}</span>
+                              </>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
 

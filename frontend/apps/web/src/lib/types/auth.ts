@@ -18,7 +18,6 @@ export interface User {
   email: string
   name: string
   phone?: string | null
-  city?: string | null
   avatarUrl?: string
   role: UserRole
   creditAccount: CreditAccountInfo
@@ -26,10 +25,8 @@ export interface User {
   emailVerified: string | null
   plan: string
   status?: string
-  hasCompletedOnboarding?: boolean
   servicesOffered?: string[]
-  preferredLeadCategories?: string[]
+  hasCompletedOnboarding?: boolean
   createdAt: string
   updatedAt: string
 }
-
