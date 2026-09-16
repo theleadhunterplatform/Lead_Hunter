@@ -17,7 +17,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   const router = useRouter()
   const { user, loading, error, firebaseUser } = useAuth()
 
-  const appRoutes = ['/dashboard', '/leads', '/saved', '/analytics', '/settings', '/support', '/referrals']
+  const appRoutes = ['/dashboard', '/leads', '/saved', '/analytics', '/settings', '/support', '/referrals', '/rewards']
   const adminRoutes = ['/admin']
   const authRoutes = ['/login', '/register']
   const onboardingRoutes = ['/onboarding', '/verify-email', '/pending-approval', '/admin-register']

@@ -77,6 +77,10 @@ export default function LeadDrawer({
         : taskScopeDisplay
 
   const handleRevealClick = async () => {
+    if (lead.isClaimedByOther) {
+      setErrorMsg('This lead has already been claimed by another member to prevent client fatigue.')
+      return
+    }
     if (!lead.isClaimable) {
       setErrorMsg('This lead is not yet approved. Intelligence is still being generated.')
       return
@@ -348,27 +352,34 @@ export default function LeadDrawer({
               </div>
             </div>
 
-            <Button
-              variant="outline"
-              color="mint"
-              size="sm"
-              onClick={handleRevealClick}
-              loading={isRevealing}
-            >
-              {isRevealing ? (
-                <>
-                  <ArrowPathIcon className="w-3 h-3 animate-spin" />
-                  Unlocking...
-                </>
-              ) : (
-                <>
-                  Unlock & Save Lead
-                  <span className="flex items-center gap-1 text-[10px] text-text-secondary uppercase tracking-widest ml-1">
-                    <BanknotesIcon className="w-3 h-3" /> -{tokenCost ?? '–'}
-                  </span>
-                </>
-              )}
-            </Button>
+            {lead.isClaimedByOther ? (
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-xs font-bold select-none">
+                <LockClosedIcon className="w-4 h-4 text-amber-500 shrink-0" />
+                <span>Claimed by a member</span>
+              </div>
+            ) : (
+              <Button
+                variant="outline"
+                color="mint"
+                size="sm"
+                onClick={handleRevealClick}
+                loading={isRevealing}
+              >
+                {isRevealing ? (
+                  <>
+                    <ArrowPathIcon className="w-3 h-3 animate-spin" />
+                    Unlocking...
+                  </>
+                ) : (
+                  <>
+                    Unlock & Save Lead
+                    <span className="flex items-center gap-1 text-[10px] text-text-secondary uppercase tracking-widest ml-1">
+                      <BanknotesIcon className="w-3 h-3" /> -{tokenCost ?? '–'}
+                    </span>
+                  </>
+                )}
+              </Button>
+            )}
           </div>
         )}
         {errorMsg && <div className="text-11 text-red-400 mt-3 font-medium">{errorMsg}</div>}

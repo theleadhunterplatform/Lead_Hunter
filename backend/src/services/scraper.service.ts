@@ -10,6 +10,8 @@ import {
     extractScrapedContent,
     extractScrapedPostId,
     extractScrapedUrl,
+    extractScrapedPostedAt,
+    isPostOlderThanDays,
 } from '../utils/scraped-item.utils';
 
 export class ScraperService {
@@ -70,7 +72,7 @@ export class ScraperService {
                 maxItems: 20,
                 searches: [phrase],
                 sort: 'new',
-                time: 'week',
+                time: 'day',
             });
             const result = await client.dataset(run.defaultDatasetId).listItems();
             items = result.items;
@@ -110,6 +112,12 @@ export class ScraperService {
         const post_id = extractScrapedPostId(item, platform);
         if (!post_id) return false;
 
+        // Age filter: skip posts older than 2 days (48 hours)
+        if (isPostOlderThanDays(item, platform, 2)) {
+            console.log(`⏭️ [ScraperService] Skip ${platform}/${post_id}: older than 2 days`);
+            return false;
+        }
+
         const content = extractScrapedContent(item, platform);
         const gate = shouldIngestScrapedPost(content || '', phrase, platform);
         if (!gate.ok) {
@@ -135,6 +143,7 @@ export class ScraperService {
             raw_result: item,
             url,
             content,
+            posted_at: extractScrapedPostedAt(item, platform),
         };
 
         if (platform === 'linkedin') {

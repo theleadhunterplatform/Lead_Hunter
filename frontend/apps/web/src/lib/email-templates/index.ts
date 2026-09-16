@@ -184,3 +184,99 @@ export function renderEmailVerification(data: EmailVerificationData) {
   return { subject, text, html }
 }
 
+export interface LowCreditsData {
+  name: string
+  credits: number
+  appUrl: string
+}
+
+export function renderLowCreditsNudge(data: LowCreditsData) {
+  const greeting = data.name ? `Hi ${data.name},` : 'Hello Hunter,'
+  const subject = `Running low on credits (${data.credits} left) — Lead Hunter Club`
+  const text = `${greeting}\n\nYou only have ${data.credits} credit${data.credits === 1 ? '' : 's'} remaining in your account.\n\nDon't let your outreach pipeline pause. Refill your credits or upgrade your plan to keep unlocking verified client leads.\n\nRefill credits: ${data.appUrl}/refill\nView plans: ${data.appUrl}/pricing`
+  const html = wrapHtml(`
+    <h2 style="margin:16px 0 8px;font-size:18px;font-weight:600;color:#ffffff;letter-spacing:-0.01em">Your credit balance is low</h2>
+    <p style="margin:16px 0;font-size:15px;color:#ccc;line-height:1.6">${greeting}</p>
+    <p style="margin:16px 0;font-size:15px;color:#ccc;line-height:1.6">
+      You currently have <strong style="color:#f59e0b;font-size:16px">${data.credits} credit${data.credits === 1 ? '' : 's'} remaining</strong>. Fresh client opportunities are being captured around the clock.
+    </p>
+    <p style="margin:16px 0;font-size:15px;color:#ccc;line-height:1.6">
+      To avoid pausing your client hunting pipeline, you can top up credits instantly or upgrade to an unlimited tier.
+    </p>
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0">
+      <tr>
+        <td align="center" style="border-radius:10px;background:#dc3b4c">
+          <a href="${data.appUrl}/refill" target="_blank" style="display:inline-block;padding:12px 28px;background:#dc3b4c;color:#ffffff;border-radius:10px;text-decoration:none;font-size:14px;font-weight:600">Top Up Credits</a>
+        </td>
+        <td style="width:12px"></td>
+        <td align="center" style="border-radius:10px;background:rgba(255,255,255,0.08)">
+          <a href="${data.appUrl}/pricing" target="_blank" style="display:inline-block;padding:12px 24px;color:#ffffff;border-radius:10px;text-decoration:none;font-size:14px;font-weight:500">View Plans</a>
+        </td>
+      </tr>
+    </table>
+  `)
+  return { subject, text, html }
+}
+
+export interface RenewalReminderData {
+  name: string
+  plan: string
+  daysRemaining: number
+  renewalDate: string
+  appUrl: string
+}
+
+export function renderRenewalReminder(data: RenewalReminderData) {
+  const greeting = data.name ? `Hi ${data.name},` : 'Hello Hunter,'
+  const subject = `Your Lead Hunter ${data.plan} subscription renews in ${data.daysRemaining} days`
+  const text = `${greeting}\n\nThis is a quick reminder that your ${data.plan} plan will renew on ${data.renewalDate}.\n\nYour unused monthly credits will automatically roll over according to your plan rules so you never lose what you've earned.\n\nManage your subscription: ${data.appUrl}/settings`
+  const html = wrapHtml(`
+    <h2 style="margin:16px 0 8px;font-size:18px;font-weight:600;color:#ffffff;letter-spacing:-0.01em">Upcoming Subscription Renewal</h2>
+    <p style="margin:16px 0;font-size:15px;color:#ccc;line-height:1.6">${greeting}</p>
+    <p style="margin:16px 0;font-size:15px;color:#ccc;line-height:1.6">
+      Your <strong style="color:#ffffff">${data.plan}</strong> subscription is scheduled to renew in <strong style="color:#10b981">${data.daysRemaining} days</strong> (on ${data.renewalDate}).
+    </p>
+    <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px;margin:20px 0">
+      <p style="margin:0 0 6px;font-size:13px;font-weight:600;color:#ffffff">✓ Unused Credits Rollover Protection</p>
+      <p style="margin:0;font-size:13px;color:#aaa;line-height:1.5">
+        Any unused credits remaining on your account will roll over seamlessly with your next cycle.
+      </p>
+    </div>
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0">
+      <tr>
+        <td align="center" style="border-radius:10px;background:#dc3b4c">
+          <a href="${data.appUrl}/settings" target="_blank" style="display:inline-block;padding:12px 28px;background:#dc3b4c;color:#ffffff;border-radius:10px;text-decoration:none;font-size:14px;font-weight:600">Manage Account & Billing</a>
+        </td>
+      </tr>
+    </table>
+  `)
+  return { subject, text, html }
+}
+
+export interface BroadcastData {
+  subject: string
+  messageHtml: string
+  messageText: string
+  appUrl: string
+}
+
+export function renderBroadcastAnnouncement(data: BroadcastData) {
+  const subject = data.subject
+  const text = `${data.messageText}\n\n---\nLead Hunter Club\nVisit platform: ${data.appUrl}/dashboard`
+  const html = wrapHtml(`
+    <h2 style="margin:16px 0 16px;font-size:20px;font-weight:700;color:#ffffff;letter-spacing:-0.01em">${data.subject}</h2>
+    <div style="font-size:15px;color:#ccc;line-height:1.7;margin:16px 0">
+      ${data.messageHtml}
+    </div>
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:28px 0 12px">
+      <tr>
+        <td align="center" style="border-radius:10px;background:#dc3b4c">
+          <a href="${data.appUrl}/dashboard" target="_blank" style="display:inline-block;padding:12px 28px;background:#dc3b4c;color:#ffffff;border-radius:10px;text-decoration:none;font-size:14px;font-weight:600">Open Lead Hunter Dashboard</a>
+        </td>
+      </tr>
+    </table>
+  `)
+  return { subject, text, html }
+}
+
+

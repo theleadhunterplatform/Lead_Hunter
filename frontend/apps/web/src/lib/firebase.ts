@@ -53,8 +53,11 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 }
 
+import { getStorage } from 'firebase/storage'
+
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig)
 const auth = getAuth(app)
+const storage = getStorage(app)
 
 export async function getAnalyticsInstance() {
   if (typeof window !== 'undefined' && (await isSupported())) {
@@ -106,5 +109,6 @@ export {
   EmailAuthProvider,
   applyActionCode,
   updateProfile,
+  storage,
 }
 export type { FirebaseUser, ConfirmationResult }

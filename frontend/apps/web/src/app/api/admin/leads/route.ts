@@ -11,6 +11,8 @@ import {
   bulkReEnrich,
   trainAiNow,
 } from '@/lib/external-api/client'
+import { db } from '@/lib/db'
+import { oracleDb } from '@/lib/oracle-db'
 
 export const dynamic = 'force-dynamic'
 
@@ -93,6 +95,55 @@ export async function POST(request: NextRequest) {
           { method: 'POST', body: JSON.stringify(filters || {}) },
         )
         return NextResponse.json(intelRes)
+      }
+
+      case 'purge-unclaimed-10-days': {
+        const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000)
+
+        // Find candidate leads older than 10 days that are not already deleted
+        const candidates = await oracleDb.leadPost.findMany({
+          where: {
+            created_at: { lt: tenDaysAgo },
+            is_deleted: false,
+          },
+          select: { id: true },
+        })
+
+        if (candidates.length === 0) {
+          return NextResponse.json({
+            success: true,
+            purgedCount: 0,
+            message: 'No leads older than 10 days found to purge.',
+          })
+        }
+
+        const candidateIds = candidates.map((c) => c.id)
+
+        // Identify which leads are claimed or saved by ANY user
+        const claimedStates = await db.userLeadState.findMany({
+          where: {
+            leadId: { in: candidateIds },
+            OR: [{ isSaved: true }, { isRevealed: true }, { status: { not: 'new' } }],
+          },
+          select: { leadId: true },
+        })
+
+        const claimedSet = new Set(claimedStates.map((s) => s.leadId))
+        const safePurgeIds = candidateIds.filter((id) => !claimedSet.has(id))
+
+        if (safePurgeIds.length > 0) {
+          await oracleDb.leadPost.updateMany({
+            where: { id: { in: safePurgeIds } },
+            data: { is_deleted: true },
+          })
+        }
+
+        return NextResponse.json({
+          success: true,
+          purgedCount: safePurgeIds.length,
+          preservedClaimedCount: claimedSet.size,
+          message: `Successfully purged ${safePurgeIds.length} unclaimed leads older than 10 days. All ${claimedSet.size} user-claimed leads were permanently preserved.`,
+        })
       }
 
       default:

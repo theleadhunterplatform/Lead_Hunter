@@ -15,6 +15,7 @@ import { rateLimitByKey } from '@/lib/rate-limit'
 import { creditService, InsufficientCreditsError } from '@/lib/services/credits'
 import { getLeadRevealCost, leadContactBundle } from '@/lib/config/coins'
 import { extractNiches, extractCleanNicheTags } from '@/lib/claim-reveal'
+import { emailService } from '@/lib/services/email'
 
 export const dynamic = 'force-dynamic'
 
@@ -85,6 +86,26 @@ export async function POST(request: NextRequest) {
         email: externalLead.email || externalLead.contact_info?.emails?.[0]?.email || '',
         phone: externalLead.contact_info?.phone_numbers?.[0]?.number || null,
       })
+    }
+
+    // Exclusive claim enforcement: verify if another user has already unlocked this lead
+    const otherRevealed = await db.userLeadState.findFirst({
+      where: {
+        leadId,
+        isRevealed: true,
+        userId: { not: userId },
+      },
+    })
+
+    if (otherRevealed) {
+      return NextResponse.json(
+        {
+          code: 'LEAD_ALREADY_CLAIMED',
+          message:
+            'This lead has already been claimed by another member to prevent client outreach fatigue.',
+        },
+        { status: 400 },
+      )
     }
 
     const intel = externalLead.intelligence || ''
@@ -185,6 +206,36 @@ export async function POST(request: NextRequest) {
       },
       { timeout: 15000 },
     )
+
+    // Flow 3: Low credits alert if member has <= 2 credits remaining
+    if (txResult.creditsRemaining <= 2) {
+      ;(async () => {
+        try {
+          const user = await db.user.findUnique({
+            where: { id: userId },
+            select: { name: true, email: true },
+          })
+          if (user?.email) {
+            const twoDaysAgo = new Date(Date.now() - 48 * 60 * 60 * 1000)
+            const recentAlert = await db.emailLog.findFirst({
+              where: {
+                to: user.email,
+                type: 'low_credits',
+                sentAt: { gte: twoDaysAgo },
+              },
+            })
+            if (!recentAlert) {
+              await emailService.sendLowCreditsNudge(
+                { name: user.name || '', email: user.email },
+                txResult.creditsRemaining,
+              )
+            }
+          }
+        } catch (e) {
+          console.warn('[Lead Reveal] Low credits email check failed:', e)
+        }
+      })()
+    }
 
     return NextResponse.json({
       success: true,

@@ -7,13 +7,15 @@
 
 ## Executive Summary
 
-Phase 5 encompasses the entire user retention, viral growth, and lifecycle communication system for **Lead Hunter Club**. It is structured into 5 distinct pillars:
+Phase 5 encompasses the entire user retention, viral growth, lifecycle communication, and subscription governance system for **Lead Hunter Club**. It is structured into 7 distinct pillars:
 
 1. **Part 1: User Referral & Bonus Credits Engine** *(COMPLETED & LIVE)*
 2. **Part 2: SMTP Email Infrastructure & Automated Lifecycle Notifications** *(NEXT UP)*
 3. **Part 3: Admin Targeted Email Broadcast Center** *(NEXT UP)*
 4. **Part 4: Newsletter Engine & Public Subscriber Broadcasts** *(NEXT UP)*
-5. **Part 5: Outreach Milestone Proof Engine** *(PARKED FOR FUTURE)*
+5. **Part 5: Community Hub (User Wins & Admin Moderated Social Proof)** *(NEXT UP)*
+6. **Part 6: Subscription Lifecycle, Anti-Abuse & Claim Governance** *(NEXT UP)*
+7. **Part 7: Outreach Milestone Proof Engine** *(PARKED FOR FUTURE)*
 
 ---
 
@@ -53,9 +55,9 @@ Phase 5 encompasses the entire user retention, viral growth, and lifecycle commu
   2. **Post-Approval Email (Account Activated)**:
      * Sent instantly when an admin approves the account.
      * Congratulates user, awards initial 50 credits, and guides them on revealing their first leads.
-  3. **Milestone / Popup Notification Emails (The 3 Nudge Points)**:
+  3. **Milestone / Notification Emails (The Nudge Points)**:
      * **Point A — Low / Out of Credits Alert**: Sent when credit balance hits ≤ 2, nudging them to refill or refer a friend for +10 free credits.
-     * **Point B — Plan Renewal & Rollover Warning**: Sent 3 days prior to renewal so users don't lose accumulated rollover credits.
+     * **Point B — Plan Renewal & Rollover Warning**: Sent 3–7 days prior to renewal so users don't lose accumulated rollover credits.
      * **Point C — Referral Bonus Credited Notice**: Sent to the referrer whenever a friend joins using their link.
 
 ---
@@ -97,7 +99,40 @@ Phase 5 encompasses the entire user retention, viral growth, and lifecycle commu
 
 ---
 
-## Part 5: Outreach Milestone Screenshot Proof Engine 📌 (PARKED FOR FUTURE)
+## Part 5: Community Hub (User Wins & Admin Moderated Social Proof) ⏳ (READY TO IMPLEMENT)
+
+* **User Win & Achievement Submission**:
+  * Members submit client wins, closed deals, and meeting bookings directly from their dashboard.
+  * Submission fields: Achievement title, deal size/details, client niche, and optional testimonial or proof screenshot.
+* **Admin Moderation & Approval Queue (`/admin/community`)**:
+  * Protects community quality: only genuine, approved achievements go live.
+  * Admins review, approve, edit, or reject submissions in 1 click.
+* **Public Community Hub (`/community`)**:
+  * Dynamic social proof feed visible to all logged-in members and visitors.
+  * Filters by win category (e.g., *Deals Closed*, *Meetings Booked*, *Outreach Responses*).
+  * Interactive likes/celebrations to foster community engagement.
+
+---
+
+## Part 6: Subscription Lifecycle, Anti-Abuse & Claim Governance ⏳ (READY TO IMPLEMENT)
+
+* **Social Link Deduplication (Anti-Abuse Free Tier Protection)**:
+  * Normalizes social profile links submitted during onboarding/registration (strips protocols, query parameters, and trailing slashes).
+  * Checks against database: if the social media profile link already exists on another account, block registration to prevent multiple accounts farming free credits.
+* **10-Day General Feed Purge with Permanent User Claim Retention**:
+  * Automatically clean up or archive unclaimed/general leads older than 10 days from the main discovery feed.
+  * **Guaranteed User Access**: Any lead claimed, unlocked, or saved into a user's pipeline remains **permanently saved in their account**, independent of the general feed purge.
+* **Claimed Lead Transparency & Contact Lockdown**:
+  * When 1 user unlocks/claims a lead, the lead card displays a visible **"Claimed by a member"** badge.
+  * **Strict Contact Lockdown**: The client contact details (email, phone, direct profile) are hidden and locked from all other users, preventing duplicate pitches.
+* **Subscription Renewal Queuing**:
+  * If a subscriber pays for next month with 7 days remaining on their current cycle, the new 30 days are stacked in the queue (`new_expiry = current_expiry + 30 days`), preserving their remaining 7 days.
+* **Automated Expiration Downgrade**:
+  * Daily background cron checks expired subscriptions. When a plan ends without renewal, automatically downgrade the user back to the `FREE` starter tier.
+
+---
+
+## Part 7: Outreach Milestone Screenshot Proof Engine 📌 (PARKED FOR FUTURE)
 
 * **User Proof Submissions**:
   * Users upload screenshot evidence of outreach success (Positive Reply, Meeting Scheduled, Deal Closed).
@@ -105,3 +140,4 @@ Phase 5 encompasses the entire user retention, viral growth, and lifecycle commu
   * Evaluates screenshot authenticity, detects intent, and flags duplicates using perceptual hash (`pHash`).
 * **Admin Review Queue (`/admin/rewards`)**:
   * Admins review flagged submissions and dispense bonus credits (+10, +25, +50 credits).
+

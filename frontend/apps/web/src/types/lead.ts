@@ -37,5 +37,6 @@ export interface AppLead {
   isTargetMatch?: boolean
   scrapedAt?: string
   scrapedAgo?: string
+  isClaimedByOther?: boolean
 }
 

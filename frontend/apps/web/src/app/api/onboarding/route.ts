@@ -4,6 +4,7 @@ import { requireEmailVerified, AuthRequiredError, EmailNotVerifiedError } from '
 import { onboardingSchema } from '@/lib/validators/auth'
 import { emailService } from '@/lib/services/email'
 import { normalizePhone } from '@/lib/phone'
+import { normalizeSocialUrl, isValidSocialProfile } from '@/lib/social'
 
 export const dynamic = 'force-dynamic'
 
@@ -30,9 +31,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!parsed.data.linkedin || !parsed.data.linkedin.trim()) {
+    // Validate LinkedIn profile link is not just a generic homepage
+    if (!isValidSocialProfile(parsed.data.linkedin)) {
       return NextResponse.json(
-        { code: 'VALIDATION_ERROR', message: 'LinkedIn profile link is required' },
+        {
+          code: 'INVALID_SOCIAL_LINK',
+          message:
+            'Please provide a valid direct link to your personal or company LinkedIn profile (e.g. linkedin.com/in/yourname)',
+        },
         { status: 400 },
       )
     }
@@ -50,7 +56,7 @@ export async function POST(request: NextRequest) {
     const normalizedPhone = normalizePhone(rawPhone)
 
     // Strictly enforce 1 single mobile number across accounts via indexed database query
-    const duplicateUser = await db.user.findFirst({
+    const duplicatePhoneUser = await db.user.findFirst({
       where: {
         id: { not: authUser.uid },
         OR: [
@@ -61,7 +67,7 @@ export async function POST(request: NextRequest) {
       select: { id: true },
     })
 
-    if (duplicateUser) {
+    if (duplicatePhoneUser) {
       return NextResponse.json(
         {
           code: 'DUPLICATE_PHONE',
@@ -70,6 +76,82 @@ export async function POST(request: NextRequest) {
         },
         { status: 400 },
       )
+    }
+
+    // Anti-Abuse: Deduplicate social profiles (LinkedIn, Twitter, Portfolio, Instagram, GitHub, etc.)
+    const socialFields: Array<keyof typeof parsed.data> = [
+      'linkedin',
+      'portfolio',
+      'website',
+      'twitter',
+      'instagram',
+      'github',
+      'dribbble',
+      'behance',
+    ]
+
+    const normalizedInputs: Record<string, string> = {}
+    const searchConditions: Array<Record<string, unknown>> = []
+
+    for (const field of socialFields) {
+      const val = parsed.data[field]
+      if (typeof val === 'string' && val.trim()) {
+        const norm = normalizeSocialUrl(val)
+        if (norm && isValidSocialProfile(val)) {
+          normalizedInputs[field] = norm
+          searchConditions.push(
+            { [field]: val.trim() },
+            { [field]: norm },
+            { [field]: `https://${norm}` },
+            { [field]: { contains: norm, mode: 'insensitive' } },
+          )
+        }
+      }
+    }
+
+    if (searchConditions.length > 0) {
+      const duplicateSocialCandidates = await db.user.findMany({
+        where: {
+          id: { not: authUser.uid },
+          OR: searchConditions as any,
+        },
+        select: {
+          id: true,
+          linkedin: true,
+          portfolio: true,
+          website: true,
+          twitter: true,
+          instagram: true,
+          github: true,
+          dribbble: true,
+          behance: true,
+        },
+      })
+
+      const normInputValues = new Set(Object.values(normalizedInputs))
+      const hasDuplicateSocial = duplicateSocialCandidates.some((candidate) => {
+        for (const field of socialFields) {
+          const candidateVal = candidate[field as keyof typeof candidate]
+          if (typeof candidateVal === 'string' && candidateVal.trim()) {
+            const candidateNorm = normalizeSocialUrl(candidateVal)
+            if (candidateNorm && normInputValues.has(candidateNorm)) {
+              return true
+            }
+          }
+        }
+        return false
+      })
+
+      if (hasDuplicateSocial) {
+        return NextResponse.json(
+          {
+            code: 'DUPLICATE_SOCIAL_LINK',
+            message:
+              'A social media profile provided is already linked to another Lead Hunter account. Each member must register with their own unique profile to prevent credit abuse.',
+          },
+          { status: 400 },
+        )
+      }
     }
 
     const updatedUser = await db.user.update({

@@ -322,30 +322,37 @@ export default function PipelineLeadCard({
               </div>
             </div>
 
-            {/* Cute Scaled-down Reveal Action Button with Loading Animation */}
-            <button
-              type="button"
-              onClick={handleReveal}
-              disabled={isRevealing}
-              className={`h-[30px] px-3 rounded-xl font-bold text-[10.5px] shadow-sm flex items-center justify-center gap-1.5 transition-all active:scale-95 shrink-0 whitespace-nowrap ${theme.button} ${
-                isRevealing ? 'opacity-85 cursor-wait pointer-events-none' : 'cursor-pointer'
-              }`}
-            >
-              {isRevealing ? (
-                <span className="flex items-center gap-1.5 whitespace-nowrap">
-                  <Loader2 size={12} className="animate-spin shrink-0" />
-                  <span className="text-[10px] font-semibold tracking-tight whitespace-nowrap">Unlocking...</span>
-                </span>
-              ) : (
-                <span className="flex items-center gap-1.5 whitespace-nowrap">
-                  <span className="whitespace-nowrap">Unlock & Save</span>
-                  <span className="flex items-center gap-0.5 opacity-90 text-[10px] font-semibold tabular-nums shrink-0 whitespace-nowrap">
-                    <Coins size={11} className="shrink-0" />
-                    <span>-{lead.revealCost ?? 3}</span>
+            {/* Claimed by Member Badge OR Reveal Action Button */}
+            {lead.isClaimedByOther ? (
+              <div className="h-[30px] px-2.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-[10.5px] font-bold flex items-center gap-1.5 select-none shadow-sm shrink-0 whitespace-nowrap">
+                <Lock size={12} className="shrink-0" />
+                <span>Claimed by a member</span>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={handleReveal}
+                disabled={isRevealing}
+                className={`h-[30px] px-3 rounded-xl font-bold text-[10.5px] shadow-sm flex items-center justify-center gap-1.5 transition-all active:scale-95 shrink-0 whitespace-nowrap ${theme.button} ${
+                  isRevealing ? 'opacity-85 cursor-wait pointer-events-none' : 'cursor-pointer'
+                }`}
+              >
+                {isRevealing ? (
+                  <span className="flex items-center gap-1.5 whitespace-nowrap">
+                    <Loader2 size={12} className="animate-spin shrink-0" />
+                    <span className="text-[10px] font-semibold tracking-tight whitespace-nowrap">Unlocking...</span>
                   </span>
-                </span>
-              )}
-            </button>
+                ) : (
+                  <span className="flex items-center gap-1.5 whitespace-nowrap">
+                    <span className="whitespace-nowrap">Unlock & Save</span>
+                    <span className="flex items-center gap-0.5 opacity-90 text-[10px] font-semibold tabular-nums shrink-0 whitespace-nowrap">
+                      <Coins size={11} className="shrink-0" />
+                      <span>-{lead.revealCost ?? 3}</span>
+                    </span>
+                  </span>
+                )}
+              </button>
+            )}
           </>
         ) : (
           <>

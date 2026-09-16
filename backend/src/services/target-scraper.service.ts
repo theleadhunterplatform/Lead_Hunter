@@ -4,6 +4,7 @@ import config from '../config';
 import { getApifyClient, handleApifyLimitError, recordApifyCommentUsage } from '../utils/apify-client.utils';
 import { enqueueLeadQualification } from '../utils/qualification-queue.utils';
 import { findExistingLeadPost, isDuplicateKeyError } from '../utils/lead-dedup.utils';
+import { isPostOlderThanDays } from '../utils/scraped-item.utils';
 
 type ProfileCommentItem = {
     id?: string;
@@ -124,6 +125,12 @@ export class TargetScraperService {
     ): Promise<boolean> {
         const post = item.post;
         if (!post?.id) {
+            return false;
+        }
+
+        // Age filter: skip posts older than 2 days (48 hours)
+        if (isPostOlderThanDays(post, 'linkedin', 2)) {
+            console.log(`⏭️ [TargetScraper] Skip post ${post.id} for "${target.name}": older than 2 days`);
             return false;
         }
 

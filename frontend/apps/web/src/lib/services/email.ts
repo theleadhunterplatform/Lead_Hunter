@@ -1,4 +1,5 @@
 import { db } from '@/lib/db'
+import nodemailer from 'nodemailer'
 import {
   renderApproved,
   renderRejected,
@@ -9,8 +10,10 @@ import {
   renderNewsletterConfirmation,
   renderNewsletter,
   renderEmailVerification,
+  renderLowCreditsNudge,
+  renderRenewalReminder,
+  renderBroadcastAnnouncement,
 } from '@/lib/email-templates'
-import { randomUUID } from 'crypto'
 
 interface SendOptions {
   html?: string
@@ -20,8 +23,14 @@ interface EmailResult {
   id: string
 }
 
+const SMTP_HOST = process.env.SMTP_HOST
+const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587', 10)
+const SMTP_USER = process.env.SMTP_USER
+const SMTP_PASS = process.env.SMTP_PASS
+const SMTP_SECURE = process.env.SMTP_SECURE === 'true' || SMTP_PORT === 465
+
 const RESEND_API_KEY = process.env.RESEND_API_KEY
-const EMAIL_FROM = process.env.EMAIL_FROM || 'noreply@leadhunterclub.com'
+const EMAIL_FROM = process.env.EMAIL_FROM || 'Lead Hunter Club <noreply@leadhunterclub.com>'
 const ADMIN_NOTIFICATION_EMAIL = process.env.ADMIN_NOTIFICATION_EMAIL || ''
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://leadhunterclub.com'
 const IS_PRODUCTION = process.env.NODE_ENV === 'production'
@@ -42,34 +51,84 @@ async function logEmail(type: string, to: string, subject: string, status: strin
   }
 }
 
-async function sendWithResend(
+let cachedTransporter: nodemailer.Transporter | null = null
+
+function getSmtpTransporter(): nodemailer.Transporter | null {
+  if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
+    return null
+  }
+  if (!cachedTransporter) {
+    cachedTransporter = nodemailer.createTransport({
+      host: SMTP_HOST,
+      port: SMTP_PORT,
+      secure: SMTP_SECURE,
+      auth: {
+        user: SMTP_USER,
+        pass: SMTP_PASS,
+      },
+      pool: true,
+      maxConnections: 5,
+      maxMessages: 100,
+    })
+  }
+  return cachedTransporter
+}
+
+async function sendViaHybridTransport(
   to: string,
   subject: string,
   body: string,
   opts?: SendOptions,
 ): Promise<EmailResult> {
-  if (!RESEND_API_KEY) {
-    console.warn(`[Email Service] RESEND_API_KEY not configured. Email to ${to} skipped.`)
-    return { id: 'skipped-no-api-key' }
+  const smtp = getSmtpTransporter()
+
+  // 1. Primary Transport: Custom Domain SMTP (Nodemailer)
+  if (smtp) {
+    try {
+      const info = await smtp.sendMail({
+        from: EMAIL_FROM,
+        to,
+        subject,
+        text: body,
+        html: opts?.html || body,
+      })
+      logDev(`Sent email via Custom SMTP to ${to}: ${info.messageId}`)
+      return { id: info.messageId || 'sent-smtp' }
+    } catch (smtpErr) {
+      console.error('[Email Service] Custom SMTP failed, falling back to Resend:', smtpErr)
+    }
   }
 
-  const { Resend } = await import('resend')
-  const resend = new Resend(RESEND_API_KEY)
+  // 2. Secondary Transport: Resend API
+  if (RESEND_API_KEY) {
+    try {
+      const { Resend } = await import('resend')
+      const resend = new Resend(RESEND_API_KEY)
 
-  const { data, error } = await resend.emails.send({
-    from: EMAIL_FROM,
-    to,
-    subject,
-    text: body,
-    html: opts?.html || body,
-  })
+      const { data, error } = await resend.emails.send({
+        from: EMAIL_FROM,
+        to,
+        subject,
+        text: body,
+        html: opts?.html || body,
+      })
 
-  if (error) {
-    console.error('[Email Service] Resend error:', error)
-    return { id: 'error' }
+      if (error) {
+        console.error('[Email Service] Resend API error:', error)
+        return { id: 'error' }
+      }
+
+      logDev(`Sent email via Resend to ${to}: ${data?.id}`)
+      return { id: data?.id || 'sent-resend' }
+    } catch (resendErr) {
+      console.error('[Email Service] Resend API exception:', resendErr)
+      return { id: 'error' }
+    }
   }
 
-  return { id: data?.id || 'sent' }
+  // 3. Fallback for development without credentials
+  logDev(`[DEV MOCK EMAIL] To: ${to} | Subject: "${subject}" | (No SMTP/Resend configured)`)
+  return { id: 'mock-sent' }
 }
 
 async function send(
@@ -80,7 +139,7 @@ async function send(
   opts?: SendOptions,
 ): Promise<EmailResult> {
   try {
-    const result = await sendWithResend(to, subject, body, opts)
+    const result = await sendViaHybridTransport(to, subject, body, opts)
     await logEmail(type, to, subject, result.id === 'error' ? 'FAILED' : 'SENT')
     return result
   } catch (error) {
@@ -92,6 +151,18 @@ async function send(
 }
 
 export const emailService = {
+  // Flow 1: Application Received
+  async sendApplicationReceived(user: { name: string; email: string }) {
+    const { subject, text, html } = renderApplicationReceived({ name: user.name, appUrl: APP_URL })
+    return send('application_received', user.email, subject, text, { html })
+  },
+
+  async sendOnboardingComplete(user: { name: string; email: string }) {
+    const { subject, text, html } = renderOnboardingComplete({ name: user.name, appUrl: APP_URL })
+    return send('onboarding_complete', user.email, subject, text, { html })
+  },
+
+  // Flow 2: Account Approved
   async sendApproved(user: { name: string; email: string }, plan: string, credits: number) {
     const { subject, text, html } = renderApproved({
       name: user.name,
@@ -112,9 +183,31 @@ export const emailService = {
     return send('suspended', user.email, subject, text, { html })
   },
 
-  async sendApplicationReceived(user: { name: string; email: string }) {
-    const { subject, text, html } = renderApplicationReceived({ name: user.name, appUrl: APP_URL })
-    return sendWithResend(user.email, subject, text, { html })
+  // Flow 3: Low Credits Nudge (<= 2 credits remaining)
+  async sendLowCreditsNudge(user: { name?: string; email: string }, credits: number) {
+    const { subject, text, html } = renderLowCreditsNudge({
+      name: user.name || '',
+      credits,
+      appUrl: APP_URL,
+    })
+    return send('low_credits', user.email, subject, text, { html })
+  },
+
+  // Flow 4: Renewal Reminder (3 days before monthly renewal)
+  async sendRenewalNotice(
+    user: { name?: string; email: string },
+    daysRemaining: number,
+    plan: string,
+    renewalDate: string,
+  ) {
+    const { subject, text, html } = renderRenewalReminder({
+      name: user.name || '',
+      plan,
+      daysRemaining,
+      renewalDate,
+      appUrl: APP_URL,
+    })
+    return send('renewal_reminder', user.email, subject, text, { html })
   },
 
   async sendTicketReply(user: {
@@ -130,12 +223,7 @@ export const emailService = {
       ticketSubject: user.ticketSubject,
       replyBody: user.replyBody,
     })
-    return sendWithResend(user.email, subject, text, { html })
-  },
-
-  async sendOnboardingComplete(user: { name: string; email: string }) {
-    const { subject, text, html } = renderOnboardingComplete({ name: user.name, appUrl: APP_URL })
-    return send('onboarding_complete', user.email, subject, text, { html })
+    return send('ticket_reply', user.email, subject, text, { html })
   },
 
   async sendEmailVerification(user: { name?: string; email: string }, verificationUrl: string) {
@@ -147,7 +235,6 @@ export const emailService = {
     })
     return send('email_verification', user.email, subject, text, { html })
   },
-
 
   async notifyAdmin(type: string, data: Record<string, unknown>) {
     if (!ADMIN_NOTIFICATION_EMAIL) {
@@ -165,13 +252,106 @@ export const emailService = {
     return send('admin_notification', ADMIN_NOTIFICATION_EMAIL, subject, text)
   },
 
+  /**
+   * Dispatches a broadcast announcement to registered platform members in safe chunks of 15.
+   */
+  async sendBroadcastToUsers(
+    recipients: Array<{ name?: string | null; email: string }>,
+    subject: string,
+    contentHtml: string,
+    contentText: string,
+  ): Promise<{ sent: number; failed: number }> {
+    if (recipients.length === 0) {
+      return { sent: 0, failed: 0 }
+    }
+
+    const { subject: renderedSubject, text: defaultText, html: defaultHtml } =
+      renderBroadcastAnnouncement({
+        subject,
+        messageHtml: contentHtml,
+        messageText: contentText,
+        appUrl: APP_URL,
+      })
+
+    let sent = 0
+    let failed = 0
+    const CHUNK_SIZE = 15
+
+    for (let i = 0; i < recipients.length; i += CHUNK_SIZE) {
+      const chunk = recipients.slice(i, i + CHUNK_SIZE)
+      const results = await Promise.all(
+        chunk.map(async (user) => {
+          return send('broadcast', user.email, renderedSubject, defaultText, {
+            html: defaultHtml,
+          })
+        }),
+      )
+      for (const res of results) {
+        if (res.id !== 'error') {
+          sent++
+        } else {
+          failed++
+        }
+      }
+    }
+
+    return { sent, failed }
+  },
+
+  /**
+   * Diagnostic check for SMTP & Email provider health.
+   */
+  async verifySmtpConnection(): Promise<{
+    configured: boolean
+    provider: 'smtp' | 'resend' | 'mock'
+    working: boolean
+    message: string
+  }> {
+    const smtp = getSmtpTransporter()
+    if (smtp) {
+      try {
+        await smtp.verify()
+        return {
+          configured: true,
+          provider: 'smtp',
+          working: true,
+          message: `Custom SMTP verified successfully (${SMTP_HOST}:${SMTP_PORT})`,
+        }
+      } catch (err: unknown) {
+        const errorMsg = err instanceof Error ? err.message : 'SMTP verification failed'
+        return {
+          configured: true,
+          provider: 'smtp',
+          working: false,
+          message: `SMTP connection error: ${errorMsg}`,
+        }
+      }
+    }
+
+    if (RESEND_API_KEY) {
+      return {
+        configured: true,
+        provider: 'resend',
+        working: true,
+        message: 'Resend API key configured and active',
+      }
+    }
+
+    return {
+      configured: false,
+      provider: 'mock',
+      working: true,
+      message: 'Running in development mock mode. Add SMTP or Resend credentials for live dispatching.',
+    }
+  },
+
   async sendNewsletterConfirmation(email: string, confirmUrl: string) {
     const { subject, text, html } = renderNewsletterConfirmation({
       name: '',
       appUrl: APP_URL,
       confirmUrl,
     })
-    return sendNewsletterEmail('newsletter_confirmation', email, subject, text, html)
+    return send('newsletter_confirmation', email, subject, text, { html })
   },
 
   async sendNewsletter(to: string, subject: string, bodyHtml: string, bodyText: string, unsubscribeUrl?: string) {
@@ -181,102 +361,6 @@ export const emailService = {
       bodyText,
       unsubscribeUrl: unsubscribeUrl || `${APP_URL}/newsletter/unsubscribe`,
     })
-    return sendNewsletterEmail('newsletter', to, s, text, html)
+    return send('newsletter', to, s, text, { html })
   },
-
-  async sendBroadcast(subject: string, bodyHtml: string, bodyText: string) {
-    const subscribers = await db.newsletterSubscriber.findMany({
-      where: { status: 'SUBSCRIBED' },
-      select: { email: true, unsubscribeToken: true },
-    })
-
-    if (subscribers.length === 0) {
-      logDev(`Broadcast skipped (no subscribers): subject="${subject}"`)
-      return { id: 'skipped-no-subscribers', sent: 0 }
-    }
-
-    let sent = 0
-    const BATCH_SIZE = 10
-    for (let i = 0; i < subscribers.length; i += BATCH_SIZE) {
-      const batch = subscribers.slice(i, i + BATCH_SIZE)
-      const results = await Promise.all(
-        batch.map(async (sub) => {
-          const unsubscribeUrl = `${APP_URL}/newsletter/unsubscribe?token=${sub.unsubscribeToken}`
-          const { subject: s, text, html } = renderNewsletter({
-            subject,
-            bodyHtml,
-            bodyText,
-            unsubscribeUrl,
-          })
-          return sendNewsletterEmail('newsletter_broadcast', sub.email, s, text, html, sub.unsubscribeToken)
-        })
-      )
-      sent += results.filter((r) => r.id !== 'error').length
-    }
-    return { id: 'broadcast', sent }
-  },
-
-  async unsubscribeSubscriber(email: string, token: string) {
-    const sub = await db.newsletterSubscriber.findUnique({ where: { email } })
-    if (!sub || sub.unsubscribeToken !== token) {
-      return { ok: false, reason: 'invalid' }
-    }
-    await db.newsletterSubscriber.update({
-      where: { id: sub.id },
-      data: { status: 'UNSUBSCRIBED' },
-    })
-    return { ok: true }
-  },
-}
-
-interface NewsletterSendOptions {
-  html?: string
-}
-
-async function sendNewsletterEmail(
-  type: 'newsletter' | 'newsletter_broadcast' | 'newsletter_confirmation',
-  to: string,
-  subject: string,
-  text: string,
-  html?: string,
-  token?: string,
-): Promise<EmailResult> {
-  const headers: Record<string, string> = {}
-  if (token && type === 'newsletter_broadcast') {
-    headers['List-Unsubscribe'] = `<${APP_URL}/newsletter/unsubscribe?token=${token}>`
-    headers['List-Unsubscribe-Post'] = 'List-Unsubscribe=One-Click'
-  }
-
-  if (RESEND_API_KEY) {
-    try {
-      const { Resend } = await import('resend')
-      const resend = new Resend(RESEND_API_KEY)
-
-      const { data, error } = await resend.emails.send({
-        from: EMAIL_FROM,
-        to,
-        subject,
-        text,
-        html: html || text,
-        headers,
-      })
-
-      if (error) {
-        console.error('[Email Service] Resend error:', error)
-        await logEmail(type, to, subject, 'FAILED', error.message)
-        return { id: 'error' }
-      }
-
-      await logEmail(type, to, subject, 'SENT')
-      return { id: data?.id || 'sent' }
-    } catch (error) {
-      console.error('[Email Service] Resend send failed:', error)
-      await logEmail(type, to, subject, 'FAILED', error instanceof Error ? error.message : 'Resend error')
-      return { id: 'error' }
-    }
-  }
-
-  logDev(`Newsletter skipped (no RESEND_API_KEY): to=${to}, subject="${subject}"`)
-  await logEmail(type, to, subject, 'SKIPPED', 'No RESEND_API_KEY')
-  return { id: 'skipped-no-resend-key' }
 }

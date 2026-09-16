@@ -56,6 +56,7 @@ model User {
   supportTickets         SupportTicket[]
   referralsGiven         Referral[] @relation("ReferralsGiven")
   referralReceived       Referral?  @relation("ReferralReceived")
+  milestoneProofs        MilestoneProof[]
 }
 
 model Referral {
@@ -71,6 +72,26 @@ model Referral {
   referredUser   User      @relation("ReferralReceived", fields: [referredUserId], references: [id], onDelete: Cascade)
 
   @@map("referrals")
+}
+
+model MilestoneProof {
+  id             String    @id @default(uuid())
+  userId         String
+  type           String    // "POSITIVE_REPLY" | "MEETING_SCHEDULED" | "DEAL_CLOSED"
+  imageUrl       String
+  note           String?
+  creditsAwarded Int       @default(0)
+  status         String    @default("PENDING") // "PENDING" | "APPROVED" | "REJECTED"
+  adminNote      String?
+  reviewedAt     DateTime?
+  reviewedBy     String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@map("milestone_proofs")
 }
 
 model CreditAccount {

@@ -89,6 +89,7 @@ function extractSection(text: string, heading: string): string {
 function externalPostToAppLead(
   post: ExternalPost,
   userState?: { isSaved: boolean; isRevealed: boolean; status: string } | null,
+  isClaimedByOther: boolean = false,
 ): AppLead {
   const isRevealed = userState?.isRevealed || false
   const phone = post.contact_info?.phone_numbers?.[0]?.number || null
@@ -134,9 +135,10 @@ function externalPostToAppLead(
     scrapedAgo: formatTimeAgo(post.created_at),
     isSaved: userState?.isSaved || false,
     isRevealed,
-    isClaimable: isLeadClaimable(post),
-    hasPhone: !!phone,
-    revealCost: getLeadRevealCost(post),
+    isClaimable: isClaimedByOther ? false : isLeadClaimable(post),
+    isClaimedByOther,
+    hasPhone: !isClaimedByOther && !!phone,
+    revealCost: isClaimedByOther ? null : getLeadRevealCost(post),
     phone: isRevealed ? phone : null,
   }
 }
@@ -246,18 +248,38 @@ export async function GET(request: NextRequest) {
           : { userId, status: { in: ['drafting', 'sent', 'replied', 'follow-up'] } },
         include: { lead: { select: LEAD_POST_SELECT } },
       })
+
+      // Ensure claimed/saved leads remain permanently accessible even if purged from oracle.lead_posts
+      const missingLeadIds = userStates.filter((s) => !s.lead).map((s) => s.leadId)
+      const fallbackLeads =
+        missingLeadIds.length > 0
+          ? await db.lead.findMany({ where: { id: { in: missingLeadIds } } })
+          : []
+      const fallbackMap = new Map(fallbackLeads.map((l) => [l.id, l]))
+
       data = userStates
-        .filter((s) => s.lead && !s.lead.is_deleted)
-        .map((s) => externalPostToAppLead(mapLeadPostToExternal(s.lead as any), s))
+        .map((s) => {
+          if (s.lead) {
+            return externalPostToAppLead(mapLeadPostToExternal(s.lead as any), s, false)
+          }
+          const fallback = fallbackMap.get(s.leadId)
+          if (fallback) {
+            return dbLeadToAppLead(fallback, s)
+          }
+          return null
+        })
+        .filter((l): l is AppLead => l !== null)
     } else {
       let externalLeads: ExternalPost[] = []
       try {
-        // Direct Prisma query to oracle schema — no HTTP roundtrip to Oracle VM
+        // Active discovery feed strictly shows fresh opportunities from the last 10 days
+        const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000)
         const where: any = {
           is_deleted: false,
           review_status: 'approved',
           intelligence: { not: null as string | null },
           source: { not: 'seed' },
+          created_at: { gte: tenDaysAgo },
         }
         if (niche && niche !== 'All') {
           where.niche = niche
@@ -274,15 +296,27 @@ export async function GET(request: NextRequest) {
         ])
         externalLeads = rawLeads.map(mapLeadPostToExternal)
         const leadIds = externalLeads.map((l) => l.id)
-        const userStates =
+
+        const [userStates, otherRevealedStates] = await Promise.all([
           leadIds.length > 0
-            ? await db.userLeadState.findMany({
+            ? db.userLeadState.findMany({
                 where: { userId, leadId: { in: leadIds } },
               })
-            : []
+            : [],
+          leadIds.length > 0
+            ? db.userLeadState.findMany({
+                where: { leadId: { in: leadIds }, isRevealed: true, userId: { not: userId } },
+                select: { leadId: true },
+              })
+            : [],
+        ])
         const stateMap = new Map(userStates.map((s) => [s.leadId, s]))
+        const otherRevealedSet = new Set(otherRevealedStates.map((s) => s.leadId))
+
         const data = externalLeads
-          .map((lead) => externalPostToAppLead(lead, stateMap.get(lead.id)))
+          .map((lead) =>
+            externalPostToAppLead(lead, stateMap.get(lead.id), otherRevealedSet.has(lead.id)),
+          )
           .filter((l) => l.status === 'new')
 
         if (search) {

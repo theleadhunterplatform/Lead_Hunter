@@ -25,7 +25,7 @@ async function checkAndRenewInTx(tx: Prisma.TransactionClient, userId: string) {
 
   const account = await tx.creditAccount.findUnique({
     where: { userId },
-    include: { user: { select: { plan: true } } },
+    include: { user: { select: { plan: true, razorpayCurrentPeriodEnd: true } } },
   })
 
   if (!account) return null
@@ -33,44 +33,104 @@ async function checkAndRenewInTx(tx: Prisma.TransactionClient, userId: string) {
   await expireRolloverInTx(tx, userId, account)
 
   if (account.renewalDate && now() >= account.renewalDate) {
-    const limit = getPlanCredits(account.user.plan)
-    const rollover = rolloverOnRenewal(account, account.subscriptionBalance)
-    const renewed = await tx.creditAccount.update({
-      where: { userId },
-      data: {
-        subscriptionBalance: limit,
-        renewalDate: new Date(account.renewalDate.getTime() + 30 * 24 * 60 * 60 * 1000),
-        rolloverBalance: rollover.rolloverBalance,
-        rolloverExpiresAt: rollover.rolloverExpiresAt,
-      },
-      select: {
-        subscriptionBalance: true,
-        bonusBalance: true,
-        rolloverBalance: true,
-        rolloverExpiresAt: true,
-        renewalDate: true,
-      },
-    })
+    const isFree = account.user.plan === 'FREE'
 
-    await tx.auditLog.create({
-      data: {
-        userId,
-        adminId: userId,
-        action: 'CREDIT_CHANGE',
-        targetType: 'USER',
-        targetId: userId,
-        details: {
-          type: 'renewal',
-          previousSubscriptionBalance: account.subscriptionBalance,
-          newSubscriptionBalance: limit,
-          rolledOver: rollover.rolloverBalance,
-          rolloverExpiresAt: rollover.rolloverExpiresAt?.toISOString(),
-          reason: 'auto_renewal',
+    // If on a paid plan, check if user has an active renewed period in razorpayCurrentPeriodEnd
+    const hasPaidPeriod =
+      !isFree &&
+      account.user.razorpayCurrentPeriodEnd &&
+      account.user.razorpayCurrentPeriodEnd > now()
+
+    if (isFree || hasPaidPeriod) {
+      // Normal renewal (free tier monthly credit reset or active paid recurring renewal)
+      const limit = getPlanCredits(account.user.plan)
+      const rollover = rolloverOnRenewal(account, account.subscriptionBalance)
+      const nextRenewal = hasPaidPeriod
+        ? account.user.razorpayCurrentPeriodEnd!
+        : new Date(now().getTime() + 30 * 24 * 60 * 60 * 1000)
+
+      const renewed = await tx.creditAccount.update({
+        where: { userId },
+        data: {
+          subscriptionBalance: limit,
+          renewalDate: nextRenewal,
+          rolloverBalance: rollover.rolloverBalance,
+          rolloverExpiresAt: rollover.rolloverExpiresAt,
         },
-      },
-    })
+        select: {
+          subscriptionBalance: true,
+          bonusBalance: true,
+          rolloverBalance: true,
+          rolloverExpiresAt: true,
+          renewalDate: true,
+        },
+      })
 
-    return renewed
+      await tx.auditLog.create({
+        data: {
+          userId,
+          adminId: userId,
+          action: 'CREDIT_CHANGE',
+          targetType: 'USER',
+          targetId: userId,
+          details: {
+            type: 'renewal',
+            previousSubscriptionBalance: account.subscriptionBalance,
+            newSubscriptionBalance: limit,
+            rolledOver: rollover.rolloverBalance,
+            rolloverExpiresAt: rollover.rolloverExpiresAt?.toISOString(),
+            reason: isFree ? 'free_tier_monthly_refresh' : 'paid_auto_renewal',
+          },
+        },
+      })
+
+      return renewed
+    } else {
+      // Auto-downgrade expired paid subscription to FREE starter tier
+      const freeLimit = getPlanCredits('FREE')
+      const nextRenewal = new Date(now().getTime() + 30 * 24 * 60 * 60 * 1000)
+
+      await tx.user.update({
+        where: { id: userId },
+        data: { plan: 'FREE' },
+      })
+
+      const downgraded = await tx.creditAccount.update({
+        where: { userId },
+        data: {
+          subscriptionBalance: freeLimit,
+          renewalDate: nextRenewal,
+          rolloverBalance: 0,
+          rolloverExpiresAt: null,
+        },
+        select: {
+          subscriptionBalance: true,
+          bonusBalance: true,
+          rolloverBalance: true,
+          rolloverExpiresAt: true,
+          renewalDate: true,
+        },
+      })
+
+      await tx.auditLog.create({
+        data: {
+          userId,
+          adminId: userId,
+          action: 'PLAN_DOWNGRADED',
+          targetType: 'USER',
+          targetId: userId,
+          details: {
+            previousPlan: account.user.plan,
+            newPlan: 'FREE',
+            reason: 'subscription_expired',
+            subscriptionCredits: freeLimit,
+            renewalDate: nextRenewal.toISOString(),
+          },
+        },
+      })
+
+      return downgraded
+    }
   }
 
   return account
@@ -264,19 +324,44 @@ export const creditService = {
 
   async assignPlan(userId: string, planId: string) {
     const limit = getPlanCredits(planId)
-    const renewalDate = new Date()
-    renewalDate.setDate(renewalDate.getDate() + 30)
 
     return db.$transaction(async (tx) => {
-      await tx.user.update({
-        where: { id: userId },
-        data: { plan: planId },
+      const existingAccount = await tx.creditAccount.findUnique({
+        where: { userId },
+        include: { user: { select: { plan: true, razorpayCurrentPeriodEnd: true } } },
       })
 
-      const updated = await tx.creditAccount.update({
-        where: { userId },
+      // Renewal Queuing: If existing plan period is still active, queue new 30 days from current expiry
+      const currentExpiry =
+        existingAccount?.renewalDate && existingAccount.renewalDate > now()
+          ? existingAccount.renewalDate
+          : existingAccount?.user?.razorpayCurrentPeriodEnd &&
+            existingAccount.user.razorpayCurrentPeriodEnd > now()
+          ? existingAccount.user.razorpayCurrentPeriodEnd
+          : null
+
+      const baseDate = currentExpiry ? new Date(currentExpiry) : new Date()
+      baseDate.setDate(baseDate.getDate() + 30)
+      const renewalDate = baseDate
+
+      await tx.user.update({
+        where: { id: userId },
         data: {
+          plan: planId,
+          razorpayCurrentPeriodEnd: renewalDate,
+        },
+      })
+
+      const updated = await tx.creditAccount.upsert({
+        where: { userId },
+        update: {
           subscriptionBalance: limit,
+          renewalDate,
+        },
+        create: {
+          userId,
+          subscriptionBalance: limit,
+          bonusBalance: 0,
           renewalDate,
         },
         select: {
@@ -299,6 +384,7 @@ export const creditService = {
             type: 'plan_assignment',
             plan: planId,
             subscriptionCredits: limit,
+            queuedFrom: currentExpiry ? currentExpiry.toISOString() : null,
             renewalDate: renewalDate.toISOString(),
           },
         },
@@ -312,7 +398,7 @@ export const creditService = {
     return db.$transaction(async (tx) => {
       const account = await tx.creditAccount.findUnique({
         where: { userId },
-        include: { user: { select: { plan: true } } },
+        include: { user: { select: { plan: true, razorpayCurrentPeriodEnd: true } } },
       })
 
       if (!account) throw new Error('CreditAccount not found')
@@ -321,8 +407,23 @@ export const creditService = {
 
       const limit = getPlanCredits(account.user.plan)
       const rollover = rolloverOnRenewal(account, account.subscriptionBalance)
-      const renewalDate = new Date()
-      renewalDate.setDate(renewalDate.getDate() + 30)
+
+      // Renewal Queuing: Preserve remaining days
+      const currentExpiry =
+        account.renewalDate && account.renewalDate > now()
+          ? account.renewalDate
+          : account.user?.razorpayCurrentPeriodEnd && account.user.razorpayCurrentPeriodEnd > now()
+          ? account.user.razorpayCurrentPeriodEnd
+          : null
+
+      const baseDate = currentExpiry ? new Date(currentExpiry) : new Date()
+      baseDate.setDate(baseDate.getDate() + 30)
+      const renewalDate = baseDate
+
+      await tx.user.update({
+        where: { id: userId },
+        data: { razorpayCurrentPeriodEnd: renewalDate },
+      })
 
       const updated = await tx.creditAccount.update({
         where: { userId },
@@ -354,6 +455,7 @@ export const creditService = {
             newSubscriptionBalance: limit,
             rolledOver: rollover.rolloverBalance,
             rolloverExpiresAt: rollover.rolloverExpiresAt?.toISOString(),
+            queuedFrom: currentExpiry ? currentExpiry.toISOString() : null,
             newRenewalDate: renewalDate.toISOString(),
           },
         },

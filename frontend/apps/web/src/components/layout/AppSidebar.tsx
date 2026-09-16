@@ -15,6 +15,7 @@ import {
   ArrowLeftStartOnRectangleIcon,
   LifebuoyIcon,
   GiftIcon,
+  TrophyIcon,
 } from '@heroicons/react/24/solid'
 
 const navItems = [
@@ -22,6 +23,7 @@ const navItems = [
   { name: 'Saved Leads', href: '/saved', icon: BookmarkIcon },
   { name: 'Dashboard', href: '/dashboard', icon: Squares2X2Icon },
   { name: 'Refer & Earn', href: '/referrals', icon: GiftIcon },
+  { name: 'Milestone Rewards', href: '/rewards', icon: TrophyIcon },
   { name: 'Support', href: '/support', icon: LifebuoyIcon },
 ]
 
