@@ -1,3 +1,5 @@
+import { db } from '@/lib/db'
+
 function wrapHtml(body: string): string {
   return `<!DOCTYPE html>
 <html>
@@ -22,106 +24,400 @@ function wrapHtml(body: string): string {
 </html>`
 }
 
-interface TemplateData {
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+}
+
+function interpolateVariables(content: string, vars: Record<string, string | number>): string {
+  let result = content
+  for (const [key, val] of Object.entries(vars)) {
+    const regex = new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, 'gi')
+    result = result.replace(regex, String(val ?? ''))
+  }
+  return result
+}
+
+function textToHtmlBody(text: string, cta?: { text: string; url: string }): string {
+  const paragraphs = text
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+
+  const renderedParagraphs = paragraphs
+    .map((p) => {
+      const lines = p.split('\n').map((l) => l.trim())
+      const isBulletList = lines.every((l) => l.startsWith('•') || l.startsWith('-') || l.startsWith('*'))
+
+      if (isBulletList && lines.length > 0) {
+        const items = lines
+          .map((l) => {
+            const itemText = l.replace(/^[•\-\*]\s*/, '')
+            return `<li style="margin:4px 0">${escapeHtml(itemText)}</li>`
+          })
+          .join('')
+        return `<ul style="margin:16px 0;padding-left:20px;font-size:15px;color:#ccc;line-height:1.6">${items}</ul>`
+      }
+
+      const escaped = lines
+        .map((l) => {
+          return escapeHtml(l).replace(
+            /(https?:\/\/[^\s<]+)/g,
+            '<a href="$1" style="color:#dc3b4c;text-decoration:underline" target="_blank">$1</a>',
+          )
+        })
+        .join('<br/>')
+
+      return `<p style="margin:16px 0;font-size:15px;color:#ccc;line-height:1.6">${escaped}</p>`
+    })
+    .join('')
+
+  const ctaButton = cta
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0 16px">
+        <tr>
+          <td align="center" style="border-radius:10px;background:#dc3b4c">
+            <a href="${cta.url}" target="_blank" style="display:inline-block;padding:12px 28px;background:#dc3b4c;color:#ffffff;border-radius:10px;text-decoration:none;font-size:14px;font-weight:600;letter-spacing:0.01em">${escapeHtml(
+        cta.text,
+      )}</a>
+          </td>
+        </tr>
+      </table>`
+    : ''
+
+  return renderedParagraphs + ctaButton
+}
+
+async function resolveDynamicTemplate(options: {
+  templateId: string
+  fallbackSubject: string
+  fallbackBody: string
+  variables: Record<string, string | number>
+  cta?: { text: string; url: string }
+}): Promise<{ subject: string; text: string; html: string }> {
+  let rawSubject = options.fallbackSubject
+  let rawBody = options.fallbackBody
+
+  try {
+    const tpl = await db.broadcastTemplate.findUnique({
+      where: { id: options.templateId },
+    })
+    if (tpl?.subject && tpl?.body) {
+      rawSubject = tpl.subject
+      rawBody = tpl.body
+    }
+  } catch (err) {
+    console.warn(`[Email Template] Could not load template "${options.templateId}" from DB, using fallback:`, err)
+  }
+
+  const subject = interpolateVariables(rawSubject, options.variables)
+  const text = interpolateVariables(rawBody, options.variables)
+  const bodyHtml = textToHtmlBody(text, options.cta)
+  const html = wrapHtml(bodyHtml)
+
+  return { subject, text, html }
+}
+
+export interface TemplateData {
   name: string
   appUrl: string
 }
 
-interface ApprovedData extends TemplateData {
+export interface ApprovedData extends TemplateData {
   plan: string
   credits: number
 }
 
-interface RejectedData extends TemplateData {}
+export interface RejectedData extends TemplateData {}
 
-interface SuspendedData extends TemplateData {}
+export interface SuspendedData extends TemplateData {}
 
-interface ApplicationReceivedData extends TemplateData {}
+export interface ApplicationReceivedData extends TemplateData {}
 
-interface TicketReplyData extends TemplateData {
+export interface TicketReplyData extends TemplateData {
   ticketSubject: string
   replyBody: string
 }
 
-export function renderApproved(data: ApprovedData) {
-  const subject = `Welcome to Lead Hunter Club — You've been approved!`
-  const text = `Hi ${data.name},\n\nGreat news! Your application has been approved with the ${data.plan} plan, including ${data.credits} coins.\n\nYou can now log in and start hunting leads.\n\n${data.appUrl}/dashboard`
-  const html = wrapHtml(`
-    <p style="margin:16px 0;font-size:15px;color:#ccc;line-height:1.6">Hi ${data.name},</p>
-    <p style="margin:16px 0;font-size:15px;color:#ccc;line-height:1.6">Great news! Your application has been approved with the <strong style="color:#fff">${data.plan}</strong> plan, including <strong style="color:#fff">${data.credits} coins</strong>.</p>
-    <p style="margin:16px 0;font-size:15px;color:#ccc;line-height:1.6">You can now log in and start hunting leads.</p>
-    <a href="${data.appUrl}/dashboard" style="display:inline-block;margin:8px 0 16px;padding:12px 28px;background:#dc3b4c;color:#fff;border-radius:10px;text-decoration:none;font-size:14px;font-weight:600">Go to Dashboard</a>
-  `)
-  return { subject, text, html }
+export interface LowCreditsData {
+  name: string
+  credits: number
+  appUrl: string
 }
 
-export function renderRejected(data: RejectedData) {
-  const subject = `Update on your Lead Hunter Club application`
-  const text = `Hi ${data.name},\n\nThank you for your interest in Lead Hunter Club. Unfortunately, we are unable to approve your application at this time, as it didn't meet our current criteria.\n\nWe're happy to review again if your circumstances change. If you have questions, please reach out to our support team.\n\n${data.appUrl}/support`
-  const html = wrapHtml(`
-    <p style="margin:16px 0;font-size:15px;color:#ccc;line-height:1.6">Hi ${data.name},</p>
-    <p style="margin:16px 0;font-size:15px;color:#ccc;line-height:1.6">Thank you for your interest in Lead Hunter Club. Unfortunately, we are unable to approve your application at this time, as it didn't meet our current criteria.</p>
-    <p style="margin:16px 0;font-size:15px;color:#ccc;line-height:1.6">We're happy to review again if your circumstances change. If you have questions, our support team is here to help.</p>
-    <a href="${data.appUrl}/support" style="display:inline-block;margin:8px 0 16px;padding:12px 28px;background:#dc3b4c;color:#fff;border-radius:10px;text-decoration:none;font-size:14px;font-weight:600">Contact Support</a>
-  `)
-  return { subject, text, html }
+export interface RenewalReminderData {
+  name: string
+  plan: string
+  daysRemaining: number
+  renewalDate: string
+  appUrl: string
 }
 
-export function renderSuspended(data: SuspendedData) {
-  const subject = `Lead Hunter Club — Account suspended`
-  const text = `Hi ${data.name},\n\nYour account has been suspended. If you believe this was done in error, please contact support.\n\n${data.appUrl}`
-  const html = wrapHtml(`
-    <p style="margin:16px 0;font-size:15px;color:#ccc;line-height:1.6">Hi ${data.name},</p>
-    <p style="margin:16px 0;font-size:15px;color:#ccc;line-height:1.6">Your account has been suspended. If you believe this was done in error, please contact support.</p>
-  `)
-  return { subject, text, html }
+export interface EmailVerificationData {
+  name?: string
+  email: string
+  verificationUrl: string
+  appUrl: string
 }
 
-export function renderApplicationReceived(data: ApplicationReceivedData) {
-  const subject = `Application received — Lead Hunter Club`
-  const text = `Hi ${data.name},\n\nWe've received your application. Our team will review it shortly and you'll hear back from us soon.\n\nIn the meantime, feel free to check your application status.\n\n${data.appUrl}/pending-approval`
-  const html = wrapHtml(`
-    <p style="margin:16px 0;font-size:15px;color:#ccc;line-height:1.6">Hi ${data.name},</p>
-    <p style="margin:16px 0;font-size:15px;color:#ccc;line-height:1.6">We've received your application. Our team will review it shortly and you'll hear back from us soon.</p>
-    <p style="margin:16px 0;font-size:15px;color:#ccc;line-height:1.6">In the meantime, feel free to check your application status.</p>
-    <a href="${data.appUrl}/pending-approval" style="display:inline-block;margin:8px 0 16px;padding:12px 28px;background:#dc3b4c;color:#fff;border-radius:10px;text-decoration:none;font-size:14px;font-weight:600">Check Status</a>
-  `)
-  return { subject, text, html }
-}
-
-export function renderOnboardingComplete(data: ApplicationReceivedData) {
-  const subject = `We're reviewing your application — Lead Hunter Club`
-  const text = `Hi ${data.name},\n\nThanks for completing your profile! We've received everything and our team is now reviewing your application.\n\nYou can expect to hear back within 24-48 hours. If approved, we'll send you your plan details and credits to start hunting leads right away.\n\nTrack your status anytime: ${data.appUrl}/pending-approval\n\nThe Lead Hunter Club team`
-  const html = wrapHtml(`
-    <p style="margin:16px 0;font-size:15px;color:#ccc;line-height:1.6">Hi ${data.name},</p>
-    <p style="margin:16px 0;font-size:15px;color:#ccc;line-height:1.6">Thanks for completing your profile! We've received everything and our team is now reviewing your application.</p>
-    <p style="margin:16px 0;font-size:15px;color:#ccc;line-height:1.6">You can expect to hear back within <strong style="color:#fff">24-48 hours</strong>. If approved, we'll send your plan details and credits to start hunting leads right away.</p>
-    <a href="${data.appUrl}/pending-approval" style="display:inline-block;margin:8px 0 16px;padding:12px 28px;background:#dc3b4c;color:#fff;border-radius:10px;text-decoration:none;font-size:14px;font-weight:600">Check Status</a>
-  `)
-  return { subject, text, html }
-}
-
-interface TicketReplyData extends TemplateData {
-  ticketSubject: string
-  replyBody: string
-}
-
-export function renderTicketReply(data: TicketReplyData) {
-  const subject = `Re: ${data.ticketSubject}`
-  const text = `Hi ${data.name},\n\nRegarding your support request "${data.ticketSubject}":\n\n${data.replyBody}\n\nOpen your ticket here: ${data.appUrl}/support`
-  const html = wrapHtml(`
-    <p style="margin:16px 0;font-size:15px;color:#ccc;line-height:1.6">Hi ${data.name},</p>
-    <p style="margin:16px 0;font-size:15px;color:#ccc;line-height:1.6">Regarding your support request &quot;<strong style="color:#fff">${data.ticketSubject}</strong>&quot;:</p>
-    <div style="margin:16px 0;padding:16px 20px;background:rgba(255,255,255,0.04);border-left:3px solid #dc3b4c;border-radius:8px;color:#e5e5e5;font-size:14px;line-height:1.6;white-space:pre-wrap">${data.replyBody.replace(/</g, '&lt;')}</div>
-    <a href="${data.appUrl}/support" style="display:inline-block;margin:8px 0 16px;padding:12px 28px;background:#dc3b4c;color:#fff;border-radius:10px;text-decoration:none;font-size:14px;font-weight:600">Open Ticket</a>
-  `)
-  return { subject, text, html }
-}
-
-interface NewsletterConfirmationData extends TemplateData {
+export interface NewsletterConfirmationData extends TemplateData {
   confirmUrl: string
 }
 
+export interface NewsletterData {
+  subject: string
+  bodyHtml: string
+  bodyText: string
+  unsubscribeUrl: string
+}
+
+export interface BroadcastData {
+  subject: string
+  messageHtml: string
+  messageText: string
+  appUrl: string
+}
+
+// 1. Account Approved
+export async function renderApproved(data: ApprovedData) {
+  return resolveDynamicTemplate({
+    templateId: 'tpl-auto-account-approved',
+    fallbackSubject: `Welcome to Lead Hunter Club — You've been approved!`,
+    fallbackBody: `Hi {{name}},
+
+Great news! Your application has been approved with the {{plan}} plan, including {{credits}} coins.
+
+You can now log in and start hunting leads right away:
+{{appUrl}}/dashboard
+
+To your outreach success,
+The Lead Hunter Club Team`,
+    variables: {
+      name: data.name,
+      plan: data.plan,
+      credits: data.credits,
+      appUrl: data.appUrl,
+    },
+    cta: {
+      text: 'Go to Dashboard',
+      url: `${data.appUrl}/dashboard`,
+    },
+  })
+}
+
+// 2. Account Rejected
+export async function renderRejected(data: RejectedData) {
+  return resolveDynamicTemplate({
+    templateId: 'tpl-auto-account-rejected',
+    fallbackSubject: `Update on your Lead Hunter Club application`,
+    fallbackBody: `Hi {{name}},
+
+Thank you for your interest in Lead Hunter Club. Unfortunately, we are unable to approve your application at this time, as it didn't meet our current criteria.
+
+We're happy to review again if your circumstances change. If you have questions, our support team is here to help:
+{{appUrl}}/support
+
+Best regards,
+The Lead Hunter Club Team`,
+    variables: {
+      name: data.name,
+      appUrl: data.appUrl,
+    },
+    cta: {
+      text: 'Contact Support',
+      url: `${data.appUrl}/support`,
+    },
+  })
+}
+
+// 3. Account Suspended
+export async function renderSuspended(data: SuspendedData) {
+  return resolveDynamicTemplate({
+    templateId: 'tpl-auto-account-suspended',
+    fallbackSubject: `Lead Hunter Club — Account suspended`,
+    fallbackBody: `Hi {{name}},
+
+Your account has been suspended. If you believe this was done in error or would like to request an appeal, please contact support:
+{{appUrl}}/support
+
+Lead Hunter Club Security`,
+    variables: {
+      name: data.name,
+      appUrl: data.appUrl,
+    },
+    cta: {
+      text: 'Contact Support',
+      url: `${data.appUrl}/support`,
+    },
+  })
+}
+
+// 4. Application Received
+export async function renderApplicationReceived(data: ApplicationReceivedData) {
+  return resolveDynamicTemplate({
+    templateId: 'tpl-auto-application-received',
+    fallbackSubject: `Application received — Lead Hunter Club`,
+    fallbackBody: `Hi {{name}},
+
+We've received your application. Our team will review it shortly and you'll hear back from us soon.
+
+In the meantime, feel free to check your application status:
+{{appUrl}}/pending-approval`,
+    variables: {
+      name: data.name,
+      appUrl: data.appUrl,
+    },
+    cta: {
+      text: 'Check Status',
+      url: `${data.appUrl}/pending-approval`,
+    },
+  })
+}
+
+// 5. Onboarding Complete
+export async function renderOnboardingComplete(data: ApplicationReceivedData) {
+  return resolveDynamicTemplate({
+    templateId: 'tpl-auto-application-received',
+    fallbackSubject: `We're reviewing your application — Lead Hunter Club`,
+    fallbackBody: `Hi {{name}},
+
+Thanks for completing your profile! We've received everything and our team is currently reviewing your application.
+
+You can expect to hear back within 24-48 hours. If approved, we'll send you your plan details and credits to start hunting leads right away.
+
+Track your status anytime:
+{{appUrl}}/pending-approval
+
+The Lead Hunter Club team`,
+    variables: {
+      name: data.name,
+      appUrl: data.appUrl,
+    },
+    cta: {
+      text: 'Check Status',
+      url: `${data.appUrl}/pending-approval`,
+    },
+  })
+}
+
+// 6. Support Ticket Reply
+export async function renderTicketReply(data: TicketReplyData) {
+  return resolveDynamicTemplate({
+    templateId: 'tpl-auto-ticket-reply',
+    fallbackSubject: `Re: {{ticketSubject}}`,
+    fallbackBody: `Hi {{name}},
+
+Regarding your support request "{{ticketSubject}}":
+
+{{replyBody}}
+
+You can open and reply to this ticket directly here:
+{{appUrl}}/support
+
+Best regards,
+Lead Hunter Club Support`,
+    variables: {
+      name: data.name,
+      ticketSubject: data.ticketSubject,
+      replyBody: data.replyBody,
+      appUrl: data.appUrl,
+    },
+    cta: {
+      text: 'Open Support Ticket',
+      url: `${data.appUrl}/support`,
+    },
+  })
+}
+
+// 7. Low Credits Alert
+export async function renderLowCreditsNudge(data: LowCreditsData) {
+  return resolveDynamicTemplate({
+    templateId: 'tpl-auto-low-credits',
+    fallbackSubject: `Running low on credits ({{credits}} left) — Lead Hunter Club`,
+    fallbackBody: `Hi {{name}},
+
+You currently have {{credits}} credit(s) remaining in your account. Fresh client opportunities are being captured around the clock.
+
+To avoid pausing your client hunting pipeline, you can top up credits instantly or upgrade to an unlimited tier:
+• Refill credits: {{appUrl}}/refill
+• View plans: {{appUrl}}/pricing
+
+Happy hunting,
+The Lead Hunter Club Team`,
+    variables: {
+      name: data.name || 'Hunter',
+      credits: data.credits,
+      appUrl: data.appUrl,
+    },
+    cta: {
+      text: 'Top Up Credits',
+      url: `${data.appUrl}/refill`,
+    },
+  })
+}
+
+// 8. Subscription Renewal Notice
+export async function renderRenewalReminder(data: RenewalReminderData) {
+  return resolveDynamicTemplate({
+    templateId: 'tpl-auto-renewal-reminder',
+    fallbackSubject: `Your Lead Hunter {{plan}} subscription renews in {{daysRemaining}} days`,
+    fallbackBody: `Hi {{name}},
+
+This is a quick reminder that your {{plan}} subscription is scheduled to renew in {{daysRemaining}} days (on {{renewalDate}}).
+
+Your unused monthly credits will automatically roll over according to your plan rules so you never lose what you've earned.
+
+Manage your account & billing:
+{{appUrl}}/settings
+
+Best,
+The Lead Hunter Club Team`,
+    variables: {
+      name: data.name || 'Hunter',
+      plan: data.plan,
+      daysRemaining: data.daysRemaining,
+      renewalDate: data.renewalDate,
+      appUrl: data.appUrl,
+    },
+    cta: {
+      text: 'Manage Account & Billing',
+      url: `${data.appUrl}/settings`,
+    },
+  })
+}
+
+// 9. Email Verification Link
+export async function renderEmailVerification(data: EmailVerificationData) {
+  return resolveDynamicTemplate({
+    templateId: 'tpl-auto-email-verification',
+    fallbackSubject: `Verify your email address — Lead Hunter Club`,
+    fallbackBody: `Hi {{name}},
+
+Thanks for signing up for Lead Hunter Club! To secure your account and start finding high-converting leads, please verify your email address by clicking the link below:
+
+{{verificationUrl}}
+
+This verification link will expire in 24 hours.
+
+If you did not create an account, you can safely ignore this email.
+
+The Lead Hunter Club Team`,
+    variables: {
+      name: data.name || 'Hunter',
+      verificationUrl: data.verificationUrl,
+      appUrl: data.appUrl,
+    },
+    cta: {
+      text: 'Verify Email Address',
+      url: data.verificationUrl,
+    },
+  })
+}
+
+// 10. Newsletter Double Opt-In
 export function renderNewsletterConfirmation(data: NewsletterConfirmationData) {
   const subject = `Confirm your subscription — Lead Hunter Club`
   const text = `Hi there,\n\nThanks for subscribing to the Lead Hunter Club newsletter! Please confirm your subscription by clicking the link below:\n\n${data.confirmUrl}\n\nIf you didn't request this, you can ignore this email.\n\n${data.appUrl}`
@@ -134,13 +430,7 @@ export function renderNewsletterConfirmation(data: NewsletterConfirmationData) {
   return { subject, text, html }
 }
 
-interface NewsletterData {
-  subject: string
-  bodyHtml: string
-  bodyText: string
-  unsubscribeUrl: string
-}
-
+// 11. Newsletter Broadcast
 export function renderNewsletter(data: NewsletterData) {
   const subject = data.subject
   const text = `${data.bodyText}\n\n---\nYou're receiving this because you subscribed to the Lead Hunter Club newsletter.\nUnsubscribe: ${data.unsubscribeUrl}`
@@ -153,113 +443,7 @@ export function renderNewsletter(data: NewsletterData) {
   return { subject, text, html }
 }
 
-export interface EmailVerificationData {
-  name?: string
-  email: string
-  verificationUrl: string
-  appUrl: string
-}
-
-export function renderEmailVerification(data: EmailVerificationData) {
-  const greeting = data.name ? `Hi ${data.name},` : 'Welcome to Lead Hunter Club,'
-  const subject = `Verify your email address — Lead Hunter Club`
-  const text = `${greeting}\n\nThanks for signing up for Lead Hunter Club! Please verify your email address by clicking the link below:\n\n${data.verificationUrl}\n\nThis verification link will expire in 24 hours.\n\nIf you did not create an account, you can safely ignore this email.\n\n${data.appUrl}`
-  const html = wrapHtml(`
-    <h2 style="margin:16px 0 8px;font-size:18px;font-weight:600;color:#ffffff;letter-spacing:-0.01em">Verify your email address</h2>
-    <p style="margin:16px 0;font-size:15px;color:#ccc;line-height:1.6">${greeting}</p>
-    <p style="margin:16px 0;font-size:15px;color:#ccc;line-height:1.6">Thanks for signing up for <strong style="color:#ffffff">Lead Hunter Club</strong>. To secure your account and start finding high-converting leads, please verify your email address.</p>
-    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0">
-      <tr>
-        <td align="center" style="border-radius:10px;background:#dc3b4c">
-          <a href="${data.verificationUrl}" target="_blank" style="display:inline-block;padding:12px 32px;background:#dc3b4c;color:#ffffff;border-radius:10px;text-decoration:none;font-size:14px;font-weight:600;letter-spacing:0.01em">Verify Email Address</a>
-        </td>
-      </tr>
-    </table>
-    <p style="margin:16px 0 8px;font-size:13px;color:#888;line-height:1.6">Button not working? Copy and paste this link into your browser:</p>
-    <p style="margin:0 0 16px;font-size:12px;color:#666;word-break:break-all;line-height:1.5">
-      <a href="${data.verificationUrl}" style="color:#dc3b4c;text-decoration:underline">${data.verificationUrl}</a>
-    </p>
-    <p style="margin:16px 0 0;font-size:12px;color:#777;line-height:1.5">This verification link will expire in 24 hours. If you did not create an account with Lead Hunter Club, no further action is required.</p>
-  `)
-  return { subject, text, html }
-}
-
-export interface LowCreditsData {
-  name: string
-  credits: number
-  appUrl: string
-}
-
-export function renderLowCreditsNudge(data: LowCreditsData) {
-  const greeting = data.name ? `Hi ${data.name},` : 'Hello Hunter,'
-  const subject = `Running low on credits (${data.credits} left) — Lead Hunter Club`
-  const text = `${greeting}\n\nYou only have ${data.credits} credit${data.credits === 1 ? '' : 's'} remaining in your account.\n\nDon't let your outreach pipeline pause. Refill your credits or upgrade your plan to keep unlocking verified client leads.\n\nRefill credits: ${data.appUrl}/refill\nView plans: ${data.appUrl}/pricing`
-  const html = wrapHtml(`
-    <h2 style="margin:16px 0 8px;font-size:18px;font-weight:600;color:#ffffff;letter-spacing:-0.01em">Your credit balance is low</h2>
-    <p style="margin:16px 0;font-size:15px;color:#ccc;line-height:1.6">${greeting}</p>
-    <p style="margin:16px 0;font-size:15px;color:#ccc;line-height:1.6">
-      You currently have <strong style="color:#f59e0b;font-size:16px">${data.credits} credit${data.credits === 1 ? '' : 's'} remaining</strong>. Fresh client opportunities are being captured around the clock.
-    </p>
-    <p style="margin:16px 0;font-size:15px;color:#ccc;line-height:1.6">
-      To avoid pausing your client hunting pipeline, you can top up credits instantly or upgrade to an unlimited tier.
-    </p>
-    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0">
-      <tr>
-        <td align="center" style="border-radius:10px;background:#dc3b4c">
-          <a href="${data.appUrl}/refill" target="_blank" style="display:inline-block;padding:12px 28px;background:#dc3b4c;color:#ffffff;border-radius:10px;text-decoration:none;font-size:14px;font-weight:600">Top Up Credits</a>
-        </td>
-        <td style="width:12px"></td>
-        <td align="center" style="border-radius:10px;background:rgba(255,255,255,0.08)">
-          <a href="${data.appUrl}/pricing" target="_blank" style="display:inline-block;padding:12px 24px;color:#ffffff;border-radius:10px;text-decoration:none;font-size:14px;font-weight:500">View Plans</a>
-        </td>
-      </tr>
-    </table>
-  `)
-  return { subject, text, html }
-}
-
-export interface RenewalReminderData {
-  name: string
-  plan: string
-  daysRemaining: number
-  renewalDate: string
-  appUrl: string
-}
-
-export function renderRenewalReminder(data: RenewalReminderData) {
-  const greeting = data.name ? `Hi ${data.name},` : 'Hello Hunter,'
-  const subject = `Your Lead Hunter ${data.plan} subscription renews in ${data.daysRemaining} days`
-  const text = `${greeting}\n\nThis is a quick reminder that your ${data.plan} plan will renew on ${data.renewalDate}.\n\nYour unused monthly credits will automatically roll over according to your plan rules so you never lose what you've earned.\n\nManage your subscription: ${data.appUrl}/settings`
-  const html = wrapHtml(`
-    <h2 style="margin:16px 0 8px;font-size:18px;font-weight:600;color:#ffffff;letter-spacing:-0.01em">Upcoming Subscription Renewal</h2>
-    <p style="margin:16px 0;font-size:15px;color:#ccc;line-height:1.6">${greeting}</p>
-    <p style="margin:16px 0;font-size:15px;color:#ccc;line-height:1.6">
-      Your <strong style="color:#ffffff">${data.plan}</strong> subscription is scheduled to renew in <strong style="color:#10b981">${data.daysRemaining} days</strong> (on ${data.renewalDate}).
-    </p>
-    <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px;margin:20px 0">
-      <p style="margin:0 0 6px;font-size:13px;font-weight:600;color:#ffffff">✓ Unused Credits Rollover Protection</p>
-      <p style="margin:0;font-size:13px;color:#aaa;line-height:1.5">
-        Any unused credits remaining on your account will roll over seamlessly with your next cycle.
-      </p>
-    </div>
-    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0">
-      <tr>
-        <td align="center" style="border-radius:10px;background:#dc3b4c">
-          <a href="${data.appUrl}/settings" target="_blank" style="display:inline-block;padding:12px 28px;background:#dc3b4c;color:#ffffff;border-radius:10px;text-decoration:none;font-size:14px;font-weight:600">Manage Account & Billing</a>
-        </td>
-      </tr>
-    </table>
-  `)
-  return { subject, text, html }
-}
-
-export interface BroadcastData {
-  subject: string
-  messageHtml: string
-  messageText: string
-  appUrl: string
-}
-
+// 12. Manual Broadcast Announcement
 export function renderBroadcastAnnouncement(data: BroadcastData) {
   const subject = data.subject
   const text = `${data.messageText}\n\n---\nLead Hunter Club\nVisit platform: ${data.appUrl}/dashboard`
@@ -278,5 +462,3 @@ export function renderBroadcastAnnouncement(data: BroadcastData) {
   `)
   return { subject, text, html }
 }
-
-

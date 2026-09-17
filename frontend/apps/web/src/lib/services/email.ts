@@ -153,18 +153,18 @@ async function send(
 export const emailService = {
   // Flow 1: Application Received
   async sendApplicationReceived(user: { name: string; email: string }) {
-    const { subject, text, html } = renderApplicationReceived({ name: user.name, appUrl: APP_URL })
+    const { subject, text, html } = await renderApplicationReceived({ name: user.name, appUrl: APP_URL })
     return send('application_received', user.email, subject, text, { html })
   },
 
   async sendOnboardingComplete(user: { name: string; email: string }) {
-    const { subject, text, html } = renderOnboardingComplete({ name: user.name, appUrl: APP_URL })
+    const { subject, text, html } = await renderOnboardingComplete({ name: user.name, appUrl: APP_URL })
     return send('onboarding_complete', user.email, subject, text, { html })
   },
 
   // Flow 2: Account Approved
   async sendApproved(user: { name: string; email: string }, plan: string, credits: number) {
-    const { subject, text, html } = renderApproved({
+    const { subject, text, html } = await renderApproved({
       name: user.name,
       plan,
       credits,
@@ -174,18 +174,18 @@ export const emailService = {
   },
 
   async sendRejected(user: { name: string; email: string }) {
-    const { subject, text, html } = renderRejected({ name: user.name, appUrl: APP_URL })
+    const { subject, text, html } = await renderRejected({ name: user.name, appUrl: APP_URL })
     return send('rejected', user.email, subject, text, { html })
   },
 
   async sendSuspended(user: { name: string; email: string }) {
-    const { subject, text, html } = renderSuspended({ name: user.name, appUrl: APP_URL })
+    const { subject, text, html } = await renderSuspended({ name: user.name, appUrl: APP_URL })
     return send('suspended', user.email, subject, text, { html })
   },
 
   // Flow 3: Low Credits Nudge (<= 2 credits remaining)
   async sendLowCreditsNudge(user: { name?: string; email: string }, credits: number) {
-    const { subject, text, html } = renderLowCreditsNudge({
+    const { subject, text, html } = await renderLowCreditsNudge({
       name: user.name || '',
       credits,
       appUrl: APP_URL,
@@ -200,7 +200,7 @@ export const emailService = {
     plan: string,
     renewalDate: string,
   ) {
-    const { subject, text, html } = renderRenewalReminder({
+    const { subject, text, html } = await renderRenewalReminder({
       name: user.name || '',
       plan,
       daysRemaining,
@@ -217,7 +217,7 @@ export const emailService = {
     replyBody: string
     ticketUrl: string
   }) {
-    const { subject, text, html } = renderTicketReply({
+    const { subject, text, html } = await renderTicketReply({
       name: user.name,
       appUrl: APP_URL,
       ticketSubject: user.ticketSubject,
@@ -227,7 +227,7 @@ export const emailService = {
   },
 
   async sendEmailVerification(user: { name?: string; email: string }, verificationUrl: string) {
-    const { subject, text, html } = renderEmailVerification({
+    const { subject, text, html } = await renderEmailVerification({
       name: user.name,
       email: user.email,
       verificationUrl,

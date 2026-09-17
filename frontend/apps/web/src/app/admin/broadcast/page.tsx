@@ -65,6 +65,7 @@ interface BroadcastData {
 
 const TEMPLATE_CATEGORIES = [
   { id: 'all', label: 'All Categories' },
+  { id: 'automated', label: '⚡ Automated Lifecycle' },
   { id: 'general', label: 'General' },
   { id: 'leads', label: 'Leads Drop' },
   { id: 'update', label: 'Product Update' },
@@ -259,7 +260,11 @@ export default function AdminBroadcastPage() {
 
   // Delete Template
   const handleDeleteTemplate = async (id: string, name: string) => {
-    if (!confirm(`Are you sure you want to delete template "${name}"?`)) return
+    const isAuto = id.startsWith('tpl-auto-')
+    const confirmMsg = isAuto
+      ? `Notice: "${name}" is an automated lifecycle template. If deleted, the system will fall back to its built-in default copy. Are you sure you want to delete it?`
+      : `Are you sure you want to delete template "${name}"?`
+    if (!confirm(confirmMsg)) return
 
     try {
       const token = await getFirebaseToken()
@@ -1041,6 +1046,7 @@ export default function AdminBroadcastPage() {
                     className="w-full px-4 py-2.5 rounded-xl bg-surface-container-lowest border border-white/10 text-xs text-white focus:outline-none focus:border-primary cursor-pointer"
                   >
                     <option value="general">General Broadcast</option>
+                    <option value="automated">⚡ Automated Lifecycle</option>
                     <option value="leads">Leads Drop Alert</option>
                     <option value="update">Product Update</option>
                     <option value="promo">Promo &amp; Refill Special</option>
@@ -1062,7 +1068,12 @@ export default function AdminBroadcastPage() {
 
                 {/* Body Content */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-text-secondary">Message Content Body</label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-text-secondary">Message Content Body</label>
+                    {tCategory === 'automated' && (
+                      <span className="text-[10px] text-amber-400 font-medium">Click variable to insert</span>
+                    )}
+                  </div>
                   <textarea
                     rows={8}
                     placeholder="Write your template message body here..."
@@ -1070,6 +1081,48 @@ export default function AdminBroadcastPage() {
                     onChange={(e) => setTBody(e.target.value)}
                     className="w-full p-3.5 rounded-xl bg-surface-container-lowest border border-white/10 text-xs text-white leading-relaxed focus:outline-none focus:border-primary resize-y"
                   />
+
+                  {/* Automated Dynamic Variable Tokens */}
+                  {tCategory === 'automated' && (
+                    <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 space-y-1.5">
+                      <div className="flex items-center gap-1.5 text-[11px] font-bold text-amber-400">
+                        <SparklesIcon className="w-3.5 h-3.5" />
+                        <span>Dynamic System Variables</span>
+                      </div>
+                      <p className="text-[10px] text-text-secondary leading-normal">
+                        Auto-replaced when system triggers the email:
+                      </p>
+                      <div className="flex flex-wrap gap-1.5 pt-0.5">
+                        {[
+                          '{{name}}',
+                          '{{plan}}',
+                          '{{credits}}',
+                          '{{daysRemaining}}',
+                          '{{renewalDate}}',
+                          '{{ticketSubject}}',
+                          '{{replyBody}}',
+                          '{{verificationUrl}}',
+                          '{{appUrl}}',
+                        ].map((tok) => (
+                          <button
+                            key={tok}
+                            type="button"
+                            onClick={() => {
+                              setTBody((prev) =>
+                                prev
+                                  ? prev + (prev.endsWith(' ') || prev.endsWith('\n') ? '' : ' ') + tok
+                                  : tok,
+                              )
+                            }}
+                            className="px-2 py-0.5 rounded bg-black/50 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-mono transition-colors cursor-pointer"
+                            title={`Click to insert ${tok}`}
+                          >
+                            {tok}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Buttons */}
@@ -1159,7 +1212,9 @@ export default function AdminBroadcastPage() {
                         <h4 className="text-sm font-bold text-white truncate">{tpl.name}</h4>
                         <span
                           className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
-                            tpl.category === 'leads'
+                            tpl.category === 'automated'
+                              ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                              : tpl.category === 'leads'
                               ? 'bg-tertiary/15 text-tertiary border-tertiary/30'
                               : tpl.category === 'update'
                               ? 'bg-secondary/15 text-secondary border-secondary/30'
@@ -1168,8 +1223,13 @@ export default function AdminBroadcastPage() {
                               : 'bg-white/10 text-white border-white/20'
                           }`}
                         >
-                          {tpl.category}
+                          {tpl.category === 'automated' ? '⚡ Automated Lifecycle' : tpl.category}
                         </span>
+                        {tpl.category === 'automated' && (
+                          <span className="text-[10px] text-text-secondary/70 font-mono">
+                            Auto-sent by system
+                          </span>
+                        )}
                       </div>
 
                       <p className="text-xs text-text-secondary font-medium">
