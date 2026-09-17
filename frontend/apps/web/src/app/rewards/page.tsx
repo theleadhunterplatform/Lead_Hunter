@@ -25,8 +25,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { useToast } from '@/components/ui/Toast'
 import { useAuth } from '@/hooks/useAuth'
-import { getFirebaseToken, storage } from '@/lib/firebase'
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
+import { getFirebaseToken } from '@/lib/firebase'
 import { CustomLoader } from '@/components/ui/CustomLoader'
 
 interface MilestoneProofItem {
@@ -194,26 +193,20 @@ export default function RewardsPage() {
         return
       }
 
-      // 1. Upload to Cloud Storage (Firebase Storage)
-      const cleanFileName = selectedFile.name.replace(/[^a-zA-Z0-9._-]/g, '_')
-      const storagePath = `proofs/${user.id}/${Date.now()}_${cleanFileName}`
-      const storageRef = ref(storage, storagePath)
+      // Submit directly via FormData to server API (eliminates browser CORS restrictions)
+      const formData = new FormData()
+      formData.append('type', selectedType)
+      formData.append('file', selectedFile)
+      if (note.trim()) {
+        formData.append('note', note.trim())
+      }
 
-      await uploadBytes(storageRef, selectedFile)
-      const downloadUrl = await getDownloadURL(storageRef)
-
-      // 2. Submit to Database API
       const res = await fetch('/api/rewards/proof', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          type: selectedType,
-          imageUrl: downloadUrl,
-          note: note.trim() || undefined,
-        }),
+        body: formData,
       })
 
       const result = await res.json()
