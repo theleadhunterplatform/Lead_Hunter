@@ -99,7 +99,7 @@ export default function AdminRewardsPage() {
       }
     } catch (err) {
       console.error('[AdminRewardsPage] Failed to fetch proofs:', err)
-      addToast('Failed to load milestone proofs', 'error')
+      addToast({ type: 'error', message: 'Failed to load milestone proofs' })
     } finally {
       setLoading(false)
     }
@@ -140,12 +140,15 @@ export default function AdminRewardsPage() {
         throw new Error(result.message || 'Failed to approve milestone')
       }
 
-      addToast(result.message || `Awarded +${customCredits} credits!`, 'success')
+      addToast({
+        type: 'success',
+        message: result.message || `Awarded +${customCredits} credits!`,
+      })
       setApproveTarget(null)
       await fetchProofs()
     } catch (err: any) {
       console.error('[AdminRewardsPage] Approve error:', err)
-      addToast(err.message || 'Error approving milestone', 'error')
+      addToast({ type: 'error', message: err.message || 'Error approving milestone' })
     } finally {
       setApproving(false)
     }
@@ -177,13 +180,13 @@ export default function AdminRewardsPage() {
         throw new Error(result.message || 'Failed to reject milestone')
       }
 
-      addToast('Milestone submission rejected', 'info')
+      addToast({ type: 'info', message: 'Milestone submission rejected' })
       setRejectTarget(null)
       setRejectReason('')
       await fetchProofs()
     } catch (err: any) {
       console.error('[AdminRewardsPage] Reject error:', err)
-      addToast(err.message || 'Error rejecting milestone', 'error')
+      addToast({ type: 'error', message: err.message || 'Error rejecting milestone' })
     } finally {
       setRejecting(false)
     }
@@ -365,7 +368,7 @@ export default function AdminRewardsPage() {
                       </div>
 
                       {proof.note && (
-                        <p className="text-xs text-zinc-300 bg-surface-base px-3 py-1.5 rounded-lg border border-white/[0.04] italic">
+                        <p className="text-xs text-zinc-300 bg-surface-container-lowest px-3 py-1.5 rounded-lg border border-white/[0.06] italic">
                           &ldquo;{proof.note}&rdquo;
                         </p>
                       )}
@@ -396,7 +399,7 @@ export default function AdminRewardsPage() {
                         </button>
                         <button
                           onClick={() => setRejectTarget(proof)}
-                          className="flex-1 sm:flex-initial px-4 py-2 rounded-xl bg-surface-base hover:bg-red-500/10 text-red-400 hover:text-red-300 border border-red-500/30 text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
+                          className="flex-1 sm:flex-initial px-4 py-2 rounded-xl bg-surface-elevated hover:bg-red-500/10 text-red-400 hover:text-red-300 border border-red-500/30 text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
                         >
                           <XCircleIcon className="w-4 h-4" />
                           Reject
@@ -455,12 +458,12 @@ export default function AdminRewardsPage() {
                 </div>
               </div>
 
-              <div className="p-3 bg-surface-base border border-white/[0.06] rounded-xl text-xs space-y-1">
+              <div className="p-3 bg-surface-container-lowest border border-white/[0.08] rounded-xl text-xs space-y-1">
                 <div className="text-zinc-400">
                   User: <span className="text-white font-bold">{approveTarget.user?.name}</span> ({approveTarget.user?.email})
                 </div>
                 <div className="text-zinc-400">
-                  Milestone: <span className="text-accent-mint font-bold">{TYPE_LABELS[approveTarget.type]?.label}</span>
+                  Milestone: <span className="text-secondary font-bold">{TYPE_LABELS[approveTarget.type]?.label}</span>
                 </div>
               </div>
 
@@ -472,9 +475,12 @@ export default function AdminRewardsPage() {
                   type="number"
                   min={1}
                   max={500}
-                  value={customCredits}
-                  onChange={(e) => setCustomCredits(Math.max(1, parseInt(e.target.value) || 0))}
-                  className="w-full px-3.5 py-2.5 bg-surface-base border border-white/[0.12] rounded-xl text-sm text-white font-bold focus:outline-none focus:border-accent-mint"
+                  value={customCredits || ''}
+                  onChange={(e) => {
+                    const val = e.target.value
+                    setCustomCredits(val === '' ? 0 : Math.max(1, parseInt(val, 10) || 0))
+                  }}
+                  className="w-full px-4 py-3 bg-surface-container-lowest border border-white/20 rounded-xl text-base text-white font-mono font-bold focus:outline-none focus:border-secondary focus:ring-1 focus:ring-secondary/40 transition-all placeholder:text-zinc-500"
                 />
                 <p className="text-[11px] text-zinc-500 mt-1">
                   Credits are added immediately to the member&apos;s bonus balance.
@@ -533,7 +539,7 @@ export default function AdminRewardsPage() {
                   value={rejectReason}
                   onChange={(e) => setRejectReason(e.target.value)}
                   placeholder="e.g. Screenshot does not show client message or contract confirmation..."
-                  className="w-full px-3.5 py-2.5 bg-surface-base border border-white/[0.12] rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-red-500 resize-none"
+                  className="w-full px-4 py-3 bg-surface-container-lowest border border-white/20 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-error focus:ring-1 focus:ring-error/40 resize-none transition-all"
                 />
               </div>
 
