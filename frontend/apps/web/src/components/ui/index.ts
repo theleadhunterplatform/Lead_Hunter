@@ -8,5 +8,6 @@ export { Input } from './Input'
 export { useToast, ToastProvider } from './Toast'
 export { Modal } from './Modal'
 export { UpgradeNudgePopup, type UpgradeNudgeVariant } from './UpgradeNudgePopup'
+export { CommunityWinPopup, type CommunityPopupPost } from './CommunityWinPopup'
 export { CustomLoader } from './CustomLoader'
 

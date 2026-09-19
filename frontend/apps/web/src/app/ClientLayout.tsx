@@ -7,7 +7,7 @@ import AppSidebar from '@/components/layout/AppSidebar'
 import { useAuth } from '@/hooks/useAuth'
 import { ToastProvider } from '@/components/ui/Toast'
 import { CustomLoader, type LoaderPageType } from '@/components/ui/CustomLoader'
-import { UpgradeNudgePopup, type UpgradeNudgeVariant } from '@/components/ui'
+import { UpgradeNudgePopup, type UpgradeNudgeVariant, CommunityWinPopup, type CommunityPopupPost } from '@/components/ui'
 import { getFirebaseToken } from '@/lib/firebase'
 
 
@@ -48,6 +48,10 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     planMax?: number
     renewalDate?: string
   }>({})
+
+  // Community Win Notification Popup State
+  const [communityPopupOpen, setCommunityPopupOpen] = useState(false)
+  const [communityPopupPost, setCommunityPopupPost] = useState<CommunityPopupPost | null>(null)
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -131,6 +135,77 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
       clearInterval(interval)
     }
   }, [user?.id, loading, firebaseUser])
+
+  // Check for new additions in Community Hub
+  useEffect(() => {
+    if (loading || !user) return
+
+    let isSubscribed = true
+    let lastCommunityCheckAt = 0
+
+    const checkCommunityWinPopup = async () => {
+      // Don't show popup if user is already on /community or in /admin
+      if (pathname.startsWith('/community') || pathname.startsWith('/admin')) {
+        return
+      }
+
+      const now = Date.now()
+      if (now - lastCommunityCheckAt < 20_000) return
+      lastCommunityCheckAt = now
+
+      try {
+        let token = (await firebaseUser?.getIdToken()) || (await getFirebaseToken())
+        if (!token) {
+          await new Promise((r) => setTimeout(r, 600))
+          token = (await firebaseUser?.getIdToken()) || (await getFirebaseToken())
+        }
+        if (!token || !isSubscribed) return
+
+        const res = await fetch('/api/community/unread-popup', {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (!res.ok) return
+        const data = await res.json()
+
+        if (data.show && data.post && isSubscribed) {
+          // Check local storage as instant fast cache
+          const localSeen = typeof window !== 'undefined' ? localStorage.getItem(`community_win_seen_${data.post.id}`) : null
+          if (!localSeen) {
+            setCommunityPopupPost(data.post)
+            setCommunityPopupOpen(true)
+          }
+        }
+      } catch (err) {
+        console.warn('[Community Popup] Check failed:', err)
+      }
+    }
+
+    // Delay initial check slightly after page mount
+    const timer = setTimeout(() => {
+      checkCommunityWinPopup()
+    }, 1200)
+
+    // Listen for custom event when admin publishes a new win
+    const handleNewWinEvent = () => {
+      lastCommunityCheckAt = 0
+      checkCommunityWinPopup()
+    }
+    window.addEventListener('community-new-post', handleNewWinEvent)
+
+    // Poll periodically every 2 minutes
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        checkCommunityWinPopup()
+      }
+    }, 2 * 60_000)
+
+    return () => {
+      isSubscribed = false
+      clearTimeout(timer)
+      clearInterval(interval)
+      window.removeEventListener('community-new-post', handleNewWinEvent)
+    }
+  }, [user?.id, loading, firebaseUser, pathname])
 
   useEffect(() => {
     if (loading || error || !user) return
@@ -287,6 +362,57 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
           } else {
             router.push('/pricing')
           }
+        }}
+      />
+
+      {/* New Community Win Popup */}
+      <CommunityWinPopup
+        open={communityPopupOpen}
+        post={communityPopupPost}
+        onClose={async () => {
+          const id = communityPopupPost?.id
+          setCommunityPopupOpen(false)
+          if (!id) return
+          try {
+            if (typeof window !== 'undefined') {
+              localStorage.setItem(`community_win_seen_${id}`, 'true')
+            }
+            const token = (await firebaseUser?.getIdToken()) || (await getFirebaseToken())
+            if (token) {
+              await fetch('/api/community/unread-popup', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({ postId: id }),
+              })
+            }
+          } catch (e) {
+            console.error('[Community Popup] Dismiss error:', e)
+          }
+        }}
+        onViewWin={async (postId) => {
+          setCommunityPopupOpen(false)
+          try {
+            if (typeof window !== 'undefined') {
+              localStorage.setItem(`community_win_seen_${postId}`, 'true')
+            }
+            const token = (await firebaseUser?.getIdToken()) || (await getFirebaseToken())
+            if (token) {
+              await fetch('/api/community/unread-popup', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({ postId }),
+              })
+            }
+          } catch (e) {
+            console.error('[Community Popup] Dismiss error:', e)
+          }
+          router.push('/community')
         }}
       />
     </ToastProvider>

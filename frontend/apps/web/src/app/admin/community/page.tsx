@@ -290,6 +290,9 @@ export default function AdminCommunityPage() {
       const data = await res.json()
       if (data.success) {
         addToast({ type: 'success', message: '🎉 Community win published to feed!' })
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('community-new-post'))
+        }
         setCreateForm({
           title: '',
           content: '',
@@ -366,6 +369,9 @@ export default function AdminCommunityPage() {
       }
 
       addToast({ type: 'success', message: '🎉 Proof successfully featured in Community Hub!' })
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('community-new-post'))
+      }
       setFeatureTarget(null)
       fetchAdminCommunity()
       setActiveTab('FEED')

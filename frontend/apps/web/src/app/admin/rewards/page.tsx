@@ -257,6 +257,9 @@ export default function AdminRewardsPage() {
         type: 'success',
         message: '🎉 Successfully published win to Community Hub!',
       })
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('community-new-post'))
+      }
       setFeatureTarget(null)
     } catch (err: any) {
       console.error('[AdminRewardsPage] Feature error:', err)
