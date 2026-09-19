@@ -114,7 +114,7 @@ Phase 5 encompasses the entire user retention, viral growth, lifecycle communica
 
 ---
 
-## Part 6: Subscription Lifecycle, Anti-Abuse & Claim Governance ⏳ (READY TO IMPLEMENT)
+## Part 6: Subscription Lifecycle, Anti-Abuse & Claim Governance ✅ (COMPLETED & LIVE)
 
 * **Social Link Deduplication (Anti-Abuse Free Tier Protection)**:
   * Normalizes social profile links submitted during onboarding/registration (strips protocols, query parameters, and trailing slashes).
@@ -138,5 +138,20 @@ Phase 5 encompasses the entire user retention, viral growth, lifecycle communica
   * Users upload screenshot evidence of outreach success (Positive Reply, Meeting Scheduled, Deal Closed).
 * **Admin Review Queue (`/admin/rewards`)**:
   * Admins manually review submissions with full lightbox screenshot viewing and 1-click credit awarding (+10, +25, +50 credits).
+
+---
+
+## 5. Phase 5 Part 5 — Community Hub (Admin-Curated Social Proof Feed)
+
+### Key Rules & Behavior
+- **Zero Member Submission Forms**: Regular members cannot directly post to `/community`.
+- **Admin Moderation & Curation**:
+  - Approved milestone proofs from `/admin/rewards` can be featured directly into `/community` with 1 click via `POST /api/admin/community/from-proof`.
+  - Admins can author and publish custom verified spotlights and deal breakdowns in `/admin/community`.
+- **Member Experience**:
+  - Browse verified wins with deal sizes, client niche tags, and high-res screenshot lightbox.
+  - Filter by category (`ALL`, `DEAL_CLOSED`, `MEETING_SCHEDULED`, `POSITIVE_REPLY`, `SPOTLIGHT`).
+  - React and celebrate with 🔥 Fire, 🚀 Rocket, 👏 Clap, ❤️ Love.
+
 
 

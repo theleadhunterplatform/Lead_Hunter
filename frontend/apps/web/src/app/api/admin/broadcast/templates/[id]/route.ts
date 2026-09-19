@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireAdmin, AuthRequiredError, ForbiddenError } from '@/lib/auth'
 import { z } from 'zod'
+import { invalidateBroadcastTemplatesCache } from '../route'
 
 export const dynamic = 'force-dynamic'
 
@@ -45,6 +46,8 @@ export async function PUT(
       },
     })
 
+    invalidateBroadcastTemplatesCache()
+
     return NextResponse.json({
       success: true,
       template: updated,
@@ -73,6 +76,8 @@ export async function DELETE(
     await db.broadcastTemplate.delete({
       where: { id },
     })
+
+    invalidateBroadcastTemplatesCache()
 
     return NextResponse.json({
       success: true,

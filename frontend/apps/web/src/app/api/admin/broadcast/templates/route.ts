@@ -5,6 +5,15 @@ import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
 
+let cachedTemplates: any = null
+let cachedTemplatesExpiresAt = 0
+const TEMPLATES_CACHE_TTL_MS = 30_000 // 30s server-side cache
+
+export function invalidateBroadcastTemplatesCache() {
+  cachedTemplates = null
+  cachedTemplatesExpiresAt = 0
+}
+
 const createTemplateSchema = z.object({
   name: z.string().min(2, 'Template name must be at least 2 characters'),
   subject: z.string().min(2, 'Subject must be at least 2 characters'),
@@ -19,14 +28,41 @@ export async function GET(request: NextRequest) {
   try {
     await requireAdmin(request)
 
+    const now = Date.now()
+    if (cachedTemplates && now < cachedTemplatesExpiresAt) {
+      return NextResponse.json(
+        {
+          success: true,
+          templates: cachedTemplates,
+        },
+        {
+          headers: {
+            'Cache-Control': 'private, max-age=30, stale-while-revalidate=60',
+            'X-Cache': 'HIT',
+          },
+        },
+      )
+    }
+
     const templates = await db.broadcastTemplate.findMany({
       orderBy: { createdAt: 'desc' },
     })
 
-    return NextResponse.json({
-      success: true,
-      templates,
-    })
+    cachedTemplates = templates
+    cachedTemplatesExpiresAt = now + TEMPLATES_CACHE_TTL_MS
+
+    return NextResponse.json(
+      {
+        success: true,
+        templates,
+      },
+      {
+        headers: {
+          'Cache-Control': 'private, max-age=30, stale-while-revalidate=60',
+          'X-Cache': 'MISS',
+        },
+      },
+    )
   } catch (error: unknown) {
     if (error instanceof AuthRequiredError || error instanceof ForbiddenError) {
       return NextResponse.json({ code: 'UNAUTHORIZED', message: 'Admin access required' }, { status: 403 })
@@ -64,6 +100,8 @@ export async function POST(request: NextRequest) {
         createdById: admin.id,
       },
     })
+
+    invalidateBroadcastTemplatesCache()
 
     return NextResponse.json({
       success: true,

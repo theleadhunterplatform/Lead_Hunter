@@ -2,11 +2,16 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import dynamic from 'next/dynamic'
 
 import LeadCard from './components/LeadCard'
 import PipelineLeadCard from './components/PipelineLeadCard'
-import LeadDrawer from './components/LeadDrawer'
 import { CustomLoader } from '@/components/ui/CustomLoader'
+import { useDebounce } from '@/hooks/useDebounce'
+
+const LeadDrawer = dynamic(() => import('./components/LeadDrawer'), {
+  ssr: false,
+})
 
 import {
   MagnifyingGlassIcon,
@@ -230,6 +235,7 @@ export default function LeadsPage() {
 
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const debouncedSearch = useDebounce(searchQuery, 250)
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [isFilterOpen, setIsFilterOpen] = useState(false)
   const [activeNiche, setActiveNiche] = useState<string>('All')
@@ -309,8 +315,8 @@ export default function LeadsPage() {
   const filteredLeads = useMemo(() => {
     let result = leadsList.filter((lead) => {
       if (!matchNicheFilter(lead, activeNiche, userServices)) return false
-      if (searchQuery.trim() !== '') {
-        const query = searchQuery.toLowerCase()
+      if (debouncedSearch.trim() !== '') {
+        const query = debouncedSearch.toLowerCase()
         const matchesSearch =
           lead.title.toLowerCase().includes(query) ||
           lead.signalContext.toLowerCase().includes(query) ||
@@ -345,12 +351,12 @@ export default function LeadsPage() {
     }
 
     return result
-  }, [leadsList, activeNiche, userServices, searchQuery, selectedTags, sortBy])
+  }, [leadsList, activeNiche, userServices, debouncedSearch, selectedTags, sortBy])
 
   // Close the detail drawer whenever niche, search query, or tag filters change
   useEffect(() => {
     setSelectedLeadId(null)
-  }, [activeNiche, searchQuery, selectedTags])
+  }, [activeNiche, debouncedSearch, selectedTags])
 
   const selectedLead = filteredLeads.find((l) => l.id === selectedLeadId)
 

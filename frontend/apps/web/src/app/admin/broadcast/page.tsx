@@ -26,6 +26,7 @@ import {
 import { useToast } from '@/components/ui/Toast'
 import { getFirebaseToken } from '@/lib/firebase'
 import { CustomLoader } from '@/components/ui/CustomLoader'
+import { useDebounce } from '@/hooks/useDebounce'
 
 interface BroadcastTemplateItem {
   id: string
@@ -96,6 +97,7 @@ export default function AdminBroadcastPage() {
   // Templates Management State
   const [templates, setTemplates] = useState<BroadcastTemplateItem[]>([])
   const [templateSearch, setTemplateSearch] = useState('')
+  const debouncedTemplateSearch = useDebounce(templateSearch, 250)
   const [templateCategoryFilter, setTemplateCategoryFilter] = useState('all')
 
   // Template Form (Create / Edit in Templates tab)
@@ -108,6 +110,7 @@ export default function AdminBroadcastPage() {
 
   // Delivery Logs Filter State
   const [logSearch, setLogSearch] = useState('')
+  const debouncedLogSearch = useDebounce(logSearch, 250)
   const [logStatusFilter, setLogStatusFilter] = useState<'ALL' | 'SENT' | 'FAILED' | 'SKIPPED'>('ALL')
 
   const fetchTemplates = useCallback(async () => {
@@ -385,7 +388,7 @@ export default function AdminBroadcastPage() {
     return templates.filter((tpl) => {
       const matchesCategory =
         templateCategoryFilter === 'all' || tpl.category.toLowerCase() === templateCategoryFilter.toLowerCase()
-      const q = templateSearch.toLowerCase().trim()
+      const q = debouncedTemplateSearch.toLowerCase().trim()
       const matchesSearch =
         !q ||
         tpl.name.toLowerCase().includes(q) ||
@@ -393,13 +396,13 @@ export default function AdminBroadcastPage() {
         tpl.body.toLowerCase().includes(q)
       return matchesCategory && matchesSearch
     })
-  }, [templates, templateSearch, templateCategoryFilter])
+  }, [templates, debouncedTemplateSearch, templateCategoryFilter])
 
   // Computed Delivery Logs
   const filteredLogs = useMemo(() => {
     return (data?.recentLogs || []).filter((log) => {
       const matchesStatus = logStatusFilter === 'ALL' || log.status === logStatusFilter
-      const q = logSearch.toLowerCase().trim()
+      const q = debouncedLogSearch.toLowerCase().trim()
       const matchesSearch =
         !q ||
         log.to.toLowerCase().includes(q) ||
@@ -407,7 +410,7 @@ export default function AdminBroadcastPage() {
         log.type.toLowerCase().includes(q)
       return matchesStatus && matchesSearch
     })
-  }, [data?.recentLogs, logStatusFilter, logSearch])
+  }, [data?.recentLogs, logStatusFilter, debouncedLogSearch])
 
   // Word & Character count
   const charCount = message.length

@@ -57,6 +57,11 @@ model User {
   referralsGiven         Referral[] @relation("ReferralsGiven")
   referralReceived       Referral?  @relation("ReferralReceived")
   milestoneProofs        MilestoneProof[]
+
+  @@index([status])
+  @@index([plan])
+  @@index([role])
+  @@index([createdAt])
 }
 
 model Referral {
@@ -165,6 +170,9 @@ model UserLeadState {
   emails         EmailMessage[]
 
   @@unique([userId, leadId])
+  @@index([leadId, isRevealed])
+  @@index([userId, isRevealed])
+  @@index([userId, isSaved])
 }
 
 model EmailMessage {
@@ -441,5 +449,46 @@ model BroadcastTemplate {
   updatedAt   DateTime @updatedAt
 
   @@map("broadcast_templates")
+}
+
+model CommunityPost {
+  id          String   @id @default(uuid())
+  title       String
+  content     String   @db.Text
+  category    String   @default("DEAL_CLOSED")
+  dealSize    String?
+  clientNiche String?
+  imageUrl    String?
+  authorName  String
+  authorPlan  String?  @default("Pro Member")
+  userId      String?
+  proofId     String?
+  isPinned    Boolean  @default(false)
+  status      String   @default("PUBLISHED")
+  reactions   Json     @default("{\"fire\":0,\"rocket\":0,\"clap\":0,\"heart\":0}")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  communityReactions CommunityReaction[]
+
+  @@index([status, createdAt(sort: Desc)])
+  @@index([category])
+  @@index([isPinned, createdAt(sort: Desc)])
+  @@map("community_posts")
+}
+
+model CommunityReaction {
+  id           String   @id @default(uuid())
+  postId       String
+  userId       String
+  reactionType String
+  createdAt    DateTime @default(now())
+
+  post         CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId, reactionType])
+  @@index([postId])
+  @@index([userId])
+  @@map("community_reactions")
 }
 

@@ -23,6 +23,7 @@ import {
   EnvelopeIcon,
   TrophyIcon,
   MegaphoneIcon,
+  ChatBubbleBottomCenterTextIcon,
 } from '@heroicons/react/24/solid'
 
 const adminNav = [
@@ -41,6 +42,7 @@ const adminNav = [
   { name: 'Broadcast', href: '/admin/broadcast', icon: MegaphoneIcon },
   { name: 'Newsletter', href: '/admin/newsletter', icon: EnvelopeIcon },
   { name: 'Rewards', href: '/admin/rewards', icon: TrophyIcon },
+  { name: 'Community Hub', href: '/admin/community', icon: ChatBubbleBottomCenterTextIcon },
 ]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

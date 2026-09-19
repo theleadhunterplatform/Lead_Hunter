@@ -81,6 +81,18 @@ export default function AdminRewardsPage() {
   const [rejectReason, setRejectReason] = useState('')
   const [rejecting, setRejecting] = useState(false)
 
+  // Community Feature Modal
+  const [featureTarget, setFeatureTarget] = useState<AdminProofItem | null>(null)
+  const [featureForm, setFeatureForm] = useState({
+    title: '',
+    content: '',
+    category: 'DEAL_CLOSED',
+    dealSize: '',
+    clientNiche: '',
+    isPinned: false,
+  })
+  const [featuring, setFeaturing] = useState(false)
+
   // Lightbox
   const [lightboxImage, setLightboxImage] = useState<string | null>(null)
 
@@ -189,6 +201,68 @@ export default function AdminRewardsPage() {
       addToast({ type: 'error', message: err.message || 'Error rejecting milestone' })
     } finally {
       setRejecting(false)
+    }
+  }
+
+  const openFeatureModal = (proof: AdminProofItem) => {
+    setFeatureTarget(proof)
+    const category = proof.type || 'DEAL_CLOSED'
+    const defaultTitle =
+      category === 'DEAL_CLOSED'
+        ? `${proof.user?.name || 'Member'} closed client contract via Lead Hunter`
+        : category === 'MEETING_SCHEDULED'
+        ? `${proof.user?.name || 'Member'} booked sales discovery call`
+        : `${proof.user?.name || 'Member'} received warm positive reply`
+
+    setFeatureForm({
+      title: defaultTitle,
+      content: proof.note || 'Verified outreach signal win generated through Lead Hunter leads.',
+      category,
+      dealSize: '',
+      clientNiche: '',
+      isPinned: false,
+    })
+  }
+
+  const handleFeatureSubmit = async () => {
+    if (!featureTarget) return
+    setFeaturing(true)
+    try {
+      const token = await getFirebaseToken()
+      if (!token) throw new Error('Authentication required')
+
+      const res = await fetch('/api/admin/community/from-proof', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          proofId: featureTarget.id,
+          title: featureForm.title,
+          content: featureForm.content,
+          category: featureForm.category,
+          dealSize: featureForm.dealSize || undefined,
+          clientNiche: featureForm.clientNiche || undefined,
+          isPinned: featureForm.isPinned,
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Failed to feature proof')
+      }
+
+      addToast({
+        type: 'success',
+        message: '🎉 Successfully published win to Community Hub!',
+      })
+      setFeatureTarget(null)
+    } catch (err: any) {
+      console.error('[AdminRewardsPage] Feature error:', err)
+      addToast({ type: 'error', message: err.message || 'Error featuring proof' })
+    } finally {
+      setFeaturing(false)
     }
   }
 
@@ -406,13 +480,21 @@ export default function AdminRewardsPage() {
                         </button>
                       </div>
                     ) : proof.status === 'APPROVED' ? (
-                      <div className="text-right">
+                      <div className="flex flex-col items-end gap-2">
                         <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
                           <CheckCircleIcon className="w-4 h-4" />
                           Approved (+{proof.creditsAwarded} Credits)
                         </span>
+                        <button
+                          type="button"
+                          onClick={() => openFeatureModal(proof)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-mint/10 hover:bg-accent-mint/20 text-accent-mint border border-accent-mint/30 text-xs font-bold transition-all shadow-sm active:scale-95"
+                        >
+                          <SparklesIcon className="w-3.5 h-3.5" />
+                          Feature in Community
+                        </button>
                         {proof.reviewedAt && (
-                          <div className="text-[10px] text-zinc-500 mt-1">
+                          <div className="text-[10px] text-zinc-500">
                             {new Date(proof.reviewedAt).toLocaleDateString()}
                           </div>
                         )}
@@ -559,6 +641,126 @@ export default function AdminRewardsPage() {
                   className="px-5 py-2 rounded-xl bg-red-500 hover:bg-red-400 text-white font-bold text-xs transition-colors"
                 >
                   {rejecting ? 'Rejecting...' : 'Confirm Rejection'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Feature in Community Hub Modal */}
+      <AnimatePresence>
+        {featureTarget && (
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-surface-elevated border border-white/[0.12] rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-4"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-accent-mint/10 border border-accent-mint/20 flex items-center justify-center text-accent-mint">
+                  <SparklesIcon className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Feature in Community Hub</h3>
+                  <p className="text-xs text-text-secondary">
+                    Publish this verified win to the public member social proof feed.
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-3 bg-surface-container-lowest border border-white/[0.08] rounded-xl text-xs space-y-1">
+                <div className="text-zinc-400">
+                  Member: <span className="text-white font-bold">{featureTarget.user?.name}</span> ({featureTarget.user?.plan || 'PRO'})
+                </div>
+                <div className="text-zinc-400">
+                  Type: <span className="text-accent-mint font-bold">{featureTarget.type}</span>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-semibold text-text-secondary mb-1">
+                    Headline / Title
+                  </label>
+                  <input
+                    type="text"
+                    value={featureForm.title}
+                    onChange={(e) => setFeatureForm((f) => ({ ...f, title: e.target.value }))}
+                    className="w-full px-3.5 py-2 bg-surface-container-lowest border border-white/20 rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-accent-mint"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-text-secondary mb-1">
+                      Deal Size (e.g. $4,500/mo)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. $4,500/mo or $12,000"
+                      value={featureForm.dealSize}
+                      onChange={(e) => setFeatureForm((f) => ({ ...f, dealSize: e.target.value }))}
+                      className="w-full px-3.5 py-2 bg-surface-container-lowest border border-white/20 rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-accent-mint"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-text-secondary mb-1">
+                      Client Niche
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. B2B SaaS, E-Commerce"
+                      value={featureForm.clientNiche}
+                      onChange={(e) => setFeatureForm((f) => ({ ...f, clientNiche: e.target.value }))}
+                      className="w-full px-3.5 py-2 bg-surface-container-lowest border border-white/20 rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-accent-mint"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-text-secondary mb-1">
+                    Story & Strategy Breakdown
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={featureForm.content}
+                    onChange={(e) => setFeatureForm((f) => ({ ...f, content: e.target.value }))}
+                    className="w-full px-3.5 py-2 bg-surface-container-lowest border border-white/20 rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-accent-mint resize-none"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    type="checkbox"
+                    id="pinCheck"
+                    checked={featureForm.isPinned}
+                    onChange={(e) => setFeatureForm((f) => ({ ...f, isPinned: e.target.checked }))}
+                    className="w-4 h-4 rounded border-white/20 bg-surface-container-lowest text-accent-mint focus:ring-0"
+                  />
+                  <label htmlFor="pinCheck" className="text-xs text-zinc-300 font-medium">
+                    Pin this win at the top of the Community Hub
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setFeatureTarget(null)}
+                  disabled={featuring}
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-zinc-400 hover:text-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleFeatureSubmit}
+                  disabled={featuring || !featureForm.title.trim() || !featureForm.content.trim()}
+                  className="px-5 py-2 rounded-xl bg-accent-mint hover:bg-accent-mint/90 text-black font-bold text-xs transition-colors flex items-center gap-1.5 shadow-lg shadow-accent-mint/20 disabled:opacity-50"
+                >
+                  {featuring ? 'Publishing...' : 'Publish to Community Feed'}
                 </button>
               </div>
             </motion.div>

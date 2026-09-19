@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, memo } from 'react'
 import { motion } from 'framer-motion'
 import { Lock, Coins, Mail, Phone, Loader2 } from 'lucide-react'
 import { AppLead } from '@/types/lead'
@@ -75,7 +75,7 @@ const themeMap = {
 
 const ACCENT_ORDER: (keyof typeof themeMap)[] = ['purple', 'pink', 'cyan', 'mint', 'orange']
 
-export default function LeadCard({
+function LeadCard({
   lead,
   index,
   isSelected,
@@ -402,3 +402,5 @@ export default function LeadCard({
     </motion.div>
   )
 }
+
+export default memo(LeadCard)
