@@ -223,36 +223,66 @@ export default function AdminUserDetailPage() {
     setActionLoading(null)
   }
 
+  const [renewalMessage, setRenewalMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
   const handleUpdateRenewal = async () => {
-    if (!editRenewalDate) return
+    if (!editRenewalDate) {
+      setRenewalMessage({ type: 'error', text: 'Please select a valid renewal date.' })
+      return
+    }
     setActionLoading('updateRenewal')
-    const token = await getFirebaseToken()
-    const payload: Record<string, unknown> = {
-      renewalDate: editRenewalDate,
+    setRenewalMessage(null)
+
+    try {
+      const token = await getFirebaseToken()
+      if (!token) {
+        setRenewalMessage({ type: 'error', text: 'Authentication session not found. Please re-login.' })
+        setActionLoading(null)
+        return
+      }
+
+      const payload: Record<string, unknown> = {
+        renewalDate: editRenewalDate,
+      }
+      const parsedSub = parseInt(editSubCredits)
+      if (!isNaN(parsedSub) && parsedSub >= 0) {
+        payload.subscriptionCredits = parsedSub
+      }
+
+      const res = await fetch(`/api/admin/users/${params.id}`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const json = await res.json()
+
+      if (res.ok && json.data) {
+        setUser((prev) =>
+          prev
+            ? {
+                ...prev,
+                status: json.data.status || prev.status,
+                plan: json.data.plan || prev.plan,
+                creditAccount: json.data.creditAccount || prev.creditAccount,
+              }
+            : prev,
+        )
+        setRenewalMessage({ type: 'success', text: 'Renewal date & credit settings saved successfully!' })
+        fetchUser()
+        if (activeTab === 'history') fetchAuditLogs()
+        setTimeout(() => setRenewalMessage(null), 4000)
+      } else {
+        setRenewalMessage({
+          type: 'error',
+          text: json.message || (json.details ? JSON.stringify(json.details) : 'Failed to update renewal settings'),
+        })
+      }
+    } catch (err: any) {
+      console.error('[handleUpdateRenewal] Error:', err)
+      setRenewalMessage({ type: 'error', text: err?.message || 'Network error while saving settings' })
+    } finally {
+      setActionLoading(null)
     }
-    const parsedSub = parseInt(editSubCredits)
-    if (!isNaN(parsedSub) && parsedSub >= 0) {
-      payload.subscriptionCredits = parsedSub
-    }
-    const res = await fetch(`/api/admin/users/${params.id}`, {
-      method: 'PATCH',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-    const json = await res.json()
-    if (json.data) {
-      setUser((prev) =>
-        prev
-          ? {
-              ...prev,
-              status: json.data.status || prev.status,
-              plan: json.data.plan || prev.plan,
-              creditAccount: json.data.creditAccount || prev.creditAccount,
-            }
-          : prev,
-      )
-    }
-    setActionLoading(null)
   }
 
   const handleBonusCreditGrant = async () => {
@@ -699,6 +729,26 @@ export default function AdminUserDetailPage() {
               <span className="text-xs font-semibold text-text-secondary uppercase tracking-wider block">
                 Subscription & Renewal Date Settings
               </span>
+
+              {renewalMessage && (
+                <div
+                  className={`p-3 rounded-xl text-xs flex items-center justify-between border transition-all ${
+                    renewalMessage.type === 'success'
+                      ? 'bg-green-500/10 border-green-500/30 text-green-400'
+                      : 'bg-red-500/10 border-red-500/30 text-red-400'
+                  }`}
+                >
+                  <span className="font-medium">{renewalMessage.text}</span>
+                  <button
+                    type="button"
+                    onClick={() => setRenewalMessage(null)}
+                    className="text-text-muted hover:text-white ml-2 text-sm leading-none"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div>
                   <label className="text-xxs text-text-secondary uppercase tracking-wider block mb-1">
@@ -730,9 +780,18 @@ export default function AdminUserDetailPage() {
                   <button
                     onClick={handleUpdateRenewal}
                     disabled={actionLoading === 'updateRenewal' || !editRenewalDate}
-                    className="w-full px-4 py-2.5 rounded-xl bg-accent-mint text-white text-sm font-medium hover:bg-accent-mint/90 transition-all disabled:opacity-50"
+                    className="w-full px-4 py-2.5 rounded-xl bg-accent-mint text-white text-sm font-medium hover:bg-accent-mint/90 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                   >
-                    {actionLoading === 'updateRenewal' ? 'Saving...' : 'Save Renewal Settings'}
+                    {actionLoading === 'updateRenewal' ? (
+                      <>
+                        <span className="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Saving...
+                      </>
+                    ) : renewalMessage?.type === 'success' ? (
+                      '✓ Settings Saved!'
+                    ) : (
+                      'Save Renewal Settings'
+                    )}
                   </button>
                 </div>
               </div>
