@@ -37,7 +37,6 @@ function makePost(overrides: Partial<ExternalPost>): ExternalPost {
     review_status: 'approved',
     reviewed_at: null,
     reviewed_by_id: null,
-    title: null,
     reviewed_by_name: null,
     is_claimed: false,
     claimed_count: 0,

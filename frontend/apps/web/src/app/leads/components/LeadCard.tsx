@@ -8,68 +8,82 @@ import { useToast } from '@/components/ui/Toast'
 import { getFirebaseToken } from '@/lib/firebase'
 import { sanitizePublicText, sanitizeHeadline } from '@/lib/claim-reveal'
 import { triggerUnlockConfetti } from '@/lib/confetti'
-import { NicheBadge } from '@/components/ui/NicheBadge'
 
 const themeMap = {
   mint: {
-    cardBg: 'bg-[#B8F36B]',
-    text: 'text-[#11150C]',
-    textMuted: 'text-[#11150C]/65',
-    tagBg: 'bg-[#11150C]/10 border-[#11150C]/10 text-[#11150C]',
-    matchTag: 'bg-[#11150C] text-[#B8F36B]',
-    button: 'bg-[#11150C] hover:bg-black text-[#B8F36B]',
-    blurBg: 'bg-[#11150C]/10',
-    blurLine: 'bg-[#11150C]/15',
-    savedButton: 'bg-[#11150C]/20 text-[#11150C] border-[#11150C]/30',
-    saveButton: 'bg-[#11150C] hover:bg-black text-white',
+    cardBg: 'bg-surface-container-low border border-border-subtle',
+    text: 'text-text-primary',
+    textMuted: 'text-text-secondary',
+    tagBg: 'bg-surface-container-high border-border-subtle text-text-secondary',
+    accentText: 'text-secondary',
+    pill: 'bg-secondary/15 border-secondary/30 text-secondary',
+    matchTag: 'bg-secondary text-on-secondary',
+    button: 'bg-primary text-on-primary hover:brightness-110',
+    blurBg: 'bg-surface-container-high',
+    blurLine: 'bg-outline-variant/50',
+    savedButton: 'bg-surface-container-high text-text-secondary border-border-subtle',
+    saveButton: 'bg-primary text-on-primary hover:brightness-110',
+    accentDot: 'bg-secondary',
   },
   purple: {
-    cardBg: 'bg-[#A78BFA]',
-    text: 'text-white',
-    textMuted: 'text-white/75',
-    tagBg: 'bg-white/15 border-white/20 text-white',
-    matchTag: 'bg-white text-[#11150C]',
-    button: 'bg-white hover:bg-white/90 text-[#11150C]',
-    blurBg: 'bg-white/15',
-    blurLine: 'bg-white/25',
-    savedButton: 'bg-white/25 text-white border-white/35',
-    saveButton: 'bg-white hover:bg-white/90 text-[#11150C]',
+    cardBg: 'bg-surface-container-low border border-border-subtle',
+    text: 'text-text-primary',
+    textMuted: 'text-text-secondary',
+    tagBg: 'bg-surface-container-high border-border-subtle text-text-secondary',
+    accentText: 'text-primary',
+    pill: 'bg-primary/15 border-primary/30 text-primary',
+    matchTag: 'bg-primary text-on-primary',
+    button: 'bg-primary text-on-primary hover:brightness-110',
+    blurBg: 'bg-surface-container-high',
+    blurLine: 'bg-outline-variant/50',
+    savedButton: 'bg-surface-container-high text-text-secondary border-border-subtle',
+    saveButton: 'bg-primary text-on-primary hover:brightness-110',
+    accentDot: 'bg-primary',
   },
   cyan: {
-    cardBg: 'bg-[#7DD3FC]',
-    text: 'text-[#11150C]',
-    textMuted: 'text-[#11150C]/65',
-    tagBg: 'bg-[#11150C]/10 border-[#11150C]/10 text-[#11150C]',
-    matchTag: 'bg-[#11150C] text-[#7DD3FC]',
-    button: 'bg-[#11150C] hover:bg-black text-[#7DD3FC]',
-    blurBg: 'bg-[#11150C]/10',
-    blurLine: 'bg-[#11150C]/15',
-    savedButton: 'bg-[#11150C]/20 text-[#11150C] border-[#11150C]/30',
-    saveButton: 'bg-[#11150C] hover:bg-black text-white',
+    cardBg: 'bg-surface-container-low border border-border-subtle',
+    text: 'text-text-primary',
+    textMuted: 'text-text-secondary',
+    tagBg: 'bg-surface-container-high border-border-subtle text-text-secondary',
+    accentText: 'text-tertiary',
+    pill: 'bg-tertiary/15 border-tertiary/30 text-tertiary',
+    matchTag: 'bg-tertiary-container text-on-tertiary-container',
+    button: 'bg-primary text-on-primary hover:brightness-110',
+    blurBg: 'bg-surface-container-high',
+    blurLine: 'bg-outline-variant/50',
+    savedButton: 'bg-surface-container-high text-text-secondary border-border-subtle',
+    saveButton: 'bg-primary text-on-primary hover:brightness-110',
+    accentDot: 'bg-tertiary-container',
   },
   orange: {
-    cardBg: 'bg-[#FFB86B]',
-    text: 'text-[#11150C]',
-    textMuted: 'text-[#11150C]/65',
-    tagBg: 'bg-[#11150C]/10 border-[#11150C]/10 text-[#11150C]',
-    matchTag: 'bg-[#11150C] text-[#FFB86B]',
-    button: 'bg-[#11150C] hover:bg-black text-[#FFB86B]',
-    blurBg: 'bg-[#11150C]/10',
-    blurLine: 'bg-[#11150C]/15',
-    savedButton: 'bg-[#11150C]/20 text-[#11150C] border-[#11150C]/30',
-    saveButton: 'bg-[#11150C] hover:bg-black text-white',
+    cardBg: 'bg-surface-container-low border border-border-subtle',
+    text: 'text-text-primary',
+    textMuted: 'text-text-secondary',
+    tagBg: 'bg-surface-container-high border-border-subtle text-text-secondary',
+    accentText: 'text-primary-container',
+    pill: 'bg-primary-container/15 border-primary-container/30 text-primary-container',
+    matchTag: 'bg-primary-container text-on-primary-container',
+    button: 'bg-primary text-on-primary hover:brightness-110',
+    blurBg: 'bg-surface-container-high',
+    blurLine: 'bg-outline-variant/50',
+    savedButton: 'bg-surface-container-high text-text-secondary border-border-subtle',
+    saveButton: 'bg-primary text-on-primary hover:brightness-110',
+    accentDot: 'bg-primary-container',
   },
   pink: {
-    cardBg: 'bg-[#F9A8D4]',
-    text: 'text-[#11150C]',
-    textMuted: 'text-[#11150C]/65',
-    tagBg: 'bg-[#11150C]/10 border-[#11150C]/10 text-[#11150C]',
-    matchTag: 'bg-[#11150C] text-[#F9A8D4]',
-    button: 'bg-[#11150C] hover:bg-black text-[#F9A8D4]',
-    blurBg: 'bg-[#11150C]/10',
-    blurLine: 'bg-[#11150C]/15',
-    savedButton: 'bg-[#11150C]/20 text-[#11150C] border-[#11150C]/30',
-    saveButton: 'bg-[#11150C] hover:bg-black text-white',
+    cardBg: 'bg-surface-container-low border border-border-subtle',
+    text: 'text-text-primary',
+    textMuted: 'text-text-secondary',
+    tagBg: 'bg-surface-container-high border-border-subtle text-text-secondary',
+    accentText: 'text-error',
+    pill: 'bg-error/15 border-error/30 text-error',
+    matchTag: 'bg-error text-on-error',
+    button: 'bg-primary text-on-primary hover:brightness-110',
+    blurBg: 'bg-surface-container-high',
+    blurLine: 'bg-outline-variant/50',
+    savedButton: 'bg-surface-container-high text-text-secondary border-border-subtle',
+    saveButton: 'bg-primary text-on-primary hover:brightness-110',
+    accentDot: 'bg-error',
   },
 }
 
@@ -82,6 +96,7 @@ function LeadCard({
   onClick,
   onSaveToggle,
   onReveal,
+  isHeroPreview = false,
 }: {
   lead: AppLead
   index?: number
@@ -89,6 +104,7 @@ function LeadCard({
   onClick?: () => void
   onSaveToggle?: (isSaved: boolean) => void
   onReveal?: (leadId: string, name: string, email: string, phone?: string | null) => void
+  isHeroPreview?: boolean
 }) {
   const { addToast } = useToast()
 
@@ -126,17 +142,15 @@ function LeadCard({
   // Headline (sanitized to prevent person names, company names, or contacts)
   const displayHeadline = sanitizeHeadline(lead.title, topCategory)
 
-  // 2-line Summary content (strictly sanitized to prevent WhatsApp/phone/email/contact leaks)
-  const cardSummary =
-    lead.summary && lead.summary.trim() !== ''
-      ? lead.summary
-      : lead.taskScope && lead.taskScope.trim() !== ''
-        ? lead.taskScope
-        : lead.category && lead.category.toLowerCase() !== 'general'
-          ? `Verified ${lead.category} project opportunity.`
-          : 'Verified service demand opportunity.'
+  // Main Quote content (strictly sanitized to prevent WhatsApp/phone/email/contact leaks)
+  const rawQuote =
+    lead.taskScope && lead.taskScope.trim() !== ''
+      ? lead.taskScope
+      : lead.category && lead.category.toLowerCase() !== 'general'
+        ? lead.category
+        : 'Verified service demand opportunity.'
 
-  const summaryContent = sanitizePublicText(cardSummary)
+  const quoteContent = sanitizePublicText(rawQuote)
 
   const handleSave = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -219,12 +233,6 @@ function LeadCard({
         message: `Unlocked contact for ${json.name || 'lead'}!`,
       })
 
-      if (typeof json.creditsRemaining === 'number') {
-        window.dispatchEvent(
-          new CustomEvent('credits-updated', { detail: { creditsRemaining: json.creditsRemaining } }),
-        )
-      }
-
       if (onReveal) {
         onReveal(lead.id, json.name, json.email, json.phone)
       }
@@ -249,30 +257,33 @@ function LeadCard({
       if (words.length >= 2 && words.length <= 3 && words.every((w) => /^[A-Z]{3,}$/.test(w))) return false
       return true
     })
-    .slice(0, 4)
+    .slice(0, 3)
 
   return (
     <motion.div
       onClick={onClick}
       whileHover={{ y: -3, scale: 1.01 }}
       transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-      className={`group relative text-left flex flex-col justify-between p-5 rounded-[22px] overflow-hidden h-[260px] min-h-[260px] max-h-[260px] w-full col-span-1 shadow-[0_4px_24px_rgba(0,0,0,0.08)] transition-all duration-300 cursor-pointer ${
+      className={`group relative text-left flex flex-col justify-between p-5 rounded-[22px] overflow-hidden h-[260px] min-h-[260px] max-h-[260px] w-full col-span-1 shadow-elevation-3 transition-all duration-300 cursor-pointer ${
         theme.cardBg
-      } ${isSelected ? 'ring-3 ring-black/30' : ''}`}
+      } ${isSelected ? 'ring-1 ring-primary/60' : ''}`}
     >
       {/* Top & Content Section */}
       <div className="flex flex-col flex-1 min-h-0">
-        {/* Header: Niche Badge & Timestamp */}
-        <div className="flex items-center justify-between mb-2 w-full select-none shrink-0 h-[22px]">
+        {/* Header: Clean Niche Category without Intent Score */}
+        <div className="flex items-center justify-between mb-2 w-full select-none shrink-0 h-[18px]">
           <div className="flex items-center gap-1.5 min-w-0">
-            <NicheBadge niche={lead.niche} keyword={lead.category} content={lead.signalContext} />
+            <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${theme.accentDot}`} />
+            <span className={`text-[10px] font-bold tracking-[0.16em] uppercase truncate ${theme.accentText}`}>
+              {topCategory}
+            </span>
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0 ml-2">
             {lead.timestamp && (
               <span
-                className={`text-[10px] font-medium tracking-tight opacity-50 ${theme.textMuted}`}
-                title="Original post age"
+                className={`text-[10px] font-medium tracking-tight opacity-80 ${theme.textMuted}`}
+                title={lead.scrapedAt ? `Original post: ${new Date(lead.scrapedAt).toLocaleString()}` : 'Original post age'}
               >
                 {lead.timestamp}
               </span>
@@ -285,19 +296,19 @@ function LeadCard({
           {displayHeadline}
         </h4>
 
-        {/* 2-line Lead Summary */}
+        {/* Scaled-down Quote: fixed height container ensures 100% uniform card layout regardless of copy length */}
         <div className="h-[52px] mb-2.5 flex items-start select-none overflow-hidden shrink-0">
-          <p className={`text-[12.5px] sm:text-[13px] font-medium tracking-tight leading-[1.38] line-clamp-2 ${theme.text}`}>
-            {summaryContent}
-          </p>
+          <h3 className={`text-[13px] sm:text-[13.5px] font-semibold tracking-tight leading-[1.35] line-clamp-2 ${theme.text}`}>
+            &quot;{quoteContent}&quot;
+          </h3>
         </div>
 
-        {/* Technology Badges Row */}
+        {/* Clean Tags Row without match score badge */}
         <div className="flex items-center gap-1.5 mb-2.5 shrink-0 select-none overflow-hidden flex-nowrap h-[22px]">
-          {visibleTags.map((tag) => (
+          {visibleTags.map((tag, i) => (
             <span
               key={tag}
-              className={`px-2 py-0.5 text-[10px] font-semibold rounded-md border backdrop-blur-sm shrink-0 whitespace-nowrap ${theme.tagBg}`}
+              className={`px-2 py-0.5 text-[10px] font-semibold rounded-md border backdrop-blur-sm shrink-0 whitespace-nowrap ${i === 0 ? theme.pill : theme.tagBg}`}
             >
               {tag}
             </span>
@@ -306,7 +317,7 @@ function LeadCard({
       </div>
 
       {/* Footer Area: Cute scaled-down lock and reveal button */}
-      <div className="w-full h-[34px] flex items-center justify-between shrink-0 mt-auto pt-1 border-t border-black/[0.06]">
+      <div className="w-full h-[34px] flex items-center justify-between shrink-0 mt-auto pt-1 border-t border-border-subtle">
         {!isRevealed ? (
           <>
             {/* Cute Micro Locked Placeholder */}
@@ -333,7 +344,7 @@ function LeadCard({
                 type="button"
                 onClick={handleReveal}
                 disabled={isRevealing}
-                className={`h-[30px] px-3 rounded-xl font-bold text-[10.5px] shadow-sm flex items-center justify-center gap-1.5 transition-all active:scale-95 shrink-0 whitespace-nowrap ${theme.button} ${
+                className={`${isHeroPreview ? 'h-8' : 'h-11'} px-3 rounded-xl font-bold text-[10.5px] shadow-sm flex items-center justify-center gap-1.5 transition-all active:scale-95 shrink-0 whitespace-nowrap ${theme.button} ${
                   isRevealing ? 'opacity-85 cursor-wait pointer-events-none' : 'cursor-pointer'
                 }`}
               >
@@ -390,12 +401,16 @@ function LeadCard({
               </div>
             </motion.div>
 
-            {/* Saved Indicator Badge */}
-            <div
-              className={`px-2.5 h-[30px] rounded-xl text-[9.5px] font-extrabold tracking-wider uppercase select-none border flex items-center justify-center shrink-0 ${theme.savedButton}`}
+            {/* Scaled-down Save Button */}
+            <button
+              type="button"
+              onClick={handleSave}
+              className={`${isHeroPreview ? 'w-[56px] h-8' : 'w-[66px] h-11'} rounded-xl text-[9.5px] font-extrabold tracking-wider uppercase transition-all shrink-0 cursor-pointer border flex items-center justify-center ${
+                isSaved ? theme.savedButton : theme.saveButton
+              }`}
             >
-              ✓ Saved
-            </div>
+              {isSaved ? '✓ Saved' : 'Save'}
+            </button>
           </>
         )}
       </div>

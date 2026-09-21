@@ -97,6 +97,17 @@ export default function AdminKeywordsPage() {
     }
   }
 
+  const isApifyExhausted = (msg: string) => {
+    const m = msg.toLowerCase()
+    return (
+      m.includes('apify') ||
+      m.includes('token') ||
+      m.includes('quota') ||
+      m.includes('limit') ||
+      m.includes('exhausted')
+    )
+  }
+
   const handleScrapeSingle = async (id: string, text: string) => {
     setScrapingId(id)
     const token = await getFirebaseToken()
@@ -112,10 +123,34 @@ export default function AdminKeywordsPage() {
           message: json.message || `Scrape queued for "${text}"`,
         })
       } else {
-        throw new Error(json.message || 'Scrape request failed')
+        const errorMsg = json.message || 'Scrape request failed'
+        if (isApifyExhausted(errorMsg)) {
+          window.dispatchEvent(
+            new CustomEvent('show-apify-exhaustion', {
+              detail: {
+                title: `Cannot Scrape "${text}"`,
+                message: errorMsg,
+              },
+            }),
+          )
+        } else {
+          throw new Error(errorMsg)
+        }
       }
     } catch (e) {
-      addToast({ type: 'error', message: e instanceof Error ? e.message : 'Failed to trigger scrape' })
+      const msg = e instanceof Error ? e.message : 'Failed to trigger scrape'
+      if (isApifyExhausted(msg)) {
+        window.dispatchEvent(
+          new CustomEvent('show-apify-exhaustion', {
+            detail: {
+              title: `Cannot Scrape "${text}"`,
+              message: msg,
+            },
+          }),
+        )
+      } else {
+        addToast({ type: 'error', message: msg })
+      }
     } finally {
       setScrapingId(null)
     }
@@ -136,10 +171,34 @@ export default function AdminKeywordsPage() {
           message: json.message || 'Scraping started for all active keywords',
         })
       } else {
-        throw new Error(json.message || 'Failed to trigger all scrapers')
+        const errorMsg = json.message || 'Failed to trigger all scrapers'
+        if (isApifyExhausted(errorMsg)) {
+          window.dispatchEvent(
+            new CustomEvent('show-apify-exhaustion', {
+              detail: {
+                title: 'Cannot Start Scrape All',
+                message: errorMsg,
+              },
+            }),
+          )
+        } else {
+          throw new Error(errorMsg)
+        }
       }
     } catch (e) {
-      addToast({ type: 'error', message: e instanceof Error ? e.message : 'Scrape all failed' })
+      const msg = e instanceof Error ? e.message : 'Scrape all failed'
+      if (isApifyExhausted(msg)) {
+        window.dispatchEvent(
+          new CustomEvent('show-apify-exhaustion', {
+            detail: {
+              title: 'Cannot Start Scrape All',
+              message: msg,
+            },
+          }),
+        )
+      } else {
+        addToast({ type: 'error', message: msg })
+      }
     } finally {
       setIsScrapingAll(false)
     }

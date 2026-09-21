@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useMemo, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import {
   auth,
@@ -12,8 +11,10 @@ import {
   type ConfirmationResult,
 } from '@/lib/firebase'
 import { normalizePhone } from '@/lib/phone'
-import { openRazorpayCheckout } from '@/lib/razorpay-client'
 import { motion } from 'framer-motion'
+import { getFirebaseToken } from '@/lib/firebase'
+import { useToast } from '@/components/ui/Toast'
+import { openRazorpayCheckout, loadRazorpayScript } from '@/lib/razorpay-client'
 import {
   UserIcon,
   EnvelopeIcon,
@@ -43,128 +44,9 @@ const PLAN_CREDITS: Record<string, number> = {
 }
 
 export default function SettingsPage() {
-  const router = useRouter()
   const { user, logout } = useAuth()
   const [isEditing, setIsEditing] = useState(false)
   const [displayName, setDisplayName] = useState(user?.name || '')
-  const [paymentLoading, setPaymentLoading] = useState(false)
-  const [cancelLoading, setCancelLoading] = useState(false)
-
-  const handleSaveProfile = async () => {
-    try {
-      const token = await import('@/lib/firebase').then(m => m.getFirebaseToken())
-      await fetch('/api/auth/me', {
-        method: 'PATCH',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: displayName }),
-      })
-    } catch (err) {
-      console.error('Failed to save profile:', err)
-    }
-    setIsEditing(false)
-  }
-
-  const handleRefillCredits = async () => {
-    setPaymentLoading(true)
-    try {
-      const token = await import('@/lib/firebase').then(m => m.getFirebaseToken())
-      const res = await fetch('/api/payments/razorpay/topup', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pack: 'topup_50' }),
-      })
-      const data = await res.json()
-      if (data.success && data.data?.order_id) {
-        await openRazorpayCheckout({
-          key: data.data.key_id,
-          order_id: data.data.order_id,
-          amount: data.data.amount,
-          currency: data.data.currency,
-          name: data.data.name,
-          description: data.data.description,
-          prefill: data.data.prefill,
-          handler: async (response: any) => {
-            const vRes = await fetch('/api/payments/razorpay/verify', {
-              method: 'POST',
-              headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-              body: JSON.stringify(response),
-            })
-            const vData = await vRes.json()
-            if (vRes.ok && vData.success) {
-              window.location.reload()
-            } else {
-              alert(vData.message || 'Payment verification failed')
-            }
-          },
-        })
-      } else {
-        alert(data.message || 'Failed to initialize top-up order')
-      }
-    } catch (err: any) {
-      console.error('Refill failed:', err)
-      alert(err.message || 'Payment failed')
-    }
-    setPaymentLoading(false)
-  }
-
-  const handleChangePlan = async (planId: string) => {
-    setPaymentLoading(true)
-    try {
-      const token = await import('@/lib/firebase').then(m => m.getFirebaseToken())
-      const res = await fetch('/api/payments/razorpay/order', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: planId.toLowerCase() }),
-      })
-      const data = await res.json()
-      if (data.success && data.data?.order_id) {
-        await openRazorpayCheckout({
-          key: data.data.key_id,
-          order_id: data.data.order_id,
-          amount: data.data.amount,
-          currency: data.data.currency,
-          name: data.data.name,
-          description: data.data.description,
-          prefill: data.data.prefill,
-          handler: async (response: any) => {
-            const vRes = await fetch('/api/payments/razorpay/verify', {
-              method: 'POST',
-              headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-              body: JSON.stringify(response),
-            })
-            const vData = await vRes.json()
-            if (vRes.ok && vData.success) {
-              window.location.reload()
-            } else {
-              alert(vData.message || 'Payment verification failed')
-            }
-          },
-        })
-      } else {
-        alert(data.message || 'Failed to initialize plan order')
-      }
-    } catch (err: any) {
-      console.error('Change plan failed:', err)
-      alert(err.message || 'Payment failed')
-    }
-    setPaymentLoading(false)
-  }
-
-  const handleCancelSubscription = async () => {
-    if (!confirm('Are you sure you want to cancel your subscription? You will be moved to the free plan.')) return
-    setCancelLoading(true)
-    try {
-      const token = await import('@/lib/firebase').then(m => m.getFirebaseToken())
-      await fetch('/api/plans/cancel', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      })
-      window.location.reload()
-    } catch (err) {
-      console.error('Cancel failed:', err)
-    }
-    setCancelLoading(false)
-  }
 
   const remainingDays = useMemo(() => {
     if (!user?.creditAccount?.renewalDate) return null
@@ -183,6 +65,10 @@ export default function SettingsPage() {
   const [phoneLoading, setPhoneLoading] = useState(false)
   const [phoneStep, setPhoneStep] = useState<'idle' | 'send' | 'verify'>('idle')
   const [otpCountdown, setOtpCountdown] = useState(0)
+
+  const { addToast } = useToast()
+  const [billingLoading, setBillingLoading] = useState(false)
+  const [planModalOpen, setPlanModalOpen] = useState(false)
 
   useEffect(() => {
     if (otpCountdown <= 0) return
@@ -270,8 +156,91 @@ export default function SettingsPage() {
     }
   }
 
+  const handleSaveProfile = () => {
+    setIsEditing(false)
+  }
+
+  const startCheckout = async (plan: string, mode: 'one_time' | 'subscription') => {
+    setBillingLoading(true)
+    try {
+      const token = await getFirebaseToken()
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (token) headers['Authorization'] = `Bearer ${token}`
+      const res = await fetch('/api/payments/razorpay/order', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ plan, mode }),
+      })
+      const json = await res.json()
+      if (!res.ok || !json.success) {
+        addToast({ type: 'error', message: json.message || 'Checkout is unavailable right now.' })
+        return
+      }
+      const checkoutKey =
+        mode === 'subscription'
+          ? { subscription_id: json.subscription_id }
+          : { order_id: json.order_id }
+      const result = await openRazorpayCheckout({
+        key: json.key_id,
+        ...checkoutKey,
+        amount: (json.amount ?? 0) * 100,
+        currency: json.currency || 'INR',
+        name: 'LeadHunter Club',
+        description: mode === 'subscription' ? 'Plan subscription' : 'One-time credits',
+        prefill: { name: user?.name, email: user?.email },
+        theme: { color: '#7c3aed' },
+      })
+      if (result.succeeded) {
+        addToast({
+          type: 'success',
+          message: 'Payment received: your credits will update shortly.',
+        })
+      } else if (result.canceled) {
+        addToast({ type: 'error', message: 'Checkout was cancelled.' })
+      }
+    } catch {
+      addToast({ type: 'error', message: 'Checkout failed. Please try again.' })
+    } finally {
+      setBillingLoading(false)
+    }
+  }
+
+  const handleRefillCredits = () => {
+    startCheckout('FREELANCER', 'one_time')
+  }
+
+  const handleChangePlan = (planId: string) => {
+    setPlanModalOpen(false)
+    startCheckout(planId, 'subscription')
+  }
+
+  const handleCancelSubscription = async () => {
+    if (!window.confirm('Cancel your subscription? Your plan will reset to Free.')) return
+    setBillingLoading(true)
+    try {
+      const token = await getFirebaseToken()
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (token) headers['Authorization'] = `Bearer ${token}`
+      const res = await fetch('/api/payments/razorpay/cancel', {
+        method: 'POST',
+        headers,
+      })
+      const json = await res.json()
+      if (res.ok && json.success) {
+        addToast({ type: 'success', message: json.message })
+        window.location.reload()
+      } else {
+        addToast({ type: 'error', message: json.message || 'Failed to cancel subscription.' })
+      }
+    } catch {
+      addToast({ type: 'error', message: 'Network error during cancellation.' })
+    } finally {
+      setBillingLoading(false)
+    }
+  }
+
   return (
-    <main className="flex-1 overflow-y-auto px-10 py-12 relative scrollbar-hide">
+    <main className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-10 pt-8 pb-28 md:py-12 relative scrollbar-hide">
       <div className="absolute top-[-10%] left-1/2 -translate-x-1/2 w-[800px] h-[400px] glow-mint-soft pointer-events-none" />
 
       <div className="max-w-[1000px] mx-auto relative z-10">
@@ -560,7 +529,7 @@ export default function SettingsPage() {
                 />
               </div>
               <p className="text-xxs text-text-secondary/50 mt-3">
-                Credits are consumed when revealing lead identities — the exact cost depends on the
+                Credits are consumed when revealing lead identities: the exact cost depends on the
                 contact data available (phone, email, or profile link).
               </p>
               {user?.creditAccount?.rolloverBalance ? (
@@ -575,11 +544,12 @@ export default function SettingsPage() {
             </div>
 
             <button
-              onClick={() => router.push('/refill')}
-              className="w-full py-3.5 rounded-xl bg-accent-purple text-white font-bold text-sm flex items-center justify-center gap-2 hover:bg-surface-secondary transition-all shadow-[0_0_20px_rgba(var(--rgb-tab-purple),0.15)] hover:bg-accent-purple/90 cursor-pointer"
+              onClick={handleRefillCredits}
+              disabled={billingLoading}
+              className="w-full py-3.5 rounded-xl bg-accent-purple text-white font-bold text-sm flex items-center justify-center gap-2 hover:bg-surface-secondary transition-all shadow-[0_0_20px_rgba(var(--rgb-tab-purple),0.15)] hover:bg-accent-purple/90 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <BoltIcon className="w-4 h-4" />
-              Refill Credits
+              {billingLoading ? 'Processing…' : 'Refill Credits'}
               <ArrowTopRightOnSquareIcon className="w-4 h-4" />
             </button>
           </motion.div>
@@ -638,19 +608,74 @@ export default function SettingsPage() {
 
             <div className="mt-4 flex gap-2">
               <button
-                onClick={() => router.push('/pricing')}
-                className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/[0.06] text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-white/10 transition-all cursor-pointer"
+                onClick={() => {
+                  loadRazorpayScript()
+                  setPlanModalOpen(true)
+                }}
+                disabled={billingLoading}
+                className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/[0.06] text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Change Plan
               </button>
               <button
                 onClick={handleCancelSubscription}
-                disabled={cancelLoading}
-                className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/[0.06] text-xs font-medium text-text-secondary hover:text-red-400 hover:bg-red-500/10 hover:border-red-500/20 transition-all disabled:opacity-50"
+                disabled={billingLoading}
+                className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/[0.06] text-xs font-medium text-text-secondary hover:text-red-400 hover:bg-red-500/10 hover:border-red-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {cancelLoading ? 'Cancelling...' : 'Cancel Subscription'}
+                Cancel Subscription
               </button>
             </div>
+
+            {planModalOpen && (
+              <div
+                className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+                onClick={() => setPlanModalOpen(false)}
+              >
+                <div
+                  className="glass-panel rounded-4xl border-subtle bg-surface/40 p-8 w-full max-w-md shadow-2xl"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-lg font-bold text-text-primary">Choose a Plan</h3>
+                    <button
+                      onClick={() => setPlanModalOpen(false)}
+                      className="text-text-secondary hover:text-text-primary text-xl leading-none"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <div className="space-y-3">
+                    <button
+                      onClick={() => handleChangePlan('FREELANCER')}
+                      disabled={billingLoading}
+                      className="w-full flex items-center justify-between p-5 rounded-2xl bg-white/5 border border-white/[0.06] hover:border-accent-purple/40 transition-all text-left disabled:opacity-50"
+                    >
+                      <div>
+                        <div className="text-sm font-bold text-text-primary">Freelancer</div>
+                        <div className="text-xs text-text-secondary mt-1">500 credits / month</div>
+                      </div>
+                      <div className="text-sm font-bold text-accent-purple">₹999/mo</div>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setPlanModalOpen(false)
+                        addToast({ type: 'error', message: 'Agency plan is available on request: contact support.' })
+                      }}
+                      className="w-full flex items-center justify-between p-5 rounded-2xl bg-white/5 border border-white/[0.06] hover:border-accent-purple/40 transition-all text-left"
+                    >
+                      <div>
+                        <div className="text-sm font-bold text-text-primary">Agency</div>
+                        <div className="text-xs text-text-secondary mt-1">1000 credits / month</div>
+                      </div>
+                      <div className="text-sm font-bold text-accent-purple">Contact us</div>
+                    </button>
+                  </div>
+                  <p className="text-xxs text-text-secondary/60 mt-5">
+                    You&apos;ll be taken to a secure Razorpay checkout to complete your subscription.
+                  </p>
+                </div>
+              </div>
+            )}
           </motion.div>
 
           {/* Danger Zone */}

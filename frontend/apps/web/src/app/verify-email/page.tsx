@@ -3,12 +3,13 @@
 import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
+import Link from 'next/link'
 import {
   EnvelopeIcon,
   ArrowPathIcon,
   CheckCircleIcon,
 } from '@heroicons/react/24/solid'
-import { auth, sendEmailVerification, applyActionCode, firebaseSignOut } from '@/lib/firebase'
+import { auth, sendEmailVerification, applyActionCode } from '@/lib/firebase'
 import { CustomLoader } from '@/components/ui/CustomLoader'
 
 function VerifyEmailContent() {
@@ -99,8 +100,7 @@ function VerifyEmailContent() {
         },
         body: JSON.stringify({ email: auth.currentUser.email }),
       })
-      const data = await res.json().catch(() => null)
-      if (res.ok && data?.data?.success && !data?.data?.fallback) {
+      if (res.ok) {
         setResendMessage('Verification email sent! Check your inbox.')
       } else {
         await sendEmailVerification(auth.currentUser)
@@ -215,15 +215,12 @@ function VerifyEmailContent() {
           )}
 
           <div className="mt-8">
-            <button
-              onClick={async () => {
-                await firebaseSignOut(auth)
-                router.push('/login')
-              }}
+            <Link
+              href="/login"
               className="text-xs text-text-secondary/50 hover:text-text-secondary transition-colors"
             >
               Sign in with a different account
-            </button>
+            </Link>
           </div>
         </div>
       </motion.div>

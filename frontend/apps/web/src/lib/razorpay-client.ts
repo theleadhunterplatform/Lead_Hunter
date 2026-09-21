@@ -1,30 +1,21 @@
-export type RazorpaySuccessResponse = {
-  razorpay_order_id: string
-  razorpay_payment_id: string
-  razorpay_signature: string
-}
-
-export type RazorpayCheckoutOptions = {
-  key: string
-  amount: number
-  currency: string
-  name: string
-  description?: string
-  order_id: string
-  prefill?: {
-    name?: string
-    email?: string
-    contact?: string
-  }
-  theme?: { color?: string }
-  handler: (response: RazorpaySuccessResponse) => void
-  modal?: { ondismiss?: () => void }
-}
-
 declare global {
   interface Window {
-    Razorpay?: new (options: RazorpayCheckoutOptions) => { open: () => void }
+    Razorpay?: new (options: RazorpayOptions) => { open: () => void }
   }
+}
+
+export interface RazorpayOptions {
+  key: string
+  subscription_id?: string
+  order_id?: string
+  amount?: number
+  currency?: string
+  name?: string
+  description?: string
+  prefill?: { name?: string; email?: string; contact?: string }
+  theme?: { color?: string }
+  handler?: (response: Record<string, string>) => void
+  modal?: { ondismiss?: () => void }
 }
 
 let scriptPromise: Promise<boolean> | null = null
@@ -35,15 +26,6 @@ export function loadRazorpayScript(): Promise<boolean> {
   if (scriptPromise) return scriptPromise
 
   scriptPromise = new Promise((resolve) => {
-    const existing = document.querySelector<HTMLScriptElement>(
-      'script[src="https://checkout.razorpay.com/v1/checkout.js"]',
-    )
-    if (existing) {
-      existing.addEventListener('load', () => resolve(true))
-      existing.addEventListener('error', () => resolve(false))
-      return
-    }
-
     const script = document.createElement('script')
     script.src = 'https://checkout.razorpay.com/v1/checkout.js'
     script.async = true
@@ -51,15 +33,45 @@ export function loadRazorpayScript(): Promise<boolean> {
     script.onerror = () => resolve(false)
     document.body.appendChild(script)
   })
-
   return scriptPromise
 }
 
-export async function openRazorpayCheckout(options: RazorpayCheckoutOptions): Promise<void> {
-  const loaded = await loadRazorpayScript()
-  if (!loaded || !window.Razorpay) {
-    throw new Error('Razorpay SDK failed to initialize')
-  }
-  const rzp = new window.Razorpay(options)
-  rzp.open()
+export function openRazorpayCheckout(options: RazorpayOptions): Promise<{
+  succeeded: boolean
+  canceled: boolean
+}> {
+  return new Promise((resolve) => {
+    loadRazorpayScript().then((loaded) => {
+      if (!loaded || typeof window.Razorpay === 'undefined') {
+        resolve({ succeeded: false, canceled: true })
+        return
+      }
+
+      let settled = false
+      const rzp = new window.Razorpay({
+        ...options,
+        handler: (response) => {
+          if (!settled) {
+            settled = true
+            options.handler?.(response)
+            resolve({ succeeded: true, canceled: false })
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            if (!settled) {
+              settled = true
+              options.modal?.ondismiss?.()
+              resolve({ succeeded: false, canceled: true })
+            }
+          },
+        },
+      })
+      rzp.open()
+    })
+  })
+}
+
+export function isRazorpayCheckoutAvailable(): boolean {
+  return typeof window !== 'undefined'
 }

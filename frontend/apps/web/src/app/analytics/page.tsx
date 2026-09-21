@@ -1,9 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { CustomLoader } from '@/components/ui/CustomLoader'
 import { getFirebaseToken } from '@/lib/firebase'
+import { useAuth } from '@/hooks/useAuth'
 import {
   ViewfinderCircleIcon,
   ChatBubbleLeftRightIcon,
@@ -28,6 +30,8 @@ interface Stat {
 }
 
 export default function AnalyticsPage() {
+  const router = useRouter()
+  const { user, firebaseUser, loading: authLoading } = useAuth()
   const [stats, setStats] = useState<Stat[]>([])
   const [activity, setActivity] = useState<{ day: string; value: number }[]>([])
   const [distribution, setDistribution] = useState<
@@ -37,13 +41,19 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const load = async () => {
+  const load = useCallback(async (userInitiated = false) => {
     try {
-      setLoading(true)
+      if (userInitiated) setLoading(true)
       setError(null)
-      const token = await getFirebaseToken()
+      const token = (await firebaseUser?.getIdToken()) || (await getFirebaseToken())
+      if (!token) {
+        if (!authLoading) {
+          router.push('/login')
+        }
+        return
+      }
       const res = await fetch('/api/dashboard', {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        headers: { Authorization: `Bearer ${token}` },
       })
       const json = await res.json()
       if (res.ok && json.data) {
@@ -53,6 +63,22 @@ export default function AnalyticsPage() {
         if (json.data.readyForOutreachCount !== undefined)
           setReadyLeadCount(json.data.readyForOutreachCount)
       } else {
+        if (res.status === 401) {
+          router.push('/login')
+          return
+        }
+        if (json.code === 'EMAIL_NOT_VERIFIED') {
+          router.push('/verify-email')
+          return
+        }
+        if (json.code === 'ONBOARDING_REQUIRED') {
+          router.push('/onboarding')
+          return
+        }
+        if (json.code === 'INACTIVE' || json.code === 'PENDING_APPROVAL') {
+          router.push('/pending-approval')
+          return
+        }
         setError(json.message || 'Failed to load analytics.')
       }
     } catch {
@@ -60,16 +86,18 @@ export default function AnalyticsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [firebaseUser, authLoading, router])
 
   useEffect(() => {
-    load()
-  }, [])
+    if (!authLoading) {
+      load()
+    }
+  }, [authLoading, load])
 
   const totalDistribution = distribution.reduce((sum, d) => sum + d.count, 0)
 
   return (
-    <main data-lenis-prevent className="flex-1 h-full min-h-0 overflow-y-auto px-8 py-10 relative">
+    <main data-lenis-prevent className="flex-1 h-full min-h-0 overflow-y-auto px-4 sm:px-6 lg:px-8 pt-8 pb-28 md:py-10 relative">
         <div className="max-w-[1400px] mx-auto">
           <header className="mb-10">
             <h1 className="text-3xl font-bold text-text-primary tracking-tight">Analytics</h1>

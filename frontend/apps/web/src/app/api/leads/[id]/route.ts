@@ -7,24 +7,28 @@ import {
   EmailNotVerifiedError,
   OnboardingRequiredError,
 } from '@/lib/auth'
-import { getPost, claimPost } from '@/lib/external-api/client'
+import { getPost } from '@/lib/external-api/client'
 import type { ExternalPost } from '@/lib/external-api/client'
-import { oracleDb } from '@/lib/oracle-db'
-import { mapLeadPostToExternal } from '@/lib/oracle-mapper'
 import { updateLeadSchema } from '@/lib/validators/auth'
 import type { AppLead } from '@/types/lead'
-import {
-  extractNiches,
-  sanitizePublicText,
-  extractCleanNicheTags,
-  extractLeadBadges,
-  extractLeadSummaries,
-  sanitizeHeadline,
-} from '@/lib/claim-reveal'
+import { extractNiches, sanitizePublicText, extractCleanNicheTags, sanitizeHeadline } from '@/lib/claim-reveal'
 import { getLeadRevealCost } from '@/lib/config/coins'
-import { creditService } from '@/lib/services/credits'
 
 export const dynamic = 'force-dynamic'
+
+function resolveOriginalPostDate(post: ExternalPost): string {
+  const raw = post.posted_at?.date
+  if (raw) {
+    const t = new Date(raw).getTime()
+    if (!Number.isNaN(t)) return new Date(t).toISOString()
+  }
+  const ts = post.posted_at?.timestamp
+  if (typeof ts === 'number' && ts > 0) {
+    const ms = ts < 1e12 ? ts * 1000 : ts
+    return new Date(ms).toISOString()
+  }
+  return post.created_at
+}
 
 function formatTimeAgo(dateStr: string): string {
   const diffMs = new Date().getTime() - new Date(dateStr).getTime()
@@ -76,23 +80,18 @@ function extractTags(post: ExternalPost): string[] {
   return tags
 }
 
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const { id } = await params
     const authUser = await requireFullyAuthorized(request)
     const userId = authUser.uid
 
-    const rawLead = await oracleDb.leadPost.findUnique({ where: { id } })
-    if (!rawLead) {
-      return NextResponse.json({ code: 'NOT_FOUND', message: 'Lead not found' }, { status: 404 })
-    }
-    const externalLead = mapLeadPostToExternal(rawLead)
+    const externalLead = await getPost(params.id)
 
     const userState = await db.userLeadState.findUnique({
       where: {
         userId_leadId: {
           userId,
-          leadId: id,
+          leadId: params.id,
         },
       },
     })
@@ -101,13 +100,18 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const phone = externalLead.contact_info?.phone_numbers?.[0]?.number || null
     const email = externalLead.email || externalLead.contact_info?.emails?.[0]?.email || ''
     const isClaimable = externalLead.source === 'seed' || (externalLead.review_status === 'approved' && !!externalLead.intelligence)
-    const primaryNiche = externalLead.niche || null
     const intel = externalLead.intelligence || ''
-    const niches = extractNiches(externalLead.keyword, externalLead.content || '', externalLead.intelligence, primaryNiche)
-    const cleanTags = extractLeadBadges(externalLead, niches)
-    const resolvedNiche = primaryNiche || niches[0] || 'General'
-    const cleanTitle = sanitizeHeadline(externalLead.author?.info || externalLead.keyword || '', resolvedNiche)
-    const { summary, detailsSummary } = extractLeadSummaries(externalLead)
+
+    const niches = extractNiches(externalLead.keyword, externalLead.content || '', externalLead.intelligence)
+    const cleanTags = extractCleanNicheTags(externalLead, niches)
+    const cleanTitle = sanitizeHeadline(externalLead.author?.info || externalLead.keyword || '', niches[0])
+    const cleanScope = sanitizePublicText(
+      extractSection(intel, 'Context You Might Miss') ||
+        extractSection(intel, 'What They Actually Want') ||
+        extractSection(intel, 'One-Liner') ||
+        externalLead.content ||
+        '',
+    )
 
     const lead: AppLead = {
       id: externalLead.id,
@@ -122,15 +126,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
           ''
         : 'Confidential Client',
       source: 'Lead Signal',
-      category: resolvedNiche,
-      niche: resolvedNiche,
+      category: niches[0] || 'General',
       title: cleanTitle,
       signalContext: isRevealed ? externalLead.content || '' : sanitizePublicText(externalLead.content || ''),
       role: sanitizePublicText(externalLead.author?.info || extractSection(intel, 'One-Liner')),
-      taskScope: summary,
-      summary,
-      detailsSummary,
-      mustHave: sanitizePublicText(extractSection(intel, 'What They Actually Want') || detailsSummary),
+      taskScope: cleanScope,
+      mustHave: sanitizePublicText(extractSection(intel, 'What They Actually Want')),
       nicheBonus: sanitizePublicText(extractSection(intel, 'How to Win')),
       buyerType: sanitizePublicText(intel),
       urgency: 'medium',
@@ -141,9 +142,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       replyProbability: Math.max(externalLead.ai_score || 0, 60),
       accent: 'mint',
       status: (userState?.status || 'new') as AppLead['status'],
-      timestamp: externalLead.posted_at?.postedAgoShort || formatTimeAgo(externalLead.created_at),
-      scrapedAt: externalLead.created_at,
-      scrapedAgo: formatTimeAgo(externalLead.created_at),
+      timestamp: formatTimeAgo(resolveOriginalPostDate(externalLead)),
+      scrapedAt: resolveOriginalPostDate(externalLead),
+      scrapedAgo: formatTimeAgo(resolveOriginalPostDate(externalLead)),
       isSaved: userState?.isSaved || false,
       isRevealed,
       isClaimable,
@@ -186,9 +187,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   }
 }
 
-export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const { id } = await params
     const authUser = await requireFullyAuthorized(request)
     const userId = authUser.uid
 
@@ -206,7 +206,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
 
     const { status, isSaved } = parsed.data
-    const updateData: Record<string, string | boolean | Date> = {}
+    const updateData: Record<string, string | boolean> = {}
     if (status !== undefined) updateData.status = status
     if (isSaved !== undefined) updateData.isSaved = isSaved
 
@@ -216,92 +216,89 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       updateData.status = 'new'
     }
 
-    // Step 1 Unified Flow: Saving a lead always unlocks the lead and deducts credits
-    if (isSaved === true || status === 'saved') {
-      const existingState = await db.userLeadState.findUnique({
-        where: { userId_leadId: { userId, leadId: id } },
-      })
-
-      if (!existingState?.isRevealed) {
-        const rawLead = await oracleDb.leadPost.findUnique({ where: { id } })
-        if (!rawLead) {
-          return NextResponse.json({ code: 'NOT_FOUND', message: 'Lead not found' }, { status: 404 })
-        }
-        const externalLead = mapLeadPostToExternal(rawLead)
-        const cost = getLeadRevealCost(externalLead) ?? 3
-
-        const balance = await creditService.getTotalBalance(userId)
-        if (balance < cost) {
-          return NextResponse.json(
-            {
-              code: 'INSUFFICIENT_CREDITS',
-              message: `Insufficient credits to save and unlock this lead (needs ${cost} credits, available: ${balance})`,
-              required: cost,
-              available: balance,
-            },
-            { status: 400 },
-          )
-        }
-
-        await claimPost(id).catch((err) => {
-          console.warn('[Lead Save] Backend claim notification failed:', err?.message || err)
-          return externalLead
-        })
-
-        const txResult = await db.$transaction(async (tx) => {
-          const deductRes = await creditService.deductInTx(tx, userId, cost, 'lead_save', {
-            leadId: id,
-            coinsUsed: cost,
-          })
-
-          const userState = await tx.userLeadState.upsert({
-            where: {
-              userId_leadId: {
-                userId,
-                leadId: id,
-              },
-            },
-            update: {
-              isSaved: true,
-              status: 'saved',
-              isRevealed: true,
-              revealedAt: new Date(),
-            },
-            create: {
-              userId,
-              leadId: id,
-              isSaved: true,
-              status: 'saved',
-              isRevealed: true,
-              revealedAt: new Date(),
-            },
-          })
-
-          return {
-            userState,
-            creditsRemaining: deductRes.subscriptionBalance + deductRes.bonusBalance,
-          }
-        })
-
-        return NextResponse.json({
-          data: {
-            leadId: id,
-            status: txResult.userState.status,
-            isSaved: txResult.userState.isSaved,
-            isRevealed: txResult.userState.isRevealed,
-            creditsRemaining: txResult.creditsRemaining,
+    const ensureLeadRecord = async () => {
+      try {
+        const ext = await getPost(params.id)
+        await db.lead.upsert({
+          where: { id: params.id },
+          update: {
+            name: ext.author?.name || 'Unknown',
+            email: ext.email || ext.contact_info?.emails?.[0]?.email || '',
+            phone: ext.contact_info?.phone_numbers?.[0]?.number || null,
+            company: ext.contact_info?.company_name || ext.author?.name || ext.platform || '',
+            source: ext.platform || 'Unknown',
+            category: ext.keyword?.replace(/^watchlist:/, '') || ext.platform || 'General',
+            title: ext.author?.info || ext.keyword || ext.platform || 'Lead Signal',
+            signalContext: ext.content || '',
+            role: ext.author?.info || '',
+            taskScope: '',
+            mustHave: '',
+            nicheBonus: '',
+            buyerType: '',
+            urgency: 'medium',
+            winProb: 'medium',
+            nicheTags: [],
+            niches: [],
+            hashtags: [],
+            replyProbability: Math.max(ext.ai_score || 0, 60),
+            accent: 'mint',
           },
+          create: {
+            id: params.id,
+            name: ext.author?.name || 'Unknown',
+            email: ext.email || ext.contact_info?.emails?.[0]?.email || '',
+            phone: ext.contact_info?.phone_numbers?.[0]?.number || null,
+            company: ext.contact_info?.company_name || ext.author?.name || ext.platform || '',
+            source: ext.platform || 'Unknown',
+            category: ext.keyword?.replace(/^watchlist:/, '') || ext.platform || 'General',
+            title: ext.author?.info || ext.keyword || ext.platform || 'Lead Signal',
+            signalContext: ext.content || '',
+            role: ext.author?.info || '',
+            taskScope: '',
+            mustHave: '',
+            nicheBonus: '',
+            buyerType: '',
+            urgency: 'medium',
+            winProb: 'medium',
+            nicheTags: [],
+            niches: [],
+            hashtags: [],
+            replyProbability: Math.max(ext.ai_score || 0, 60),
+            accent: 'mint',
+          },
+        })
+      } catch (e) {
+        console.warn('[Lead PATCH] getPost failed, creating minimal Lead:', e)
+        await db.lead.upsert({
+          where: { id: params.id },
+          update: { name: 'Unknown', email: '', company: '', source: '', category: '', title: '', signalContext: '', role: '', taskScope: '', mustHave: '', nicheBonus: '', buyerType: '', urgency: 'medium', winProb: 'medium', nicheTags: [], niches: [], hashtags: [], replyProbability: 0, accent: 'mint' },
+          create: { id: params.id, name: 'Unknown', email: '', company: '', source: '', category: '', title: '', signalContext: '', role: '', taskScope: '', mustHave: '', nicheBonus: '', buyerType: '', urgency: 'medium', winProb: 'medium', nicheTags: [], niches: [], hashtags: [], replyProbability: 0, accent: 'mint' },
         })
       }
     }
 
     if (isSaved === true || (status && status !== 'new')) {
-      const leadExists = await db.leadPost.findUnique({
-        where: { id },
+      const existing = await db.lead.findUnique({
+        where: { id: params.id },
         select: { id: true },
       })
-      if (!leadExists) {
-        return NextResponse.json({ code: 'NOT_FOUND', message: 'Lead not found' }, { status: 404 })
+      if (!existing) {
+        try {
+          await ensureLeadRecord()
+        } catch (e) {
+          console.warn('[Lead PATCH] ensureLeadRecord failed, creating fallback Lead:', e)
+          await db.lead.upsert({
+            where: { id: params.id },
+            update: {},
+            create: {
+              id: params.id,
+              name: 'Unknown', email: '', company: '', source: '', category: '',
+              title: '', signalContext: '', role: '', taskScope: '', mustHave: '',
+              nicheBonus: '', buyerType: '', urgency: 'medium', winProb: 'medium',
+              nicheTags: [], niches: [], hashtags: [], replyProbability: 0, accent: 'mint',
+            },
+          })
+        }
       }
     }
 
@@ -309,13 +306,13 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       where: {
         userId_leadId: {
           userId,
-          leadId: id,
+          leadId: params.id,
         },
       },
       update: updateData,
       create: {
         userId,
-        leadId: id,
+        leadId: params.id,
         status: (updateData.status as string) || 'new',
         isSaved: (updateData.isSaved as boolean) || false,
       },
@@ -323,7 +320,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     return NextResponse.json({
       data: {
-        leadId: id,
+        leadId: params.id,
         status: userState.status,
         isSaved: userState.isSaved,
         isRevealed: userState.isRevealed,
@@ -362,29 +359,15 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const { id } = await params
     const authUser = await requireFullyAuthorized(request)
     const userId = authUser.uid
 
-    // Soft archival: Remove from saved pipeline while preserving isRevealed and revealedAt
-    await db.userLeadState.upsert({
+    await db.userLeadState.deleteMany({
       where: {
-        userId_leadId: {
-          userId,
-          leadId: id,
-        },
-      },
-      update: {
-        isSaved: false,
-        status: 'archived',
-      },
-      create: {
         userId,
-        leadId: id,
-        isSaved: false,
-        status: 'archived',
+        leadId: params.id,
       },
     })
 

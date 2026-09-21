@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { paymentService } from '@/lib/services/payment'
-import { creditService } from '@/lib/services/credits'
 import { getPlanByRazorpayPlanId } from '@/lib/config/plans'
 import { getRazorpay, getRazorpayWebhookSecret, verifyRazorpaySignature } from '@/lib/razorpay'
 
@@ -69,8 +68,7 @@ async function handleSubscriptionPayment(
     const noteUserId = notes?.userId ? String(notes.userId) : null
     user = noteUserId ? await db.user.findUnique({ where: { id: noteUserId } }) : null
     resolvedPlanId = subscription.plan_id || planId
-    resolvedPeriodEnd =
-      (subscription as any).current_period_end ?? (subscription as any).current_end ?? periodEndSeconds
+    resolvedPeriodEnd = subscription.current_period_end ?? periodEndSeconds
   }
 
   if (!user) {
@@ -99,47 +97,10 @@ async function handleSubscriptionPayment(
 async function handleOneTimeOrder(orderId: string) {
   const order = await getRazorpay().orders.fetch(orderId)
   const notes = (order.notes ?? {}) as Record<string, unknown>
-  const userId = notes.userId ? String(notes.userId) : notes.user_id ? String(notes.user_id) : null
+  const userId = notes.userId ? String(notes.userId) : null
   if (!userId) {
     console.warn(`[Razorpay Webhook] Order ${orderId} has no userId note`)
     return
-  }
-
-  // Handle token top-up order
-  const tokens = Number(notes.tokens || 0)
-  const packId = notes.pack_id ? String(notes.pack_id) : null
-  if (tokens > 0 || packId) {
-    const numTokens =
-      tokens > 0
-        ? tokens
-        : packId === 'topup_10'
-        ? 10
-        : packId === 'topup_50'
-        ? 50
-        : packId === 'topup_100'
-        ? 100
-        : 0
-
-    if (numTokens > 0) {
-      const existingCredit = await db.auditLog.findFirst({
-        where: { action: 'PAYMENT_CREDITED', targetId: orderId },
-      })
-      if (!existingCredit) {
-        await creditService.grantBonus(userId, numTokens, 'razorpay_topup_webhook')
-        await db.auditLog.create({
-          data: {
-            userId,
-            adminId: 'system',
-            action: 'PAYMENT_CREDITED',
-            targetType: 'RAZORPAY_ORDER',
-            targetId: orderId,
-            details: { tokens: numTokens, packId },
-          },
-        })
-        console.log(`[Razorpay Webhook] Credited ${numTokens} topup tokens to ${userId} for order ${orderId}`)
-      }
-      return
-    }
   }
 
   const planId = notes.plan ? String(notes.plan) : null

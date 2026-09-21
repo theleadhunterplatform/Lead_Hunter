@@ -8,24 +8,26 @@ export default function Home() {
   return (
     <div className="flex flex-col min-h-screen">
       {/* Navigation */}
-      <nav className="flex items-center justify-between px-6 py-4 border-b-3 border-hunter-orange bg-hunter-black sticky top-0 z-50">
-        <div className="flex items-center gap-2">
-          <div className="p-1 bg-hunter-orange neo-border rounded-sm">
-            <Target className="text-black w-6 h-6" />
+      <nav className="flex items-center justify-between py-4 border-b-3 border-hunter-orange bg-hunter-black sticky top-0 z-50">
+        <div className="w-[92%] md:w-[80%] max-w-[1600px] mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="p-1 bg-hunter-orange neo-border rounded-sm">
+              <Target className="text-black w-6 h-6" />
+            </div>
+            <span className="font-display font-black text-2xl uppercase tracking-tighter">
+              The Lead <span className="text-hunter-orange">Hunter</span>
+            </span>
           </div>
-          <span className="font-display font-black text-2xl uppercase tracking-tighter">
-            The Lead <span className="text-hunter-orange">Hunter</span>
-          </span>
-        </div>
 
-        <div className="hidden md:flex items-center gap-8 font-display font-bold uppercase text-sm tracking-widest">
-          <Link href="/login" className="hover:text-hunter-orange transition-colors">Sign In</Link>
-          <Link href="/privacy" className="hover:text-hunter-orange transition-colors">Privacy</Link>
-        </div>
+          <div className="hidden md:flex items-center gap-8 font-display font-bold uppercase text-sm tracking-widest">
+            <Link href="/login" className="hover:text-hunter-orange transition-colors">Sign In</Link>
+            <Link href="/privacy" className="hover:text-hunter-orange transition-colors">Privacy</Link>
+          </div>
 
-        <Link href="/login" className="neo-orange-border bg-hunter-orange text-black px-4 py-1 font-display font-black uppercase text-sm hover:translate-x-[2px] hover:translate-y-[2px] transition-transform active:translate-x-[4px] active:translate-y-[4px]">
-          Sign In
-        </Link>
+          <Link href="/login" className="neo-orange-border bg-hunter-orange text-black px-4 py-1 font-display font-black uppercase text-sm hover:translate-x-[2px] hover:translate-y-[2px] transition-transform active:translate-x-[4px] active:translate-y-[4px]">
+            Sign In
+          </Link>
+        </div>
       </nav>
 
       <main className="flex-1 relative">
@@ -33,8 +35,8 @@ export default function Home() {
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
 
         {/* Hero Section */}
-        <section className="relative px-6 py-24 md:py-40 overflow-hidden">
-          <div className="max-w-7xl mx-auto flex flex-col items-center text-center">
+        <section className="relative py-24 md:py-40 overflow-hidden">
+          <div className="w-[92%] md:w-[80%] max-w-[1600px] mx-auto flex flex-col items-center text-center">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -92,8 +94,8 @@ export default function Home() {
         </section>
 
         {/* Tactical Feed Preview */}
-        <section className="px-6 py-20 bg-hunter-grey border-y-3 border-hunter-orange relative">
-          <div className="max-w-7xl mx-auto grid md:grid-cols-3 gap-12">
+        <section className="py-20 bg-hunter-grey border-y-3 border-hunter-orange relative">
+          <div className="w-[92%] md:w-[80%] max-w-[1600px] mx-auto grid md:grid-cols-3 gap-12">
             {[
               {
                 label: "Businesses Growing",
@@ -121,8 +123,8 @@ export default function Home() {
         </section>
 
         {/* Features Preview */}
-        <section className="px-6 py-20">
-          <div className="max-w-7xl mx-auto">
+        <section className="py-20">
+          <div className="w-[92%] md:w-[80%] max-w-[1600px] mx-auto">
             <h2 className="text-4xl md:text-6xl font-display font-black mb-12 uppercase text-center md:text-left">
               Our <span className="text-hunter-orange underline">Tools</span>
             </h2>
@@ -160,13 +162,15 @@ export default function Home() {
         </section>
       </main>
 
-      <footer className="px-6 py-12 border-t-3 border-hunter-orange bg-hunter-black text-center">
-        <span className="font-display font-black text-xl uppercase tracking-tighter">
-          The Lead <span className="text-hunter-orange">Hunter</span> © 2026
-        </span>
-        <p className="text-zinc-600 text-xs mt-4 uppercase tracking-[0.2em] font-bold">
-          Get more clients. Grow your business.
-        </p>
+      <footer className="py-12 border-t-3 border-hunter-orange bg-hunter-black">
+        <div className="w-[92%] md:w-[80%] max-w-[1600px] mx-auto text-center">
+          <span className="font-display font-black text-xl uppercase tracking-tighter">
+            The Lead <span className="text-hunter-orange">Hunter</span> © 2026
+          </span>
+          <p className="text-zinc-600 text-xs mt-4 uppercase tracking-[0.2em] font-bold">
+            Get more clients. Grow your business.
+          </p>
+        </div>
       </footer>
     </div>
   );

@@ -5,19 +5,14 @@ const CSP_DIRECTIVES = {
   'default-src': ["'self'"],
   'script-src': [
     "'self'",
-    'blob:',
     'https://apis.google.com',
     'https://www.gstatic.com',
     'https://www.google.com',
     'https://www.google-analytics.com',
     'https://www.googletagmanager.com',
-    'https://checkout.razorpay.com',
-    'https://cdn.razorpay.com',
-    'https://*.razorpay.com',
     "'unsafe-eval'",
     "'unsafe-inline'",
   ],
-  'worker-src': ["'self'", 'blob:'],
   'style-src': [
     "'self'",
     "'unsafe-inline'",
@@ -36,7 +31,6 @@ const CSP_DIRECTIVES = {
     'https://*.supabase.co',
     'https://images.unsplash.com',
     'https://cdn.jsdelivr.net',
-    'https://*.razorpay.com',
   ],
   'font-src': ["'self'", 'https://fonts.gstatic.com', 'https://fonts.googleapis.com'],
   'connect-src': [
@@ -51,26 +45,15 @@ const CSP_DIRECTIVES = {
     'https://api.resend.com',
     'https://api.openai.com',
     'https://api.anthropic.com',
-    'https://api.razorpay.com',
-    'https://lumberjack.razorpay.com',
-    'https://*.razorpay.com',
-    // NEXT_PUBLIC_API_URL is only used server-side now — do not expose Oracle IP in CSP
+    process.env.NEXT_PUBLIC_API_URL ? process.env.NEXT_PUBLIC_API_URL : '',
     process.env.UPSTASH_REDIS_REST_URL ? process.env.UPSTASH_REDIS_REST_URL : '',
   ].filter(Boolean),
-  'frame-src': [
-    "'self'",
-    'https://www.google.com',
-    'https://apis.google.com',
-    'https://api.razorpay.com',
-    'https://checkout.razorpay.com',
-    'https://*.razorpay.com',
-  ],
+  'frame-src': ["'self'", 'https://www.google.com', 'https://apis.google.com'],
   'frame-ancestors': ["'none'"],
   'form-action': [
     "'self'",
     'https://identitytoolkit.googleapis.com',
     'https://securetoken.googleapis.com',
-    'https://*.razorpay.com',
   ],
   'base-uri': ["'self'"],
   'object-src': ["'none'"],
@@ -99,6 +82,19 @@ const nextConfig = {
   },
   experimental: {
     serverComponentsExternalPackages: ['firebase-admin'],
+  },
+  compress: true,
+  images: {
+    formats: ['image/avif', 'image/webp'],
+    deviceSizes: [360, 640, 768, 1024, 1280, 1536],
+    imageSizes: [16, 32, 48, 64, 96, 128],
+    remotePatterns: [
+      { protocol: 'https', hostname: 'images.unsplash.com' },
+      { protocol: 'https', hostname: 'cdn.jsdelivr.net' },
+      { protocol: 'https', hostname: '*.supabase.co' },
+      { protocol: 'https', hostname: '*.googleapis.com' },
+      { protocol: 'https', hostname: 'www.gstatic.com' },
+    ],
   },
   async headers() {
     return [

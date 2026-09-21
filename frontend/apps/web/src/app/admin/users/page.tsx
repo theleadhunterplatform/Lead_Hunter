@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { getFirebaseToken } from '@/lib/firebase'
@@ -38,13 +38,9 @@ interface AdminUser {
   behance: string | null
   github: string | null
   twitter: string | null
-  phone?: string | null
-  city?: string | null
   outreachExperience: string | null
   discoverySource: string | null
   preferredLeadCategories: string[]
-  hasDuplicatePhone?: boolean
-  duplicatePhoneMatches?: Array<{ id: string; email: string; name: string; status: string; createdAt: string }>
 }
 
 const PLAN_BADGES: Record<string, string> = {
@@ -57,14 +53,6 @@ const PLANS = [
   { id: 'FREE', label: 'Free', credits: 50 },
   { id: 'FREELANCER', label: 'Freelancer', credits: 500 },
   { id: 'AGENCY', label: 'Agency', credits: 1000 },
-]
-
-const PLAN_FILTERS = [
-  { id: 'ALL', label: 'All Plans' },
-  { id: 'PAID', label: 'Paid Users' },
-  { id: 'FREE', label: 'Free Users' },
-  { id: 'FREELANCER', label: 'Freelancer' },
-  { id: 'AGENCY', label: 'Agency' },
 ]
 
 interface Pagination {
@@ -94,7 +82,6 @@ export default function AdminUsersPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || 'PENDING')
-  const [planFilter, setPlanFilter] = useState('ALL')
   const [serviceFilter, setServiceFilter] = useState('')
   const [page, setPage] = useState(1)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
@@ -108,7 +95,6 @@ export default function AdminUsersPage() {
     params.set('page', page.toString())
     params.set('pageSize', '20')
     if (statusFilter !== 'ALL') params.set('status', statusFilter)
-    if (planFilter !== 'ALL') params.set('plan', planFilter)
     if (search.trim()) params.set('search', search.trim())
     if (serviceFilter) params.set('service', serviceFilter)
 
@@ -124,7 +110,7 @@ export default function AdminUsersPage() {
     } finally {
       setLoading(false)
     }
-  }, [page, statusFilter, planFilter, search, serviceFilter])
+  }, [page, statusFilter, search, serviceFilter])
 
   useEffect(() => {
     fetchUsers()
@@ -160,19 +146,6 @@ export default function AdminUsersPage() {
   }
 
   const [approveDropdown, setApproveDropdown] = useState<string | null>(null)
-  const approveDropdownRef = useRef<HTMLDivElement>(null)
-
-  // Close approve dropdown on outside click
-  useEffect(() => {
-    if (!approveDropdown) return
-    const handleClick = (e: MouseEvent) => {
-      if (approveDropdownRef.current && !approveDropdownRef.current.contains(e.target as Node)) {
-        setApproveDropdown(null)
-      }
-    }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [approveDropdown])
 
   return (
     <div>
@@ -207,41 +180,15 @@ export default function AdminUsersPage() {
               setServiceFilter(e.target.value)
               setPage(1)
             }}
-            className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all pl-3 pr-9 py-2.5 text-sm appearance-none cursor-pointer min-w-[160px] [&>option]:bg-[#292a2b] [&>option]:text-white"
-            style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
-              backgroundRepeat: 'no-repeat',
-              backgroundPosition: 'right 12px center',
-            }}
+            className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all px-3 py-2.5 text-sm appearance-none cursor-pointer min-w-[160px]"
           >
-            <option value="" className="bg-[#292a2b] text-white">All Services</option>
+            <option value="">All Services</option>
             {users.length > 0 &&
               [...new Set(users.flatMap((u) => u.servicesOffered))].sort().map((s) => (
-                <option key={s} value={s} className="bg-[#292a2b] text-white">
+                <option key={s} value={s}>
                   {s}
                 </option>
               ))}
-          </select>
-        </div>
-        <div className="relative">
-          <select
-            value={planFilter}
-            onChange={(e) => {
-              setPlanFilter(e.target.value)
-              setPage(1)
-            }}
-            className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all pl-3 pr-9 py-2.5 text-sm appearance-none cursor-pointer min-w-[140px] [&>option]:bg-[#292a2b] [&>option]:text-white"
-            style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
-              backgroundRepeat: 'no-repeat',
-              backgroundPosition: 'right 12px center',
-            }}
-          >
-            {PLAN_FILTERS.map((p) => (
-              <option key={p.id} value={p.id} className="bg-[#292a2b] text-white">
-                {p.label}
-              </option>
-            ))}
           </select>
         </div>
         <div className="flex gap-1">
@@ -315,17 +262,7 @@ export default function AdminUsersPage() {
                         >
                           {u.name}
                         </Link>
-                        <p className="text-xs text-text-secondary mt-0.5">
-                          {u.email}
-                          {u.city ? <span className="text-white/40"> · {u.city}</span> : null}
-                        </p>
-                        {u.hasDuplicatePhone && (
-                          <div className="mt-1">
-                            <span className="inline-flex items-center gap-1 text-[9.5px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded">
-                              ⚠️ Duplicate Phone ({u.duplicatePhoneMatches?.length})
-                            </span>
-                          </div>
-                        )}
+                        <p className="text-xs text-text-secondary mt-0.5">{u.email}</p>
                       </td>
                       <td className="px-6 py-4">
                         <span
@@ -511,26 +448,13 @@ export default function AdminUsersPage() {
                               {actionLoading === `${u.id}-REJECT` ? '...' : 'Reject'}
                             </button>
                           </div>
-                        ) : u.status === 'REJECTED' || u.status === 'SUSPENDED' ? (
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-text-secondary/60 capitalize">
-                              {u.status.toLowerCase()}
-                            </span>
-                            <button
-                              onClick={() => handleAction(u.id, 'ACTIVATE')}
-                              disabled={actionLoading === `${u.id}-ACTIVATE`}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium hover:bg-emerald-500/20 transition-all disabled:opacity-50"
-                              title="Reactivate user"
-                            >
-                              <CheckCircleIcon className="w-3.5 h-3.5" />
-                              {actionLoading === `${u.id}-ACTIVATE` ? '...' : 'Reactivate'}
-                            </button>
-                          </div>
                         ) : (
                           <span className="text-xs text-text-secondary/60">
                             {u.status === 'ACTIVE'
                               ? 'Approved'
-                              : u.status}
+                              : u.status === 'REJECTED'
+                                ? 'Rejected'
+                                : u.status}
                           </span>
                         )}
                       </td>

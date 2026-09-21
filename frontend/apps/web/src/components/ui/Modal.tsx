@@ -60,7 +60,8 @@ export function Modal({ open, onClose, title, children, actions, size = 'md' }: 
               <h2 className="text-lg font-semibold text-text-primary">{title}</h2>
               <button
                 onClick={onClose}
-                className="text-text-muted hover:text-text-primary transition-colors p-1"
+                aria-label="Close dialog"
+                className="text-text-muted hover:text-text-primary transition-colors p-2 min-w-[44px] min-h-[44px] flex items-center justify-center"
               >
                 <svg
                   width="20"
@@ -75,7 +76,7 @@ export function Modal({ open, onClose, title, children, actions, size = 'md' }: 
               </button>
             </div>
             <div className="text-text-secondary text-sm leading-relaxed">{children}</div>
-            {actions && <div className="flex justify-end gap-3 mt-6">{actions}</div>}
+            {actions && <div className="flex flex-wrap justify-end gap-3 mt-6">{actions}</div>}
           </motion.div>
         </div>
       )}

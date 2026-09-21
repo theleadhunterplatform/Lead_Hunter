@@ -17,13 +17,11 @@ import {
   ClipboardCheck,
   Trash2,
   Plus,
-  Sparkles,
 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 
 import { LinkedinLogo, XLogo, RedditLogo, ThreadsLogo } from '@/components/BrandIcons'
 import ManualLeadModal from './ManualLeadModal'
-import { NicheBadge } from '@/components/ui/NicheBadge'
 import RefineLeadModal from './RefineLeadModal'
 import { useToast } from '@/components/ui/Toast'
 import { getFirebaseToken } from '@/lib/firebase'
@@ -138,18 +136,10 @@ export default function AdminLeadsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [counts, setCounts] = useState<LeadCounts>({})
   const [isTrainingAi, setIsTrainingAi] = useState(false)
-  const [isBulkInteling, setIsBulkInteling] = useState(false)
   const [intelConfigured, setIntelConfigured] = useState<boolean | null>(null)
   const [intelModel, setIntelModel] = useState('')
   const { addToast } = useToast()
   const perPage = 10
-
-  // Manual contact state — keyed by lead ID
-  const [manualContactOpen, setManualContactOpen] = useState<string | null>(null)
-  const [manualContactEmail, setManualContactEmail] = useState('')
-  const [manualContactPhone, setManualContactPhone] = useState('')
-  const [manualContactNote, setManualContactNote] = useState('')
-  const [savingManualContact, setSavingManualContact] = useState(false)
 
   const apiGet = useCallback(async (path: string) => {
     const token = await getFirebaseToken()
@@ -179,37 +169,6 @@ export default function AdminLeadsPage() {
     })
     return res
   }, [])
-
-  const handleSaveManualContact = async (leadId: string) => {
-    if (!manualContactEmail.trim() && !manualContactPhone.trim()) return
-    setSavingManualContact(true)
-    try {
-      const token = await getFirebaseToken()
-      const res = await fetch(`/api/admin/leads/${leadId}/contact`, {
-        method: 'PUT',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: manualContactEmail.trim() || undefined,
-          phone: manualContactPhone.trim() || undefined,
-          note: manualContactNote.trim() || undefined,
-        }),
-      })
-      const json = await res.json()
-      if (json.success) {
-        setLeads((prev) => prev.map((l) => l.id === leadId ? { ...l, ...json.data } : l))
-        setManualContactOpen(null)
-        setManualContactEmail('')
-        setManualContactPhone('')
-        setManualContactNote('')
-        addToast({ type: 'success', message: 'Contact details saved successfully' })
-      } else {
-        addToast({ type: 'error', message: json.message || 'Failed to save contact' })
-      }
-    } catch (e) {
-      addToast({ type: 'error', message: 'Failed to save contact' })
-    }
-    setSavingManualContact(false)
-  }
 
   const fetchAiMetrics = useCallback(async () => {
     try {
@@ -532,21 +491,8 @@ export default function AdminLeadsPage() {
     }
   }
 
-  const handleBulkIntel = async () => {
-    try {
-      setIsBulkInteling(true)
-      const res = await apiPost('/api/admin/leads', { action: 'bulk-intelligence', filters: getBulkFilters() })
-      const json = await res.json()
-      addToast({ type: 'success', message: json?.message || `Queued ${json?.queued || 0} leads for intelligence generation` })
-      fetchLeads(currentPage, activeTab, searchQuery, true)
-    } catch {
-      addToast({ type: 'error', message: 'Failed to queue intelligence' })
-    } finally {
-      setIsBulkInteling(false)
-    }
-  }
-
-  const handleBulkApproveSelected = async () => {    if (selectedLeadIds.length === 0) return
+  const handleBulkApproveSelected = async () => {
+    if (selectedLeadIds.length === 0) return
     try {
       setBulkSelectionBusy(true)
       const res = await apiPost('/api/admin/leads', { action: 'bulk-approve', ids: selectedLeadIds })
@@ -934,36 +880,24 @@ export default function AdminLeadsPage() {
                 {bulkRejecting ? <Loader2 size={14} className="animate-spin" /> : <XCircle size={14} />}
                 {bulkRejecting ? 'Rejecting...' : 'Reject All'}
               </button>
-              <button
-                onClick={handleBulkIntel}
-                disabled={isBulkInteling}
-                className="h-10 px-5 text-[10px] uppercase font-black rounded-xl flex items-center gap-2 bg-purple-500/10 text-purple-300 border border-purple-500/30 hover:bg-purple-500 hover:text-black transition-all disabled:opacity-50"
-              >
-                {isBulkInteling ? <Loader2 size={14} className="animate-spin" /> : <BrainCircuit size={14} />}
-                {isBulkInteling ? 'Queueing...' : 'Generate Intel'}
-              </button>
             </>
           )}
-          {!['with_contact', 'review', 'approved'].includes(activeTab) && (
-            <>
-              <button
-                onClick={handleBulkReanalyse}
-                disabled={bulkReanalysing}
-                className="h-10 px-5 text-[10px] uppercase font-black rounded-xl flex items-center gap-2 bg-white/5 text-zinc-300 border border-white/10 hover:bg-accent-mint hover:text-black transition-all disabled:opacity-50"
-              >
-                {bulkReanalysing ? <Loader2 size={14} className="animate-spin" /> : <BrainCircuit size={14} />}
-                {bulkReanalysing ? 'Queueing...' : 'Re-analyse All'}
-              </button>
-              <button
-                onClick={handleBulkReEnrich}
-                disabled={bulkReenriching}
-                className="h-10 px-5 text-[10px] uppercase font-black rounded-xl flex items-center gap-2 bg-accent-mint/10 text-accent-mint border border-accent-mint/30 hover:bg-accent-mint hover:text-black transition-all disabled:opacity-50"
-              >
-                {bulkReenriching ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-                {bulkReenriching ? 'Queueing...' : 'Re-enrich All'}
-              </button>
-            </>
-          )}
+          <button
+            onClick={handleBulkReanalyse}
+            disabled={bulkReanalysing}
+            className="h-10 px-5 text-[10px] uppercase font-black rounded-xl flex items-center gap-2 bg-white/5 text-zinc-300 border border-white/10 hover:bg-accent-mint hover:text-black transition-all disabled:opacity-50"
+          >
+            {bulkReanalysing ? <Loader2 size={14} className="animate-spin" /> : <BrainCircuit size={14} />}
+            {bulkReanalysing ? 'Queueing...' : 'Re-analyse All'}
+          </button>
+          <button
+            onClick={handleBulkReEnrich}
+            disabled={bulkReenriching}
+            className="h-10 px-5 text-[10px] uppercase font-black rounded-xl flex items-center gap-2 bg-accent-mint/10 text-accent-mint border border-accent-mint/30 hover:bg-accent-mint hover:text-black transition-all disabled:opacity-50"
+          >
+            {bulkReenriching ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+            {bulkReenriching ? 'Queueing...' : 'Re-enrich All'}
+          </button>
           <button
             onClick={() => setIsManualModalOpen(true)}
             className="h-10 px-5 text-[10px] uppercase font-black rounded-xl flex items-center gap-2 bg-white text-black border border-white hover:bg-accent-mint hover:text-black transition-all"
@@ -1154,16 +1088,6 @@ export default function AdminLeadsPage() {
                       </div>
                     </div>
 
-                    {/* Lead Title & Niche */}
-                    <div className="mb-3 flex items-center gap-2 flex-wrap">
-                      <NicheBadge niche={(lead as any).niche} keyword={lead.keyword} content={lead.content} intelligence={lead.intelligence} />
-                      {((lead as any).title || (lead.intelligence ? lead.intelligence.match(/#*\s*(?:🔥)?\s*Lead Intelligence:\s*([^\n\r]+)/i)?.[1]?.replace(/^[#*_\s]+|[#*_\s]+$/g, '') : null)) && (
-                        <span className="text-sm font-bold text-white">
-                          {(lead as any).title || lead.intelligence?.match(/#*\s*(?:🔥)?\s*Lead Intelligence:\s*([^\n\r]+)/i)?.[1]?.replace(/^[#*_\s]+|[#*_\s]+$/g, '')}
-                        </span>
-                      )}
-                    </div>
-
                     {lead.qualification_reason && lead.status !== 'pending' && (
                       <div className={`mb-4 p-3 border border-l-2 rounded-lg ${
                         lead.status === 'relevant'
@@ -1304,34 +1228,30 @@ export default function AdminLeadsPage() {
                             </span>
                           </div>
                           <div className="flex items-center gap-2">
-                            {leadHasContactDetails(lead) && (
-                              <button
-                                onClick={() => handleRegenerateIntel(lead.id)}
-                                disabled={intelActionIds.includes(lead.id)}
-                                className="h-8 px-3 text-[9px] uppercase font-black rounded-lg flex items-center gap-1.5 bg-purple-500/10 text-purple-300 border border-purple-500/30 hover:bg-purple-500 hover:text-black transition-all disabled:opacity-50"
-                              >
-                                {intelActionIds.includes(lead.id) ? (
-                                  <Loader2 size={12} className="animate-spin" />
-                                ) : (
-                                  <BrainCircuit size={12} />
-                                )}
-                                {intelActionIds.includes(lead.id) ? 'Generating...' : 'Generate Intel'}
-                              </button>
-                            )}
-                            {!['with_contact', 'review', 'approved'].includes(activeTab) && (
-                              <button
-                                onClick={() => handleReEnrichLead(lead.id)}
-                                disabled={enrichingIds.includes(lead.id)}
-                                className="h-8 px-3 text-[9px] uppercase font-black rounded-lg flex items-center gap-1.5 bg-accent-mint/10 text-accent-mint border border-accent-mint/30 hover:bg-accent-mint hover:text-black transition-all disabled:opacity-50"
-                              >
-                                {enrichingIds.includes(lead.id) ? (
-                                  <Loader2 size={12} className="animate-spin" />
-                                ) : (
-                                  <RefreshCw size={12} />
-                                )}
-                                {enrichingIds.includes(lead.id) ? 'Queueing...' : getEnrichButtonLabel(lead)}
-                              </button>
-                            )}
+                            <button
+                              onClick={() => handleRegenerateIntel(lead.id)}
+                              disabled={intelActionIds.includes(lead.id)}
+                              className="h-8 px-3 text-[9px] uppercase font-black rounded-lg flex items-center gap-1.5 bg-purple-500/10 text-purple-300 border border-purple-500/30 hover:bg-purple-500 hover:text-black transition-all disabled:opacity-50"
+                            >
+                              {intelActionIds.includes(lead.id) ? (
+                                <Loader2 size={12} className="animate-spin" />
+                              ) : (
+                                <BrainCircuit size={12} />
+                              )}
+                              {intelActionIds.includes(lead.id) ? 'Generating...' : 'Generate Intel'}
+                            </button>
+                            <button
+                              onClick={() => handleReEnrichLead(lead.id)}
+                              disabled={enrichingIds.includes(lead.id)}
+                              className="h-8 px-3 text-[9px] uppercase font-black rounded-lg flex items-center gap-1.5 bg-accent-mint/10 text-accent-mint border border-accent-mint/30 hover:bg-accent-mint hover:text-black transition-all disabled:opacity-50"
+                            >
+                              {enrichingIds.includes(lead.id) ? (
+                                <Loader2 size={12} className="animate-spin" />
+                              ) : (
+                                <RefreshCw size={12} />
+                              )}
+                              {enrichingIds.includes(lead.id) ? 'Queueing...' : getEnrichButtonLabel(lead)}
+                            </button>
                           </div>
                         </div>
                         {(!lead.enrichment_status || lead.enrichment_status === 'pending') && (
@@ -1341,62 +1261,6 @@ export default function AdminLeadsPage() {
                         )}
                         {lead.enrichment_message && (
                           <p className="text-xs text-zinc-400">{lead.enrichment_message}</p>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Manual Contact Input */}
-                    {lead.status === 'relevant' && (
-                      <div className="mb-4">
-                        {manualContactOpen === lead.id ? (
-                          <div className="p-4 bg-surface/50 border border-accent-mint/20 rounded-xl">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-accent-mint mb-3">Add Contact Manually</p>
-                            <div className="flex flex-col gap-2">
-                              <input
-                                type="email"
-                                placeholder="Email address"
-                                value={manualContactEmail}
-                                onChange={(e) => setManualContactEmail(e.target.value)}
-                                className="w-full bg-surface-elevated border border-white/10 text-white rounded-lg px-3 py-2 text-xs outline-none focus:border-accent-mint/50"
-                              />
-                              <input
-                                type="tel"
-                                placeholder="Phone number (optional)"
-                                value={manualContactPhone}
-                                onChange={(e) => setManualContactPhone(e.target.value)}
-                                className="w-full bg-surface-elevated border border-white/10 text-white rounded-lg px-3 py-2 text-xs outline-none focus:border-accent-mint/50"
-                              />
-                              <input
-                                type="text"
-                                placeholder="Note (optional)"
-                                value={manualContactNote}
-                                onChange={(e) => setManualContactNote(e.target.value)}
-                                className="w-full bg-surface-elevated border border-white/10 text-white rounded-lg px-3 py-2 text-xs outline-none focus:border-accent-mint/50"
-                              />
-                              <div className="flex gap-2 mt-1">
-                                <button
-                                  onClick={() => handleSaveManualContact(lead.id)}
-                                  disabled={savingManualContact}
-                                  className="flex-1 py-2 rounded-lg bg-accent-mint text-black text-xs font-black uppercase tracking-widest hover:bg-accent-mint/90 transition-all disabled:opacity-50"
-                                >
-                                  {savingManualContact ? 'Saving...' : 'Save Contact'}
-                                </button>
-                                <button
-                                  onClick={() => { setManualContactOpen(null); setManualContactEmail(''); setManualContactPhone(''); setManualContactNote('') }}
-                                  className="px-4 py-2 rounded-lg bg-white/5 text-zinc-400 text-xs font-black uppercase tracking-widest hover:bg-white/10 transition-all"
-                                >
-                                  Cancel
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => setManualContactOpen(lead.id)}
-                            className="w-full py-2 rounded-lg border border-dashed border-white/10 text-zinc-500 text-xs font-black uppercase tracking-widest hover:border-accent-mint/30 hover:text-accent-mint transition-all"
-                          >
-                            + Add Contact Manually
-                          </button>
                         )}
                       </div>
                     )}
@@ -1681,31 +1545,44 @@ export default function AdminLeadsPage() {
                             approved
                           </div>
                         )}
-                        {lead.review_status === 'rejected' && (
-                          <div className="px-1.5 py-0.5 text-[7px] font-black uppercase tracking-tighter rounded border bg-red-500/10 text-red-400 border-red-500/50">
-                            rejected
-                          </div>
+                        {lead.review_status === 'approved' && lead.intelligence && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                document.getElementById(`lead-intel-${lead.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                              }}
+                              className="h-7 text-[8px] uppercase font-black px-4 rounded-lg bg-surface-elevated text-white border border-white/10 hover:border-accent-mint flex items-center gap-2 transition-all"
+                            >
+                              <BrainCircuit size={12} /> View Intel
+                            </button>
+                            <Link href={`/leads`}>
+                              <button className="h-7 text-[8px] uppercase font-black px-4 rounded-lg bg-accent-mint text-black border border-black flex items-center gap-2 transition-all">
+                                <ExternalLink size={12} /> Hunter Preview
+                              </button>
+                            </Link>
+                          </>
                         )}
                         {lead.review_status === 'approved' && (
-                          lead.is_claimed ? (
-                            <div className="h-7 text-[9px] uppercase font-bold px-3 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
-                              Claimed: {lead.claimed_count || 0} {lead.claimed_count === 1 ? 'user' : 'users'}
-                            </div>
-                          ) : (
-                            <button
-                              className="h-7 text-[8px] uppercase font-black px-4 rounded-lg bg-white text-black hover:bg-accent-mint hover:text-black border border-white transition-all disabled:opacity-50"
-                              onClick={() => handleClaim(lead.id)}
-                              disabled={claimingIds.includes(lead.id) || !lead.intelligence}
-                            >
-                              {claimingIds.includes(lead.id) ? (
-                                <Loader2 size={12} className="animate-spin inline" />
-                              ) : !lead.intelligence ? (
-                                'Intel pending'
-                              ) : (
-                                `Claim (${lead.claimed_count || 0}/25)`
-                              )}
-                            </button>
-                          )
+                          <button
+                            className={`h-7 text-[8px] uppercase font-black px-4 rounded-lg transition-all ${
+                              lead.is_claimed
+                                ? 'bg-surface-elevated text-zinc-500 border border-white/10 pointer-events-none'
+                                : 'bg-white text-black hover:bg-accent-mint hover:text-black border border-white'
+                            }`}
+                            onClick={() => handleClaim(lead.id)}
+                            disabled={claimingIds.includes(lead.id) || lead.is_claimed || !lead.intelligence}
+                          >
+                            {claimingIds.includes(lead.id) ? (
+                              <Loader2 size={12} className="animate-spin inline" />
+                            ) : lead.is_claimed ? (
+                              'Claimed'
+                            ) : !lead.intelligence ? (
+                              'Intel pending'
+                            ) : (
+                              `Claim (${lead.claimed_count || 0}/25)`
+                            )}
+                          </button>
                         )}
                         <button
                           onClick={() => handleDeleteLead(lead)}

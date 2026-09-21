@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=1920, height=1080" />
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{margin:0;width:1920px;height:1080px;overflow:hidden;background:#0d0e0f}
+#root{width:1920px;height:1080px;position:relative;background:#0d0e0f;font-family:Inter,ui-sans-serif,system-ui,sans-serif;overflow:hidden}
+.clip{position:absolute;inset:0;width:1920px;height:1080px}
+.scene{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column}
+.grid-bg{position:absolute;inset:0;background-image:linear-gradient(to right,rgba(255,255,255,0.035) 1px,transparent 1px),linear-gradient(to bottom,rgba(255,255,255,0.035) 1px,transparent 1px);background-size:60px 60px;mask-image:radial-gradient(ellipse at 50% 40%,black 20%,transparent 75%);-webkit-mask-image:radial-gradient(ellipse at 50% 40%,black 20%,transparent 75%)}
+.h1{font-size:110px;font-weight:800;letter-spacing:-0.04em;color:#e3e2e3;line-height:1.02;text-align:center}
+.h1-i{font-family:Georgia,serif;font-style:italic;font-weight:400;color:#ffb800;font-size:96px}
+.sub{font-size:32px;color:rgba(227,226,227,0.78);max-width:1200px;text-align:center;line-height:1.45;margin-top:28px}
+.pill{display:inline-flex;align-items:center;gap:12px;padding:12px 26px;border-radius:999px;border:1px solid rgba(255,184,0,0.35);background:rgba(255,184,0,0.10);color:#ffb800;font-family:ui-monospace,monospace;font-size:26px}
+.cards{display:flex;gap:28px;margin-top:44px}
+.card{width:480px;background:#1b1c1d;border:1px solid rgba(255,255,255,0.09);border-radius:24px;padding:28px;text-align:left}
+.card .src{font-family:ui-monospace,monospace;font-size:22px;color:#abebff;letter-spacing:0.08em}
+.card .title{font-size:30px;font-weight:700;color:#e3e2e3;margin:12px 0 8px}
+.card .ctx{font-size:24px;color:rgba(227,226,227,0.65);line-height:1.4}
+.badge{display:inline-block;margin-top:16px;font-family:ui-monospace,monospace;font-size:26px;font-weight:700;color:#00d7fe;background:rgba(0,215,254,0.12);border:1px solid rgba(0,215,254,0.35);padding:8px 18px;border-radius:12px}
+.funnel{display:flex;align-items:center;gap:24px;margin-top:36px}
+.fcol{background:#1b1c1d;border:1px solid rgba(255,255,255,0.09);border-radius:20px;padding:24px 28px;width:520px}
+.frow{font-size:24px;padding:14px 18px;border-radius:14px;margin:10px 0;border:1px solid rgba(255,255,255,0.08);color:#e3e2e3;background:rgba(255,255,255,0.03)}
+.pass{border-color:rgba(67,237,158,0.4);background:rgba(67,237,158,0.08)}
+.rej{opacity:0.45;text-decoration:line-through;border-color:rgba(255,80,80,0.25)}
+.dossier{width:1100px;background:#1b1c1d;border:1px solid rgba(255,184,0,0.25);border-radius:28px;padding:44px 52px;text-align:left}
+.drow{display:flex;gap:20px;font-size:30px;padding:12px 0;color:#e3e2e3}
+.dlabel{width:220px;color:rgba(227,226,227,0.5);font-family:ui-monospace,monospace;font-size:24px;text-transform:uppercase;letter-spacing:0.12em}
+.score{font-family:ui-monospace,monospace;font-size:64px;font-weight:800;color:#00d7fe;margin-top:12px}
+.verified{display:inline-block;margin-top:12px;background:rgba(67,237,158,0.14);border:1px solid rgba(67,237,158,0.5);color:#43ed9e;font-size:26px;font-weight:700;padding:10px 24px;border-radius:999px}
+.pipe{display:flex;gap:18px;margin-top:36px}
+.pstage{padding:22px 36px;border-radius:18px;background:#1f2021;border:1px solid rgba(255,255,255,0.1);font-size:30px;font-weight:700;color:rgba(227,226,227,0.45)}
+.pstage.on{color:#0d0e0f;background:#ffb800;border-color:#ffb800}
+.cta{margin-top:40px;background:#ffb800;color:#271900;font-size:52px;font-weight:800;padding:24px 72px;border-radius:22px;letter-spacing:-0.02em}
+.trust{margin-top:22px;color:rgba(227,226,227,0.6);font-family:ui-monospace,monospace;font-size:26px;letter-spacing:0.08em}
+.vs{display:flex;gap:28px;margin-top:32px}
+.vscard{width:560px;border-radius:20px;padding:28px;text-align:left}
+.noise{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08)}
+.signal{background:rgba(255,184,0,0.07);border:1px solid rgba(255,184,0,0.4)}
+.vscard .rate{font-family:ui-monospace,monospace;font-size:30px;font-weight:800}
+</style>
+</head>
+<body>
+<div id="root" data-composition-id="main" data-start="0" data-duration="20" data-width="1920" data-height="1080">
+<div class="grid-bg"></div>
+
+<!-- SCENE 1 Hook 0-2.5 -->
+<div id="scene1" class="clip scene" data-start="0" data-duration="2.5" data-track-index="0">
+<div id="hook1" class="h1">Stop looking for clients.</div>
+<div id="hook2" class="h1-i">Start intercepting them.</div>
+<div id="hooksub" class="sub">Lead Hunter Club monitors live buyer demand in real time</div>
+</div>
+
+<!-- SCENE 2 Reveal 2.5-6 -->
+<div id="scene2" class="clip scene" data-start="2.5" data-duration="3.5" data-track-index="1">
+<div id="feedpill" class="pill">● 6 Live Signals — Lead Feed</div>
+<div class="cards">
+<div id="card1" class="card"><div class="src">REDDIT • 2h ago</div><div class="title">Need logo designer</div><div class="ctx">Struggling with slow Shopify load times</div><div class="badge">92% reply</div></div>
+<div id="card2" class="card"><div class="src">LINKEDIN • 5h ago</div><div class="title">Looking for dev agency</div><div class="ctx">Scaling ad spend, CAC unprofitable</div><div class="badge">94% reply</div></div>
+<div id="card3" class="card"><div class="src">FORUM • 1h ago</div><div class="title">Next.js Web Vitals failing</div><div class="ctx">Realtime dashboard dropping sockets</div><div class="badge">96% reply</div></div>
+</div>
+</div>
+
+<!-- SCENE 3 Filter + Intel 6-16 -->
+<div id="scene3" class="clip scene" data-start="6" data-duration="10" data-track-index="2">
+<div id="s3title" class="h1" style="font-size:72px">From Raw Signal <span style="color:rgba(227,226,227,0.55);font-weight:400">To Closed Client.</span></div>
+<div class="funnel">
+<div id="fleft" class="fcol"><div class="src" style="font-family:ui-monospace,monospace;color:#ffb800;font-size:22px">AI FILTERS NOISE</div><div class="frow pass">✓ Reddit: Need logo designer</div><div class="frow rej">✕ Spam bot: Buy followers</div><div class="frow pass">✓ LinkedIn: Looking for dev agency</div><div class="frow rej">✕ Old post: Closed 3 months ago</div></div>
+<div id="dossier" class="dossier"><div class="src" style="font-family:ui-monospace,monospace;color:#abebff;font-size:22px">COMPILING INTEL…</div><div class="drow"><span class="dlabel">Pain</span><span>High CAC on Shopify store</span></div><div class="drow"><span class="dlabel">Budget</span><span>$5k–$10k range</span></div><div class="drow"><span class="dlabel">Urgency</span><span>Critical (Q2 deadline)</span></div><div id="score" class="score">Intent Score: 94%</div><div id="vbadge" class="verified">✓ VERIFIED LEAD</div></div>
+</div>
+<div class="vs"><div class="vscard noise"><div class="rate" style="color:#ff8080">~1.2% Reply — Bulk Scraping</div></div><div class="vscard signal"><div class="rate" style="color:#43ed9e">~38% Reply — Lead Hunter Club</div></div></div>
+</div>
+
+<!-- SCENE 4 Pipeline + CTA 16-20 -->
+<div id="scene4" class="clip scene" data-start="16" data-duration="4" data-track-index="3">
+<div id="pipes" class="pipe"><div id="ps1" class="pstage">Saved</div><div id="ps2" class="pstage">Contacted</div><div id="ps3" class="pstage">Replied</div><div id="ps4" class="pstage">Closed</div></div>
+<div id="cta" class="cta">Start Hunting Free</div>
+<div id="trust" class="trust">TRUSTED BY 500+ FREELANCERS • FREE DURING EARLY ACCESS</div>
+</div>
+
+<audio id="bg-music" data-start="0" data-duration="20" data-track-index="10" data-volume="0.32" src="assets/music/happy-beats-business-moves-vol-12-by-ende-dot-app.mp3"></audio>
+<audio id="sfx-1" data-start="2.7" data-duration="1" data-track-index="11" data-volume="0.7" src="assets/sfx/interface/drop_001.ogg"></audio>
+<audio id="sfx-2" data-start="12.8" data-duration="1" data-track-index="12" data-volume="0.8" src="assets/sfx/impact/impactBell_heavy_000.ogg"></audio>
+<audio id="sfx-3" data-start="16.6" data-duration="1" data-track-index="13" data-volume="0.75" src="assets/sfx/casino/card-place-1.ogg"></audio>
+</div>
+<script>
+window.__timelines = window.__timelines || {};
+const tl = gsap.timeline({paused:true});
+window.__timelines["main"] = tl;
+// Scene containers in/out for seek
+tl.fromTo("#scene1",{opacity:0},{opacity:1,duration:0.35},0);
+tl.to("#scene1",{opacity:0,duration:0.35},2.15);
+tl.fromTo("#scene2",{opacity:0},{opacity:1,duration:0.35},2.5);
+tl.to("#scene2",{opacity:0,duration:0.35},5.65);
+tl.fromTo("#scene3",{opacity:0},{opacity:1,duration:0.4},6);
+tl.to("#scene3",{opacity:0,duration:0.4},15.6);
+tl.fromTo("#scene4",{opacity:0},{opacity:1,duration:0.4},16);
+tl.to("#scene4",{opacity:1,duration:0.1},19.9);
+// Hook text
+tl.fromTo("#hook1",{opacity:0,y:40},{opacity:1,y:0,duration:0.5},0.1);
+tl.fromTo("#hook2",{opacity:0,y:30},{opacity:1,y:0,duration:0.5},0.9);
+tl.fromTo("#hooksub",{opacity:0,y:20},{opacity:1,y:0,duration:0.4},1.4);
+// Cards sequential // beat-grid: card1 at 2.73s, card2 at 3.27s, card3 at 3.82s
+tl.fromTo("#feedpill",{opacity:0,y:-20},{opacity:1,y:0,duration:0.35},2.6);
+tl.fromTo("#card1",{opacity:0,x:80},{opacity:1,x:0,duration:0.4},2.73);
+tl.fromTo("#card2",{opacity:0,x:80},{opacity:1,x:0,duration:0.4},3.27);
+tl.fromTo("#card3",{opacity:0,x:80},{opacity:1,x:0,duration:0.4},3.82);
+// Scene3 // beat-locked: 94% lock near 13.11s
+tl.fromTo("#s3title",{opacity:0,y:30},{opacity:1,y:0,duration:0.5},6.1);
+tl.fromTo("#fleft",{opacity:0,x:-60},{opacity:1,x:0,duration:0.5},6.8);
+tl.fromTo("#dossier",{opacity:0,x:60},{opacity:1,x:0,duration:0.5},8.2);
+tl.fromTo("#score",{opacity:0,scale:0.9},{opacity:1,scale:1,duration:0.5},12.9);
+tl.fromTo("#vbadge",{opacity:0,y:16},{opacity:1,y:0,duration:0.4},13.4);
+// Scene4 pipeline // beat-grid: 17.47s, 18.02s, 18.56s strong, 19.10s
+tl.fromTo("#ps1",{opacity:0.2},{opacity:1,duration:0.2},16.3);
+tl.fromTo("#ps2",{opacity:0.2},{opacity:1,duration:0.2},16.9);
+tl.fromTo("#ps3",{opacity:0.2},{opacity:1,duration:0.2},17.5);
+tl.fromTo("#ps4",{opacity:0.2},{opacity:1,duration:0.25},18.1);
+tl.fromTo("#cta",{opacity:0,y:40,scale:0.96},{opacity:1,y:0,scale:1,duration:0.45},18.4);
+tl.fromTo("#trust",{opacity:0},{opacity:1,duration:0.4},19.0);
+tl.seek(0);
+</script>
+</body>
+</html>

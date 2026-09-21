@@ -90,11 +90,36 @@ export default function AdminTargetsPage() {
   const triggerScrapeAll = async () => {
     setScrapingAll(true)
     const token = await getFirebaseToken()
-    await fetch('/api/admin/targets/scrape-all', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    setTimeout(() => setScrapingAll(false), 2000)
+    try {
+      const res = await fetch('/api/admin/targets/scrape-all', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok || json.success === false) {
+        const msg = json.message || 'Failed to trigger watchlist scraping'
+        const isApify =
+          msg.toLowerCase().includes('apify') ||
+          msg.toLowerCase().includes('token') ||
+          msg.toLowerCase().includes('quota') ||
+          msg.toLowerCase().includes('limit') ||
+          msg.toLowerCase().includes('exhausted')
+        if (isApify) {
+          window.dispatchEvent(
+            new CustomEvent('show-apify-exhaustion', {
+              detail: {
+                title: 'Cannot Scrape Watchlist Targets',
+                message: msg,
+              },
+            }),
+          )
+        }
+      }
+    } catch (e: any) {
+      console.error('Watchlist scrape error:', e)
+    } finally {
+      setTimeout(() => setScrapingAll(false), 2000)
+    }
   }
 
   const filtered = targets.filter(t =>

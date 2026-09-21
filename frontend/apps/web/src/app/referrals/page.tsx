@@ -149,7 +149,7 @@ export default function ReferralsPage() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto bg-bg-main text-text-primary p-6 md:p-10">
+    <div className="flex-1 overflow-y-auto bg-bg-main text-text-primary p-6 pb-28 md:p-10">
       <div className="max-w-5xl mx-auto space-y-8">
         {/* Top Header */}
         <div className="flex flex-col gap-2">

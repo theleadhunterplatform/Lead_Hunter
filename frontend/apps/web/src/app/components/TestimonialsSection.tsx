@@ -130,7 +130,7 @@ export default function TestimonialsSection() {
   return (
     <section
       id="testimonials"
-      className="py-16 md:py-20 px-4 sm:px-6 max-w-[1100px] mx-auto relative overflow-hidden border-t border-white/[0.03]"
+      className="py-16 md:py-20 px-4 sm:px-6 mx-auto relative border-t border-white/[0.03]"
     >
       {/* Self-contained float-heart & drift animations */}
       <style jsx global>{`
@@ -235,17 +235,6 @@ export default function TestimonialsSection() {
               className="absolute inset-0 z-30 flex items-center justify-center pointer-events-auto"
               onMouseLeave={() => setIsHovered(false)}
             >
-              {/* Backing Ambient Dark Wash with Brand Radial Gradient */}
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.5 }}
-                className="absolute inset-[-100px] bg-[#0A0A0F]/80 backdrop-blur-md z-0 pointer-events-none flex items-center justify-center"
-              >
-                <div className="absolute w-[650px] h-[650px] rounded-full blur-[140px] bg-[radial-gradient(circle,rgba(var(--rgb-accent-orange),0.20)_0%,rgba(var(--rgb-persona-purple),0.08)_50%,transparent_75%)] pointer-events-none" />
-              </motion.div>
-
               {/* Reaction Particle Emitter Node (centered behind the spotlight card) */}
               <div className="absolute z-10 w-10 h-10 pointer-events-none">
                 {particles.map((p) => (

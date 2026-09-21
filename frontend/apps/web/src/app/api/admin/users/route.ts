@@ -12,20 +12,12 @@ export async function GET(request: NextRequest) {
     const page = Math.max(1, Number(searchParams.get('page')) || 1)
     const pageSize = Math.min(50, Math.max(1, Number(searchParams.get('pageSize')) || 20))
     const status = searchParams.get('status')
-    const plan = searchParams.get('plan')
     const search = searchParams.get('search')?.trim()
     const serviceFilter = searchParams.get('service')?.trim()
 
     const where: Record<string, unknown> = {}
     if (status && ['PENDING', 'ACTIVE', 'REJECTED', 'SUSPENDED'].includes(status)) {
       where.status = status
-    }
-    if (plan === 'PAID') {
-      where.plan = { not: 'FREE' }
-    } else if (plan === 'FREE') {
-      where.plan = 'FREE'
-    } else if (plan && plan !== 'ALL') {
-      where.plan = plan
     }
     if (search) {
       where.OR = [
@@ -48,7 +40,6 @@ export async function GET(request: NextRequest) {
           email: true,
           name: true,
           phone: true,
-          city: true,
           role: true,
           status: true,
           plan: true,
@@ -76,50 +67,16 @@ export async function GET(request: NextRequest) {
 
     const totalPages = Math.ceil(total / pageSize)
 
-    // Check for duplicate phone numbers across the user database
-    const phones = users.map((u) => u.phone?.trim()).filter(Boolean) as string[]
-    const duplicateMatchesMap = new Map<string, Array<{ id: string; email: string; name: string; status: string; createdAt: Date }>>()
-
-    if (phones.length > 0) {
-      const allMatches = await db.user.findMany({
-        where: {
-          phone: { in: phones },
-        },
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          phone: true,
-          status: true,
-          createdAt: true,
-        },
-      })
-
-      for (const match of allMatches) {
-        if (!match.phone) continue
-        const existing = duplicateMatchesMap.get(match.phone.trim()) || []
-        existing.push(match)
-        duplicateMatchesMap.set(match.phone.trim(), existing)
-      }
-    }
-
-    const usersWithCredits = users.map((u) => {
-      const allPhoneMatches = u.phone ? (duplicateMatchesMap.get(u.phone.trim()) || []) : []
-      const duplicatePhoneMatches = allPhoneMatches.filter((m) => m.id !== u.id)
-
-      return {
-        ...u,
-        duplicatePhoneMatches,
-        hasDuplicatePhone: duplicatePhoneMatches.length > 0,
-        creditAccount: u.creditAccount
-          ? {
-              subscriptionBalance: u.creditAccount.subscriptionBalance,
-              bonusBalance: u.creditAccount.bonusBalance,
-              total: u.creditAccount.subscriptionBalance + u.creditAccount.bonusBalance,
-            }
-          : { subscriptionBalance: 0, bonusBalance: 0, total: 0 },
-      }
-    })
+    const usersWithCredits = users.map((u) => ({
+      ...u,
+      creditAccount: u.creditAccount
+        ? {
+            subscriptionBalance: u.creditAccount.subscriptionBalance,
+            bonusBalance: u.creditAccount.bonusBalance,
+            total: u.creditAccount.subscriptionBalance + u.creditAccount.bonusBalance,
+          }
+        : { subscriptionBalance: 0, bonusBalance: 0, total: 0 },
+    }))
 
     return NextResponse.json({
       data: usersWithCredits,

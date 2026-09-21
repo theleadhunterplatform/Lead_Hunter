@@ -34,9 +34,9 @@ export interface AppLead {
   phone?: string | null
   accent?: 'mint' | 'purple' | 'cyan' | 'orange' | 'pink' | string
   niche?: string | null
+  isClaimedByOther?: boolean
   isTargetMatch?: boolean
   scrapedAt?: string
   scrapedAgo?: string
   isClaimedByOther?: boolean
 }
-

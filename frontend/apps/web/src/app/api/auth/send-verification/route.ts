@@ -106,18 +106,20 @@ export async function POST(request: NextRequest) {
     )
 
     if (sendResult.id === 'error') {
-      return NextResponse.json({
-        data: { success: false, fallback: true, message: 'Email dispatch failed, falling back to client.' },
-      })
+      return NextResponse.json(
+        { code: 'EMAIL_SEND_FAILED', message: 'Failed to send verification email. Please try again.' },
+        { status: 500 },
+      )
     }
 
     return NextResponse.json({
       data: { success: true, message: 'Verification email sent successfully.' },
     })
   } catch (error) {
-    console.warn('[Send Verification API] Non-fatal error, falling back to client:', error)
-    return NextResponse.json({
-      data: { success: false, fallback: true, message: 'Verification request falling back to client.' },
-    })
+    console.error('[Send Verification API] Error:', error)
+    return NextResponse.json(
+      { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to process verification request.' },
+      { status: 500 },
+    )
   }
 }

@@ -273,6 +273,83 @@ export default function LeadsPage() {
     fetchLeads()
   }, [])
 
+  // Deep-link: ?lead=<id> opens the drawer on load / share
+  useEffect(() => {
+    try {
+      const id = new URLSearchParams(window.location.search).get('lead')
+      if (id) setSelectedLeadId(id)
+    } catch {
+      // ignore malformed URL
+    }
+  }, [])
+
+  const openLead = (id: string) => {
+    setSelectedLeadId(id)
+    try {
+      const url = new URL(window.location.href)
+      url.searchParams.set('lead', id)
+      window.history.pushState({}, '', url.toString())
+    } catch {
+      // non-fatal
+    }
+  }
+
+  const closeLead = () => {
+    setSelectedLeadId(null)
+    try {
+      const url = new URL(window.location.href)
+      url.searchParams.delete('lead')
+      window.history.pushState({}, '', url.toString())
+    } catch {
+      // non-fatal
+    }
+  }
+
+  // Fresh detail on open: list rows can be stale, merge canonical detail
+  useEffect(() => {
+    if (!selectedLeadId) return
+    if (
+      selectedLeadId.startsWith('mock') ||
+      selectedLeadId.startsWith('hero') ||
+      selectedLeadId.startsWith('card')
+    )
+      return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const token = await getFirebaseToken()
+        const res = await fetch(`/api/leads/${selectedLeadId}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        })
+        const json = await res.json()
+        if (!cancelled && res.ok && json.data) {
+          const fresh = json.data as AppLead
+          setLeadsList((prev) => prev.map((l) => (l.id === fresh.id ? { ...l, ...fresh } : l)))
+        }
+      } catch {
+        // keep list version, drawer still works
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [selectedLeadId])
+
+  // Esc closes drawer + lock background scroll while open
+  useEffect(() => {
+    if (!selectedLeadId) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeLead()
+    }
+    window.addEventListener('keydown', onKey)
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prev
+    }
+  }, [selectedLeadId])
+
   useEffect(() => {
     if (!hasInitializedNiche && hasTargetField) {
       setActiveNiche(FOR_YOU)
@@ -345,7 +422,9 @@ export default function LeadsPage() {
       case 'newest':
       default:
         result = [...result].sort(
-          (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+          (a, b) =>
+            new Date(b.scrapedAt || b.timestamp).getTime() -
+            new Date(a.scrapedAt || a.timestamp).getTime(),
         )
         break
     }
@@ -358,12 +437,12 @@ export default function LeadsPage() {
     setSelectedLeadId(null)
   }, [activeNiche, debouncedSearch, selectedTags])
 
-  const selectedLead = filteredLeads.find((l) => l.id === selectedLeadId)
+  const selectedLead = leadsList.find((l) => l.id === selectedLeadId) ?? filteredLeads.find((l) => l.id === selectedLeadId)
 
   return (
     <main
       data-lenis-prevent
-      className="flex-1 h-full min-h-0 overflow-y-auto px-8 py-8 pb-32 relative scrollbar-hide"
+      className="flex-1 h-full min-h-0 overflow-y-auto px-4 sm:px-6 lg:px-8 py-8 pb-32 relative scrollbar-hide"
     >
       <div className="max-w-[1400px] mx-auto relative z-10">
         <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-10 mt-2">
@@ -387,12 +466,12 @@ export default function LeadsPage() {
                 {searchQuery && (
                   <button
                     onClick={() => setSearchQuery('')}
-                    className="px-2 text-[11px] font-medium text-accent-purple hover:text-accent-purple/80 transition-colors"
+                    className="px-3 min-h-[44px] text-[11px] font-medium text-accent-purple hover:text-accent-purple/80 transition-colors"
                   >
                     Clear
                   </button>
                 )}
-                <div className="flex items-center gap-1.5 pr-2">
+                <div className="hidden [@media(pointer:fine)]:flex items-center gap-1.5 pr-2">
                   <div className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-[10px] font-bold text-text-secondary tracking-widest">
                     ⌘K
                   </div>
@@ -401,13 +480,14 @@ export default function LeadsPage() {
             </div>
           </div>
 
-          <div className="relative shrink-0 flex items-center gap-3 w-full md:w-auto justify-end">
+          <div className="relative shrink-0 flex flex-wrap items-center gap-2 sm:gap-3 w-full md:w-auto justify-end">
             {/* View Mode Toggle */}
             <div className="flex items-center bg-[#1b1c1d] border border-white/[0.08] rounded-xl p-1 shadow-lg shrink-0">
               <button
                 onClick={() => setViewMode('grid')}
                 type="button"
-                className={`p-1.5 rounded-lg transition-all ${
+                aria-label="Grid view"
+                className={`p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg transition-all ${
                   viewMode === 'grid'
                     ? 'bg-white/10 text-white shadow-sm'
                     : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
@@ -421,7 +501,8 @@ export default function LeadsPage() {
               <button
                 onClick={() => setViewMode('pipeline')}
                 type="button"
-                className={`p-1.5 rounded-lg transition-all ${
+                aria-label="Pipeline view"
+                className={`p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg transition-all ${
                   viewMode === 'pipeline'
                     ? 'bg-primary/20 text-primary border border-primary/20 shadow-sm'
                     : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
@@ -447,7 +528,7 @@ export default function LeadsPage() {
 
             <button
               onClick={() => setIsFilterOpen(!isFilterOpen)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl bg-code-bg/80 backdrop-blur-xl border shadow-lg text-[13px] font-medium transition-all ${
+              className={`flex items-center gap-2 px-4 py-2.5 min-h-[44px] shrink-0 rounded-xl bg-code-bg/80 backdrop-blur-xl border shadow-lg text-[13px] font-medium transition-all ${
                 isFilterOpen || selectedTags.length > 0
                   ? 'border-accent-purple bg-accent-purple/10 text-text-primary'
                   : 'border-white/[0.08] hover:bg-white/5 hover:border-white/15 text-text-primary'
@@ -473,7 +554,7 @@ export default function LeadsPage() {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 10, scale: 0.95 }}
                     transition={{ duration: 0.15 }}
-                    className="absolute right-0 top-full mt-2 w-72 rounded-2xl bg-surface-elevated border border-white/[0.08] p-4 shadow-2xl z-50 backdrop-blur-xl"
+                    className="absolute right-0 top-full mt-2 w-[min(18rem,calc(100vw-2.5rem))] rounded-2xl bg-surface-elevated border border-white/[0.08] p-4 shadow-2xl z-50 backdrop-blur-xl"
                   >
                     <div className="flex items-center justify-between mb-3 pb-2 border-b border-white/5">
                       <span className="text-xs font-bold text-text-secondary uppercase tracking-wider">
@@ -482,7 +563,7 @@ export default function LeadsPage() {
                       {selectedTags.length > 0 && (
                         <button
                           onClick={() => setSelectedTags([])}
-                          className="text-[11px] font-medium text-accent-purple hover:underline"
+                          className="text-[11px] font-medium text-accent-purple hover:underline px-3 py-2"
                         >
                           Clear all
                         </button>
@@ -509,7 +590,7 @@ export default function LeadsPage() {
                                   setSelectedTags([...selectedTags, tag])
                                 }
                               }}
-                              className={`px-2.5 py-1 text-xs font-medium rounded-lg border transition-all duration-200 ${
+                              className={`px-3 py-2 text-xs font-medium rounded-lg border transition-all duration-200 ${
                                 isSelected
                                   ? 'bg-accent-purple/20 border-accent-purple text-accent-purple'
                                   : 'bg-white/5 border-white/[0.06] text-text-secondary hover:bg-white/10 hover:border-white/10 hover:text-text-primary'
@@ -579,16 +660,8 @@ export default function LeadsPage() {
         )}
 
         <div
-          className={`grid gap-6 transition-all duration-300 ${selectedLeadId ? 'grid-cols-1 lg:grid-cols-3' : 'grid-cols-1'}`}
+          className="grid gap-4 auto-rows-fr items-stretch transition-all duration-300 grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
         >
-          <div className={selectedLeadId ? 'lg:col-span-2' : 'col-span-1'}>
-            <div
-              className={`grid gap-4 auto-rows-fr items-stretch transition-all duration-300 ${
-                selectedLeadId
-                  ? 'grid-cols-1 lg:grid-cols-2'
-                  : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
-              }`}
-            >
               {loading ? (
                 <div className="col-span-full">
                   <CustomLoader page="leads" />
@@ -638,7 +711,7 @@ export default function LeadsPage() {
                       lead={lead}
                       index={index}
                       isSelected={lead.id === selectedLeadId}
-                      onClick={() => setSelectedLeadId(lead.id)}
+                      onClick={() => openLead(lead.id)}
                       onSaveToggle={(isSaved) => handleSaveToggle(lead.id, isSaved)}
                       onReveal={(leadId, name, email, phone) => {
                         setLeadsList((prev) =>
@@ -654,7 +727,7 @@ export default function LeadsPage() {
                       lead={lead}
                       index={index}
                       isSelected={lead.id === selectedLeadId}
-                      onClick={() => setSelectedLeadId(lead.id)}
+                      onClick={() => openLead(lead.id)}
                       onSaveToggle={(isSaved) => handleSaveToggle(lead.id, isSaved)}
                       onReveal={(leadId, name, email, phone) => {
                         setLeadsList((prev) =>
@@ -668,34 +741,47 @@ export default function LeadsPage() {
                 )
               )}
             </div>
-          </div>
 
           <AnimatePresence>
             {selectedLead && (
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                className="hidden lg:block lg:col-span-1 h-[calc(100vh-160px)] sticky top-0"
-              >
-                <LeadDrawer
-                  lead={selectedLead}
-                  onClose={() => setSelectedLeadId(null)}
-                  onReveal={(name, email, phone) => {
-                    setLeadsList((prev) =>
-                      prev.map((l) =>
-                        l.id === selectedLead.id
-                          ? { ...l, isRevealed: true, name, email, phone }
-                          : l,
-                      ),
-                    )
-                  }}
+              <>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  onClick={closeLead}
+                  className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+                  aria-hidden="true"
                 />
-              </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, x: 40 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 40 }}
+                  transition={{ type: 'spring', damping: 28, stiffness: 260 }}
+                  role="dialog"
+                  aria-modal="true"
+                  aria-label={`Lead details: ${selectedLead.title}`}
+                  className="fixed z-50 bg-surface-secondary border border-border-subtle shadow-2xl overflow-hidden left-4 right-4 bottom-4 top-auto max-h-[85vh] rounded-2xl md:left-auto md:right-6 md:top-24 md:bottom-6 md:w-[440px] md:max-h-none md:rounded-2xl"
+                >
+                  <LeadDrawer
+                    lead={selectedLead}
+                    onClose={closeLead}
+                    onSaveToggle={(isSaved) => handleSaveToggle(selectedLead.id, isSaved)}
+                    onReveal={(name, email, phone) => {
+                      setLeadsList((prev) =>
+                        prev.map((l) =>
+                          l.id === selectedLead.id
+                            ? { ...l, isRevealed: true, name, email, phone }
+                            : l,
+                        ),
+                      )
+                    }}
+                  />
+                </motion.div>
+              </>
             )}
           </AnimatePresence>
-        </div>
       </div>
     </main>
   )

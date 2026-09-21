@@ -88,7 +88,11 @@ export function SignalInterceptStage() {
                   animate={{ scale: 1, opacity: 1 }}
                   transition={{ type: 'spring', stiffness: 450, damping: 20 }}
                 >
-                  <RedditOfficialLogo className="w-8 h-8 shrink-0" />
+                  <img
+                    src="/images/avatars/reddit-growth_pilot.jpg"
+                    alt="u/growth_pilot"
+                    className="w-8 h-8 rounded-full object-cover border border-white/10 shadow-sm shrink-0"
+                  />
                 </motion.div>
                 <div className="flex items-center gap-1.5 text-[12px] whitespace-nowrap overflow-hidden">
                   <span className="font-bold text-white hover:underline cursor-pointer">
@@ -155,9 +159,11 @@ export function SignalInterceptStage() {
             {/* LinkedIn Header */}
             <div className="flex items-start justify-between gap-3 mb-3">
               <div className="flex items-center gap-3 min-w-0">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#0A66C2] to-cyan-700 text-white font-bold text-xs flex items-center justify-center shrink-0 border border-white/10 shadow-sm">
-                  MV
-                </div>
+                <img
+                  src="/images/avatars/linkedin-marcus_vance.jpg"
+                  alt="Marcus Vance"
+                  className="w-10 h-10 rounded-full object-cover border border-white/10 shadow-sm shrink-0"
+                />
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5 text-[13px] font-semibold text-white">
                     <span className="truncate">Marcus Vance</span>
@@ -242,24 +248,12 @@ export function SignalInterceptStage() {
             {/* Threads Header */}
             <div className="flex items-center justify-between gap-3 mb-3">
               <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-9 h-9 rounded-full bg-zinc-800 border border-white/10 text-white font-bold text-xs flex items-center justify-center shrink-0">
-                  SC
-                </div>
-                <div className="flex items-center gap-1.5 min-w-0 text-[13px]">
-                  <span className="font-semibold text-white truncate">sarah.chen</span>
-                  <span className="text-zinc-600">·</span>
-                  <span className="text-zinc-500 text-[12px]">9m</span>
-                </div>
+                <img
+                  src="/images/avatars/threads-user.jpg"
+                  alt="sarah.chen"
+                  className="w-9 h-9 rounded-full object-cover border border-white/10 shadow-sm shrink-0"
+                />
               </div>
-
-              <motion.div
-                initial={reduceMotion ? false : { scale: 0, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ type: 'spring', stiffness: 450, damping: 20 }}
-                className="shrink-0"
-              >
-                <ThreadsOfficialLogo className="w-6 h-6" />
-              </motion.div>
             </div>
 
             {/* Threads Content */}

@@ -41,6 +41,7 @@ export class AuthRequiredError extends Error {
   constructor() {
     super('Authentication required')
     this.name = 'AuthRequiredError'
+    Object.setPrototypeOf(this, AuthRequiredError.prototype)
   }
 }
 
@@ -48,6 +49,7 @@ export class ForbiddenError extends Error {
   constructor(message = 'Forbidden') {
     super(message)
     this.name = 'ForbiddenError'
+    Object.setPrototypeOf(this, ForbiddenError.prototype)
   }
 }
 
@@ -55,6 +57,7 @@ export class InactiveUserError extends Error {
   constructor(message = 'User account is not active') {
     super(message)
     this.name = 'InactiveUserError'
+    Object.setPrototypeOf(this, InactiveUserError.prototype)
   }
 }
 
@@ -62,6 +65,7 @@ export class EmailNotVerifiedError extends Error {
   constructor(message = 'Email is not verified') {
     super(message)
     this.name = 'EmailNotVerifiedError'
+    Object.setPrototypeOf(this, EmailNotVerifiedError.prototype)
   }
 }
 
@@ -69,6 +73,7 @@ export class OnboardingRequiredError extends Error {
   constructor(message = 'Onboarding must be completed before using the app') {
     super(message)
     this.name = 'OnboardingRequiredError'
+    Object.setPrototypeOf(this, OnboardingRequiredError.prototype)
   }
 }
 
@@ -76,7 +81,72 @@ export class PendingApprovalError extends Error {
   constructor(message = 'Your application is under review') {
     super(message)
     this.name = 'PendingApprovalError'
+    Object.setPrototypeOf(this, PendingApprovalError.prototype)
   }
+}
+
+export function isAuthRequiredError(error: unknown): error is AuthRequiredError {
+  return error instanceof AuthRequiredError || (error as any)?.name === 'AuthRequiredError'
+}
+
+export function isForbiddenError(error: unknown): error is ForbiddenError {
+  return error instanceof ForbiddenError || (error as any)?.name === 'ForbiddenError'
+}
+
+export function isInactiveUserError(error: unknown): error is InactiveUserError {
+  return error instanceof InactiveUserError || (error as any)?.name === 'InactiveUserError'
+}
+
+export function isEmailNotVerifiedError(error: unknown): error is EmailNotVerifiedError {
+  return error instanceof EmailNotVerifiedError || (error as any)?.name === 'EmailNotVerifiedError'
+}
+
+export function isOnboardingRequiredError(error: unknown): error is OnboardingRequiredError {
+  return error instanceof OnboardingRequiredError || (error as any)?.name === 'OnboardingRequiredError'
+}
+
+export function isPendingApprovalError(error: unknown): error is PendingApprovalError {
+  return error instanceof PendingApprovalError || (error as any)?.name === 'PendingApprovalError'
+}
+
+export function handleAuthApiError(error: unknown): NextResponse | null {
+  if (isAuthRequiredError(error)) {
+    return NextResponse.json(
+      { code: 'UNAUTHORIZED', message: 'Authentication required' },
+      { status: 401 },
+    )
+  }
+  if (isEmailNotVerifiedError(error)) {
+    return NextResponse.json(
+      { code: 'EMAIL_NOT_VERIFIED', message: 'Please verify your email address first' },
+      { status: 403 },
+    )
+  }
+  if (isPendingApprovalError(error)) {
+    return NextResponse.json(
+      { code: 'PENDING_APPROVAL', message: 'Your application is under review' },
+      { status: 403 },
+    )
+  }
+  if (isOnboardingRequiredError(error)) {
+    return NextResponse.json(
+      { code: 'ONBOARDING_REQUIRED', message: 'Please complete onboarding first' },
+      { status: 403 },
+    )
+  }
+  if (isInactiveUserError(error)) {
+    return NextResponse.json(
+      { code: 'INACTIVE', message: (error as Error)?.message || 'Your account is not active' },
+      { status: 403 },
+    )
+  }
+  if (isForbiddenError(error)) {
+    return NextResponse.json(
+      { code: 'FORBIDDEN', message: (error as Error)?.message || 'Forbidden' },
+      { status: 403 },
+    )
+  }
+  return null
 }
 
 export function unauthorizedResponse() {
@@ -192,8 +262,8 @@ export async function requireFullyAuthorized(request: Request): Promise<AuthUser
   const dbUser = await db.user.findUnique({
     where: { id: user.uid },
     select: {
-      status: true,
       role: true,
+      status: true,
       portfolio: true,
       website: true,
       linkedin: true,
@@ -205,8 +275,16 @@ export async function requireFullyAuthorized(request: Request): Promise<AuthUser
     },
   })
 
-  if (!dbUser || dbUser.status !== 'ACTIVE') {
-    throw new InactiveUserError()
+  if (!dbUser) {
+    throw new InactiveUserError('User account not found')
+  }
+
+  if (dbUser.status === 'PENDING') {
+    throw new PendingApprovalError('Your application is under review')
+  }
+
+  if (dbUser.status !== 'ACTIVE') {
+    throw new InactiveUserError('User account is not active')
   }
 
   // Admins bypass onboarding requirement

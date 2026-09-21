@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import {
   MagnifyingGlassIcon,
   SparklesIcon,
@@ -13,6 +13,7 @@ import {
   ClipboardDocumentListIcon,
   ArrowPathIcon,
   ChevronDownIcon,
+  ChevronRightIcon,
   CheckIcon,
   PaperAirplaneIcon,
   PencilSquareIcon,
@@ -22,7 +23,6 @@ import {
 } from '@heroicons/react/24/solid'
 import Link from 'next/link'
 import { AppLead } from '@/types/lead'
-import LeadDrawer from '../leads/components/LeadDrawer'
 import { Badge, Button, CustomLoader } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
 import { getFirebaseToken } from '@/lib/firebase'
@@ -37,53 +37,57 @@ export default function SavedLeadsPage() {
   const [exportOpen, setExportOpen] = useState(false)
   const [exporting, setExporting] = useState<'csv' | 'tsv' | 'sheet' | null>(null)
   const [openActionDropdownId, setOpenActionDropdownId] = useState<string | null>(null)
-  const [unlockingLeadId, setUnlockingLeadId] = useState<string | null>(null)
-  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null)
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null)
+  const [scrollHintSeen, setScrollHintSeen] = useState(
+    () => typeof window !== 'undefined' && window.localStorage.getItem('lhc-saved-scrollhint') === '1',
+  )
+  const actionBtnRefs = useRef(new Map<string, HTMLButtonElement>())
   const { addToast } = useToast()
 
-  const handleUnlockLead = async (leadId: string) => {
-    try {
-      setUnlockingLeadId(leadId)
-      const token = await getFirebaseToken()
-      const res = await fetch('/api/leads/reveal', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ leadId }),
+  const toggleActionMenu = (leadId: string) => {
+    if (openActionDropdownId === leadId) {
+      setOpenActionDropdownId(null)
+      setMenuPos(null)
+      return
+    }
+    const btn = actionBtnRefs.current.get(leadId)
+    if (btn) {
+      const rect = btn.getBoundingClientRect()
+      const W = 208
+      const GAP = 8
+      const EST_H = 360
+      const openUp = window.innerHeight - rect.bottom < EST_H + GAP
+      setMenuPos({
+        left: Math.max(8, Math.min(rect.right - W, window.innerWidth - W - 8)),
+        top: openUp ? Math.max(8, rect.top - EST_H - GAP) : rect.bottom + GAP,
       })
-      const json = await res.json()
-      if (!res.ok) {
-        addToast({ type: 'error', message: json.message || 'Failed to unlock lead' })
-        return
-      }
+    } else {
+      setMenuPos(null)
+    }
+    setOpenActionDropdownId(leadId)
+  }
 
-      setSavedLeads((prev) =>
-        prev.map((l) =>
-          l.id === leadId
-            ? {
-                ...l,
-                isRevealed: true,
-                name: json.name || l.name,
-                email: json.email || l.email,
-                phone: json.phone || l.phone,
-              }
-            : l,
-        ),
-      )
+  useEffect(() => {
+    if (!openActionDropdownId) {
+      setMenuPos(null)
+      return
+    }
+    const close = () => {
+      setOpenActionDropdownId(null)
+      setMenuPos(null)
+    }
+    window.addEventListener('scroll', close, true)
+    window.addEventListener('resize', close)
+    return () => {
+      window.removeEventListener('scroll', close, true)
+      window.removeEventListener('resize', close)
+    }
+  }, [openActionDropdownId])
 
-      if (typeof json.creditsRemaining === 'number') {
-        window.dispatchEvent(
-          new CustomEvent('credits-updated', { detail: { creditsRemaining: json.creditsRemaining } }),
-        )
-      }
-
-      addToast({ type: 'success', message: `✓ Lead unlocked! Contact details revealed.` })
-    } catch {
-      addToast({ type: 'error', message: 'Failed to unlock lead' })
-    } finally {
-      setUnlockingLeadId(null)
+  const dismissScrollHint = (e: React.UIEvent<HTMLDivElement>) => {
+    if (e.currentTarget.scrollLeft > 24 && !scrollHintSeen) {
+      setScrollHintSeen(true)
+      window.localStorage.setItem('lhc-saved-scrollhint', '1')
     }
   }
 
@@ -243,7 +247,6 @@ export default function SavedLeadsPage() {
     // 1. Optimistic UI update (instant response)
     const prevLeads = savedLeads
     setSavedLeads((prev) => prev.filter((l) => l.id !== leadId))
-    if (selectedLeadId === leadId) setSelectedLeadId(null)
     addToast({ type: 'success', message: '✓ Removed from saved leads' })
 
     // 2. Background sync
@@ -347,17 +350,8 @@ export default function SavedLeadsPage() {
     return true
   })
 
-  const selectedLead = savedLeads.find((l) => l.id === selectedLeadId)
-
-  const handleDrawerReveal = (leadId: string, name: string, email: string, phone?: string | null) => {
-    setSavedLeads((prev) =>
-      prev.map((l) =>
-        l.id === leadId ? { ...l, isRevealed: true, name, email, phone } : l,
-      ),
-    )
-  }
-
-  const statusBadgeColor: Record<string, 'mint' | 'purple'> = {    new: 'mint',
+  const statusBadgeColor: Record<string, 'mint' | 'purple'> = {
+    new: 'mint',
     saved: 'mint',
     drafting: 'mint',
     sent: 'purple',
@@ -378,7 +372,7 @@ export default function SavedLeadsPage() {
   }
 
   return (
-    <main data-lenis-prevent className="flex-1 h-full min-h-0 overflow-y-auto px-8 py-10 relative scrollbar-hide">
+    <main data-lenis-prevent className="flex-1 h-full min-h-0 overflow-y-auto px-4 sm:px-6 lg:px-8 pt-8 pb-28 md:py-10 relative scrollbar-hide">
       <div className="max-w-[1400px] mx-auto relative z-10">
         {/* Summary Cards Row */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
@@ -420,7 +414,7 @@ export default function SavedLeadsPage() {
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`px-4 py-2 rounded-lg text-11 font-bold uppercase tracking-widest transition-all ${
+                  className={`px-4 py-2 min-h-[44px] rounded-lg text-11 font-bold uppercase tracking-widest transition-all ${
                     activeTab === tab
                       ? 'bg-accent-purple text-text-on-accent shadow-lg'
                       : 'text-text-secondary hover:text-text-primary'
@@ -440,11 +434,11 @@ export default function SavedLeadsPage() {
                 placeholder="Search by name, email, or company..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="bg-surface-secondary/50 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-xs focus:outline-none focus:border-border-subtle transition-all w-48 sm:w-60 focus:w-64"
+                className="bg-surface-secondary/50 border border-white/10 rounded-xl py-2.5 min-h-[44px] pl-10 pr-4 text-xs focus:outline-none focus:border-border-subtle transition-all w-48 sm:w-60 focus:w-64"
               />
             </div>
 
-            <Button variant="outline" color="mint" size="sm" onClick={handleSync} loading={syncing}>
+            <Button variant="outline" color="mint" size="sm" className="min-h-[44px]" onClick={handleSync} loading={syncing}>
               <ArrowPathIcon className="w-3 h-3" />
               Sync from Sheet
             </Button>
@@ -454,6 +448,7 @@ export default function SavedLeadsPage() {
                 variant="primary"
                 color="mint"
                 size="sm"
+                className="min-h-[44px]"
                 onClick={() => setExportOpen((o) => !o)}
               >
                 <DocumentArrowDownIcon className="w-3 h-3" />
@@ -503,11 +498,7 @@ export default function SavedLeadsPage() {
           </div>
         </div>
 
-        {/* Pipeline Table + Lead Detail (same drawer as Lead Feed) */}
-        <div
-          className={`grid gap-6 transition-all duration-300 ${selectedLeadId ? 'grid-cols-1 lg:grid-cols-3' : 'grid-cols-1'}`}
-        >
-          <div className={selectedLeadId ? 'lg:col-span-2 min-w-0' : 'col-span-1 min-w-0'}>
+        {/* Pipeline Table */}
         <div className="metallic-card min-h-[420px] pb-16">
           {filteredLeads.length === 0 && !loading && (
             <div className="p-12 text-center">
@@ -523,20 +514,27 @@ export default function SavedLeadsPage() {
             </div>
           )}
 
+          {!scrollHintSeen && filteredLeads.length > 0 && (
+            <div className="pointer-events-none md:hidden absolute right-3 top-1/2 -translate-y-1/2 z-20 flex items-center gap-1 px-2.5 py-2 rounded-full bg-black/70 border border-white/10 text-[10px] font-bold uppercase tracking-widest text-text-secondary backdrop-blur">
+              Scroll
+              <ChevronRightIcon className="w-3 h-3" />
+            </div>
+          )}
+
           {filteredLeads.length > 0 && (
-            <div className="overflow-x-auto scrollbar-hide">
+            <div className="overflow-x-auto scrollbar-hide" onScroll={dismissScrollHint}>
               <div className="min-w-[760px]">
                 <div className="grid grid-cols-12 gap-4 px-6 sm:px-8 py-4 border-b border-white/[0.05] text-xxs font-bold text-text-secondary uppercase tracking-super">
-                  <div className="col-span-1">Status</div>
-                  <div className="col-span-6">Lead</div>
+                  <div className="col-span-1 sticky left-0 z-20 -ml-6 pl-6 sm:-ml-8 sm:pl-8 bg-surface border-r border-white/5">Status</div>
+                  <div className="col-span-4">Lead</div>
                   <div className="col-span-2">Stage</div>
+                  <div className="col-span-2">Urgency</div>
                   <div className="col-span-3 text-right pr-2">Actions</div>
                 </div>
 
                 <div className="divide-y divide-white/[0.03]">
-                  {filteredLeads.map((lead, index) => {
+                  {filteredLeads.map((lead) => {
                     const isDropdownOpen = openActionDropdownId === lead.id
-                    const isNearBottom = index > 0 && (filteredLeads.length <= 3 || index >= filteredLeads.length - 2)
 
                     return (
                       <div
@@ -545,7 +543,7 @@ export default function SavedLeadsPage() {
                           isDropdownOpen ? 'z-30' : 'z-10'
                         }`}
                       >
-                        <div className="col-span-1 flex items-center">
+                        <div className="col-span-1 sticky left-0 z-10 -ml-6 pl-6 sm:-ml-8 sm:pl-8 bg-surface border-r border-white/5 flex items-center self-stretch py-4">
                           <div
                             className={`w-2.5 h-2.5 rounded-full ${
                               lead.status === 'replied'
@@ -557,7 +555,7 @@ export default function SavedLeadsPage() {
                           />
                         </div>
 
-                        <div className="col-span-6 flex items-center gap-3">
+                        <div className="col-span-4 flex items-center gap-3">
                           <div className={`w-9 h-9 rounded-full border flex items-center justify-center text-11 font-bold overflow-hidden shrink-0 ${
                             lead.isRevealed
                               ? 'bg-surface-elevated border-white/10 text-text-primary'
@@ -568,23 +566,14 @@ export default function SavedLeadsPage() {
                               : <LockClosedIcon className="w-3.5 h-3.5" />}
                           </div>
                           <div className="min-w-0">
-                            <button
-                              type="button"
-                              onClick={() => setSelectedLeadId(lead.id)}
-                              title="View lead details"
-                              className={`text-sm font-bold truncate flex items-center gap-1.5 text-left hover:underline underline-offset-2 decoration-white/20 transition-colors ${
-                                selectedLeadId === lead.id ? 'text-primary' : 'text-text-primary'
-                              }`}
-                            >
-                              <span className="truncate">
-                                {lead.isRevealed ? lead.name : (lead.title || lead.category || 'Saved Lead')}
-                              </span>
+                            <div className="text-sm font-bold text-text-primary truncate flex items-center gap-1.5">
+                              {lead.isRevealed ? lead.name : (lead.title || lead.category || 'Saved Lead')}
                               {!lead.isRevealed && (
                                 <span className="text-[9px] font-bold uppercase tracking-wider text-accent-purple bg-accent-purple/10 px-1.5 py-0.5 rounded-full whitespace-nowrap">
                                   Locked
                                 </span>
                               )}
-                            </button>
+                            </div>
                             <div className="text-xxs text-text-secondary truncate">
                               {lead.isRevealed
                                 ? lead.email
@@ -599,20 +588,28 @@ export default function SavedLeadsPage() {
                           </Badge>
                         </div>
 
-                        <div className="col-span-3 text-right flex items-center justify-end relative pr-2">
-                          {!lead.isRevealed ? (
-                            <Button
-                              variant="primary"
-                              color="mint"
-                              size="xs"
-                              onClick={() => handleUnlockLead(lead.id)}
-                              loading={unlockingLeadId === lead.id}
+                        <div className="col-span-2">
+                          <div className="flex items-center gap-2">
+                            <Badge
+                              size="sm"
+                              color={
+                                lead.urgency === 'critical' || lead.urgency === 'high'
+                                  ? 'mint'
+                                  : 'purple'
+                              }
                             >
-                              <LockClosedIcon className="w-3.5 h-3.5" />
-                              Unlock (-{lead.revealCost ?? 3})
-                            </Button>
-                          ) : (
-                            <div className="relative inline-block text-left" onClick={(e) => e.stopPropagation()}>
+                              {lead.urgency}
+                            </Badge>
+                            {lead.replyProbability > 0 && (
+                              <span className="text-xxs text-text-secondary">
+                                {lead.replyProbability}%
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="col-span-3 text-right flex items-center justify-end relative pr-2">
+                          <div className="relative inline-block text-left" onClick={(e) => e.stopPropagation()}>
                             {(() => {
                               const currentAction = statusActionConfig[lead.status] || {
                                 label: 'Actions',
@@ -623,8 +620,12 @@ export default function SavedLeadsPage() {
                               return (
                                 <button
                                   type="button"
-                                  onClick={() => setOpenActionDropdownId(isDropdownOpen ? null : lead.id)}
-                                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                                  ref={(el) => {
+                                    if (el) actionBtnRefs.current.set(lead.id, el)
+                                    else actionBtnRefs.current.delete(lead.id)
+                                  }}
+                                  onClick={() => toggleActionMenu(lead.id)}
+                                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 min-h-[44px] rounded-lg text-xs font-semibold border transition-all ${
                                     isDropdownOpen
                                       ? 'bg-white/15 text-text-primary border-primary/40 shadow-sm'
                                       : 'bg-white/5 hover:bg-white/10 text-text-secondary hover:text-text-primary border-white/10'
@@ -643,12 +644,20 @@ export default function SavedLeadsPage() {
                               )
                             })()}
 
-                            {isDropdownOpen && (
-                              <div
-                                className={`absolute right-0 ${
-                                  isNearBottom ? 'bottom-full mb-2 origin-bottom-right' : 'top-full mt-2 origin-top-right'
-                                } w-52 max-h-[320px] overflow-y-auto scrollbar-hide rounded-2xl bg-surface-elevated/95 border border-white/10 shadow-2xl shadow-black/80 py-2 z-50 text-left backdrop-blur-xl`}
-                              >
+                            {isDropdownOpen && menuPos && createPortal(
+                              <>
+                                <div
+                                  className="fixed inset-0 z-50 cursor-default"
+                                  onClick={() => {
+                                    setOpenActionDropdownId(null)
+                                    setMenuPos(null)
+                                  }}
+                                />
+                                <div
+                                  role="menu"
+                                  style={{ top: menuPos.top, left: menuPos.left }}
+                                  className="fixed w-52 max-h-[320px] overflow-y-auto scrollbar-hide rounded-2xl bg-surface-elevated/95 border border-white/10 shadow-2xl shadow-black/80 py-2 z-50 text-left backdrop-blur-xl"
+                                >
                                 <div className="px-3 pb-1 pt-0.5 text-[10px] font-bold uppercase tracking-wider text-text-secondary/70">
                                   Stage / Status
                                 </div>
@@ -659,7 +668,7 @@ export default function SavedLeadsPage() {
                                     handleMarkStatus(lead.id, 'saved', 'Saved')
                                     setOpenActionDropdownId(null)
                                   }}
-                                  className={`w-full flex items-center justify-between px-3 py-1.5 text-xs transition-colors hover:bg-white/5 ${
+                                  className={`w-full flex items-center justify-between px-3 py-2.5 text-xs transition-colors hover:bg-white/5 ${
                                     lead.status === 'saved' || lead.status === 'new'
                                       ? 'text-primary font-semibold bg-primary/10'
                                       : 'text-text-primary'
@@ -680,7 +689,7 @@ export default function SavedLeadsPage() {
                                     handleMarkStatus(lead.id, 'drafting', 'Drafting')
                                     setOpenActionDropdownId(null)
                                   }}
-                                  className={`w-full flex items-center justify-between px-3 py-1.5 text-xs transition-colors hover:bg-white/5 ${
+                                  className={`w-full flex items-center justify-between px-3 py-2.5 text-xs transition-colors hover:bg-white/5 ${
                                     lead.status === 'drafting'
                                       ? 'text-primary font-semibold bg-primary/10'
                                       : 'text-text-primary'
@@ -701,7 +710,7 @@ export default function SavedLeadsPage() {
                                     handleMarkStatus(lead.id, 'sent', 'Sent')
                                     setOpenActionDropdownId(null)
                                   }}
-                                  className={`w-full flex items-center justify-between px-3 py-1.5 text-xs transition-colors hover:bg-white/5 ${
+                                  className={`w-full flex items-center justify-between px-3 py-2.5 text-xs transition-colors hover:bg-white/5 ${
                                     lead.status === 'sent'
                                       ? 'text-primary font-semibold bg-primary/10'
                                       : 'text-text-primary'
@@ -722,7 +731,7 @@ export default function SavedLeadsPage() {
                                     handleMarkStatus(lead.id, 'follow-up', 'Follow-up')
                                     setOpenActionDropdownId(null)
                                   }}
-                                  className={`w-full flex items-center justify-between px-3 py-1.5 text-xs transition-colors hover:bg-white/5 ${
+                                  className={`w-full flex items-center justify-between px-3 py-2.5 text-xs transition-colors hover:bg-white/5 ${
                                     lead.status === 'follow-up'
                                       ? 'text-primary font-semibold bg-primary/10'
                                       : 'text-text-primary'
@@ -743,7 +752,7 @@ export default function SavedLeadsPage() {
                                     handleMarkStatus(lead.id, 'replied', 'Replied')
                                     setOpenActionDropdownId(null)
                                   }}
-                                  className={`w-full flex items-center justify-between px-3 py-1.5 text-xs transition-colors hover:bg-white/5 ${
+                                  className={`w-full flex items-center justify-between px-3 py-2.5 text-xs transition-colors hover:bg-white/5 ${
                                     lead.status === 'replied'
                                       ? 'text-primary font-semibold bg-primary/10'
                                       : 'text-text-primary'
@@ -770,7 +779,7 @@ export default function SavedLeadsPage() {
                                     handleCopyEmail(lead)
                                     setOpenActionDropdownId(null)
                                   }}
-                                  className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-text-primary hover:bg-white/5 transition-colors"
+                                  className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-text-primary hover:bg-white/5 transition-colors"
                                 >
                                   <EnvelopeIcon className="w-3.5 h-3.5 text-text-secondary shrink-0" />
                                   Copy Email
@@ -782,15 +791,16 @@ export default function SavedLeadsPage() {
                                     handleRemoveSaved(lead.id)
                                     setOpenActionDropdownId(null)
                                   }}
-                                  className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-red-400 hover:bg-red-500/10 transition-colors"
+                                  className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-red-400 hover:bg-red-500/10 transition-colors"
                                 >
                                   <TrashIcon className="w-3.5 h-3.5 text-red-400 shrink-0" />
                                   Remove from Saved
                                 </button>
-                              </div>
+                                </div>
+                              </>,
+                              document.body,
                             )}
                           </div>
-                        )}
                         </div>
                       </div>
                     )
@@ -811,49 +821,6 @@ export default function SavedLeadsPage() {
               </Link>
             </div>
           )}
-        </div>
-          </div>
-
-          <AnimatePresence>
-            {selectedLead && (
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                className="hidden lg:block lg:col-span-1 h-[calc(100vh-160px)] sticky top-0"
-              >
-                <LeadDrawer
-                  lead={selectedLead}
-                  onClose={() => setSelectedLeadId(null)}
-                  onReveal={(name, email, phone) =>
-                    handleDrawerReveal(selectedLead.id, name, email, phone)
-                  }
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Mobile detail fallback */}
-          <AnimatePresence>
-            {selectedLead && (
-              <motion.div
-                initial={{ opacity: 0, y: 24 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 24 }}
-                transition={{ type: 'spring', damping: 28, stiffness: 260 }}
-                className="lg:hidden fixed inset-x-3 bottom-3 z-50 max-h-[82vh] overflow-y-auto rounded-2xl"
-              >
-                <LeadDrawer
-                  lead={selectedLead}
-                  onClose={() => setSelectedLeadId(null)}
-                  onReveal={(name, email, phone) =>
-                    handleDrawerReveal(selectedLead.id, name, email, phone)
-                  }
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
       </div>
     </main>

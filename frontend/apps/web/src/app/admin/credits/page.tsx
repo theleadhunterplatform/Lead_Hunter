@@ -53,26 +53,19 @@ export default function AdminCreditsPage() {
     setUpdating(userId)
     const token = await getFirebaseToken()
     const amount = parseInt(editValues[userId])
-    if (isNaN(amount) || amount <= 0) {
-      setUpdating(null)
-      return
-    }
+    if (isNaN(amount) || amount <= 0) return
 
-    try {
-      const res = await fetch(`/api/admin/users/${userId}`, {
-        method: 'PATCH',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bonusCredits: amount }),
-      })
-      const json = await res.json()
-      if (json.data?.creditAccount) {
-        setUsers((prev) =>
-          prev.map((u) => (u.id === userId ? { ...u, creditAccount: json.data.creditAccount } : u)),
-        )
-        setEditValues((prev) => ({ ...prev, [userId]: '' }))
-      }
-    } catch (err) {
-      console.error('Failed to grant credits:', err)
+    const res = await fetch(`/api/admin/users/${userId}`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bonusCredits: amount }),
+    })
+    const json = await res.json()
+    if (json.data?.creditAccount) {
+      setUsers((prev) =>
+        prev.map((u) => (u.id === userId ? { ...u, creditAccount: json.data.creditAccount } : u)),
+      )
+      setEditValues((prev) => ({ ...prev, [userId]: '' }))
     }
     setUpdating(null)
   }

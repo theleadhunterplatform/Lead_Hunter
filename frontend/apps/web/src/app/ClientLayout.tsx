@@ -4,6 +4,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import Navbar from '@/components/layout/Navbar'
 import AppSidebar from '@/components/layout/AppSidebar'
+import { MobileBottomNav } from '@/components/layout/MobileBottomNav'
 import { useAuth } from '@/hooks/useAuth'
 import { ToastProvider } from '@/components/ui/Toast'
 import { CustomLoader, type LoaderPageType } from '@/components/ui/CustomLoader'
@@ -259,6 +260,15 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     const isLanding = !isAppRoute
     if (!isLanding) return
 
+    // Skip smooth scroll on touch / small screens — native scroll is faster there
+    if (
+      window.matchMedia('(pointer: coarse)').matches ||
+      window.matchMedia('(max-width: 767px)').matches ||
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ) {
+      return
+    }
+
     let disposed = false
     let lenisInstance: any = null
 
@@ -307,8 +317,11 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
       {(pathname === '/' || pathname === '/reviews' || pathname === '/wall-of-love') && <Navbar />}
       {isAppRoute ? (
         <div className="flex h-screen bg-bg-main overflow-hidden font-sans">
-          <AppSidebar />
+          <div className="hidden md:block shrink-0">
+            <AppSidebar />
+          </div>
           {children}
+          <MobileBottomNav />
         </div>
       ) : (
         children

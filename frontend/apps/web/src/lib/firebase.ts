@@ -83,6 +83,19 @@ export async function linkEmailToPhoneAccount(email: string, password: string): 
 }
 
 export async function getFirebaseToken(): Promise<string | null> {
+  if (typeof window === 'undefined') return null
+
+  if (!auth.currentUser && typeof auth.authStateReady === 'function') {
+    try {
+      await Promise.race([
+        auth.authStateReady(),
+        new Promise((resolve) => setTimeout(resolve, 2500)),
+      ])
+    } catch {
+      // Continue if authStateReady fails or times out
+    }
+  }
+
   const user = auth.currentUser
   if (!user) return null
   try {

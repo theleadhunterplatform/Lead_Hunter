@@ -1,4 +1,4 @@
-   import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/auth'
 import { ExternalApiError } from '@/lib/external-api/client'
 import {
@@ -6,7 +6,6 @@ import {
   approvePost,
   rejectPost,
   regenerateIntel,
-  generateTitle,
   reEnrichPost,
   deletePost,
   updatePostLabel,
@@ -48,22 +47,6 @@ export async function POST(
 
     switch (action) {
       case 'approve': {
-        // Optimization: If intelligence report already exists, approve immediately without re-calling LLMs
-        try {
-          const existing = await getPost(id)
-          if (existing && existing.intelligence && existing.intelligence.trim() !== '') {
-            const approved = await approvePost(id)
-            return NextResponse.json({
-              success: true,
-              data: approved,
-              mode: 'cached',
-              message: 'Lead approved and released to the feed with intelligence report.',
-            })
-          }
-        } catch (fetchErr) {
-          console.warn(`[Admin Leads] Pre-approval post fetch failed for ${id}, falling back to regenerate:`, fetchErr)
-        }
-
         // Gate approval on intelligence existing: a lead must have a completed
         // intel report before it is released to the user feed (the feed only
         // shows leads with `approved` + `intelligence`). Generate first, confirm,
@@ -82,18 +65,18 @@ export async function POST(
 
         let post = intelResult.post
         if (intelResult.mode === 'queued' || !hasIntel()) {
-          await new Promise((r) => setTimeout(r, 1000))
-          post = await getPost(id)
+          let attempts = 0
+          while (!post.intelligence && attempts < 8) {
+            await new Promise((r) => setTimeout(r, 1500))
+            post = await getPost(id)
+            attempts++
+          }
         }
 
         if (!post.intelligence) {
           return NextResponse.json(
-            {
-              success: true,
-              status: 'generating_intel',
-              message: 'Intel generation is running in the background. The lead will be ready for approval momentarily.',
-            },
-            { status: 202 },
+            { success: false, message: 'Intel report is still generating. Lead was NOT approved — retry shortly to approve with a completed report.' },
+            { status: 409 },
           )
         }
 
@@ -107,10 +90,6 @@ export async function POST(
       case 'regenerate-intel': {
         const result = await regenerateIntel(id)
         return NextResponse.json({ success: true, data: result.post, mode: result.mode })
-      }
-      case 'generate-title': {
-        const updated = await generateTitle(id)
-        return NextResponse.json({ success: true, data: updated, message: 'Title generation triggered' })
       }
       case 're-enrich': {
         await reEnrichPost(id)

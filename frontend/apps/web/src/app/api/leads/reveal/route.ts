@@ -7,9 +7,7 @@ import {
   EmailNotVerifiedError,
   OnboardingRequiredError,
 } from '@/lib/auth'
-import { claimPost, getPost, ExternalApiError } from '@/lib/external-api/client'
-import { oracleDb } from '@/lib/oracle-db'
-import { mapLeadPostToExternal } from '@/lib/oracle-mapper'
+import { claimPost, getPost } from '@/lib/external-api/client'
 import { leadRevealSchema } from '@/lib/validators/auth'
 import { rateLimitByKey } from '@/lib/rate-limit'
 import { creditService, InsufficientCreditsError } from '@/lib/services/credits'
@@ -46,11 +44,7 @@ export async function POST(request: NextRequest) {
 
     const { leadId } = parsed.data
 
-    const rawLead = await oracleDb.leadPost.findUnique({ where: { id: leadId } })
-    if (!rawLead) {
-      return NextResponse.json({ code: 'NOT_FOUND', message: 'Lead not found' }, { status: 404 })
-    }
-    const externalLead = mapLeadPostToExternal(rawLead)
+    const externalLead = await getPost(leadId)
 
     const contactBundle = leadContactBundle(externalLead)
     const CREDIT_COST = getLeadRevealCost(externalLead)
@@ -66,6 +60,34 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Check if already claimed on external API side
+    if (externalLead.is_claimed) {
+      // Still return the contact info if we have it locally
+      const existingState = await db.userLeadState.findUnique({
+        where: { userId_leadId: { userId, leadId } },
+      })
+      if (existingState?.isRevealed) {
+        return NextResponse.json({
+          success: true,
+          isRevealed: true,
+          coinsUsed: 0,
+          contactBundle,
+          name: externalLead.author?.name || 'Unknown',
+          email: externalLead.email || externalLead.contact_info?.emails?.[0]?.email || '',
+          phone: externalLead.contact_info?.phone_numbers?.[0]?.number || null,
+        })
+      }
+      // External says claimed but we don't have it locally - return the contact info
+      return NextResponse.json({
+        success: true,
+        isRevealed: true,
+        coinsUsed: 0,
+        contactBundle,
+        name: externalLead.author?.name || 'Unknown',
+        email: externalLead.email || externalLead.contact_info?.emails?.[0]?.email || '',
+        phone: externalLead.contact_info?.phone_numbers?.[0]?.number || null,
+      })
+    }
 
     const existingState = await db.userLeadState.findUnique({
       where: {
@@ -123,11 +145,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const claimedLead = await claimPost(leadId).catch((err) => {
-      // Backend claim notification is best-effort — credits are deducted and lead state saved locally
-      console.warn('[Lead Reveal] Backend claim notification failed, proceeding with local reveal:', err?.message || err)
-      return externalLead
-    })
+    const claimedLead = await claimPost(leadId)
 
     const txResult = await db.$transaction(
       async (tx) => {

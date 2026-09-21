@@ -8,7 +8,6 @@ import {
   OnboardingRequiredError,
 } from '@/lib/auth'
 import { createLeadSheet, appendToSheet, type SheetLeadRow } from '@/lib/services/sheets'
-import { mapLeadPostToExternal } from '@/lib/oracle-mapper'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,47 +26,22 @@ export async function POST(request: NextRequest) {
       include: { lead: true },
     })
 
-    function sanitizePii(text: string): string {
-      return text
-        .replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, '[LOCKED EMAIL]')
-        .replace(/(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g, '[LOCKED PHONE]')
-        .replace(/\b\d{10}\b/g, '[LOCKED PHONE]')
-    }
-
     const rows: SheetLeadRow[] = []
     for (const s of states) {
       if (!s.lead) {
         console.warn(`[Sheets Export] Skipping state ${s.leadId}: no Lead record`)
         continue
       }
-      const ext = mapLeadPostToExternal(s.lead)
-      const isRevealed = !!s.isRevealed
-
-      const phone = isRevealed
-        ? (ext.contact_info?.phone_numbers?.[0]?.number || '')
-        : '[LOCKED - Reveal on Platform]'
-      const email = isRevealed
-        ? (s.lead.email || ext.contact_info?.emails?.[0]?.email || '')
-        : '[LOCKED - Reveal on Platform]'
-      const name = isRevealed ? (ext.author?.name || 'Contact') : 'Confidential Contact'
-      const company = isRevealed
-        ? (ext.contact_info?.company_name || ext.author?.name || ext.platform || '')
-        : 'Confidential Client'
-      const signalContext = isRevealed
-        ? (s.lead.content || '')
-        : sanitizePii(s.lead.content || '')
-      const replyProbability = Math.max(s.lead.ai_score || 0, 60)
-
       rows.push({
-        name,
-        email,
-        phone,
-        company,
-        signalContext,
+        name: s.lead.name,
+        email: s.lead.email,
+        phone: s.lead.phone || '',
+        company: s.lead.company,
+        signalContext: s.lead.signalContext,
         aiDraft: '',
         status: s.status.charAt(0).toUpperCase() + s.status.slice(1),
-        urgency: 'Medium',
-        replyProbability,
+        urgency: s.lead.urgency.charAt(0).toUpperCase() + s.lead.urgency.slice(1),
+        replyProbability: s.lead.replyProbability,
       })
     }
 

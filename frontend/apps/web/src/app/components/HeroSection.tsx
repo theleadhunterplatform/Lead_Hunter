@@ -14,7 +14,6 @@ import {
   BoltIcon,
   ArrowTopRightOnSquareIcon,
   CheckCircleIcon,
-  AdjustmentsHorizontalIcon,
   MagnifyingGlassIcon,
   ChartBarSquareIcon,
   ExclamationTriangleIcon,
@@ -24,11 +23,11 @@ import {
   EyeIcon,
   ClockIcon,
   ChevronDownIcon,
+  GlobeAltIcon,
 } from '@heroicons/react/24/solid'
 import Link from 'next/link'
 import { AppLead } from '@/types/lead'
 import LeadCard from '@/app/leads/components/LeadCard'
-import PipelineLeadCard from '@/app/leads/components/PipelineLeadCard'
 
 const allLeads: AppLead[] = [
   {
@@ -243,22 +242,9 @@ const tabs = [
   { id: 'dashboard', label: 'Dashboard', icon: Squares2X2Icon },
 ]
 
-const primaryHeroNiches = [
-  'All',
-  'Web Dev',
-  'Design',
-  'Marketing',
-  'SEO',
-  'Sales & RevOps',
-]
-
 // ─── Real Lead Feed content (compact hero preview) ──────────────
 function LeadsContent() {
-  const [activeNiche, setActiveNiche] = useState<string>('All')
   const [searchQuery, setSearchQuery] = useState('')
-  const [viewMode, setViewMode] = useState<'grid' | 'pipeline'>('grid')
-  const [sortBy, setSortBy] = useState<'newest' | 'replyProbability' | 'urgency'>('newest')
-  const [isFilterOpen, setIsFilterOpen] = useState(false)
 
   const filteredLeads = useMemo(() => {
     let result = [...allLeads]
@@ -276,34 +262,15 @@ function LeadsContent() {
       )
     }
 
-    if (activeNiche !== 'All') {
-      result = result.filter(
-        (lead) =>
-          lead.niches?.some((n) => n.toLowerCase().includes(activeNiche.toLowerCase())) ||
-          lead.category.toLowerCase().includes(activeNiche.toLowerCase()) ||
-          lead.nicheTags?.some((t) => t.toLowerCase().includes(activeNiche.toLowerCase())),
-      )
-    }
-
-    // Sort
-    if (sortBy === 'replyProbability') {
-      result.sort((a, b) => (b.replyProbability || 0) - (a.replyProbability || 0))
-    } else if (sortBy === 'urgency') {
-      const urgencyRank: Record<string, number> = { critical: 4, high: 3, medium: 2, low: 1 }
-      result.sort(
-        (a, b) => (urgencyRank[b.urgency || 'low'] || 0) - (urgencyRank[a.urgency || 'low'] || 0),
-      )
-    }
-
     return result
-  }, [searchQuery, activeNiche, sortBy])
+  }, [searchQuery])
 
   const displayLeads = filteredLeads.length > 0 ? filteredLeads.slice(0, 6) : allLeads.slice(0, 6)
 
   return (
     <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 pb-16 relative w-full scrollbar-hide">
       <div className="w-full max-w-[1240px] mx-auto relative z-10">
-        {/* Real Lead Feed Header & Controls Bar */}
+        {/* Real Lead Feed Header - Simplified */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-3.5">
           <div className="flex items-center gap-3 shrink-0">
             <h3 className="text-base font-bold text-text-primary tracking-tight">Lead Feed</h3>
@@ -313,156 +280,36 @@ function LeadsContent() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
-            {/* Real Search Input with ⌘K */}
-            <div className="relative group flex-1 sm:w-52">
-              <div className="absolute -inset-[1px] bg-gradient-to-r from-accent-purple/20 via-accent-mint/20 to-accent-purple/20 rounded-xl blur-sm opacity-40 group-hover:opacity-100 transition-opacity duration-300" />
-              <div className="relative flex items-center bg-code-bg/90 border border-white/[0.08] rounded-xl px-2.5 py-1 shadow-sm focus-within:ring-1 focus-within:ring-white/20">
-                <MagnifyingGlassIcon className="w-3.5 h-3.5 text-text-secondary mr-1.5 shrink-0" />
-                <input
-                  type="text"
-                  placeholder="Search signals... (⌘K)"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-transparent border-none text-text-primary text-[11px] placeholder:text-text-secondary/50 focus:outline-none focus:ring-0 py-0.5"
-                />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery('')}
-                    className="px-1 text-[10px] font-medium text-accent-purple hover:text-accent-purple/80 transition-colors"
-                  >
-                    Clear
-                  </button>
-                )}
-                <span className="px-1 py-0.5 rounded bg-white/5 border border-white/10 text-[9px] font-mono text-text-secondary shrink-0">
-                  ⌘K
-                </span>
-              </div>
-            </div>
-
-            {/* View Mode Toggle */}
-            <div className="flex items-center bg-[#1b1c1d] border border-white/[0.08] rounded-xl p-0.5 shadow-sm shrink-0">
-              <button
-                onClick={() => setViewMode('grid')}
-                type="button"
-                className={`p-1.5 rounded-lg transition-all ${
-                  viewMode === 'grid'
-                    ? 'bg-white/10 text-white shadow-sm'
-                    : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
-                }`}
-                title="Classic Grid View"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth={1.5}
-                  stroke="currentColor"
-                  className="w-3.5 h-3.5"
+          {/* Simplified Search Input - only keep search + live count */}
+          <div className="relative group w-full sm:w-64">
+            <div className="absolute -inset-[1px] bg-gradient-to-r from-accent-purple/20 via-accent-mint/20 to-accent-purple/20 rounded-xl blur-sm opacity-40 group-hover:opacity-100 transition-opacity duration-300" />
+            <div className="relative flex items-center bg-code-bg/90 border border-white/[0.08] rounded-xl px-3 py-1.5 shadow-sm focus-within:ring-1 focus-within:ring-white/20">
+              <MagnifyingGlassIcon className="w-3.5 h-3.5 text-text-secondary mr-2 shrink-0" />
+              <input
+                type="text"
+                placeholder="Search signals..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-transparent border-none text-text-primary text-sm placeholder:text-text-secondary/50 focus:outline-none focus:ring-0 py-1"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="px-2 text-sm font-medium text-accent-purple hover:text-accent-purple/80 transition-colors"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z"
-                  />
-                </svg>
-              </button>
-              <button
-                onClick={() => setViewMode('pipeline')}
-                type="button"
-                className={`p-1.5 rounded-lg transition-all ${
-                  viewMode === 'pipeline'
-                    ? 'bg-primary/20 text-primary border border-primary/20 shadow-sm'
-                    : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
-                }`}
-                title="Pipeline Card View"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth={1.5}
-                  stroke="currentColor"
-                  className="w-3.5 h-3.5"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M9 4.5v15m6-15v15m-10.875 0h15.75c.621 0 1.125-.504 1.125-1.125V5.625c0-.621-.504-1.125-1.125-1.125H4.125C3.504 4.5 3 5.004 3 5.625v13.5c0 .621.504 1.125 1.125 1.125Z"
-                  />
-                </svg>
-              </button>
+                  Clear
+                </button>
+              )}
             </div>
-
-            {/* Sort Pill */}
-            <div
-              onClick={() =>
-                setSortBy((prev) =>
-                  prev === 'newest'
-                    ? 'replyProbability'
-                    : prev === 'replyProbability'
-                      ? 'urgency'
-                      : 'newest',
-                )
-              }
-              className="hidden sm:flex items-center gap-1 px-2 py-1 rounded-xl bg-code-bg/80 border border-white/[0.08] text-[11px] text-text-secondary cursor-pointer hover:border-white/15 transition-colors select-none"
-              title="Click to cycle sort order"
-            >
-              <span>
-                {sortBy === 'newest'
-                  ? 'Newest'
-                  : sortBy === 'replyProbability'
-                    ? 'High Reply'
-                    : 'Urgent'}
-              </span>
-              <ChevronDownIcon className="w-3 h-3 text-text-secondary" />
-            </div>
-
-            {/* Filters Button */}
-            <button
-              onClick={() => setIsFilterOpen(!isFilterOpen)}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-xl bg-code-bg/80 border text-[11px] font-medium transition-all ${
-                isFilterOpen
-                  ? 'border-accent-purple bg-accent-purple/10 text-accent-purple'
-                  : 'border-white/[0.08] text-text-secondary hover:text-text-primary hover:border-white/15'
-              }`}
-            >
-              <AdjustmentsHorizontalIcon className="w-3.5 h-3.5" />
-              <span>Filters</span>
-            </button>
           </div>
-        </div>
-
-        {/* Niche Filter Pills Row */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-2 mb-3.5 scrollbar-hide">
-          {primaryHeroNiches.map((niche) => {
-            const isActive = activeNiche === niche
-            return (
-              <button
-                key={niche}
-                onClick={() => setActiveNiche(niche)}
-                className={`px-3 py-1 text-[11px] font-semibold rounded-full border transition-all duration-200 whitespace-nowrap ${
-                  isActive
-                    ? 'bg-accent-purple/10 border-accent-purple text-accent-purple shadow-[0_0_12px_rgba(168,85,247,0.18)]'
-                    : 'bg-white/5 border-white/[0.06] text-text-secondary hover:bg-white/10 hover:border-white/12 hover:text-text-primary'
-                }`}
-              >
-                {niche}
-              </button>
-            )
-          })}
         </div>
 
         {/* 3-column Grid of real LeadCards matching leadfeed design */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 items-stretch w-full mx-auto">
           {displayLeads.map((lead, i) => (
             <div key={lead.id} className="w-full flex justify-center">
-              <div className="w-full max-w-[360px]">
-                {viewMode === 'pipeline' ? (
-                  <PipelineLeadCard lead={lead} index={i} />
-                ) : (
-                  <LeadCard lead={lead} index={i} />
-                )}
+              <div className="w-full max-w-[320px]">
+                <LeadCard lead={lead} index={i} isHeroPreview />
               </div>
             </div>
           ))}

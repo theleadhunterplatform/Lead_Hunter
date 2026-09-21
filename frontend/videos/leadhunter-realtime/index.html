@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=1920, height=1080" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { margin:0; width:1920px; height:1080px; overflow:hidden; background:#121314; }
+  #root {
+    position:relative; width:100%; height:100%; overflow:hidden;
+    background:#121314; color:#e3e2e3;
+    font-family: Inter, system-ui, sans-serif;
+  }
+  .clip { position:absolute; inset:0; }
+  .bg-grid {
+    position:absolute; inset:0;
+    background-image: linear-gradient(to right, rgba(255,255,255,0.025) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size: 40px 40px;
+    -webkit-mask-image: radial-gradient(ellipse at 50% 30%, black 20%, transparent 75%);
+    mask-image: radial-gradient(ellipse at 50% 30%, black 20%, transparent 75%);
+  }
+  .display { font-family: "Space Grotesk", Inter, system-ui, sans-serif; }
+  .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+  .metallic {
+    background: linear-gradient(135deg, #18191b 0%, #121314 40%, #0d0e0f 100%);
+    border: 1px solid rgba(230,224,225,0.08);
+    border-radius: 20px;
+    box-shadow: 0 4px 16px -1px rgba(0,0,0,0.5), 0 12px 36px -6px rgba(0,0,0,0.85), inset 0 1px 0 0 rgba(255,255,255,0.05);
+  }
+  .kicker { color:#ffb800; font-size:30px; font-weight:600; letter-spacing:0.02em; }
+  .h2 { font-size:76px; font-weight:600; letter-spacing:-0.02em; line-height:1.1; color:#fff; }
+  .h2 .dim { color: rgba(213,196,171,0.7); font-weight:300; }
+  .sub { color:#d5c4ab; font-size:30px; font-weight:300; line-height:1.5; }
+  .pill-live {
+    display:inline-flex; align-items:center; gap:12px;
+    padding:10px 22px; border-radius:9999px;
+    background: rgba(255,184,0,0.10); border:1px solid rgba(255,184,0,0.20);
+    color:#ffb800; font-size:22px; font-weight:500;
+  }
+  .dot { width:12px; height:12px; border-radius:9999px; background:#ffb800; }
+  /* authentic post cards */
+  .reddit-card { background:#1A1A1B; border:1px solid #343536; border-radius:16px; box-shadow:0 12px 36px rgba(0,0,0,0.6); }
+  .linkedin-card { background:#1D2226; border:1px solid #38434F; border-radius:12px; box-shadow:0 12px 36px rgba(0,0,0,0.6); }
+  .threads-card { background:#101010; border:1px solid #262626; border-radius:16px; box-shadow:0 12px 36px rgba(0,0,0,0.6); }
+  .hire-badge { background:rgba(255,69,0,0.15); color:#FF5414; border:1px solid rgba(255,69,0,0.30); border-radius:9999px; font-size:20px; font-weight:500; padding:6px 18px; }
+  /* pipeline lead card - exact */
+  .pipe-card { background:#1b1c1d; border:1px solid rgba(230,224,225,0.08); border-radius:22px; box-shadow:0 8px 24px rgba(0,0,0,0.5); }
+  .tag-pill { background:rgba(255,184,0,0.15); border:1px solid rgba(255,184,0,0.30); color:#ffb800; border-radius:8px; font-size:20px; font-weight:600; padding:6px 14px; }
+  .tag-dim { background:#292a2b; border:1px solid rgba(230,224,225,0.08); color:#d5c4ab; border-radius:8px; font-size:20px; font-weight:600; padding:6px 14px; }
+  .unlock-btn { background:#ffb800; color:#412d00; border-radius:12px; font-weight:700; box-shadow:0 4px 20px rgba(255,184,0,0.3); }
+  .scan-beam { position:absolute; left:0; right:0; height:4px; background:linear-gradient(to right, transparent, #ffb800, transparent); box-shadow:0 0 30px rgba(255,184,0,0.6); }
+</style>
+</head>
+<body>
+<div id="root" data-composition-id="main" data-start="0" data-duration="8" data-width="1920" data-height="1080">
+  <section id="shot" class="clip" data-start="0" data-duration="8" data-track-index="0">
+    <div class="bg-grid"></div>
+    <div id="amberGlow" data-layout-allow-overflow="true" style="position:absolute;width:900px;height:900px;left:510px;top:-350px;background:radial-gradient(circle at center, rgba(255,184,0,0.07) 0%, transparent 70%);"></div>
+    <div id="mintGlow" data-layout-allow-overflow="true" style="position:absolute;width:800px;height:800px;right:-200px;bottom:-300px;background:radial-gradient(circle at center, rgba(67,237,158,0.05) 0%, transparent 70%);"></div>
+
+    <!-- LEFT: Step 01 context (exact landing copy) -->
+    <div id="leftCopy" style="position:absolute;left:110px;top:200px;width:560px;">
+      <div id="step01" class="mono" style="color:#ffb800;font-size:24px;font-weight:600;margin-bottom:16px;">Step 01</div>
+      <div id="hTitle" class="display h2">We Intercept<br/>Fresh Signals</div>
+      <div id="hSub" class="sub" style="margin-top:20px;">Our engine scans niche communities &amp; social feeds to capture the exact moment someone asks for help.</div>
+      <div id="livePill" style="margin-top:24px;"><span class="pill-live"><span class="dot"></span><span class="mono" id="liveText">3 Live Signals</span></span></div>
+      <div id="logoRow" style="display:flex;gap:18px;margin-top:28px;align-items:center;">
+        <div id="lg-rd" style="display:flex;align-items:center;gap:10px;background:#1A1A1B;border:1px solid #343536;border-radius:12px;padding:10px 16px;">
+          <svg viewBox="0 0 24 24" width="34" height="34"><circle cx="12" cy="12" r="12" fill="#FF4500"/><path d="M12 4.75a1.25 1.25 0 0 1 1.25 1.25c0 .64-.48 1.17-1.11 1.24l.8 3.75c1.82.07 3.48.63 4.67 1.49.31-.31.73-.49 1.21-.49.97 0 1.75.79 1.75 1.75 0 .72-.43 1.33-1.01 1.61.03.17.04.35.04.52 0 2.69-3.13 4.87-7 4.87s-7-2.18-7-4.87c0-.18.01-.36.04-.53A1.75 1.75 0 0 1 3.63 13.75c0-.97.79-1.75 1.75-1.75.46 0 .9.2 1.21.49 1.2-.88 2.88-1.43 4.74-1.49l.89-4.18.24-.04 2.9.62c.04.66.58 1.2 1.26 1.2.69 0 1.25-.56 1.25-1.25a1.25 1.25 0 0 1-1.25-1.25 1.21 1.21 0 0 0-1.11.7l-2.6-.55-.8 3.75M8.85 13.5a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5zm6.3 0a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5z" fill="#fff"/></svg>
+          <span style="color:#e3e2e3;font-size:22px;font-weight:600;">Reddit</span>
+        </div>
+        <div id="lg-li" style="display:flex;align-items:center;gap:10px;background:#1D2226;border:1px solid #38434F;border-radius:12px;padding:10px 16px;">
+          <svg viewBox="0 0 24 24" width="30" height="30"><rect width="24" height="24" rx="4.5" fill="#0A66C2"/><path d="M7.12 9.5H4.88V19H7.12V9.5ZM6 5.5C5.28 5.5 4.7 6.08 4.7 6.8C4.7 7.52 5.28 8.1 6 8.1C6.72 8.1 7.3 7.52 7.3 6.8C7.3 6.08 6.72 5.5 6 5.5ZM19.12 19V13.88C19.12 11.37 17.78 10.2 15.98 10.2C14.53 10.2 13.88 11 13.52 11.56V9.5H11.28V19H13.52V14.12C13.52 12.83 13.77 11.58 15.37 11.58C16.94 11.58 16.96 13.05 16.96 14.2V19H19.12Z" fill="#fff"/></svg>
+          <span style="color:#e3e2e3;font-size:22px;font-weight:600;">LinkedIn</span>
+        </div>
+        <div id="lg-th" style="display:flex;align-items:center;gap:10px;background:#101010;border:1px solid #262626;border-radius:12px;padding:10px 16px;">
+          <svg viewBox="0 0 24 24" width="30" height="30"><rect width="24" height="24" rx="5" fill="#121212" stroke="#2D2D30"/><path d="M17.41 11.097c-.03-3.486-1.92-5.586-5.111-5.586-2.13 0-3.922.963-4.863 2.499l2.062 1.438c.535-.843 1.272-1.543 2.628-1.543 1.528 0 2.318.85 2.544 2.431a15 15 0 0 0-2.236-.173c-4.125 0-6.068 1.867-6.068 4.336s1.943 3.99 4.804 3.99c3.139 0 5.013-2.115 5.781-4.735.798.361 1.348 1.204 1.348 2.47 0 3.387-3.907 5.232-7.22 5.232-4.885 0-8.077-3.207-8.077-8.424 0-6.392 4.223-10.487 9.9-10.487 3.808 0 5.69 1.671 6.97 3.914l2.108-1.475C20.587 2.078 17.478 0 12.81 0 5.374 0 .315 5.277.315 12.934c0 7 4.953 11.066 10.856 11.066 4.878 0 9.809-2.846 9.809-7.716 0-2.545-1.46-4.231-3.569-5.187m-6.33 4.855c-1.077 0-2.026-.512-2.026-1.453 0-1.483 1.822-1.934 3.606-1.934.678 0 1.34.045 1.927.173-.422 1.927-1.671 3.215-3.508 3.214Z" fill="#fff" transform="scale(0.85) translate(2,2)"/></svg>
+          <span style="color:#e3e2e3;font-size:22px;font-weight:600;">Threads</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: authentic cycling post -> pipeline lead card -->
+    <div id="stageBox" class="metallic" style="position:absolute;right:110px;top:140px;width:1060px;height:800px;padding:36px;overflow:hidden;">
+      <div class="mono" style="color:#d5c4ab;font-size:20px;letter-spacing:0.2em;margin-bottom:18px;">LIVE SIGNAL STAGE</div>
+
+      <!-- Reddit post (exact) -->
+      <div id="postReddit" class="reddit-card" style="padding:28px;position:absolute;top:80px;left:36px;right:36px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+          <div style="display:flex;align-items:center;gap:14px;">
+            <svg viewBox="0 0 24 24" width="44" height="44"><circle cx="12" cy="12" r="12" fill="#FF4500"/><path d="M12 4.75a1.25 1.25 0 0 1 1.25 1.25c0 .64-.48 1.17-1.11 1.24l.8 3.75c1.82.07 3.48.63 4.67 1.49.31-.31.73-.49 1.21-.49.97 0 1.75.79 1.75 1.75 0 .72-.43 1.33-1.01 1.61.03.17.04.35.04.52 0 2.69-3.13 4.87-7 4.87s-7-2.18-7-4.87c0-.18.01-.36.04-.53A1.75 1.75 0 0 1 3.63 13.75c0-.97.79-1.75 1.75-1.75.46 0 .9.2 1.21.49 1.2-.88 2.88-1.43 4.74-1.49l.89-4.18.24-.04 2.9.62c.04.66.58 1.2 1.26 1.2.69 0 1.25-.56 1.25-1.25a1.25 1.25 0 0 1-1.25-1.25 1.21 1.21 0 0 0-1.11.7l-2.6-.55-.8 3.75M8.85 13.5a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5zm6.3 0a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5z" fill="#fff"/></svg>
+            <div style="font-size:22px;color:#fff;"><b>r/smallbusiness</b> <span style="color:#888;">· Posted by u/growth_pilot · 4m ago</span></div>
+          </div>
+          <span class="hire-badge">Hiring</span>
+        </div>
+        <div class="display" style="color:#fff;font-size:30px;font-weight:600;margin-bottom:10px;">We need a meta ads expert for our Q4 scale</div>
+        <div style="color:rgba(215,218,220,0.9);font-size:24px;line-height:1.5;">Currently spending $12k/mo on Meta. Looking for an expert or boutique agency to audit our ad account, fix creative fatigue, and scale past $50k. Please DM with case studies.</div>
+        <div style="display:flex;gap:12px;margin-top:18px;color:#d5c4ab;font-size:20px;font-weight:600;">
+          <span style="background:#272729;border-radius:9999px;padding:8px 20px;">▲ 28 ▼</span>
+          <span style="background:#272729;border-radius:9999px;padding:8px 20px;">14 comments</span>
+          <span style="background:#272729;border-radius:9999px;padding:8px 20px;">Share</span>
+        </div>
+      </div>
+
+      <!-- LinkedIn post (exact) -->
+      <div id="postLinkedin" class="linkedin-card" style="padding:28px;opacity:0;position:absolute;top:80px;left:36px;right:36px;">
+        <div style="display:flex;gap:16px;align-items:center;margin-bottom:12px;">
+          <div style="width:64px;height:64px;border-radius:9999px;background:linear-gradient(135deg,#0A66C2,#0e7490);display:grid;place-items:center;color:#fff;font-weight:700;font-size:24px;border:1px solid rgba(255,255,255,0.1);">MV</div>
+          <div><div style="color:#fff;font-size:24px;font-weight:600;">Marcus Vance · 2nd</div><div style="color:#aaa;font-size:20px;">Founder &amp; Creative Director @ Aurum Jewelry</div><div style="color:#777;font-size:18px;">18m · 🌐</div></div>
+        </div>
+        <div style="color:#e3e2e3;font-size:23px;line-height:1.5;">Starting a brand for fine jewelry and need a world-class web designer who can do custom Shopify Plus, 3D embeds, and bespoke micro-interactions. Drop your portfolio below or DM.</div>
+        <div style="color:#70B5F9;font-size:20px;margin-top:8px;">#webdesign #shopify #luxury #ecommerce</div>
+      </div>
+
+      <!-- Pipeline lead card (exact style) -->
+      <div id="pipeCard" class="pipe-card" style="padding:30px;opacity:0;position:absolute;top:80px;left:36px;right:36px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <div style="display:flex;align-items:center;gap:10px;"><span style="width:10px;height:10px;border-radius:9999px;background:#ffb800;"></span><span class="display" style="color:#ffb800;font-size:20px;font-weight:700;letter-spacing:0.16em;">WEB DEVELOPMENT</span></div>
+          <span class="mono" style="color:#d5c4ab;font-size:18px;">Just now</span>
+        </div>
+        <div class="display" style="color:#e3e2e3;font-size:21px;font-weight:700;letter-spacing:0.12em;opacity:0.9;">CUSTOM SHOPIFY PLUS REDESIGN</div>
+        <div class="display" style="color:#e3e2e3;font-size:27px;font-weight:600;line-height:1.35;margin-top:8px;">"Looking to overhaul our DTC store before Q4. Need custom Liquid theme, 3D product embeds."</div>
+        <div style="display:flex;gap:10px;margin-top:14px;">
+          <span class="tag-pill">Shopify Plus</span><span class="tag-dim">Custom Theme</span><span class="tag-dim">$8.5k Budget</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:18px;padding-top:16px;border-top:1px solid rgba(230,224,225,0.08);">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span style="width:44px;height:44px;border-radius:9999px;background:#292a2b;display:grid;place-items:center;color:#d5c4ab;font-size:22px;">🔒</span>
+            <span style="color:#514532;font-size:20px;letter-spacing:2px;">━━━━ ━━━━━━</span>
+          </div>
+          <div id="unlockBtn" class="unlock-btn display" style="padding:18px 26px;font-size:21px;">Unlock &amp; Save&nbsp;&nbsp;◉ -3</div>
+        </div>
+      </div>
+
+      <div id="beam" class="scan-beam" style="top:200px;opacity:0;"></div>
+      <div id="intelBar" class="mono" style="position:absolute;bottom:36px;left:36px;right:36px;display:flex;justify-content:space-between;color:#43ed9e;font-size:20px;opacity:0;">
+        <span>◉ Compiling Intel… Pain Point · Budget · Urgency</span><span style="color:#ffb800;">Intent Score: 94%</span>
+      </div>
+    </div>
+  </section>
+</div>
+<script>
+  const tl = gsap.timeline({ paused: true });
+  tl.fromTo("#step01", { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: "power3.out" }, 0.05);
+  tl.fromTo("#hTitle", { y: 50, opacity: 0 }, { y: 0, opacity: 1, duration: 0.55, ease: "power3.out" }, 0.15);
+  tl.fromTo("#hSub", { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, 0.3);
+  tl.fromTo("#livePill", { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: "power3.out" }, 0.45);
+  tl.fromTo("#lg-rd", { scale: 0.6, opacity: 0, y: 24 }, { scale: 1, opacity: 1, y: 0, duration: 0.35, ease: "back.out(1.8)" }, 0.55);
+  tl.fromTo("#lg-li", { scale: 0.6, opacity: 0, y: 24 }, { scale: 1, opacity: 1, y: 0, duration: 0.35, ease: "back.out(1.8)" }, 0.67);
+  tl.fromTo("#lg-th", { scale: 0.6, opacity: 0, y: 24 }, { scale: 1, opacity: 1, y: 0, duration: 0.35, ease: "back.out(1.8)" }, 0.79);
+  tl.fromTo("#stageBox", { x: 120, opacity: 0 }, { x: 0, opacity: 1, duration: 0.6, ease: "power3.out" }, 0.35);
+  tl.fromTo("#postReddit", { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, 0.7);
+  tl.fromTo("#beam", { opacity: 0 }, { opacity: 1, duration: 0.2, immediateRender: false }, 1.9);
+  tl.fromTo("#beam", { y: 0 }, { y: 400, duration: 0.9, ease: "power2.inOut", immediateRender: false }, 1.9);
+  tl.to("#beam", { opacity: 0, duration: 0.25 }, 2.8);
+  // swap reddit -> linkedin
+  tl.to("#postReddit", { y: -24, opacity: 0, duration: 0.35, ease: "power2.in" }, 3.0);
+  tl.fromTo("#postLinkedin", { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: "power3.out" }, 3.35);
+  tl.fromTo("#intelBar", { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" }, 3.8);
+  // swap linkedin -> pipeline lead card
+  tl.to("#postLinkedin", { y: -24, opacity: 0, duration: 0.35, ease: "power2.in" }, 4.6);
+  tl.fromTo("#pipeCard", { y: 40, opacity: 0, scale: 0.97 }, { y: 0, opacity: 1, scale: 1, duration: 0.6, ease: "power3.out" }, 4.95);
+  tl.fromTo("#unlockBtn", { scale: 0.9, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.4, ease: "back.out(2)" }, 5.5);
+  tl.to("#pipeCard", { y: -10, duration: 0.6, ease: "sine.inOut", yoyo: true, repeat: 3 }, 6.0);
+  tl.to({}, { duration: 0.4 });
+  window.__timelines["main"] = tl;
+  tl.seek(0);
+</script>
+</body>
+</html>

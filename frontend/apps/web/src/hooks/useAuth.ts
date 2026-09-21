@@ -17,45 +17,7 @@ function setSessionCookie(token: string | null) {
   if (token) {
     document.cookie = `__session=${token}; path=/; max-age=3600; SameSite=Lax; secure`
   } else {
-    document.cookie = '__session=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax; secure'
-    document.cookie = '__session=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT;'
-  }
-}
-
-async function clearClientAuthStorage() {
-  setSessionCookie(null)
-
-  if (typeof window !== 'undefined') {
-    try {
-      const keysToRemove: string[] = []
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i)
-        if (
-          key &&
-          (key.startsWith('firebase:') || key.includes('auth') || key.includes('session'))
-        ) {
-          keysToRemove.push(key)
-        }
-      }
-      keysToRemove.forEach((k) => localStorage.removeItem(k))
-    } catch {
-      // ignore storage errors
-    }
-
-    try {
-      if (window.indexedDB && typeof window.indexedDB.databases === 'function') {
-        const dbs = await window.indexedDB.databases()
-        for (const db of dbs) {
-          if (db.name && (db.name.includes('firebase') || db.name.includes('firestore'))) {
-            window.indexedDB.deleteDatabase(db.name)
-          }
-        }
-      } else if (window.indexedDB) {
-        window.indexedDB.deleteDatabase('firebaseLocalStorageDb')
-      }
-    } catch {
-      // ignore indexedDB errors
-    }
+    document.cookie = '__session=; path=/; max-age=0; SameSite=Lax; secure'
   }
 }
 
@@ -248,7 +210,6 @@ export function useAuth() {
       unsubToken()
       unsubAuth()
       document.removeEventListener('visibilitychange', handleVisibilityChange)
-      window.removeEventListener('credits-updated', handleCreditsUpdate)
       clearInterval(syncInterval)
     }
   }, [router])
@@ -273,10 +234,7 @@ export function useAuth() {
       console.warn('[useAuth] firebaseSignOut error during logout:', err)
     }
 
-    // 4. Thoroughly clean indexedDB and localStorage auth tokens
-    await clearClientAuthStorage()
-
-    // 5. Hard navigate to dump memory and eliminate any stale client-side router state
+    // 4. Hard navigate to dump memory and eliminate any stale client-side router state
     if (typeof window !== 'undefined') {
       window.location.href = redirectPath
     } else {

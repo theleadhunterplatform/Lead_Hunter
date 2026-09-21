@@ -4,9 +4,11 @@
 
 @layer base {
   html {
-    font-size: 14px;
+    font-size: 16px;
     scrollbar-width: none;
     -ms-overflow-style: none;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
   }
   html::-webkit-scrollbar {
     display: none;
@@ -20,6 +22,21 @@
       'cv11' on;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: none;
+  }
+  img,
+  video {
+    max-width: 100%;
+    height: auto;
+  }
+  /* Prevent iOS auto-zoom on form fields (needs >= 16px) */
+  @media (max-width: 767px) {
+    input,
+    select,
+    textarea {
+      font-size: 16px;
+    }
   }
 }
 
@@ -179,6 +196,14 @@
   }
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
+  }
+
+  /* Notch / gesture-bar safe-area padding for fixed mobile bars */
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top);
   }
 
   /* ── Ambient glows — Obsidian Kinetic roles ────────────────────────────

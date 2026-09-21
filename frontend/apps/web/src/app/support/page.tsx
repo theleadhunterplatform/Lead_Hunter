@@ -151,7 +151,7 @@ export default function SupportPage() {
   }, [tickets, activeTab, selectedCategory, searchQuery])
 
   return (
-    <main className="flex-1 overflow-y-auto px-6 sm:px-10 py-8 pb-24 relative scrollbar-hide">
+    <main className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-10 pt-8 pb-28 md:py-8 relative scrollbar-hide">
       <div className="absolute top-[-10%] left-1/2 -translate-x-1/2 w-[800px] h-[400px] glow-mint-soft pointer-events-none" />
 
       <div className="max-w-[1400px] mx-auto relative z-10">
@@ -195,15 +195,15 @@ export default function SupportPage() {
           </div>
 
           {/* Top Quick Actions */}
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <Link
               href="/dashboard"
-              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold text-text-secondary hover:text-text-primary hover:bg-white/5 border border-white/10 transition-colors"
+              className="inline-flex items-center gap-2 px-3.5 py-2 min-h-[44px] rounded-xl text-xs font-semibold text-text-secondary hover:text-text-primary hover:bg-white/5 border border-white/10 transition-colors"
             >
               <Squares2X2Icon className="w-3.5 h-3.5" />
               <span>Dashboard</span>
             </Link>
-            <Button variant="primary" color="mint" size="sm" onClick={() => setCreateOpen(true)}>
+            <Button variant="primary" color="mint" size="sm" className="min-h-[44px]" onClick={() => setCreateOpen(true)}>
               <PlusIcon className="w-3.5 h-3.5" />
               <span>New Ticket</span>
             </Button>
@@ -279,7 +279,7 @@ export default function SupportPage() {
           <div className="flex items-center gap-1.5 p-1 rounded-xl bg-white/[0.04] border border-white/[0.06] overflow-x-auto scrollbar-hide">
             <button
               onClick={() => setActiveTab('ALL')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-2 ${
+              className={`px-3.5 py-1.5 min-h-[44px] rounded-lg text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-2 ${
                 activeTab === 'ALL'
                   ? 'bg-accent-orange text-black shadow-md'
                   : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
@@ -297,7 +297,7 @@ export default function SupportPage() {
 
             <button
               onClick={() => setActiveTab('OPEN')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-2 ${
+              className={`px-3.5 py-1.5 min-h-[44px] rounded-lg text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-2 ${
                 activeTab === 'OPEN'
                   ? 'bg-accent-orange text-black shadow-md'
                   : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
@@ -315,7 +315,7 @@ export default function SupportPage() {
 
             <button
               onClick={() => setActiveTab('IN_PROGRESS')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-2 ${
+              className={`px-3.5 py-1.5 min-h-[44px] rounded-lg text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-2 ${
                 activeTab === 'IN_PROGRESS'
                   ? 'bg-accent-orange text-black shadow-md'
                   : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
@@ -333,7 +333,7 @@ export default function SupportPage() {
 
             <button
               onClick={() => setActiveTab('RESOLVED_CLOSED')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-2 ${
+              className={`px-3.5 py-1.5 min-h-[44px] rounded-lg text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-2 ${
                 activeTab === 'RESOLVED_CLOSED'
                   ? 'bg-accent-orange text-black shadow-md'
                   : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
@@ -359,7 +359,7 @@ export default function SupportPage() {
                 placeholder="Search tickets..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-surface-secondary/60 border border-white/10 rounded-xl pl-9 pr-8 py-2 text-xs text-text-primary placeholder:text-text-secondary/60 focus:outline-none focus:border-accent-orange/40 transition-colors"
+                className="w-full bg-surface-secondary/60 border border-white/10 rounded-xl pl-9 pr-8 py-2 min-h-[44px] text-xs text-text-primary placeholder:text-text-secondary/60 focus:outline-none focus:border-accent-orange/40 transition-colors"
               />
               {searchQuery && (
                 <button
@@ -510,11 +510,11 @@ export default function SupportPage() {
                     setSelectedCategory('all')
                     setSearchQuery('')
                   }}
-                  className="px-3.5 py-1.5 rounded-lg text-xs font-medium text-text-secondary hover:text-text-primary bg-white/5 hover:bg-white/10 border border-white/10 transition-colors"
+                  className="px-3.5 py-1.5 min-h-[44px] rounded-lg text-xs font-medium text-text-secondary hover:text-text-primary bg-white/5 hover:bg-white/10 border border-white/10 transition-colors"
                 >
                   Clear Filters
                 </button>
-                <Button variant="primary" color="mint" size="sm" onClick={() => setCreateOpen(true)}>
+                <Button variant="primary" color="mint" size="sm" className="min-h-[44px]" onClick={() => setCreateOpen(true)}>
                   New Ticket
                 </Button>
               </div>

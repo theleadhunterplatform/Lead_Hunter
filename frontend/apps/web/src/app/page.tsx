@@ -55,7 +55,7 @@ function FAQItem({ q, a }: { q: string; a: string }) {
 
 export default function LandingPage() {
   return (
-    <main className="min-h-screen bg-bg-main text-text-primary font-sans overflow-x-hidden max-w-[1100px] mx-auto px-4 sm:px-6">
+    <main className="min-h-screen bg-bg-main text-text-primary font-sans overflow-x-hidden max-w-[1280px] mx-auto px-4 sm:px-6">
       <HeroSection />
 
       {/* Precision Beam Divider */}
@@ -70,7 +70,7 @@ export default function LandingPage() {
             viewport={{ once: true }}
             transition={{ duration: 0.6, ease }}
           >
-            <span className="text-sm font-semibold text-accent-orange mb-3 block">
+            <span className="text-base font-semibold text-accent-orange mb-3 block">
               How it works
             </span>
           </motion.div>
@@ -80,7 +80,7 @@ export default function LandingPage() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8, delay: 0.1, ease }}
-            className="font-display text-2xl sm:text-3xl md:text-[38px] font-semibold tracking-tight mb-3 leading-[1.15] max-w-2xl mx-auto"
+            className="font-display text-2xl sm:text-3xl md:text-[44px] font-semibold tracking-tight mb-3 leading-[1.15] max-w-2xl mx-auto"
           >
             From Raw Signal
             <br />
@@ -92,7 +92,7 @@ export default function LandingPage() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8, delay: 0.2, ease }}
-            className="text-sm sm:text-base text-text-secondary font-light max-w-xl mx-auto leading-relaxed"
+            className="text-base text-text-secondary font-light max-w-xl mx-auto leading-relaxed"
           >
             Here&apos;s exactly how Lead Hunter Club turns unindexed buyer signals into high-value
             client conversations before competitors even know they exist.
@@ -113,7 +113,7 @@ export default function LandingPage() {
             <div className="grid grid-cols-1 md:grid-cols-12 gap-6 md:gap-8 items-center">
               {/* Left Column: Clean Context */}
               <div className="md:col-span-5 flex flex-col justify-center pr-0 md:pr-2">
-                <span className="text-xs font-semibold text-accent-orange block mb-2">
+                <span className="text-sm font-semibold text-accent-orange block mb-2">
                   Step 01
                 </span>
 
@@ -121,7 +121,7 @@ export default function LandingPage() {
                   We Intercept Fresh Signals
                 </h3>
 
-                <p className="text-text-secondary text-xs sm:text-sm leading-relaxed">
+                <p className="text-text-secondary text-sm leading-relaxed">
                   Our engine continuously scans niche communities, social feeds, and intent networks to capture the exact moment someone asks for help with a service you offer. These are real people, posting right now.
                 </p>
               </div>
@@ -185,13 +185,13 @@ export default function LandingPage() {
             </div>
 
             <div>
-              <span className="text-[10px] font-mono text-text-secondary hover:text-text-primary transition-colors uppercase tracking-widest mb-2 block">
+              <span className="text-sm font-mono text-text-secondary mb-2 block">
                 Step 02
               </span>
               <h3 className="font-display text-lg md:text-xl font-semibold mb-2.5 tracking-tight">
                 AI Filters Out the Noise
               </h3>
-              <p className="text-text-secondary text-xs sm:text-sm leading-relaxed">
+              <p className="text-text-secondary text-sm leading-relaxed">
                 Not every signal is worth your time. Our AI automatically filters dead leads, spam,
                 low-intent posts, and irrelevant requests: only genuine, high-probability
                 opportunities make it through.
@@ -252,13 +252,13 @@ export default function LandingPage() {
             </div>
 
             <div>
-              <span className="text-[10px] font-mono text-accent-purple uppercase tracking-widest mb-2 block">
+              <span className="text-sm font-mono text-accent-purple mb-2 block">
                 Step 03
               </span>
               <h3 className="font-display text-lg md:text-xl font-semibold mb-2.5 tracking-tight">
                 We Build Lead Intelligence
               </h3>
-              <p className="text-text-secondary text-xs sm:text-sm leading-relaxed">
+              <p className="text-text-secondary text-sm leading-relaxed">
                 Every surviving lead gets deep-analyzed. We compile buyer context, company details,
                 urgency level, budget indicators, and the exact pain point they expressed, giving
                 you a complete intelligence brief before you even reach out.
@@ -278,7 +278,7 @@ export default function LandingPage() {
             <div className="grid grid-cols-1 md:grid-cols-12 gap-6 md:gap-8 items-center">
               {/* Left Column: Context & Copy */}
               <div className="md:col-span-5 flex flex-col justify-center pr-0 md:pr-2">
-                <span className="text-xs font-semibold text-accent-orange block mb-2">
+                <span className="text-sm font-semibold text-accent-orange block mb-2">
                   Step 04
                 </span>
 
@@ -286,7 +286,7 @@ export default function LandingPage() {
                   Released to the Hunters
                 </h3>
 
-                <p className="text-text-secondary text-xs sm:text-sm leading-relaxed mb-4">
+                <p className="text-text-secondary text-sm leading-relaxed mb-4">
                   Qualified, intelligence-loaded leads land directly in your dashboard, packaged and ready to act on. Reach warm buyers with complete context while the opportunity is fresh.
                 </p>
 
@@ -329,7 +329,7 @@ export default function LandingPage() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8, delay: 0.1, ease }}
-            className="font-display text-2xl sm:text-3xl md:text-[38px] font-semibold tracking-tight mb-4 leading-[1.15] text-text-primary"
+            className="font-display text-2xl sm:text-3xl md:text-[44px] font-semibold tracking-tight mb-4 leading-[1.15] text-text-primary"
           >
             Most lead tools chase volume.
             <br />
@@ -341,7 +341,7 @@ export default function LandingPage() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8, delay: 0.2, ease }}
-            className="text-sm sm:text-base text-text-secondary font-light leading-relaxed max-w-2xl mx-auto"
+            className="text-base text-text-secondary font-light leading-relaxed max-w-2xl mx-auto"
           >
             Anyone can scrape thousands of raw contacts. But without buyer context, cold messages get ignored.
             Lead Hunter Club turns fresh intent signals into rich dossiers that feed your choice of AI, crafting surgical outreach that lands in primary inboxes and drives real replies.

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { getFirebaseToken } from '@/lib/firebase'
 import Link from 'next/link'
 import {
@@ -36,8 +36,6 @@ interface ReviewUser {
   preferredLeadCategories: string[]
   outreachExperience: string | null
   discoverySource: string | null
-  duplicatePhoneMatches?: Array<{ id: string; email: string; name: string; status: string; createdAt: string }>
-  hasDuplicatePhone?: boolean
 }
 
 const PLANS = [
@@ -157,29 +155,6 @@ export default function AdminReviewPage() {
                   </div>
                 </div>
 
-                {u.hasDuplicatePhone && u.duplicatePhoneMatches && u.duplicatePhoneMatches.length > 0 && (
-                  <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-xs">
-                    <div className="flex items-center gap-1.5 text-red-400 font-bold mb-1">
-                      <span>⚠️ DUPLICATE PHONE NUMBER DETECTED</span>
-                    </div>
-                    <p className="text-zinc-300 text-[11px] mb-2">
-                      Mobile number <strong className="text-white font-mono">{u.phone}</strong> is also used by {u.duplicatePhoneMatches.length} other account{u.duplicatePhoneMatches.length > 1 ? 's' : ''}:
-                    </p>
-                    <div className="space-y-1.5">
-                      {u.duplicatePhoneMatches.map((match) => (
-                        <div key={match.id} className="flex items-center justify-between text-[11px] bg-black/40 px-3 py-1.5 rounded-lg border border-white/5">
-                          <Link href={`/admin/users/${match.id}`} className="text-accent-mint hover:underline font-semibold">
-                            {match.name} ({match.email})
-                          </Link>
-                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-white/10 text-zinc-300">
-                            {match.status}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
                 <div className="space-y-3">
                   <div>
                     <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5 flex items-center gap-1">
@@ -284,23 +259,10 @@ function ReviewActions({
   onAction: (userId: string, action: string, plan?: string) => void
 }) {
   const [showPlans, setShowPlans] = useState(false)
-  const wrapperRef = useRef<HTMLDivElement>(null)
-
-  // Close on outside click
-  useEffect(() => {
-    if (!showPlans) return
-    const handleClick = (e: MouseEvent) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
-        setShowPlans(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [showPlans])
 
   return (
     <>
-      <div ref={wrapperRef} className="relative">
+      <div className="relative">
         <button
           onClick={() => setShowPlans(!showPlans)}
           disabled={actionLoading === `${userId}-APPROVE` || actionLoading === `${userId}-REJECT`}
@@ -311,7 +273,7 @@ function ReviewActions({
           <ChevronDownIcon className="w-3.5 h-3.5" />
         </button>
         {showPlans && (
-          <div className="absolute top-full left-0 mt-1 z-[100] w-48 bg-[#292a2b] border border-white/[0.12] rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.6)] overflow-hidden">
+          <div className="absolute top-full left-0 mt-1 z-50 w-48 bg-surface-elevated border border-white/[0.08] rounded-xl shadow-xl overflow-hidden">
             {PLANS.map((p) => (
               <button
                 key={p.id}
@@ -319,10 +281,10 @@ function ReviewActions({
                   setShowPlans(false)
                   onAction(userId, 'APPROVE', p.id)
                 }}
-                className="w-full text-left px-4 py-2.5 text-sm text-white hover:bg-white/[0.08] transition-colors"
+                className="w-full text-left px-4 py-2.5 text-sm text-text-primary hover:bg-white/[0.06] transition-colors"
               >
                 <span className="font-medium">{p.label}</span>
-                <span className="text-zinc-400 ml-2">({p.credits} credits)</span>
+                <span className="text-text-secondary ml-2">({p.credits} credits)</span>
               </button>
             ))}
           </div>

@@ -137,6 +137,11 @@ export default function AdminTokensPage() {
     if (res.ok) {
       setNewKey(''); setNewLabel('')
       fetchTokens()
+      window.dispatchEvent(new CustomEvent('apify-keys-updated'))
+      try {
+        sessionStorage.removeItem('apify_exhausted_modal_dismissed')
+      } catch {}
+      addToast({ type: 'success', message: 'Apify key added successfully' })
     }
   }
 
@@ -147,6 +152,7 @@ export default function AdminTokensPage() {
       headers: { Authorization: `Bearer ${token}` },
     })
     fetchTokens()
+    window.dispatchEvent(new CustomEvent('apify-keys-updated'))
   }
 
   const handleEnrichmentSave = async (service: string, label: string, value: string) => {
