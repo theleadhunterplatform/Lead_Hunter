@@ -144,7 +144,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
       if (body.action === 'APPROVE' || body.action === 'ACTIVATE') {
         const planId = body.plan || 'FREE'
-        await creditService.assignPlan(targetUserId, planId)
+        const customRenewalDate = body.renewalDate ? new Date(body.renewalDate) : undefined
+        await creditService.assignPlan(targetUserId, planId, {
+          customRenewalDate,
+          customCredits: body.subscriptionCredits,
+          adminId: authUser.uid,
+        })
       }
 
       const updated = await db.user.findUnique({
@@ -181,14 +186,20 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
             body.action === 'APPROVE' || body.action === 'ACTIVATE'
               ? body.plan || 'FREE'
               : undefined,
+          renewalDate: body.renewalDate,
+          subscriptionCredits: body.subscriptionCredits,
         },
       })
 
       if (body.action === 'APPROVE' || body.action === 'ACTIVATE') {
+        const initialCredits =
+          body.subscriptionCredits !== undefined
+            ? body.subscriptionCredits
+            : (getPlan(body.plan || 'FREE')?.credits ?? 0)
         emailService.sendApproved(
           { name: user.name, email: user.email },
           body.plan || 'FREE',
-          getPlan(body.plan || 'FREE')?.credits ?? 0,
+          initialCredits,
         )
       } else if (body.action === 'REJECT') {
         emailService.sendRejected({ name: user.name, email: user.email })
@@ -341,7 +352,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         )
       }
 
-      const result = await creditService.assignPlan(targetUserId, body.changePlan)
+      const customRenewalDate = body.renewalDate ? new Date(body.renewalDate) : undefined
+      const result = await creditService.assignPlan(targetUserId, body.changePlan, {
+        customRenewalDate,
+        customCredits: body.subscriptionCredits,
+        adminId: authUser.uid,
+      })
 
       return NextResponse.json({
         data: {
@@ -360,6 +376,55 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
           },
         },
       })
+    }
+
+    if (body.renewalDate !== undefined || body.subscriptionCredits !== undefined) {
+      const user = await db.user.findUnique({ where: { id: targetUserId } })
+      if (!user) {
+        return NextResponse.json({ code: 'NOT_FOUND', message: 'User not found' }, { status: 404 })
+      }
+
+      const renewalDateObj = body.renewalDate ? new Date(body.renewalDate) : undefined
+
+      let result
+      if (renewalDateObj) {
+        result = await creditService.updateRenewalDate(targetUserId, renewalDateObj, {
+          subscriptionCredits: body.subscriptionCredits,
+          adminId: authUser.uid,
+        })
+      } else if (body.subscriptionCredits !== undefined) {
+        result = await db.creditAccount.update({
+          where: { userId: targetUserId },
+          data: { subscriptionBalance: body.subscriptionCredits },
+          select: {
+            subscriptionBalance: true,
+            bonusBalance: true,
+            rolloverBalance: true,
+            rolloverExpiresAt: true,
+            renewalDate: true,
+          },
+        })
+      }
+
+      if (result) {
+        return NextResponse.json({
+          data: {
+            id: targetUserId,
+            email: user.email,
+            name: user.name,
+            plan: user.plan,
+            creditAccount: {
+              subscriptionBalance: result.subscriptionBalance,
+              bonusBalance: result.bonusBalance,
+              rolloverBalance: result.rolloverBalance,
+              rolloverExpiresAt: result.rolloverExpiresAt?.toISOString() || null,
+              total:
+                result.subscriptionBalance + result.bonusBalance + result.rolloverBalance,
+              renewalDate: result.renewalDate?.toISOString() || null,
+            },
+          },
+        })
+      }
     }
   } catch (error: unknown) {
     if (error instanceof ForbiddenError) {

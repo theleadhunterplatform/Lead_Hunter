@@ -322,8 +322,17 @@ export const creditService = {
     return balances.total
   },
 
-  async assignPlan(userId: string, planId: string) {
-    const limit = getPlanCredits(planId)
+  async assignPlan(
+    userId: string,
+    planId: string,
+    options?: {
+      customRenewalDate?: Date
+      customCredits?: number
+      adminId?: string
+    },
+  ) {
+    const defaultLimit = getPlanCredits(planId)
+    const limit = options?.customCredits !== undefined ? options.customCredits : defaultLimit
 
     return db.$transaction(async (tx) => {
       const existingAccount = await tx.creditAccount.findUnique({
@@ -331,18 +340,23 @@ export const creditService = {
         include: { user: { select: { plan: true, razorpayCurrentPeriodEnd: true } } },
       })
 
-      // Renewal Queuing: If existing plan period is still active, queue new 30 days from current expiry
-      const currentExpiry =
-        existingAccount?.renewalDate && existingAccount.renewalDate > now()
-          ? existingAccount.renewalDate
-          : existingAccount?.user?.razorpayCurrentPeriodEnd &&
-            existingAccount.user.razorpayCurrentPeriodEnd > now()
-          ? existingAccount.user.razorpayCurrentPeriodEnd
-          : null
+      let renewalDate: Date
+      if (options?.customRenewalDate) {
+        renewalDate = options.customRenewalDate
+      } else {
+        // Renewal Queuing: If existing plan period is still active, queue new 30 days from current expiry
+        const currentExpiry =
+          existingAccount?.renewalDate && existingAccount.renewalDate > now()
+            ? existingAccount.renewalDate
+            : existingAccount?.user?.razorpayCurrentPeriodEnd &&
+              existingAccount.user.razorpayCurrentPeriodEnd > now()
+            ? existingAccount.user.razorpayCurrentPeriodEnd
+            : null
 
-      const baseDate = currentExpiry ? new Date(currentExpiry) : new Date()
-      baseDate.setDate(baseDate.getDate() + 30)
-      const renewalDate = baseDate
+        const baseDate = currentExpiry ? new Date(currentExpiry) : new Date()
+        baseDate.setDate(baseDate.getDate() + 30)
+        renewalDate = baseDate
+      }
 
       await tx.user.update({
         where: { id: userId },
@@ -376,7 +390,7 @@ export const creditService = {
       await tx.auditLog.create({
         data: {
           userId,
-          adminId: userId,
+          adminId: options?.adminId ?? userId,
           action: 'CREDIT_CHANGE',
           targetType: 'USER',
           targetId: userId,
@@ -384,8 +398,67 @@ export const creditService = {
             type: 'plan_assignment',
             plan: planId,
             subscriptionCredits: limit,
-            queuedFrom: currentExpiry ? currentExpiry.toISOString() : null,
+            customRenewalDate: options?.customRenewalDate ? options.customRenewalDate.toISOString() : null,
             renewalDate: renewalDate.toISOString(),
+          },
+        },
+      })
+
+      return updated
+    })
+  },
+
+  async updateRenewalDate(
+    userId: string,
+    renewalDate: Date,
+    options?: {
+      subscriptionCredits?: number
+      adminId?: string
+    },
+  ) {
+    return db.$transaction(async (tx) => {
+      const existing = await tx.creditAccount.findUnique({
+        where: { userId },
+      })
+      if (!existing) throw new Error('CreditAccount not found')
+
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          razorpayCurrentPeriodEnd: renewalDate,
+        },
+      })
+
+      const updateData: Prisma.CreditAccountUpdateInput = {
+        renewalDate,
+      }
+      if (options?.subscriptionCredits !== undefined) {
+        updateData.subscriptionBalance = options.subscriptionCredits
+      }
+
+      const updated = await tx.creditAccount.update({
+        where: { userId },
+        data: updateData,
+        select: {
+          subscriptionBalance: true,
+          bonusBalance: true,
+          rolloverBalance: true,
+          rolloverExpiresAt: true,
+          renewalDate: true,
+        },
+      })
+
+      await tx.auditLog.create({
+        data: {
+          userId,
+          adminId: options?.adminId ?? userId,
+          action: 'CREDIT_CHANGE',
+          targetType: 'USER',
+          targetId: userId,
+          details: {
+            type: 'renewal_date_update',
+            renewalDate: renewalDate.toISOString(),
+            subscriptionCredits: options?.subscriptionCredits,
           },
         },
       })

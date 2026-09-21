@@ -29,6 +29,30 @@ describe('adminUserActionSchema', () => {
     expect(result.success).toBe(true)
   })
 
+  it('accepts renewalDate and subscriptionCredits with APPROVE', () => {
+    const result = adminUserActionSchema.safeParse({
+      action: 'APPROVE',
+      plan: 'FREELANCER',
+      renewalDate: '2026-09-25',
+      subscriptionCredits: 500,
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('accepts renewalDate standalone update', () => {
+    const result = adminUserActionSchema.safeParse({
+      renewalDate: '2026-10-01T00:00:00.000Z',
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects invalid renewalDate format', () => {
+    const result = adminUserActionSchema.safeParse({
+      renewalDate: 'not-a-date',
+    })
+    expect(result.success).toBe(false)
+  })
+
   it('rejects a payload with no recognized action', () => {
     const result = adminUserActionSchema.safeParse({})
     expect(result.success).toBe(false)

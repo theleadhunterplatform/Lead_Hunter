@@ -103,6 +103,17 @@ export default function AdminUserDetailPage() {
   const [selectedPlan, setSelectedPlan] = useState('FREELANCER')
   const [activeTab, setActiveTab] = useState('overview')
 
+  const getDefaultRenewalDateStr = () => {
+    const d = new Date()
+    d.setDate(d.getDate() + 30)
+    return d.toISOString().split('T')[0]
+  }
+
+  const [approvalRenewalDate, setApprovalRenewalDate] = useState(getDefaultRenewalDateStr)
+  const [approvalCredits, setApprovalCredits] = useState('500')
+  const [editRenewalDate, setEditRenewalDate] = useState('')
+  const [editSubCredits, setEditSubCredits] = useState('')
+
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([])
   const [logsLoading, setLogsLoading] = useState(false)
 
@@ -121,6 +132,12 @@ export default function AdminUserDetailPage() {
       const json = await res.json()
       setUser(json.data)
       setBonusCreditInput('')
+      if (json.data?.creditAccount?.renewalDate) {
+        setEditRenewalDate(json.data.creditAccount.renewalDate.split('T')[0])
+      }
+      if (json.data?.creditAccount?.subscriptionBalance !== undefined) {
+        setEditSubCredits(String(json.data.creditAccount.subscriptionBalance))
+      }
     } catch (e) {
       console.error(e)
     } finally {
@@ -174,13 +191,53 @@ export default function AdminUserDetailPage() {
     if (activeTab === 'notes') fetchNotes()
   }, [activeTab, fetchNotes])
 
-  const handleAction = async (action: string, plan?: string) => {
+  const handleAction = async (
+    action: string,
+    plan?: string,
+    extra?: { renewalDate?: string; subscriptionCredits?: number },
+  ) => {
     setActionLoading(action)
     const token = await getFirebaseToken()
+    const payload: Record<string, unknown> = { action, plan }
+    if (extra?.renewalDate) payload.renewalDate = extra.renewalDate
+    if (extra?.subscriptionCredits !== undefined) payload.subscriptionCredits = extra.subscriptionCredits
+
     const res = await fetch(`/api/admin/users/${params.id}`, {
       method: 'PATCH',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, plan }),
+      body: JSON.stringify(payload),
+    })
+    const json = await res.json()
+    if (json.data) {
+      setUser((prev) =>
+        prev
+          ? {
+              ...prev,
+              status: json.data.status || prev.status,
+              plan: json.data.plan || prev.plan,
+              creditAccount: json.data.creditAccount || prev.creditAccount,
+            }
+          : prev,
+      )
+    }
+    setActionLoading(null)
+  }
+
+  const handleUpdateRenewal = async () => {
+    if (!editRenewalDate) return
+    setActionLoading('updateRenewal')
+    const token = await getFirebaseToken()
+    const payload: Record<string, unknown> = {
+      renewalDate: editRenewalDate,
+    }
+    const parsedSub = parseInt(editSubCredits)
+    if (!isNaN(parsedSub) && parsedSub >= 0) {
+      payload.subscriptionCredits = parsedSub
+    }
+    const res = await fetch(`/api/admin/users/${params.id}`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
     })
     const json = await res.json()
     if (json.data) {
@@ -338,15 +395,19 @@ export default function AdminUserDetailPage() {
             </h3>
             <div className="space-y-3">
               {user.status !== 'ACTIVE' && (
-                <div className="space-y-2">
-                  <label className="text-xs text-text-secondary font-medium">
-                    Approve with Plan
+                <div className="space-y-3">
+                  <label className="text-xs text-text-secondary font-medium block">
+                    Approve with Plan & Renewal
                   </label>
                   <div className="flex gap-1.5">
-                    {PLANS.filter((p) => p.id !== 'FREE').map((p) => (
+                    {PLANS.map((p) => (
                       <button
                         key={p.id}
-                        onClick={() => setSelectedPlan(p.id)}
+                        type="button"
+                        onClick={() => {
+                          setSelectedPlan(p.id)
+                          setApprovalCredits(String(p.credits))
+                        }}
                         className={`flex-1 px-3 py-2 rounded-xl text-xs font-medium border transition-all ${
                           selectedPlan === p.id
                             ? 'bg-green-500/10 border-green-500/30 text-green-400'
@@ -358,8 +419,42 @@ export default function AdminUserDetailPage() {
                       </button>
                     ))}
                   </div>
+
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <div>
+                      <label className="text-xxs text-text-secondary uppercase tracking-wider block mb-1">
+                        Renewal Date
+                      </label>
+                      <input
+                        type="date"
+                        value={approvalRenewalDate}
+                        onChange={(e) => setApprovalRenewalDate(e.target.value)}
+                        className="w-full bg-surface-elevated border border-white/10 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all px-2.5 py-1.5 text-xs"
+                      />
+                      <span className="text-xxs text-text-muted mt-0.5 block">Next Autopay cycle</span>
+                    </div>
+                    <div>
+                      <label className="text-xxs text-text-secondary uppercase tracking-wider block mb-1">
+                        Initial Credits
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={approvalCredits}
+                        onChange={(e) => setApprovalCredits(e.target.value)}
+                        className="w-full bg-surface-elevated border border-white/10 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all px-2.5 py-1.5 text-xs"
+                      />
+                      <span className="text-xxs text-text-muted mt-0.5 block">Starting credits</span>
+                    </div>
+                  </div>
+
                   <button
-                    onClick={() => handleAction('APPROVE', selectedPlan)}
+                    onClick={() =>
+                      handleAction('APPROVE', selectedPlan, {
+                        renewalDate: approvalRenewalDate || undefined,
+                        subscriptionCredits: approvalCredits ? parseInt(approvalCredits) : undefined,
+                      })
+                    }
                     disabled={actionLoading === 'APPROVE'}
                     className="w-full px-4 py-2.5 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 text-sm font-medium hover:bg-green-500/20 transition-all disabled:opacity-50"
                   >
@@ -598,6 +693,49 @@ export default function AdminUserDetailPage() {
               >
                 {actionLoading === 'RENEW_NOW' ? 'Renewing...' : 'Renew Now'}
               </button>
+            </div>
+
+            <div className="pt-4 border-t border-white/[0.06] space-y-3">
+              <span className="text-xs font-semibold text-text-secondary uppercase tracking-wider block">
+                Subscription & Renewal Date Settings
+              </span>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <label className="text-xxs text-text-secondary uppercase tracking-wider block mb-1">
+                    Renewal Date
+                  </label>
+                  <input
+                    type="date"
+                    value={editRenewalDate}
+                    onChange={(e) => setEditRenewalDate(e.target.value)}
+                    className="w-full bg-surface-elevated border border-white/10 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all px-3 py-2 text-sm"
+                  />
+                  <span className="text-xxs text-text-muted mt-0.5 block">Next Autopay cycle date</span>
+                </div>
+                <div>
+                  <label className="text-xxs text-text-secondary uppercase tracking-wider block mb-1">
+                    Subscription Credits
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={editSubCredits}
+                    onChange={(e) => setEditSubCredits(e.target.value)}
+                    placeholder="Credits"
+                    className="w-full bg-surface-elevated border border-white/10 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all px-3 py-2 text-sm"
+                  />
+                  <span className="text-xxs text-text-muted mt-0.5 block">Monthly credit pool</span>
+                </div>
+                <div className="flex items-end">
+                  <button
+                    onClick={handleUpdateRenewal}
+                    disabled={actionLoading === 'updateRenewal' || !editRenewalDate}
+                    className="w-full px-4 py-2.5 rounded-xl bg-accent-mint text-white text-sm font-medium hover:bg-accent-mint/90 transition-all disabled:opacity-50"
+                  >
+                    {actionLoading === 'updateRenewal' ? 'Saving...' : 'Save Renewal Settings'}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>

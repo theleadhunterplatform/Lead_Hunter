@@ -9,6 +9,13 @@ export const adminUserActionSchema = z
     action: z.enum(['APPROVE', 'REJECT', 'SUSPEND', 'ACTIVATE', 'RENEW_NOW']).optional(),
     plan: z.enum(['FREE', 'FREELANCER', 'AGENCY']).optional(),
     bonusCredits: z.number().int().min(0).optional(),
+    subscriptionCredits: z.number().int().min(0).optional(),
+    renewalDate: z
+      .string()
+      .refine((val) => !isNaN(Date.parse(val)), {
+        message: 'Invalid renewal date format',
+      })
+      .optional(),
     changePlan: z.enum(['FREE', 'FREELANCER', 'AGENCY']).optional(),
     tags: z.array(z.string()).optional(),
   })
@@ -16,11 +23,13 @@ export const adminUserActionSchema = z
     (data) =>
       data.action !== undefined ||
       data.bonusCredits !== undefined ||
+      data.subscriptionCredits !== undefined ||
+      data.renewalDate !== undefined ||
       data.changePlan !== undefined ||
       data.tags !== undefined,
     {
       message:
-        'Provide action (APPROVE/REJECT/SUSPEND/ACTIVATE/RENEW_NOW), bonusCredits, changePlan, or tags',
+        'Provide action (APPROVE/REJECT/SUSPEND/ACTIVATE/RENEW_NOW), bonusCredits, subscriptionCredits, renewalDate, changePlan, or tags',
     },
   )
 
