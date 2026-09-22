@@ -1137,25 +1137,7 @@ export default function AdminLeadsPage() {
                           </div>
                         )}
 
-                        {/* Credit Cost Indicator & Quick Edit */}
-                        <button
-                          type="button"
-                          onClick={() => openCreditModal(lead)}
-                          title="Click to override or adjust credit cost for this lead"
-                          className={`px-2 py-0.5 text-[9px] font-black uppercase tracking-wide flex items-center gap-1.5 rounded border transition-all ${
-                            lead.credit_cost !== null && lead.credit_cost !== undefined
-                              ? 'bg-amber-500/15 text-amber-400 border-amber-500/40 hover:bg-amber-500/25 shadow-sm'
-                              : 'bg-surface-elevated text-zinc-400 border-white/[0.08] hover:border-accent-mint/40 hover:text-white'
-                          }`}
-                        >
-                          <Coins size={11} className={lead.credit_cost !== null && lead.credit_cost !== undefined ? 'text-amber-400' : 'text-zinc-500'} />
-                          <span>
-                            {lead.credit_cost !== null && lead.credit_cost !== undefined
-                              ? `⚡ Custom: ${lead.credit_cost} Cr`
-                              : `Cost: ${getLeadRevealCost(lead) ?? '—'} Cr`}
-                          </span>
-                          <Edit3 size={9} className="opacity-60 hover:opacity-100" />
-                        </button>
+
                       </div>
                     </div>
 
@@ -1596,6 +1578,26 @@ export default function AdminLeadsPage() {
                             Reset
                           </button>
                         )}
+
+                        {/* Credit Cost Button in line with approve/reject buttons */}
+                        <button
+                          type="button"
+                          onClick={() => openCreditModal(lead)}
+                          title="Click to set or adjust credit cost for this lead"
+                          className={`h-7 px-3 text-[8px] uppercase font-black rounded-lg flex items-center gap-1.5 border transition-all ${
+                            lead.credit_cost !== null && lead.credit_cost !== undefined
+                              ? 'bg-amber-500/15 text-amber-400 border-amber-500/40 hover:bg-amber-500/25 shadow-sm'
+                              : 'bg-surface-elevated text-zinc-300 border-white/10 hover:border-accent-mint/50 hover:text-white'
+                          }`}
+                        >
+                          <Coins size={12} className={lead.credit_cost !== null && lead.credit_cost !== undefined ? 'text-amber-400' : 'text-zinc-400'} />
+                          <span>
+                            {lead.credit_cost !== null && lead.credit_cost !== undefined
+                              ? `⚡ Custom: ${lead.credit_cost} Cr`
+                              : `Cost: ${getLeadRevealCost(lead) ?? '—'} Cr`}
+                          </span>
+                          <Edit3 size={10} className="opacity-60 hover:opacity-100" />
+                        </button>
                       </div>
 
                       <div className="flex items-center gap-3 flex-wrap justify-end">
