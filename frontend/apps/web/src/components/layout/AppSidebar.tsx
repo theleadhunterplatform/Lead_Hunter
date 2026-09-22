@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { motion } from 'framer-motion'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
@@ -194,8 +195,10 @@ export default function AppSidebar({
             </div>
 
             <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
-              <div
-                style={{ width: `${creditPercentage}%`, transition: 'width 400ms ease' }}
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${creditPercentage}%` }}
+                transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
                 className="h-full bg-accent-orange shadow-[0_0_10px_rgba(var(--rgb-accent-orange),0.5)]"
               />
             </div>
@@ -235,17 +238,19 @@ export default function AppSidebar({
                 fill="none"
               />
               {/* Progress ring */}
-              <circle
+              <motion.circle
                 cx="18"
                 cy="18"
                 r="14"
-                className="text-accent-orange transition-all duration-700 ease-out"
+                className="text-accent-orange"
                 strokeWidth="2.5"
                 strokeDasharray={2 * Math.PI * 14}
-                strokeDashoffset={2 * Math.PI * 14 * (1 - creditPercentage / 100)}
                 strokeLinecap="round"
                 stroke="currentColor"
                 fill="none"
+                initial={{ strokeDashoffset: 2 * Math.PI * 14 }}
+                animate={{ strokeDashoffset: 2 * Math.PI * 14 * (1 - creditPercentage / 100) }}
+                transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
                 style={{
                   filter: 'drop-shadow(0 0 4px rgba(255, 184, 107, 0.45))',
                 }}
