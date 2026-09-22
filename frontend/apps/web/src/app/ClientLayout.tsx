@@ -10,6 +10,7 @@ import { ToastProvider } from '@/components/ui/Toast'
 import { CustomLoader, type LoaderPageType } from '@/components/ui/CustomLoader'
 import { UpgradeNudgePopup, type UpgradeNudgeVariant, CommunityWinPopup, type CommunityPopupPost } from '@/components/ui'
 import { getFirebaseToken } from '@/lib/firebase'
+import { HunterCopilot } from '@/components/chat/HunterCopilot'
 
 
 
@@ -428,6 +429,8 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
           router.push('/community')
         }}
       />
+      {/* 24/7 Hunter Copilot Instant FAQ & Platform Support */}
+      {!isPublicRoute && !isOnboardingRoute && <HunterCopilot />}
     </ToastProvider>
   )
 }
