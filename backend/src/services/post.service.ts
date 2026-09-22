@@ -860,7 +860,7 @@ export const verifyLeadEmail = async (id: string) => verifyLeadEmailManually(id)
 
 export const setManualLeadContact = async (
     id: string,
-    data: { email?: string; phone?: string; note?: string },
+    data: { email?: string; phone?: string; note?: string; credit_cost?: number | null; creditCost?: number | null },
     actorId: string,
     audit?: { ipAddress?: string; organizationId?: string }
 ) => {
@@ -876,6 +876,7 @@ export const setManualLeadContact = async (
             email: data.email?.trim() || null,
             phone: data.phone?.trim() ? '[redacted]' : null,
             note: data.note?.trim() || null,
+            credit_cost: data.credit_cost ?? data.creditCost ?? null,
         },
     });
 
@@ -888,6 +889,8 @@ export const createManualPost = async (data: {
     authorName?: string;
     imageUrl?: string;
     platform?: 'linkedin' | 'twitter' | 'reddit' | 'manual';
+    credit_cost?: number | null;
+    creditCost?: number | null;
 }) => {
     const platform = data.platform || 'manual';
 
@@ -931,6 +934,7 @@ export const createManualPost = async (data: {
         image_url: data.imageUrl,
         is_training_data: true,
         ai_score: 0,
+        credit_cost: data.credit_cost ?? data.creditCost ?? null,
     });
 
     if (post?._id) {

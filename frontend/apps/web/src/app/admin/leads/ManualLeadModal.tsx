@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   XMarkIcon, ArrowUpTrayIcon, PhotoIcon, CheckCircleIcon,
   ExclamationTriangleIcon, DocumentTextIcon, UserIcon, TagIcon,
+  EnvelopeIcon, PhoneIcon,
 } from '@heroicons/react/24/solid'
 import { getFirebaseToken } from '@/lib/firebase'
 import { useToast } from '@/components/ui/Toast'
@@ -31,11 +32,16 @@ const PLATFORMS = [
 ]
 
 export default function ManualLeadModal({ isOpen, onClose, onSuccess }: ManualLeadModalProps) {
+  const [mode, setMode] = useState<'upload' | 'text'>('upload')
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [previews, setPreviews] = useState<string[]>([])
   const [keyword, setKeyword] = useState('')
   const [authorName, setAuthorName] = useState('')
   const [platform, setPlatform] = useState('manual')
+  const [creditCost, setCreditCost] = useState('')
+  const [textContent, setTextContent] = useState('')
+  const [contactEmail, setContactEmail] = useState('')
+  const [contactPhone, setContactPhone] = useState('')
   const [isUploading, setIsUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [results, setResults] = useState<UploadResult[] | null>(null)
@@ -64,23 +70,66 @@ export default function ManualLeadModal({ isOpen, onClose, onSuccess }: ManualLe
   }
 
   const handleUpload = async () => {
-    if (selectedFiles.length === 0) {
-      setError('Please select at least one image')
-      return
-    }
     setIsUploading(true)
     setError(null)
     setResults(null)
 
-    const formData = new FormData()
-    selectedFiles.forEach(f => formData.append('images', f))
-    formData.append('keyword', keyword || 'Manual Bulk Upload')
-    formData.append('platform', platform)
-    if (authorName) formData.append('authorName', authorName)
+    const parsedCost = creditCost.trim() ? parseInt(creditCost.trim(), 10) : undefined
 
     try {
       const token = await getFirebaseToken()
       if (!token) throw new Error('Not authenticated')
+
+      if (mode === 'text') {
+        if (!textContent.trim()) {
+          throw new Error('Please enter the lead post content')
+        }
+        if (!keyword.trim()) {
+          throw new Error('Please enter a target keyword')
+        }
+
+        const res = await fetch('/api/admin/leads/manual', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            content: textContent.trim(),
+            keyword: keyword.trim(),
+            authorName: authorName.trim() || undefined,
+            platform,
+            contactEmail: contactEmail.trim() || undefined,
+            contactPhone: contactPhone.trim() || undefined,
+            creditCost: parsedCost,
+          }),
+        })
+
+        const data = await res.json()
+        if (!res.ok || !data.success) {
+          throw new Error(data?.message || 'Failed to create lead')
+        }
+
+        addToast({ type: 'success', message: '✓ Lead created with custom settings' })
+        onSuccess()
+        resetForm()
+        return
+      }
+
+      // Mode: upload (Screenshots OCR)
+      if (selectedFiles.length === 0) {
+        throw new Error('Please select at least one image')
+      }
+
+      const formData = new FormData()
+      selectedFiles.forEach(f => formData.append('images', f))
+      formData.append('keyword', keyword || 'Manual Bulk Upload')
+      formData.append('platform', platform)
+      if (authorName) formData.append('authorName', authorName)
+      if (parsedCost !== undefined && !isNaN(parsedCost)) {
+        formData.append('creditCost', String(parsedCost))
+      }
+
       const res = await fetch('/api/admin/leads/upload', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
@@ -95,7 +144,7 @@ export default function ManualLeadModal({ isOpen, onClose, onSuccess }: ManualLe
         setTimeout(() => { onSuccess(); resetForm() }, 3000)
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to process images. Please try again.')
+      setError(err.message || 'Failed to process lead. Please try again.')
     } finally {
       setIsUploading(false)
     }
@@ -108,6 +157,10 @@ export default function ManualLeadModal({ isOpen, onClose, onSuccess }: ManualLe
     setKeyword('')
     setAuthorName('')
     setPlatform('manual')
+    setCreditCost('')
+    setTextContent('')
+    setContactEmail('')
+    setContactPhone('')
     setError(null)
     setResults(null)
     onClose()
@@ -129,8 +182,10 @@ export default function ManualLeadModal({ isOpen, onClose, onSuccess }: ManualLe
                   <DocumentTextIcon className="text-accent-mint w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-text-primary tracking-tight">Bulk Lead Ingestion</h2>
-                  <p className="text-[10px] text-text-secondary font-semibold uppercase tracking-widest">Image OCR Pipeline</p>
+                  <h2 className="text-lg font-bold text-text-primary tracking-tight">Manual Lead Ingestion</h2>
+                  <p className="text-[10px] text-text-secondary font-semibold uppercase tracking-widest">
+                    {mode === 'upload' ? 'Image OCR Pipeline' : 'Direct Text & Contact Entry'}
+                  </p>
                 </div>
               </div>
               <button onClick={resetForm} className="text-text-secondary hover:text-white transition-colors">
@@ -138,7 +193,33 @@ export default function ManualLeadModal({ isOpen, onClose, onSuccess }: ManualLe
               </button>
             </div>
 
-            <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+            {/* Mode Switcher */}
+            <div className="px-6 pt-4 flex gap-2 border-b border-white/5 pb-3">
+              <button
+                type="button"
+                onClick={() => setMode('upload')}
+                className={`px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all ${
+                  mode === 'upload'
+                    ? 'bg-accent-mint text-black shadow-sm'
+                    : 'bg-white/5 text-zinc-400 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                Upload Screenshots (OCR)
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode('text')}
+                className={`px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-xl transition-all ${
+                  mode === 'text'
+                    ? 'bg-accent-mint text-black shadow-sm'
+                    : 'bg-white/5 text-zinc-400 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                Direct Text & Contact Entry
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6 max-h-[65vh] overflow-y-auto">
               {error && (
                 <div className="p-4 bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-bold flex items-center gap-3 rounded-xl">
                   <ExclamationTriangleIcon className="w-4 h-4" />
@@ -162,59 +243,103 @@ export default function ManualLeadModal({ isOpen, onClose, onSuccess }: ManualLe
                   </button>
                 </div>
               ) : (
-                <div className="space-y-6">
-                  <div
-                    className="border border-white/10 border-dashed bg-white/[0.03] rounded-xl p-8 text-center cursor-pointer hover:border-accent-mint/50 transition-all group"
-                    onClick={() => fileInputRef.current?.click()}
-                    onDragOver={(e) => { e.preventDefault(); e.stopPropagation() }}
-                    onDrop={(e: DragEvent) => {
-                      e.preventDefault()
-                      e.stopPropagation()
-                      addFiles(Array.from(e.dataTransfer.files))
-                    }}
-                  >
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      className="hidden"
-                      accept="image/*"
-                      multiple
-                      onChange={handleFileChange}
-                    />
+                <div className="space-y-5">
+                  {mode === 'upload' ? (
+                    <div
+                      className="border border-white/10 border-dashed bg-white/[0.03] rounded-xl p-8 text-center cursor-pointer hover:border-accent-mint/50 transition-all group"
+                      onClick={() => fileInputRef.current?.click()}
+                      onDragOver={(e) => { e.preventDefault(); e.stopPropagation() }}
+                      onDrop={(e: DragEvent) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        addFiles(Array.from(e.dataTransfer.files))
+                      }}
+                    >
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        className="hidden"
+                        accept="image/*"
+                        multiple
+                        onChange={handleFileChange}
+                      />
 
-                    {previews.length > 0 ? (
-                      <div className="grid grid-cols-3 md:grid-cols-4 gap-4">
-                        {previews.map((preview, index) => (
-                          <div key={index} className="relative aspect-square group/preview">
-                            <img src={preview} alt="preview" className="w-full h-full object-cover rounded-xl border border-white/10" />
-                            <button
-                              onClick={(e) => { e.stopPropagation(); removeFile(index) }}
-                              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover/preview:opacity-100 transition-opacity"
-                            >
-                              <XMarkIcon className="w-3 h-3" />
-                            </button>
+                      {previews.length > 0 ? (
+                        <div className="grid grid-cols-3 md:grid-cols-4 gap-4">
+                          {previews.map((preview, index) => (
+                            <div key={index} className="relative aspect-square group/preview">
+                              <img src={preview} alt="preview" className="w-full h-full object-cover rounded-xl border border-white/10" />
+                              <button
+                                onClick={(e) => { e.stopPropagation(); removeFile(index) }}
+                                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover/preview:opacity-100 transition-opacity"
+                              >
+                                <XMarkIcon className="w-3 h-3" />
+                              </button>
+                            </div>
+                          ))}
+                          <div className="aspect-square flex flex-col items-center justify-center rounded-xl border border-white/10 border-dashed hover:border-accent-mint transition-colors">
+                            <ArrowUpTrayIcon className="w-5 h-5 text-text-secondary/60 mb-2" />
+                            <span className="text-[8px] font-bold uppercase text-text-secondary">Add More</span>
                           </div>
-                        ))}
-                        <div className="aspect-square flex flex-col items-center justify-center rounded-xl border border-white/10 border-dashed hover:border-accent-mint transition-colors">
-                          <ArrowUpTrayIcon className="w-5 h-5 text-text-secondary/60 mb-2" />
-                          <span className="text-[8px] font-bold uppercase text-text-secondary">Add More</span>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center">
+                          <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                            <ArrowUpTrayIcon className="w-7 h-7 text-text-secondary/60 group-hover:text-accent-mint" />
+                          </div>
+                          <p className="text-sm font-bold uppercase tracking-widest text-text-primary mb-1">Upload Bulk Screenshots</p>
+                          <p className="text-[10px] text-text-secondary uppercase font-bold">Click or Drag Multiple Images (Max 5MB each)</p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-text-secondary flex items-center gap-2">
+                          <DocumentTextIcon className="w-3.5 h-3.5 text-accent-mint" /> Lead Post Content (Required)
+                        </label>
+                        <textarea
+                          rows={4}
+                          placeholder="Paste or type the lead post text here..."
+                          value={textContent}
+                          onChange={(e) => setTextContent(e.target.value)}
+                          className="w-full bg-white/5 border border-white/10 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all p-3 text-sm resize-none"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-bold uppercase tracking-widest text-text-secondary flex items-center gap-2">
+                            <EnvelopeIcon className="w-3 h-3" /> Contact Email (Optional)
+                          </label>
+                          <input
+                            type="email"
+                            placeholder="client@brand.com"
+                            value={contactEmail}
+                            onChange={(e) => setContactEmail(e.target.value)}
+                            className="w-full bg-white/5 border border-white/10 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all px-3.5 py-2.5 text-sm"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-bold uppercase tracking-widest text-text-secondary flex items-center gap-2">
+                            <PhoneIcon className="w-3 h-3" /> Contact Phone (Optional)
+                          </label>
+                          <input
+                            type="tel"
+                            placeholder="+1 (555) 000-0000"
+                            value={contactPhone}
+                            onChange={(e) => setContactPhone(e.target.value)}
+                            className="w-full bg-white/5 border border-white/10 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all px-3.5 py-2.5 text-sm"
+                          />
                         </div>
                       </div>
-                    ) : (
-                      <div className="flex flex-col items-center">
-                        <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                          <ArrowUpTrayIcon className="w-7 h-7 text-text-secondary/60 group-hover:text-accent-mint" />
-                        </div>
-                        <p className="text-sm font-bold uppercase tracking-widest text-text-primary mb-1">Upload Bulk Screenshots</p>
-                        <p className="text-[10px] text-text-secondary uppercase font-bold">Click or Drag Multiple Images (Max 5MB each)</p>
-                      </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <label className="text-[10px] font-bold uppercase tracking-widest text-text-secondary flex items-center gap-2">
-                        <TagIcon className="w-3 h-3" /> Batch Keyword (Optional)
+                        <TagIcon className="w-3 h-3" /> Target Keyword {mode === 'text' ? '(Required)' : '(Optional)'}
                       </label>
                       <input
                         placeholder="e.g. SEO Leads"
@@ -225,15 +350,33 @@ export default function ManualLeadModal({ isOpen, onClose, onSuccess }: ManualLe
                     </div>
                     <div className="space-y-2">
                       <label className="text-[10px] font-bold uppercase tracking-widest text-text-secondary flex items-center gap-2">
-                        <UserIcon className="w-3 h-3" /> Author Prefix (Optional)
+                        <UserIcon className="w-3 h-3" /> Author / Contact Name (Optional)
                       </label>
                       <input
-                        placeholder="e.g. Unknown Author"
+                        placeholder="e.g. Acme Corp / Jane Doe"
                         value={authorName}
                         onChange={e => setAuthorName(e.target.value)}
                         className="w-full bg-white/5 border border-white/10 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all px-3.5 py-2.5 text-sm"
                       />
                     </div>
+                  </div>
+
+                  {/* Credit Cost Override Input */}
+                  <div className="p-4 bg-surface-elevated/40 border border-white/10 rounded-xl space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-amber-400 flex items-center gap-1.5">
+                        <span>⚡ Credit Cost Override (Coins)</span>
+                      </label>
+                      <span className="text-[9px] text-zinc-500 font-medium">Leave blank for default (2–10 coins)</span>
+                    </div>
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder="e.g. 15 (Set custom unlock price for this lead)"
+                      value={creditCost}
+                      onChange={e => setCreditCost(e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 text-white rounded-xl outline-none focus:ring-1 focus:ring-amber-500/50 transition-all px-3.5 py-2 text-sm"
+                    />
                   </div>
 
                   <div className="space-y-3">
@@ -268,7 +411,7 @@ export default function ManualLeadModal({ isOpen, onClose, onSuccess }: ManualLe
               </button>
               <button
                 onClick={handleUpload}
-                disabled={isUploading || selectedFiles.length === 0 || results !== null}
+                disabled={isUploading || (mode === 'upload' && selectedFiles.length === 0 && results === null) || (mode === 'text' && !textContent.trim())}
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-accent-mint text-black rounded-xl font-bold text-sm hover:brightness-110 transition-all disabled:opacity-50"
               >
                 {isUploading ? (
@@ -279,7 +422,11 @@ export default function ManualLeadModal({ isOpen, onClose, onSuccess }: ManualLe
                 ) : (
                   <DocumentTextIcon className="w-4 h-4" />
                 )}
-                {isUploading ? 'Processing Batch...' : `Process ${selectedFiles.length} ${selectedFiles.length === 1 ? 'Lead' : 'Leads'}`}
+                {isUploading
+                  ? 'Saving Lead...'
+                  : mode === 'text'
+                    ? 'Create Manual Lead'
+                    : `Process ${selectedFiles.length} ${selectedFiles.length === 1 ? 'Lead' : 'Leads'}`}
               </button>
             </div>
           </motion.div>

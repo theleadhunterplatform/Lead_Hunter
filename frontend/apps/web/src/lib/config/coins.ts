@@ -51,7 +51,20 @@ export function getRevealCost(bundle: ContactBundle): number | null {
   return null
 }
 
-/** Convenience wrapper that computes cost directly from an ExternalPost. */
-export function getLeadRevealCost(lead: Parameters<typeof leadContactBundle>[0]): number | null {
+/**
+ * Convenience wrapper that computes cost directly from an ExternalPost.
+ * If a custom credit cost (`credit_cost` or `creditCost`) is set on the lead,
+ * it overrides the default contact-bundle-based cost and is returned directly.
+ */
+export function getLeadRevealCost(
+  lead: Parameters<typeof leadContactBundle>[0] & {
+    credit_cost?: number | null
+    creditCost?: number | null
+  },
+): number | null {
+  const manualCost = lead.credit_cost ?? lead.creditCost
+  if (typeof manualCost === 'number' && manualCost >= 0) {
+    return manualCost
+  }
   return getRevealCost(leadContactBundle(lead))
 }

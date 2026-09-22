@@ -265,11 +265,16 @@ export const verifyEmailPost = asyncHandler(async (req: Request, res: Response, 
 export const setManualLeadContactPost = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
     const user = req.user as any;
     const orgId = req.headers['x-org-id'] as string | undefined;
-    const { email, phone, note } = req.body ?? {};
+    const { email, phone, note, credit_cost, creditCost } = req.body ?? {};
 
     const post = await postService.setManualLeadContact(
         req.params.id as string,
-        { email, phone, note },
+        {
+            email,
+            phone,
+            note,
+            credit_cost: typeof credit_cost === 'number' ? credit_cost : typeof creditCost === 'number' ? creditCost : (credit_cost === null || creditCost === null ? null : undefined),
+        },
         user.id || user._id,
         { organizationId: orgId, ipAddress: req.ip }
     );
@@ -338,7 +343,12 @@ export const uploadManualPost = asyncHandler(async (req: Request, res: Response,
         return;
     }
 
-    const { keyword = 'Manual Bulk Upload', authorName, platform = 'manual' } = req.body;
+    const { keyword = 'Manual Bulk Upload', authorName, platform = 'manual', credit_cost, creditCost } = req.body;
+    const parsedCreditCost = typeof credit_cost === 'number'
+        ? credit_cost
+        : typeof creditCost === 'number'
+            ? creditCost
+            : (credit_cost && !isNaN(Number(credit_cost)) ? Number(credit_cost) : undefined);
 
     // Return immediate response to the client
     res.status(202).json({
@@ -363,7 +373,8 @@ export const uploadManualPost = asyncHandler(async (req: Request, res: Response,
                     keyword: keyword || 'Manual Bulk Upload',
                     authorName: authorName || 'Manual Lead',
                     imageUrl: `/uploads/${file.filename}`,
-                    platform: platform
+                    platform: platform,
+                    credit_cost: parsedCreditCost,
                 };
 
                 // Add AI relevancy if available
@@ -461,7 +472,7 @@ export const getClaimedPosts = asyncHandler(async (req: Request, res: Response, 
 // @route   POST /api/posts/manual
 // @access  Private (lead:hunt)
 export const createManualLeadPost = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
-    const { content, keyword, authorName, platform } = req.body ?? {};
+    const { content, keyword, authorName, platform, credit_cost, creditCost } = req.body ?? {};
 
     if (!content?.trim()) {
         return res.status(400).json({ success: false, message: 'content is required' });
@@ -475,6 +486,7 @@ export const createManualLeadPost = asyncHandler(async (req: Request, res: Respo
         keyword: keyword.trim(),
         authorName: authorName?.trim() || 'Manual Entry',
         platform: platform || 'manual',
+        credit_cost: typeof credit_cost === 'number' ? credit_cost : typeof creditCost === 'number' ? creditCost : undefined,
     });
 
     return res.status(201).json({

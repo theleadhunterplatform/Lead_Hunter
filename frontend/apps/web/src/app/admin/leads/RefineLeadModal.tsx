@@ -20,6 +20,7 @@ export default function RefineLeadModal({ isOpen, onClose, onSuccess, lead }: Re
   const [content, setContent] = useState('')
   const [keyword, setKeyword] = useState('')
   const [authorName, setAuthorName] = useState('')
+  const [creditCost, setCreditCost] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { addToast } = useToast()
@@ -29,6 +30,7 @@ export default function RefineLeadModal({ isOpen, onClose, onSuccess, lead }: Re
       setContent(lead.content === 'Manual Extraction Required' ? '' : lead.content)
       setKeyword(lead.keyword || '')
       setAuthorName(lead.author?.name || '')
+      setCreditCost(lead.credit_cost !== null && lead.credit_cost !== undefined ? String(lead.credit_cost) : '')
     }
   }, [lead])
 
@@ -41,6 +43,8 @@ export default function RefineLeadModal({ isOpen, onClose, onSuccess, lead }: Re
     setIsSubmitting(true)
     setError(null)
 
+    const parsedCost = creditCost.trim() === '' ? null : parseInt(creditCost.trim(), 10)
+
     try {
       const token = await getFirebaseToken()
       if (!token) throw new Error('Not authenticated')
@@ -52,6 +56,7 @@ export default function RefineLeadModal({ isOpen, onClose, onSuccess, lead }: Re
           keyword: keyword.trim(),
           author: { ...lead.author, name: authorName.trim() },
           status: 'pending',
+          credit_cost: isNaN(parsedCost as number) ? null : parsedCost,
         }),
       })
       const data = await res.json()
@@ -158,6 +163,23 @@ export default function RefineLeadModal({ isOpen, onClose, onSuccess, lead }: Re
                   <input
                     value={keyword}
                     onChange={e => setKeyword(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all px-3.5 py-2.5 text-sm"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-text-secondary flex items-center gap-2">
+                      <span>⚡ Credit Cost Override</span>
+                    </label>
+                    <span className="text-[9px] text-zinc-500 font-medium">Leave blank for default bundle pricing</span>
+                  </div>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="e.g. 15 (Overrides default 2-10 coins)"
+                    value={creditCost}
+                    onChange={e => setCreditCost(e.target.value)}
                     className="w-full bg-white/5 border border-white/10 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all px-3.5 py-2.5 text-sm"
                   />
                 </div>

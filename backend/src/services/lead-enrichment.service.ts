@@ -435,7 +435,7 @@ async function tryDualFindCandidates(lead: any, candidates: EmailCandidate[]) {
 
 export async function applyManualLeadContact(
     leadId: string,
-    input: { email?: string; phone?: string; note?: string }
+    input: { email?: string; phone?: string; note?: string; credit_cost?: number | null; creditCost?: number | null }
 ) {
     const email = input.email?.trim().toLowerCase() || '';
     const phone = input.phone?.trim() || '';
@@ -495,6 +495,13 @@ export async function applyManualLeadContact(
             ...lead.contact_info,
             ...phoneMerge,
         };
+    }
+
+    const costInput = input.credit_cost !== undefined ? input.credit_cost : input.creditCost;
+    if (typeof costInput === 'number' && costInput >= 0) {
+        lead.credit_cost = costInput;
+    } else if (costInput === null) {
+        lead.credit_cost = null;
     }
 
     lead.enrichment_status = 'partial';

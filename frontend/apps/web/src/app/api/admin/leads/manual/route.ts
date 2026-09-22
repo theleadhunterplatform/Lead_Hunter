@@ -15,6 +15,8 @@ interface ManualLeadRequest {
   contactPhone?: string
   contactName?: string
   contactCompany?: string
+  creditCost?: number | null
+  credit_cost?: number | null
 }
 
 export async function POST(request: NextRequest) {
@@ -29,6 +31,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: 'Keyword is required' }, { status: 400 })
     }
 
+    const assignedCreditCost = typeof body.credit_cost === 'number'
+      ? body.credit_cost
+      : typeof body.creditCost === 'number'
+        ? body.creditCost
+        : undefined
+
     // Step 1 — create the manual lead post
     const createRes = await fetchApi<{ success: boolean; data?: ExternalPost; message?: string }>(
       '/posts/manual',
@@ -39,6 +47,7 @@ export async function POST(request: NextRequest) {
           keyword: body.keyword.trim(),
           authorName: body.contactName?.trim() || body.authorName?.trim() || 'Manual Entry',
           platform: body.platform || 'manual',
+          credit_cost: assignedCreditCost,
         }),
       },
     )

@@ -17,6 +17,8 @@ import {
   ClipboardCheck,
   Trash2,
   Plus,
+  Coins,
+  Edit3,
 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 
@@ -26,6 +28,7 @@ import RefineLeadModal from './RefineLeadModal'
 import { useToast } from '@/components/ui/Toast'
 import { getFirebaseToken } from '@/lib/firebase'
 import { applyClaimResponseToLead } from '@/lib/claim-reveal'
+import { getLeadRevealCost } from '@/lib/config/coins'
 import {
   formatVerifiedByLabel,
   getEmailStatusBadge,
@@ -114,6 +117,9 @@ export default function AdminLeadsPage() {
   const [isManualModalOpen, setIsManualModalOpen] = useState(false)
   const [isRefineModalOpen, setIsRefineModalOpen] = useState(false)
   const [refineLead, setRefineLead] = useState<ExternalPost | null>(null)
+  const [creditModalLead, setCreditModalLead] = useState<ExternalPost | null>(null)
+  const [customCostInput, setCustomCostInput] = useState<string>('')
+  const [savingCreditCost, setSavingCreditCost] = useState(false)
   const [claimingIds, setClaimingIds] = useState<string[]>([])
   const [bulkReanalysing, setBulkReanalysing] = useState(false)
   const [reanalysePolling, setReanalysePolling] = useState(false)
@@ -294,6 +300,51 @@ export default function AdminLeadsPage() {
     } catch (error) {
       console.error('Failed to update lead label', error)
       fetchLeads()
+    }
+  }
+
+  const openCreditModal = (lead: ExternalPost) => {
+    setCreditModalLead(lead)
+    setCustomCostInput(
+      lead.credit_cost !== null && lead.credit_cost !== undefined
+        ? String(lead.credit_cost)
+        : '',
+    )
+  }
+
+  const handleSaveCreditCost = async (clear = false) => {
+    if (!creditModalLead) return
+    setSavingCreditCost(true)
+    const newCost = clear ? null : (customCostInput.trim() === '' ? null : parseInt(customCostInput.trim(), 10))
+    if (!clear && newCost !== null && (isNaN(newCost) || newCost < 0)) {
+      addToast({ type: 'error', message: 'Please enter a valid credit number (>= 0)' })
+      setSavingCreditCost(false)
+      return
+    }
+
+    try {
+      const token = await getFirebaseToken()
+      if (!token) throw new Error('Not authenticated')
+      const res = await fetch(`/api/admin/leads/${creditModalLead.id}`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credit_cost: newCost }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json?.message || 'Failed to update credit cost')
+
+      setLeads((prev) =>
+        prev.map((l) => (l.id === creditModalLead.id ? { ...l, credit_cost: newCost } : l)),
+      )
+      addToast({
+        type: 'success',
+        message: clear ? '✓ Reset to default bundle pricing' : `✓ Custom cost set to ${newCost} credits`,
+      })
+      setCreditModalLead(null)
+    } catch (err: any) {
+      addToast({ type: 'error', message: err.message || 'Failed to update credit cost' })
+    } finally {
+      setSavingCreditCost(false)
     }
   }
 
@@ -1085,6 +1136,26 @@ export default function AdminLeadsPage() {
                             )}
                           </div>
                         )}
+
+                        {/* Credit Cost Indicator & Quick Edit */}
+                        <button
+                          type="button"
+                          onClick={() => openCreditModal(lead)}
+                          title="Click to override or adjust credit cost for this lead"
+                          className={`px-2 py-0.5 text-[9px] font-black uppercase tracking-wide flex items-center gap-1.5 rounded border transition-all ${
+                            lead.credit_cost !== null && lead.credit_cost !== undefined
+                              ? 'bg-amber-500/15 text-amber-400 border-amber-500/40 hover:bg-amber-500/25 shadow-sm'
+                              : 'bg-surface-elevated text-zinc-400 border-white/[0.08] hover:border-accent-mint/40 hover:text-white'
+                          }`}
+                        >
+                          <Coins size={11} className={lead.credit_cost !== null && lead.credit_cost !== undefined ? 'text-amber-400' : 'text-zinc-500'} />
+                          <span>
+                            {lead.credit_cost !== null && lead.credit_cost !== undefined
+                              ? `⚡ Custom: ${lead.credit_cost} Cr`
+                              : `Cost: ${getLeadRevealCost(lead) ?? '—'} Cr`}
+                          </span>
+                          <Edit3 size={9} className="opacity-60 hover:opacity-100" />
+                        </button>
                       </div>
                     </div>
 
@@ -1674,6 +1745,97 @@ export default function AdminLeadsPage() {
         onSuccess={fetchLeads}
         lead={refineLead}
       />
+
+      {/* Quick Credit Cost Override Modal */}
+      <AnimatePresence>
+        {creditModalLead && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="w-full max-w-md bg-surface border border-white/10 rounded-2xl overflow-hidden shadow-2xl"
+            >
+              <div className="p-5 border-b border-white/10 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center">
+                    <Coins size={16} className="text-amber-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white tracking-tight">Set Lead Credit Cost</h3>
+                    <p className="text-[10px] text-zinc-400 font-semibold uppercase tracking-wider">
+                      Overrides default contact-bundle pricing
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setCreditModalLead(null)}
+                  className="text-zinc-500 hover:text-white transition-colors p-1"
+                >
+                  <XCircle size={18} />
+                </button>
+              </div>
+
+              <div className="p-5 space-y-4">
+                <div className="p-3 bg-surface-elevated/60 border border-white/[0.06] rounded-xl text-xs space-y-1">
+                  <div className="flex justify-between text-zinc-400 text-[11px]">
+                    <span>Default Contact-Bundle Cost:</span>
+                    <span className="font-bold text-white">
+                      {getLeadRevealCost({ ...creditModalLead, credit_cost: null }) ?? 'None'} credits
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-zinc-400 text-[11px]">
+                    <span>Current Active Cost:</span>
+                    <span className="font-bold text-accent-mint">
+                      {getLeadRevealCost(creditModalLead) ?? 'None'} credits
+                      {creditModalLead.credit_cost !== null && creditModalLead.credit_cost !== undefined ? ' (Custom)' : ' (Default)'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 flex items-center gap-1.5">
+                    <span>Custom Credit Cost (Coins)</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="e.g. 15 (Enter credits needed to unlock)"
+                    value={customCostInput}
+                    onChange={(e) => setCustomCostInput(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 text-white rounded-xl outline-none focus:ring-1 focus:ring-amber-500/60 transition-all px-3.5 py-2.5 text-sm"
+                  />
+                  <p className="text-[10px] text-zinc-500">
+                    Entering a number will immediately override the default unlock price for this lead in the user feed and during unlock deductions.
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-5 bg-black/40 border-t border-white/10 flex items-center gap-3">
+                {creditModalLead.credit_cost !== null && creditModalLead.credit_cost !== undefined && (
+                  <button
+                    type="button"
+                    onClick={() => handleSaveCreditCost(true)}
+                    disabled={savingCreditCost}
+                    className="h-10 px-4 rounded-xl text-xs font-bold uppercase tracking-wider bg-white/5 text-zinc-400 border border-white/10 hover:bg-white/10 hover:text-white transition-all disabled:opacity-50"
+                  >
+                    Reset to Default
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => handleSaveCreditCost(false)}
+                  disabled={savingCreditCost}
+                  className="flex-1 h-10 px-4 rounded-xl text-xs font-bold uppercase tracking-wider bg-amber-500 text-black hover:bg-amber-400 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {savingCreditCost ? <Loader2 size={14} className="animate-spin" /> : <Coins size={14} />}
+                  {savingCreditCost ? 'Saving...' : 'Save Credit Cost'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

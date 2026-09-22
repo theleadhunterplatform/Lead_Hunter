@@ -144,6 +144,7 @@ const LeadPost = {
                 reviewed_at: data.reviewed_at || null,
                 reviewed_by_id: data.reviewed_by_id || null,
                 claimed_count: data.claimed_count ?? 0,
+                credit_cost: data.credit_cost !== undefined ? data.credit_cost : (data.creditCost !== undefined ? data.creditCost : null),
             },
         });
         return mapPost(post);

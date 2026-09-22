@@ -3,7 +3,9 @@ export const manualContactSchema = {
     properties: {
         email: { type: "string" },
         phone: { type: "string" },
-        note: { type: "string", maxLength: 500 }
+        note: { type: "string", maxLength: 500 },
+        credit_cost: { type: ["number", "null"] },
+        creditCost: { type: ["number", "null"] }
     },
     additionalProperties: false
 };

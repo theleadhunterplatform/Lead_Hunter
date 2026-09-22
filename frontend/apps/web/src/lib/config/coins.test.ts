@@ -133,4 +133,35 @@ describe('getLeadRevealCost', () => {
   it('returns null for a lead with no contact data', () => {
     expect(getLeadRevealCost(makePost({}))).toBeNull()
   })
+
+  it('overrides default pricing when credit_cost is explicitly set', () => {
+    const cost = getLeadRevealCost({
+      ...makePost({
+        email: 'jane@example.com',
+        contact_info: { name: 'Jane', emails: [], phone_numbers: [{ number: '+1' }] },
+      }),
+      credit_cost: 15,
+    })
+    expect(cost).toBe(15)
+  })
+
+  it('overrides default pricing when creditCost camelCase is set', () => {
+    const cost = getLeadRevealCost({
+      ...makePost({
+        email: 'jane@example.com',
+      }),
+      creditCost: 25,
+    })
+    expect(cost).toBe(25)
+  })
+
+  it('falls back to contact bundle default when credit_cost is null or undefined', () => {
+    const cost = getLeadRevealCost({
+      ...makePost({
+        email: 'jane@example.com',
+      }),
+      credit_cost: null,
+    })
+    expect(cost).toBe(5)
+  })
 })

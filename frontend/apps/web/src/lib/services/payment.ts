@@ -207,7 +207,7 @@ export const paymentService = {
         where: { userId },
         data: {
           subscriptionBalance: freeCredits,
-          renewalDate: nextRenewalDate(),
+          renewalDate: null,
         },
       })
 

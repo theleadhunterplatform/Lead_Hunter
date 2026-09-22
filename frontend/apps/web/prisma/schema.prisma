@@ -424,6 +424,7 @@ model LeadPost {
   reviewed_at          DateTime?
   reviewed_by_id       String?
   claimed_count        Int       @default(0)
+  credit_cost          Int?
   created_at           DateTime  @default(now())
   updated_at           DateTime  @updatedAt
 

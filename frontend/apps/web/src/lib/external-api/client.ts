@@ -223,6 +223,7 @@ export interface ExternalPost {
   reviewed_by_name: string | null
   is_claimed: boolean
   claimed_count: number
+  credit_cost?: number | null
   created_at: string
   updated_at: string
 }

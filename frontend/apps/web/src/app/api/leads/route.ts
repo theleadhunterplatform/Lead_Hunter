@@ -138,6 +138,7 @@ function externalPostToAppLead(
     isClaimable: isClaimedByOther ? false : isLeadClaimable(post),
     isClaimedByOther,
     hasPhone: !isClaimedByOther && !!phone,
+    creditCost: (post as any).credit_cost ?? null,
     revealCost: isClaimedByOther ? null : getLeadRevealCost(post),
     phone: isRevealed ? phone : null,
   }
@@ -221,6 +222,7 @@ const LEAD_POST_SELECT = {
   reviewed_at: true,
   reviewed_by_id: true,
   claimed_count: true,
+  credit_cost: true,
   created_at: true,
   updated_at: true,
 } as const

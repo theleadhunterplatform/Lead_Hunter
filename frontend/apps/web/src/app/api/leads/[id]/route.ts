@@ -149,6 +149,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       isRevealed,
       isClaimable,
       hasPhone: !!phone,
+      creditCost: externalLead.credit_cost ?? null,
       revealCost: getLeadRevealCost(externalLead),
       phone: isRevealed ? phone : null,
     }
