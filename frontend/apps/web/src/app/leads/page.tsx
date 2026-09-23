@@ -324,7 +324,27 @@ export default function LeadsPage() {
         const json = await res.json()
         if (!cancelled && res.ok && json.data) {
           const fresh = json.data as AppLead
-          setLeadsList((prev) => prev.map((l) => (l.id === fresh.id ? { ...l, ...fresh } : l)))
+          setLeadsList((prev) =>
+            prev.map((l) =>
+              l.id === fresh.id
+                ? {
+                    ...l,
+                    ...fresh,
+                    category:
+                      fresh.category && fresh.category !== 'General'
+                        ? fresh.category
+                        : l.category || fresh.category,
+                    niche:
+                      fresh.niche && fresh.niche !== 'General'
+                        ? fresh.niche
+                        : l.niche || fresh.niche,
+                    niches: fresh.niches && fresh.niches.length > 0 ? fresh.niches : l.niches,
+                    nicheTags:
+                      fresh.nicheTags && fresh.nicheTags.length > 0 ? fresh.nicheTags : l.nicheTags,
+                  }
+                : l,
+            ),
+          )
         }
       } catch {
         // keep list version, drawer still works

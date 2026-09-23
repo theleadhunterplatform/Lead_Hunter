@@ -9,9 +9,18 @@ import {
 } from '@/lib/auth'
 import { getPost } from '@/lib/external-api/client'
 import type { ExternalPost } from '@/lib/external-api/client'
+import { oracleDb } from '@/lib/oracle-db'
+import { mapLeadPostToExternal } from '@/lib/oracle-mapper'
 import { updateLeadSchema } from '@/lib/validators/auth'
 import type { AppLead } from '@/types/lead'
-import { extractNiches, sanitizePublicText, extractCleanNicheTags, sanitizeHeadline } from '@/lib/claim-reveal'
+import {
+  extractNiches,
+  sanitizePublicText,
+  extractCleanNicheTags,
+  extractLeadBadges,
+  extractLeadSummaries,
+  sanitizeHeadline,
+} from '@/lib/claim-reveal'
 import { getLeadRevealCost } from '@/lib/config/coins'
 
 export const dynamic = 'force-dynamic'
@@ -80,38 +89,107 @@ function extractTags(post: ExternalPost): string[] {
   return tags
 }
 
+const LEAD_POST_SELECT = {
+  id: true,
+  post_id: true,
+  url: true,
+  content: true,
+  platform: true,
+  author: true,
+  posted_at: true,
+  engagement: true,
+  keyword: true,
+  keyword_id: true,
+  status: true,
+  source: true,
+  image_url: true,
+  ai_score: true,
+  is_training_data: true,
+  is_deleted: true,
+  email: true,
+  contact_info: true,
+  source_type: true,
+  source_profile: true,
+  qualification_reason: true,
+  enrichment_status: true,
+  enrichment_message: true,
+  enriched_at: true,
+  intelligence: true,
+  title: true,
+  niche: true,
+  review_status: true,
+  reviewed_at: true,
+  reviewed_by_id: true,
+  claimed_count: true,
+  credit_cost: true,
+  created_at: true,
+  updated_at: true,
+} as const
+
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const authUser = await requireFullyAuthorized(request)
     const userId = authUser.uid
 
-    const externalLead = await getPost(params.id)
+    let externalLead: ExternalPost | null = null
+    try {
+      const rawPost = await oracleDb.leadPost.findUnique({
+        where: { id: params.id },
+        select: LEAD_POST_SELECT,
+      })
+      if (rawPost) {
+        externalLead = mapLeadPostToExternal(rawPost as any)
+      }
+    } catch (e) {
+      console.warn('[Lead GET] Failed to fetch from oracleDb, falling back to getPost:', e)
+    }
 
-    const userState = await db.userLeadState.findUnique({
-      where: {
-        userId_leadId: {
-          userId,
-          leadId: params.id,
+    if (!externalLead) {
+      externalLead = await getPost(params.id)
+    }
+
+    const [userState, otherRevealed] = await Promise.all([
+      db.userLeadState.findUnique({
+        where: {
+          userId_leadId: {
+            userId,
+            leadId: params.id,
+          },
         },
-      },
-    })
+      }),
+      db.userLeadState.findFirst({
+        where: {
+          leadId: params.id,
+          isRevealed: true,
+          userId: { not: userId },
+        },
+        select: { id: true },
+      }),
+    ])
 
     const isRevealed = userState?.isRevealed || false
+    const isClaimedByOther = !!otherRevealed
     const phone = externalLead.contact_info?.phone_numbers?.[0]?.number || null
     const email = externalLead.email || externalLead.contact_info?.emails?.[0]?.email || ''
-    const isClaimable = externalLead.source === 'seed' || (externalLead.review_status === 'approved' && !!externalLead.intelligence)
+    const isClaimable = isClaimedByOther
+      ? false
+      : externalLead.source === 'seed' ||
+        (externalLead.review_status === 'approved' && !!externalLead.intelligence)
     const intel = externalLead.intelligence || ''
+    const primaryNiche = externalLead.niche || null
 
-    const niches = extractNiches(externalLead.keyword, externalLead.content || '', externalLead.intelligence)
-    const cleanTags = extractCleanNicheTags(externalLead, niches)
-    const cleanTitle = sanitizeHeadline(externalLead.author?.info || externalLead.keyword || '', niches[0])
-    const cleanScope = sanitizePublicText(
-      extractSection(intel, 'Context You Might Miss') ||
-        extractSection(intel, 'What They Actually Want') ||
-        extractSection(intel, 'One-Liner') ||
-        externalLead.content ||
-        '',
+    const niches = extractNiches(
+      externalLead.keyword,
+      externalLead.content || '',
+      externalLead.intelligence,
+      primaryNiche,
     )
+    const cleanTags = extractLeadBadges(externalLead, niches)
+    const resolvedNiche = primaryNiche || niches[0] || 'General'
+    const cleanTitle =
+      externalLead.title?.trim() ||
+      sanitizeHeadline(externalLead.author?.info || externalLead.keyword || '', resolvedNiche)
+    const { summary, detailsSummary } = extractLeadSummaries(externalLead)
 
     const lead: AppLead = {
       id: externalLead.id,
@@ -126,11 +204,14 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
           ''
         : 'Confidential Client',
       source: 'Lead Signal',
-      category: niches[0] || 'General',
+      category: resolvedNiche,
+      niche: resolvedNiche,
       title: cleanTitle,
       signalContext: isRevealed ? externalLead.content || '' : sanitizePublicText(externalLead.content || ''),
       role: sanitizePublicText(externalLead.author?.info || extractSection(intel, 'One-Liner')),
-      taskScope: cleanScope,
+      taskScope: summary,
+      summary,
+      detailsSummary,
       mustHave: sanitizePublicText(extractSection(intel, 'What They Actually Want')),
       nicheBonus: sanitizePublicText(extractSection(intel, 'How to Win')),
       buyerType: sanitizePublicText(intel),
@@ -142,15 +223,16 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       replyProbability: Math.max(externalLead.ai_score || 0, 60),
       accent: 'mint',
       status: (userState?.status || 'new') as AppLead['status'],
-      timestamp: formatTimeAgo(resolveOriginalPostDate(externalLead)),
+      timestamp: externalLead.posted_at?.postedAgoShort || formatTimeAgo(resolveOriginalPostDate(externalLead)),
       scrapedAt: resolveOriginalPostDate(externalLead),
       scrapedAgo: formatTimeAgo(resolveOriginalPostDate(externalLead)),
       isSaved: userState?.isSaved || false,
       isRevealed,
       isClaimable,
-      hasPhone: !!phone,
-      creditCost: externalLead.credit_cost ?? null,
-      revealCost: getLeadRevealCost(externalLead),
+      isClaimedByOther,
+      hasPhone: !isClaimedByOther && !!phone,
+      creditCost: (externalLead as any).credit_cost ?? null,
+      revealCost: isClaimedByOther ? null : getLeadRevealCost(externalLead),
       phone: isRevealed ? phone : null,
     }
 
