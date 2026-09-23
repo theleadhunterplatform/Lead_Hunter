@@ -26,6 +26,7 @@ import {
   TrophyIcon,
   MegaphoneIcon,
   ChatBubbleBottomCenterTextIcon,
+  CreditCardIcon,
 } from '@heroicons/react/24/solid'
 
 const adminNav = [
@@ -34,6 +35,7 @@ const adminNav = [
   { name: 'Users', href: '/admin/users', icon: UsersIcon },
   { name: 'Contacts', href: '/admin/contacts', icon: UserGroupIcon },
   { name: 'Credits', href: '/admin/credits', icon: CurrencyDollarIcon },
+  { name: 'Plans & Pricing', href: '/admin/plans', icon: CreditCardIcon },
   { name: 'Keywords', href: '/admin/keywords', icon: HashtagIcon },
   { name: 'Watchlist', href: '/admin/targets', icon: EyeIcon },
   { name: 'Leads', href: '/admin/leads', icon: SparklesIcon },

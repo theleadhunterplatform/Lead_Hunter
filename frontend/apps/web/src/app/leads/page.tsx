@@ -52,88 +52,184 @@ function matchNicheFilter(lead: AppLead, activeNiche: string, userServices: stri
     if (!userServices || userServices.length === 0) return true
     return userServices.some((service) => {
       const s = service.toLowerCase().trim()
-      if (s.includes('web dev') || s.includes('wordpress') || s.includes('webflow')) {
+      // Web, Fullstack, Frontend, Backend, CMS, CRM & Integration
+      if (
+        s.includes('web dev') ||
+        s.includes('web development') ||
+        s.includes('software') ||
+        s.includes('full-stack') ||
+        s.includes('fullstack') ||
+        s.includes('frontend') ||
+        s.includes('backend') ||
+        s.includes('wordpress') ||
+        s.includes('webflow') ||
+        s.includes('crm') ||
+        s.includes('integration') ||
+        s.includes('devops') ||
+        s.includes('cloud')
+      ) {
         return (
           leadNiche.includes('web develop') ||
           leadNiche.includes('web dev') ||
-          allNiches.some((n) => n.includes('web dev') || n.includes('web develop')) ||
+          leadNiche.includes('develop') ||
+          leadNiche.includes('software') ||
+          allNiches.some((n) => n.includes('dev') || n.includes('software')) ||
           tags.some((t) =>
-            ['react', 'next.js', 'nextjs', 'node', 'fullstack', 'frontend', 'backend', 'developer', 'wordpress', 'webflow', 'shopify'].includes(t),
+            [
+              'react', 'next.js', 'nextjs', 'node', 'fullstack', 'frontend', 'backend',
+              'developer', 'wordpress', 'webflow', 'shopify', 'php', 'laravel', 'crm',
+              'api', 'aws', 'docker', 'typescript', 'javascript', 'python',
+            ].includes(t),
           ) ||
           text.includes('website') ||
-          text.includes('web dev')
+          text.includes('web dev') ||
+          text.includes('developer') ||
+          text.includes('software') ||
+          text.includes('crm')
         )
       }
-      if (s.includes('mobile')) {
+      // Mobile Development
+      if (s.includes('mobile') || s.includes('app develop') || s.includes('ios') || s.includes('android')) {
         return (
           leadNiche.includes('mobile') ||
           allNiches.some((n) => n.includes('mobile')) ||
-          tags.some((t) => ['mobile', 'react native', 'flutter', 'ios', 'android'].includes(t)) ||
+          tags.some((t) => ['mobile', 'react native', 'flutter', 'ios', 'android', 'swift'].includes(t)) ||
           text.includes('mobile app') ||
           text.includes('ios') ||
-          text.includes('android')
+          text.includes('android') ||
+          text.includes('react native') ||
+          text.includes('flutter')
         )
       }
-      if (s.includes('ui/ux') || s.includes('product design') || s.includes('design')) {
+      // UI/UX & Design
+      if (
+        s.includes('ui/ux') ||
+        s.includes('design') ||
+        s.includes('graphic') ||
+        s.includes('brand') ||
+        s.includes('pitch deck') ||
+        s.includes('presentation') ||
+        s.includes('packaging')
+      ) {
         return (
           leadNiche.includes('design') ||
           leadNiche.includes('ui/ux') ||
-          allNiches.some((n) => n.includes('design') || n.includes('ui/ux')) ||
-          tags.some((t) => ['figma', 'ui/ux', 'design', 'graphic', 'landing page', 'branding'].includes(t))
-        )
-      }
-      if (s.includes('graphic') || s.includes('brand')) {
-        return (
           leadNiche.includes('branding') ||
-          leadNiche.includes('design') ||
-          allNiches.some((n) => n.includes('branding') || n.includes('design')) ||
-          tags.some((t) => ['graphic', 'branding', 'logo'].includes(t))
+          allNiches.some((n) => n.includes('design') || n.includes('ui/ux') || n.includes('branding')) ||
+          tags.some((t) =>
+            ['figma', 'ui/ux', 'design', 'graphic', 'landing page', 'branding', 'logo', 'ui', 'ux'].includes(t),
+          ) ||
+          text.includes('design') ||
+          text.includes('ui/ux') ||
+          text.includes('figma') ||
+          text.includes('redesign')
         )
       }
-      if (s.includes('seo')) {
+      // SEO & Organic Growth
+      if (s.includes('seo') || s.includes('organic')) {
         return (
           leadNiche.includes('seo') ||
-          allNiches.some((n) => n.includes('seo')) ||
-          tags.some((t) => t.includes('seo')) ||
+          allNiches.some((n) => n.includes('seo') || n.includes('organic')) ||
+          tags.some((t) => t.includes('seo') || t.includes('organic')) ||
           text.includes('seo') ||
-          text.includes('search engine')
+          text.includes('search engine') ||
+          text.includes('ranking')
         )
       }
-      if (s.includes('marketing') || s.includes('paid ads') || s.includes('ads')) {
+      // Marketing & Paid Ads
+      if (
+        s.includes('marketing') ||
+        s.includes('paid ads') ||
+        s.includes('ads') ||
+        s.includes('social media') ||
+        s.includes('email marketing') ||
+        s.includes('cro') ||
+        s.includes('growth')
+      ) {
         return (
           leadNiche.includes('market') ||
           leadNiche.includes('ads') ||
-          allNiches.some((n) => n.includes('market') || n.includes('ads'))
+          allNiches.some((n) => n.includes('market') || n.includes('ads')) ||
+          tags.some((t) =>
+            ['marketing', 'paid ads', 'google ads', 'meta ads', 'facebook ads', 'growth', 'social media', 'cro'].includes(t),
+          ) ||
+          text.includes('marketing') ||
+          text.includes('ads') ||
+          text.includes('meta ads') ||
+          text.includes('google ads')
         )
       }
-      if (s.includes('video')) {
+      // Copywriting & Content
+      if (
+        s.includes('copywriting') ||
+        s.includes('content') ||
+        s.includes('writing') ||
+        s.includes('messaging') ||
+        s.includes('blog')
+      ) {
+        return (
+          leadNiche.includes('copywriting') ||
+          leadNiche.includes('content') ||
+          allNiches.some((n) => n.includes('copywriting') || n.includes('content')) ||
+          tags.some((t) => ['copywriting', 'content', 'writing', 'copywriter', 'blog', 'ghostwriting'].includes(t)) ||
+          text.includes('copywriting') ||
+          text.includes('content writer') ||
+          text.includes('copywriter')
+        )
+      }
+      // Video Production & Editing
+      if (s.includes('video') || s.includes('motion') || s.includes('podcast') || s.includes('editing')) {
         return (
           leadNiche.includes('video') ||
           allNiches.some((n) => n.includes('video')) ||
-          tags.some((t) => ['video', 'reels', 'motion', 'editing'].includes(t))
+          tags.some((t) => ['video', 'reels', 'motion', 'editing', 'youtube', 'video editor'].includes(t)) ||
+          text.includes('video') ||
+          text.includes('editing') ||
+          text.includes('reels')
         )
       }
-      if (s.includes('consulting') || s.includes('sales') || s.includes('strategy')) {
+      // Sales, Lead Gen, CRM & Ops
+      if (
+        s.includes('consulting') ||
+        s.includes('sales') ||
+        s.includes('strategy') ||
+        s.includes('lead gen') ||
+        s.includes('outreach') ||
+        s.includes('operations') ||
+        s.includes('bdr') ||
+        s.includes('sdr')
+      ) {
         return (
           leadNiche.includes('consulting') ||
           leadNiche.includes('strategy') ||
           leadNiche.includes('sales') ||
-          allNiches.some((n) => n.includes('consulting') || n.includes('strategy') || n.includes('sales'))
+          leadNiche.includes('lead gen') ||
+          allNiches.some((n) => n.includes('consulting') || n.includes('strategy') || n.includes('sales')) ||
+          tags.some((t) => ['sales', 'lead gen', 'cold outreach', 'consulting', 'strategy', 'bdr', 'sdr'].includes(t)) ||
+          text.includes('lead generation') ||
+          text.includes('cold outreach') ||
+          text.includes('sales')
         )
       }
-      if (s.includes('ai') || s.includes('automation')) {
+      // AI & Automation
+      if (s.includes('ai') || s.includes('automation') || s.includes('machine learning')) {
         return (
           leadNiche.includes('ai') ||
           leadNiche.includes('automation') ||
           allNiches.some((n) => n.includes('ai') || n.includes('automation')) ||
-          tags.some((t) => ['ai', 'automation', 'n8n', 'zapier', 'gpt', 'llm'].includes(t))
+          tags.some((t) => ['ai', 'automation', 'n8n', 'zapier', 'gpt', 'llm', 'make.com', 'ai agent'].includes(t)) ||
+          text.includes('ai') ||
+          text.includes('automation') ||
+          text.includes('llm') ||
+          text.includes('chatbot')
         )
       }
 
       return (
         leadNiche.includes(s) ||
         allNiches.some((n) => n.includes(s)) ||
-        tags.some((t) => t.includes(s))
+        tags.some((t) => t.includes(s)) ||
+        text.includes(s)
       )
     })
   }
@@ -143,8 +239,26 @@ function matchNicheFilter(lead: AppLead, activeNiche: string, userServices: stri
   // 1. Direct match on lead category or niches
   if (leadNiche === target || allNiches.includes(target)) return true
 
-  // 2. Specific matching rules for primary niches
+  // 2. Specific matching rules for primary niches tabs
   switch (target) {
+    case 'development':
+      return (
+        leadNiche.includes('develop') ||
+        leadNiche.includes('software') ||
+        leadNiche.includes('web') ||
+        leadNiche.includes('mobile') ||
+        allNiches.some((n) => n.includes('dev') || n.includes('software')) ||
+        tags.some((t) =>
+          [
+            'web development', 'frontend', 'backend', 'fullstack', 'react', 'next.js',
+            'nextjs', 'wordpress', 'webflow', 'shopify', 'developer', 'node', 'mobile',
+            'flutter', 'react native', 'ios', 'android', 'python', 'php',
+          ].includes(t),
+        ) ||
+        text.includes('developer') ||
+        text.includes('development')
+      )
+    case 'web dev':
     case 'web development':
       return (
         leadNiche.includes('web develop') ||
@@ -165,43 +279,83 @@ function matchNicheFilter(lead: AppLead, activeNiche: string, userServices: stri
         text.includes('ios') ||
         text.includes('android')
       )
+    case 'design':
     case 'ui/ux design':
-      return (
-        leadNiche.includes('ui/ux') ||
-        leadNiche.includes('ux') ||
-        leadNiche.includes('ui') ||
-        allNiches.some((n) => n.includes('ui/ux') || n.includes('design')) ||
-        tags.some((t) => ['ui/ux', 'ui', 'ux', 'figma', 'product design', 'landing page'].includes(t))
-      )
     case 'branding & design':
       return (
-        leadNiche.includes('branding') ||
         leadNiche.includes('design') ||
-        allNiches.some((n) => n.includes('branding') || n.includes('design')) ||
-        tags.some((t) => ['branding', 'brand', 'logo', 'graphic', 'graphic design'].includes(t))
+        leadNiche.includes('ui/ux') ||
+        leadNiche.includes('branding') ||
+        allNiches.some((n) => n.includes('design') || n.includes('ui/ux') || n.includes('branding')) ||
+        tags.some((t) =>
+          ['ui/ux', 'ui', 'ux', 'figma', 'product design', 'landing page', 'branding', 'brand', 'logo', 'graphic', 'graphic design'].includes(t),
+        ) ||
+        text.includes('design') ||
+        text.includes('figma') ||
+        text.includes('branding')
+      )
+    case 'web design':
+      return (
+        leadNiche.includes('web design') ||
+        (leadNiche.includes('design') && text.includes('web')) ||
+        allNiches.some((n) => n.includes('web design') || (n.includes('design') && text.includes('web'))) ||
+        tags.some((t) => ['web design', 'landing page', 'ui/ux', 'figma', 'redesign'].includes(t)) ||
+        text.includes('website design') ||
+        text.includes('web design')
       )
     case 'ai & automation':
       return (
         leadNiche.includes('ai') ||
         leadNiche.includes('automation') ||
         allNiches.some((n) => n.includes('ai') || n.includes('automation')) ||
-        tags.some((t) => ['ai', 'automation', 'n8n', 'zapier', 'gpt', 'llm', 'make.com', 'ai agent'].includes(t))
+        tags.some((t) => ['ai', 'automation', 'n8n', 'zapier', 'gpt', 'llm', 'make.com', 'ai agent'].includes(t)) ||
+        text.includes('ai') ||
+        text.includes('automation')
       )
+    case 'seo':
     case 'seo & organic growth':
       return (
         leadNiche.includes('seo') ||
         leadNiche.includes('organic') ||
         allNiches.some((n) => n.includes('seo') || n.includes('organic')) ||
         tags.some((t) => ['seo', 'search engine', 'backlinks', 'organic growth', 'link building'].includes(t)) ||
-        text.includes('seo')
+        text.includes('seo') ||
+        text.includes('organic search')
       )
+    case 'marketing':
     case 'paid ads & marketing':
       return (
         leadNiche.includes('paid ads') ||
         leadNiche.includes('market') ||
         leadNiche.includes('ads') ||
         allNiches.some((n) => n.includes('ads') || n.includes('market')) ||
-        tags.some((t) => ['marketing', 'paid ads', 'google ads', 'meta ads', 'facebook ads', 'growth'].includes(t))
+        tags.some((t) => ['marketing', 'paid ads', 'google ads', 'meta ads', 'facebook ads', 'growth', 'social media'].includes(t)) ||
+        text.includes('marketing') ||
+        text.includes('ads')
+      )
+    case 'copywriting':
+    case 'content & copywriting':
+      return (
+        leadNiche.includes('copywriting') ||
+        leadNiche.includes('content') ||
+        allNiches.some((n) => n.includes('copywriting') || n.includes('content')) ||
+        tags.some((t) => ['copywriting', 'content', 'writing', 'copywriter', 'blog'].includes(t)) ||
+        text.includes('copywriting') ||
+        text.includes('content writer')
+      )
+    case 'sales & revops':
+    case 'sales & lead gen':
+    case 'consulting & strategy':
+      return (
+        leadNiche.includes('sales') ||
+        leadNiche.includes('crm') ||
+        leadNiche.includes('consulting') ||
+        leadNiche.includes('strategy') ||
+        leadNiche.includes('lead gen') ||
+        allNiches.some((n) => n.includes('sales') || n.includes('consulting') || n.includes('strategy')) ||
+        tags.some((t) => ['sales', 'lead gen', 'cold outreach', 'consulting', 'strategy', 'advisory', 'crm'].includes(t)) ||
+        text.includes('sales') ||
+        text.includes('lead gen')
       )
     case 'video production & editing':
       return (
@@ -209,14 +363,6 @@ function matchNicheFilter(lead: AppLead, activeNiche: string, userServices: stri
         allNiches.some((n) => n.includes('video')) ||
         tags.some((t) => ['video', 'editing', 'reels', 'motion', 'video editing'].includes(t)) ||
         text.includes('video')
-      )
-    case 'consulting & strategy':
-      return (
-        leadNiche.includes('consulting') ||
-        leadNiche.includes('strategy') ||
-        leadNiche.includes('sales') ||
-        allNiches.some((n) => n.includes('consulting') || n.includes('strategy')) ||
-        tags.some((t) => ['consulting', 'strategy', 'advisory', 'business strategy'].includes(t))
       )
     default:
       return (
@@ -788,11 +934,11 @@ export default function LeadsPage() {
                     lead={selectedLead}
                     onClose={closeLead}
                     onSaveToggle={(isSaved) => handleSaveToggle(selectedLead.id, isSaved)}
-                    onReveal={(name, email, phone) => {
+                    onReveal={(name, email, phone, fullLead) => {
                       setLeadsList((prev) =>
                         prev.map((l) =>
                           l.id === selectedLead.id
-                            ? { ...l, isRevealed: true, name, email, phone }
+                            ? { ...l, ...(fullLead || {}), isRevealed: true, name, email, phone }
                             : l,
                         ),
                       )

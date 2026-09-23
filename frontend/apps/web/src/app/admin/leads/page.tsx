@@ -769,10 +769,10 @@ export default function AdminLeadsPage() {
   ]
 
   const statsCards = [
-    { label: 'All Leads', value: leadStats?.scraped_total ?? counts.all ?? 0, sub: 'total ingested' },
+    { label: 'All Leads', value: counts.all ?? 0, sub: 'total ingested' },
     { label: 'Relevant', value: counts.relevant ?? 0, sub: 'AI-qualified leads' },
-    { label: 'Contact Found', value: leadStats?.with_contact ?? counts.with_contact ?? 0, sub: 'partial or verified' },
-    { label: 'Awaiting Approval', value: leadStats?.awaiting_review ?? counts.review ?? 0, sub: 'needs sign-off', highlight: true },
+    { label: 'Contact Found', value: counts.with_contact ?? 0, sub: 'partial or verified' },
+    { label: 'Awaiting Approval', value: counts.review ?? 0, sub: 'needs sign-off', highlight: true },
     { label: 'Approved', value: counts.approved ?? 0, sub: 'released to clients' },
   ]
 

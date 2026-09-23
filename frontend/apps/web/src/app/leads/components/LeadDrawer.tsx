@@ -53,7 +53,7 @@ export default function LeadDrawer({
 }: {
   lead: AppLead
   onClose: () => void
-  onReveal: (name: string, email: string, phone?: string | null) => void
+  onReveal: (name: string, email: string, phone?: string | null, fullLead?: Partial<AppLead>) => void
 }) {
   const theme = themeMap[(lead.accent as keyof typeof themeMap) || 'mint']
   const [isRevealing, setIsRevealing] = useState(false)
@@ -129,7 +129,24 @@ export default function LeadDrawer({
       })
       const json = await res.json()
       if (res.ok && json.success) {
-        onReveal(json.name, json.email, json.phone)
+        try {
+          const freshRes = await fetch(`/api/leads/${lead.id}`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+          })
+          const freshJson = await freshRes.json()
+          if (freshJson.data) {
+            onReveal(
+              freshJson.data.name || json.name,
+              freshJson.data.email || json.email,
+              freshJson.data.phone || json.phone,
+              freshJson.data,
+            )
+          } else {
+            onReveal(json.name, json.email, json.phone)
+          }
+        } catch {
+          onReveal(json.name, json.email, json.phone)
+        }
         triggerUnlockConfetti()
         addToast({
           type: 'success',
@@ -263,7 +280,7 @@ export default function LeadDrawer({
 
         <div className="flex flex-col gap-6 relative">
           {!lead.isRevealed && (
-            <div className="absolute inset-0 z-10 backdrop-blur-[6px] bg-surface-secondary/50 flex flex-col items-center justify-center rounded-xl border border-white/5">
+            <div className="absolute inset-0 z-10 backdrop-blur-[6px] bg-surface-secondary/50 flex flex-col items-center justify-center rounded-xl border border-white/5 select-none pointer-events-none">
               <LockClosedIcon className="w-6 h-6 text-text-secondary mb-2" />
               <p className="text-[12px] font-bold text-text-primary tracking-widest uppercase">
                 AI Intel Locked
@@ -273,13 +290,27 @@ export default function LeadDrawer({
               </p>
             </div>
           )}
-          <div className={!lead.isRevealed ? 'opacity-30 blur-[2px] select-none' : ''}>
-            <IntelBlock label="Target Buyer" value={lead.buyerType} theme={theme} />
-            <IntelBlock label="Ideal Candidate" value={lead.role} theme={theme} />
-            <IntelBlock label="Core Scope" value={lead.taskScope} theme={theme} />
-            <IntelBlock label="Requirements" value={lead.mustHave} theme={theme} />
-            <IntelBlock label="Bonus Points" value={lead.nicheBonus} theme={theme} />
-          </div>
+          {lead.isRevealed ? (
+            <div className="flex flex-col gap-6">
+              <IntelBlock label="Target Buyer" value={lead.buyerType} theme={theme} />
+              <IntelBlock label="Ideal Candidate" value={lead.role} theme={theme} />
+              <IntelBlock label="Core Scope" value={lead.taskScope} theme={theme} />
+              <IntelBlock label="Requirements" value={lead.mustHave} theme={theme} />
+              <IntelBlock label="Bonus Points" value={lead.nicheBonus} theme={theme} />
+            </div>
+          ) : (
+            <div
+              className="flex flex-col gap-6 opacity-20 blur-[4px] select-none pointer-events-none"
+              style={{ userSelect: 'none', WebkitUserSelect: 'none' }}
+              aria-hidden="true"
+            >
+              <IntelBlock label="Target Buyer" value="Enterprise decision maker actively looking for specialized services." theme={theme} />
+              <IntelBlock label="Ideal Candidate" value="Expert partner with proven track record in modern delivery." theme={theme} />
+              <IntelBlock label="Core Scope" value="Detailed project deliverables, technical execution scope, and timelines." theme={theme} />
+              <IntelBlock label="Requirements" value="Specific technical criteria, deliverables, and turnaround requirements." theme={theme} />
+              <IntelBlock label="Bonus Points" value="Actionable strategic tips to win this client proposal." theme={theme} />
+            </div>
+          )}
         </div>
 
         <div className="w-full h-px bg-border-subtle my-8" />
