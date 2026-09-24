@@ -6,7 +6,12 @@ export const dynamic = 'force-dynamic'
 
 let cachedPlansData: any = null
 let cachedPlansExpiresAt = 0
-const MEMORY_CACHE_TTL_MS = 60_000
+const MEMORY_CACHE_TTL_MS = 5_000
+
+export function clearPlansCache() {
+  cachedPlansData = null
+  cachedPlansExpiresAt = 0
+}
 
 export async function GET() {
   const now = Date.now()
@@ -14,7 +19,7 @@ export async function GET() {
     return NextResponse.json(cachedPlansData, {
       status: 200,
       headers: {
-        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+        'Cache-Control': 'public, s-maxage=5, stale-while-revalidate=10',
         'X-Cache': 'HIT',
       },
     })

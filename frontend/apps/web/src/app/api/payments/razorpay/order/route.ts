@@ -86,16 +86,38 @@ export async function POST(request: NextRequest) {
 
     if (keyId && keySecret) {
       const { getRazorpay } = await import('@/lib/razorpay')
+      const { db } = await import('@/lib/db')
       const razorpay = getRazorpay()
 
-      const priceMap: Record<string, number> = {
-        freelancer: 999,
-        paid: 999,
-        agency: 2499,
-        enterprise: 2499,
+      let price = 999
+      let planDisplayName = `Plan upgrade — ${resolvedPlan}`
+
+      try {
+        const plansSetting = await db.setting.findUnique({ where: { key: 'plans_config' } })
+        if (plansSetting?.value && Array.isArray(plansSetting.value)) {
+          const match = (plansSetting.value as any[]).find(
+            (p: any) =>
+              p.id?.toLowerCase() === resolvedPlan ||
+              (resolvedPlan === 'paid' && (p.id?.toUpperCase() === 'FREELANCER' || p.id?.toLowerCase() === 'paid')) ||
+              (resolvedPlan === 'enterprise' && (p.id?.toUpperCase() === 'AGENCY' || p.id?.toLowerCase() === 'enterprise'))
+          )
+          if (match) {
+            if (typeof match.price === 'number' && !isNaN(match.price)) price = match.price
+            if (match.name) planDisplayName = match.name
+          }
+        }
+      } catch (err) {
+        console.warn('[Razorpay Order Fallback] Failed to read dynamic price from setting:', err)
+        const priceMap: Record<string, number> = {
+          freelancer: 999,
+          paid: 999,
+          agency: 2499,
+          enterprise: 2499,
+        }
+        price = priceMap[resolvedPlan] || 999
       }
-      const price = priceMap[resolvedPlan] || 999
-      const amountPaise = price * 100
+
+      const amountPaise = Math.round(price * 100)
 
       const order = await razorpay.orders.create({
         amount: amountPaise,

@@ -126,6 +126,13 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    try {
+      const { clearPlansCache } = await import('@/app/api/plans/route')
+      clearPlansCache()
+    } catch {
+      // ignore
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Plan and pricing configurations saved successfully',

@@ -19,6 +19,27 @@ function now(): Date {
   return new Date()
 }
 
+async function getDynamicPlanCredits(planId: string, tx?: Prisma.TransactionClient): Promise<number> {
+  try {
+    const client = tx || db
+    const plansSetting = await client.setting.findUnique({ where: { key: 'plans_config' } })
+    if (plansSetting?.value && Array.isArray(plansSetting.value)) {
+      const matched = (plansSetting.value as any[]).find(
+        (p: any) =>
+          p.id?.toUpperCase() === planId?.toUpperCase() ||
+          (planId?.toUpperCase() === 'FREELANCER' && (p.id?.toLowerCase() === 'paid' || p.id?.toUpperCase() === 'FREELANCER')) ||
+          (planId?.toUpperCase() === 'AGENCY' && (p.id?.toLowerCase() === 'enterprise' || p.id?.toUpperCase() === 'AGENCY')),
+      )
+      if (matched && typeof matched.credits === 'number' && !isNaN(matched.credits)) {
+        return matched.credits
+      }
+    }
+  } catch (err) {
+    console.warn('[CreditsService] Failed to load dynamic plan credits, falling back:', err)
+  }
+  return getPlanCredits(planId)
+}
+
 async function checkAndRenewInTx(tx: Prisma.TransactionClient, userId: string) {
   // Note: FOR UPDATE row locking is not used here as it's incompatible with
   // pgbouncer transaction mode (used in production). Optimistic concurrency is sufficient.
@@ -43,7 +64,7 @@ async function checkAndRenewInTx(tx: Prisma.TransactionClient, userId: string) {
 
     if (isFree || hasPaidPeriod) {
       // Normal renewal (free tier monthly credit reset or active paid recurring renewal)
-      const limit = getPlanCredits(account.user.plan)
+      const limit = await getDynamicPlanCredits(account.user.plan, tx)
       const rollover = rolloverOnRenewal(account, account.subscriptionBalance)
       const nextRenewal = hasPaidPeriod
         ? account.user.razorpayCurrentPeriodEnd!
@@ -87,7 +108,7 @@ async function checkAndRenewInTx(tx: Prisma.TransactionClient, userId: string) {
       return renewed
     } else {
       // Auto-downgrade expired paid subscription to FREE starter tier
-      const freeLimit = getPlanCredits('FREE')
+      const freeLimit = await getDynamicPlanCredits('FREE', tx)
       const nextRenewal = new Date(now().getTime() + 30 * 24 * 60 * 60 * 1000)
 
       await tx.user.update({
@@ -331,8 +352,8 @@ export const creditService = {
       adminId?: string
     },
   ) {
-    const defaultLimit = getPlanCredits(planId)
-    const limit = options?.customCredits !== undefined ? options.customCredits : defaultLimit
+    const dynamicLimit = await getDynamicPlanCredits(planId)
+    const limit = options?.customCredits !== undefined ? options.customCredits : dynamicLimit
 
     return db.$transaction(async (tx) => {
       const existingAccount = await tx.creditAccount.findUnique({

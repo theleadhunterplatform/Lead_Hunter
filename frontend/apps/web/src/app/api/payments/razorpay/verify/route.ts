@@ -14,17 +14,64 @@ export async function POST(request: NextRequest) {
     const authHeader = request.headers.get('Authorization') || ''
     const body = await request.json()
 
-    const res = await fetch(`${API_URL}/payments/razorpay/verify`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: authHeader,
-      },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(15000),
-    })
+    let data: any = null
+    let resOk = false
+    let resStatus = 500
 
-    const data = await res.json()
+    if (API_URL) {
+      try {
+        const res = await fetch(`${API_URL}/payments/razorpay/verify`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: authHeader,
+          },
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(15000),
+        })
+
+        data = await res.json().catch(() => null)
+        resOk = res.ok
+        resStatus = res.status
+      } catch (err: any) {
+        console.warn('[Razorpay Verify Proxy] Backend verification failed, trying local fallback:', err?.message)
+      }
+    }
+
+    const keySecret = process.env.RAZORPAY_KEY_SECRET
+    if (!resOk && keySecret && body.razorpay_order_id && body.razorpay_payment_id && body.razorpay_signature) {
+      const crypto = await import('crypto')
+      const expected = crypto
+        .createHmac('sha256', keySecret)
+        .update(`${body.razorpay_order_id}|${body.razorpay_payment_id}`)
+        .digest('hex')
+
+      if (expected === body.razorpay_signature) {
+        let addedTokens: number | undefined
+        let resolvedPlan: string | undefined
+
+        try {
+          const { getRazorpay } = await import('@/lib/razorpay')
+          const razorpay = getRazorpay()
+          const orderInfo = await razorpay.orders.fetch(body.razorpay_order_id).catch(() => null)
+          const notes = (orderInfo as any)?.notes || {}
+          if (notes.tokens) addedTokens = Number(notes.tokens)
+          if (notes.plan) resolvedPlan = String(notes.plan)
+        } catch {
+          // ignore
+        }
+
+        data = {
+          success: true,
+          data: {
+            added: addedTokens,
+            plan: resolvedPlan,
+          },
+        }
+        resOk = true
+        resStatus = 200
+      }
+    }
 
     if (res.ok && data.success) {
       // 1. If backend already marked this payment as processed, do NOT credit tokens or plans again

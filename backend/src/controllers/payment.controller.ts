@@ -65,7 +65,7 @@ export const razorpayWebhook = asyncHandler(async (req: Request, res: Response) 
 export const createTokenTopupOrder = asyncHandler(async (req: Request, res: Response) => {
     const user = req.user as any;
     const { pack } = req.body || {};
-    if (!pack) throw new ErrorResponse('pack is required (topup_10 | topup_50 | topup_100).', 400);
+    if (!pack) throw new ErrorResponse('pack is required.', 400);
 
     const data = await paymentService.createTokenTopupOrder(
         (user._id || user.id).toString(),

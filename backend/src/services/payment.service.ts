@@ -57,8 +57,35 @@ export async function createRazorpayOrder(userId: string, planId: string) {
         throw new ErrorResponse('Only paid or enterprise plans can be purchased.', 400);
     }
 
-    const plan = getPlanDefinition(resolvedPlan);
-    if (!plan.price_paise || plan.price_paise <= 0) {
+    const defaultPlan = getPlanDefinition(resolvedPlan);
+    let price_paise = defaultPlan.price_paise;
+    let plan_name = defaultPlan.name;
+    let monthly_tokens = defaultPlan.monthly_tokens;
+
+    try {
+        const setting = await prisma.setting.findUnique({ where: { key: 'plans_config' } });
+        if (setting && Array.isArray(setting.value)) {
+            const match = (setting.value as any[]).find(
+                (p: any) =>
+                    p.id?.toLowerCase() === resolvedPlan ||
+                    (resolvedPlan === 'paid' && (p.id?.toUpperCase() === 'FREELANCER' || p.id?.toLowerCase() === 'paid')) ||
+                    (resolvedPlan === 'enterprise' && (p.id?.toUpperCase() === 'AGENCY' || p.id?.toLowerCase() === 'enterprise'))
+            );
+            if (match) {
+                if (match.price !== undefined && !isNaN(Number(match.price))) {
+                    price_paise = Math.round(Number(match.price) * 100);
+                }
+                if (match.name) plan_name = match.name;
+                if (match.credits !== undefined && !isNaN(Number(match.credits))) {
+                    monthly_tokens = Number(match.credits);
+                }
+            }
+        }
+    } catch (e) {
+        console.warn('[PaymentService] Failed to load dynamic plan setting in backend', e);
+    }
+
+    if (!price_paise || price_paise <= 0) {
         throw new ErrorResponse(`Plan ${resolvedPlan} has no price configured.`, 500);
     }
 
@@ -77,8 +104,8 @@ export async function createRazorpayOrder(userId: string, planId: string) {
         const { data } = await axios.post(
             `${RAZORPAY_API}/orders`,
             {
-                amount: plan.price_paise,
-                currency: plan.currency || 'INR',
+                amount: price_paise,
+                currency: defaultPlan.currency || 'INR',
                 receipt,
                 notes: {
                     user_id: userId,
@@ -103,8 +130,8 @@ export async function createRazorpayOrder(userId: string, planId: string) {
             provider: 'razorpay',
             razorpay_order_id: order.id,
             plan: resolvedPlan,
-            amount_paise: plan.price_paise,
-            currency: plan.currency || 'INR',
+            amount_paise: price_paise,
+            currency: defaultPlan.currency || 'INR',
             status: 'created',
             raw_payload: order,
         },
@@ -112,13 +139,13 @@ export async function createRazorpayOrder(userId: string, planId: string) {
 
     return {
         order_id: order.id,
-        amount: plan.price_paise,
-        currency: plan.currency || 'INR',
+        amount: price_paise,
+        currency: defaultPlan.currency || 'INR',
         plan: resolvedPlan,
-        plan_name: plan.name,
+        plan_name: plan_name,
         key_id: config.razorpay.keyId,
         name: 'Lead Hunter',
-        description: `${plan.name} plan — ${plan.monthly_tokens} tokens / month`,
+        description: `${plan_name} plan — ${monthly_tokens} tokens / month`,
         prefill: {
             name: user.name,
             email: user.email.includes('@users.leadhunter.app') ? undefined : user.email,
@@ -283,20 +310,36 @@ export async function handleRazorpayWebhook(rawBody: Buffer | string, signature:
 }
 
 // Token top-up packs — buy extra tokens without changing plan
-const TOPUP_PACKS = [
+const DEFAULT_TOPUP_PACKS = [
     { id: 'topup_10', tokens: 10, price_paise: 9900, label: '10 Tokens' },
     { id: 'topup_50', tokens: 50, price_paise: 39900, label: '50 Tokens' },
     { id: 'topup_100', tokens: 100, price_paise: 69900, label: '100 Tokens' },
 ];
 
-export function getTopupPacks() {
-    return TOPUP_PACKS;
+export async function getTopupPacks() {
+    try {
+        const setting = await prisma.setting.findUnique({ where: { key: 'refill_packs_config' } });
+        if (setting && Array.isArray(setting.value) && (setting.value as any[]).length > 0) {
+            return (setting.value as any[])
+                .filter((p: any) => p.isActive !== false)
+                .map((p: any) => ({
+                    id: p.id,
+                    tokens: Number(p.tokens),
+                    price_paise: Math.round(Number(p.price) * 100),
+                    label: p.label || `${p.tokens} Credits`,
+                }));
+        }
+    } catch (e) {
+        console.warn('[PaymentService] Failed to load dynamic refill packs, using defaults', e);
+    }
+    return DEFAULT_TOPUP_PACKS;
 }
 
 export async function createTokenTopupOrder(userId: string, packId: string) {
     assertRazorpayConfigured();
 
-    const pack = TOPUP_PACKS.find((p) => p.id === packId);
+    const packs = await getTopupPacks();
+    const pack = packs.find((p) => p.id === packId);
     if (!pack) throw new ErrorResponse('Invalid top-up pack.', 400);
 
     const user = await prisma.user.findUnique({ where: { id: userId } });
