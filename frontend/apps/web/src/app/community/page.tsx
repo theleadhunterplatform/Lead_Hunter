@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import {
-  SparklesIcon,
+  Squares2X2Icon,
   TrophyIcon,
   CheckBadgeIcon,
   CalendarDaysIcon,
@@ -12,7 +12,6 @@ import {
   ArrowTopRightOnSquareIcon,
   XMarkIcon,
   ArrowRightIcon,
-  BookmarkIcon,
   ShieldCheckIcon,
 } from '@heroicons/react/24/solid'
 import { MagnifyingGlassPlusIcon } from '@heroicons/react/24/outline'
@@ -49,7 +48,7 @@ interface Stats {
 }
 
 const CATEGORY_TABS = [
-  { id: 'ALL', label: 'All Wins', icon: SparklesIcon },
+  { id: 'ALL', label: 'All Wins', icon: Squares2X2Icon },
   { id: 'DEAL_CLOSED', label: 'Deals Closed', icon: TrophyIcon, emoji: '🏆' },
   { id: 'MEETING_SCHEDULED', label: 'Meetings Booked', icon: CalendarDaysIcon, emoji: '📅' },
   { id: 'POSITIVE_REPLY', label: 'Positive Replies', icon: ChatBubbleLeftRightIcon, emoji: '💬' },
@@ -182,11 +181,6 @@ export default function CommunityPage() {
       <div className="max-w-5xl mx-auto space-y-8 relative">
         {/* Hero Section */}
         <div className="flex flex-col gap-3">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent-mint/10 border border-accent-mint/20 text-xs font-semibold text-accent-mint w-fit">
-            <SparklesIcon className="w-3.5 h-3.5" />
-            <span>Verified Social Proof & Member Wins</span>
-          </div>
-
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white">
@@ -211,45 +205,38 @@ export default function CommunityPage() {
           </div>
         </div>
 
-        {/* Real-time Metric Ticker Strip */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="metallic-card p-5 space-y-1.5">
-            <div className="flex items-center justify-between text-xs font-semibold text-text-secondary">
-              <span>Verified Deals Closed</span>
-              <div className="p-2 rounded-xl bg-primary/15 text-primary">
-                <TrophyIcon className="w-4 h-4" />
+        {/* Real-time Metric Ledger Strip */}
+        <div className="metallic-card overflow-hidden">
+          <div className="grid grid-cols-1 sm:grid-cols-3">
+            <div className="p-5 border-b border-white/[0.06] sm:border-b-0 sm:border-r">
+              <div className="font-mono text-[11px] font-semibold uppercase tracking-widest text-text-secondary">
+                Verified Deals Closed
               </div>
+              <div className="mt-2 text-3xl font-extrabold text-primary tabular-nums tracking-tight">
+                {stats.totalDeals}
+              </div>
+              <p className="mt-1 text-xs text-text-secondary">Signed client contracts & retainers</p>
             </div>
-            <div className="text-3xl font-extrabold text-primary tabular-nums tracking-tight">
-              {stats.totalDeals}
-            </div>
-            <p className="text-xs text-text-secondary">Signed client contracts & retainers</p>
-          </div>
 
-          <div className="metallic-card p-5 space-y-1.5">
-            <div className="flex items-center justify-between text-xs font-semibold text-text-secondary">
-              <span>Meetings Booked</span>
-              <div className="p-2 rounded-xl bg-secondary/15 text-secondary">
-                <CalendarDaysIcon className="w-4 h-4" />
+            <div className="p-5 border-b border-white/[0.06] sm:border-b-0 sm:border-r">
+              <div className="font-mono text-[11px] font-semibold uppercase tracking-widest text-text-secondary">
+                Meetings Booked
               </div>
+              <div className="mt-2 text-3xl font-extrabold text-white tabular-nums tracking-tight">
+                {stats.totalMeetings}
+              </div>
+              <p className="mt-1 text-xs text-text-secondary">Sales discovery calls scheduled</p>
             </div>
-            <div className="text-3xl font-extrabold text-secondary tabular-nums tracking-tight">
-              {stats.totalMeetings}
-            </div>
-            <p className="text-xs text-text-secondary">Sales discovery calls scheduled</p>
-          </div>
 
-          <div className="metallic-card p-5 space-y-1.5">
-            <div className="flex items-center justify-between text-xs font-semibold text-text-secondary">
-              <span>Total Verified Wins</span>
-              <div className="p-2 rounded-xl bg-secondary/15 text-secondary">
-                <CheckBadgeIcon className="w-4 h-4" />
+            <div className="p-5">
+              <div className="font-mono text-[11px] font-semibold uppercase tracking-widest text-text-secondary">
+                Total Verified Wins
               </div>
+              <div className="mt-2 text-3xl font-extrabold text-secondary tabular-nums tracking-tight">
+                {stats.totalWins}
+              </div>
+              <p className="mt-1 text-xs text-text-secondary">Total admin-approved social proofs</p>
             </div>
-            <div className="text-3xl font-extrabold text-secondary tabular-nums tracking-tight">
-              {stats.totalWins}
-            </div>
-            <p className="text-xs text-text-secondary">Total admin-approved social proofs</p>
           </div>
         </div>
 
@@ -279,7 +266,7 @@ export default function CommunityPage() {
         {posts.length === 0 ? (
           <div className="metallic-card py-20 text-center space-y-3">
             <div className="w-14 h-14 rounded-2xl bg-white/[0.05] border border-white/[0.08] flex items-center justify-center mx-auto text-text-secondary">
-              <SparklesIcon className="w-7 h-7" />
+              <TrophyIcon className="w-7 h-7" />
             </div>
             <h3 className="text-base font-bold text-white">No wins found in this category</h3>
             <p className="text-xs text-text-secondary max-w-sm mx-auto">

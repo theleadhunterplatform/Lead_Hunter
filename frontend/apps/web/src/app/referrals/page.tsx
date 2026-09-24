@@ -3,12 +3,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import {
-  GiftIcon,
   ClipboardDocumentCheckIcon,
   Square2StackIcon,
-  SparklesIcon,
-  UserGroupIcon,
-  ArrowTrendingUpIcon,
   CheckCircleIcon,
   PaperAirplaneIcon,
   ShareIcon,
@@ -153,10 +149,6 @@ export default function ReferralsPage() {
       <div className="max-w-5xl mx-auto space-y-8">
         {/* Top Header */}
         <div className="flex flex-col gap-2">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-xs font-semibold text-primary w-fit">
-            <GiftIcon className="w-3.5 h-3.5" />
-            <span>Referral & Rewards Program</span>
-          </div>
           <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white">
             Invite Friends, Earn Platform Credits
           </h1>
@@ -199,7 +191,7 @@ export default function ReferralsPage() {
                     title="Copy code"
                   >
                     {copiedCode ? (
-                      <CheckCircleIcon className="w-4 h-4 text-emerald-400" />
+                      <CheckCircleIcon className="w-4 h-4 text-secondary" />
                     ) : (
                       <Square2StackIcon className="w-4 h-4" />
                     )}
@@ -263,67 +255,39 @@ export default function ReferralsPage() {
           </div>
         </motion.div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="metallic-card p-6"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
+        {/* Stats Ledger Strip */}
+        <div className="metallic-card overflow-hidden">
+          <div className="grid grid-cols-1 sm:grid-cols-3">
+            <div className="p-5 border-b border-white/[0.06] sm:border-b-0 sm:border-r">
+              <div className="font-mono text-[11px] font-semibold uppercase tracking-widest text-text-secondary">
                 Friends Joined
-              </span>
-              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                <UserGroupIcon className="w-4 h-4" />
               </div>
+              <p className="mt-2 text-3xl font-extrabold text-white tabular-nums tracking-tight">
+                {loading ? '—' : data?.stats.totalInvited ?? 0}
+              </p>
+              <p className="mt-1 text-xs text-text-secondary">Verified registrations</p>
             </div>
-            <p className="text-3xl font-extrabold text-white mt-3">
-              {loading ? '...' : data?.stats.totalInvited ?? 0}
-            </p>
-            <p className="text-xs text-text-secondary mt-1">Verified registrations</p>
-          </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15 }}
-            className="metallic-card p-6"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
+            <div className="p-5 border-b border-white/[0.06] sm:border-b-0 sm:border-r">
+              <div className="font-mono text-[11px] font-semibold uppercase tracking-widest text-text-secondary">
                 Credits Earned
-              </span>
-              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-400">
-                <ArrowTrendingUpIcon className="w-4 h-4" />
               </div>
+              <p className="mt-2 text-3xl font-extrabold text-primary tabular-nums tracking-tight">
+                {loading ? '—' : `+${data?.stats.creditsEarned ?? 0}`}
+              </p>
+              <p className="mt-1 text-xs text-text-secondary">+10 credits per friend</p>
             </div>
-            <p className="text-3xl font-extrabold text-emerald-400 mt-3">
-              {loading ? '...' : `+${data?.stats.creditsEarned ?? 0}`}
-            </p>
-            <p className="text-xs text-text-secondary mt-1">+10 credits per friend</p>
-          </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="metallic-card p-6"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
+            <div className="p-5">
+              <div className="font-mono text-[11px] font-semibold uppercase tracking-widest text-text-secondary">
                 Available Bonus
-              </span>
-              <div className="w-8 h-8 rounded-lg bg-yellow-500/10 flex items-center justify-center text-yellow-400">
-                <SparklesIcon className="w-4 h-4" />
               </div>
+              <p className="mt-2 text-3xl font-extrabold text-white tabular-nums tracking-tight">
+                {loading ? '—' : data?.stats.currentBonusBalance ?? 0}
+              </p>
+              <p className="mt-1 text-xs text-text-secondary">Never expires</p>
             </div>
-            <p className="text-3xl font-extrabold text-yellow-400 mt-3">
-              {loading ? '...' : data?.stats.currentBonusBalance ?? 0}
-            </p>
-            <p className="text-xs text-text-secondary mt-1">Never expires</p>
-          </motion.div>
+          </div>
         </div>
 
         {/* How It Works */}
@@ -413,7 +377,7 @@ export default function ReferralsPage() {
                             })}
                           </td>
                           <td className="px-5 py-3.5">
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-medium text-[11px]">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary/15 text-secondary font-medium text-[11px]">
                               <CheckCircleIcon className="w-3 h-3" />
                               {item.status}
                             </span>

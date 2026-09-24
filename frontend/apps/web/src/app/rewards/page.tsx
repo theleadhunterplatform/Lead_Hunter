@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  TrophyIcon,
   SparklesIcon,
   PhotoIcon,
   CheckCircleIcon,
@@ -18,7 +17,6 @@ import {
   CalendarDaysIcon,
   CurrencyDollarIcon,
   ShieldCheckIcon,
-  RocketLaunchIcon,
 } from '@heroicons/react/24/solid'
 import {
   MagnifyingGlassPlusIcon,
@@ -265,10 +263,6 @@ export default function RewardsPage() {
       <div className="max-w-5xl mx-auto space-y-8 relative">
         {/* Top Header */}
         <div className="flex flex-col gap-2">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-xs font-semibold text-primary w-fit">
-            <TrophyIcon className="w-3.5 h-3.5" />
-            <span>Outreach Milestone Bounties</span>
-          </div>
           <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white">
             Turn Client Wins Into Free Credits
           </h1>
@@ -279,62 +273,48 @@ export default function RewardsPage() {
           </p>
         </div>
 
-        {/* 4-Card Performance Strip */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Total Credits Won */}
-          <div className="metallic-card p-5 space-y-1.5">
-            <div className="flex items-center justify-between text-xs font-semibold text-text-secondary">
-              <span>Credits Earned</span>
-              <div className="p-2 rounded-xl bg-primary/15 text-primary">
-                <TrophyIcon className="w-4 h-4" />
+        {/* Performance Ledger Strip */}
+        <div className="metallic-card overflow-hidden">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="p-5 border-b border-white/[0.06] sm:border-r lg:border-b-0">
+              <div className="font-mono text-[11px] font-semibold uppercase tracking-widest text-text-secondary">
+                Credits Earned
               </div>
+              <div className="mt-2 text-3xl font-extrabold text-primary tabular-nums tracking-tight">
+                +{totalEarned}
+              </div>
+              <p className="mt-1 text-xs text-text-secondary">Added to your lead reveal balance</p>
             </div>
-            <div className="text-3xl font-extrabold text-primary tabular-nums tracking-tight">
-              +{totalEarned}
-            </div>
-            <p className="text-xs text-text-secondary">Added to your lead reveal balance</p>
-          </div>
 
-          {/* Verified Wins */}
-          <div className="metallic-card p-5 space-y-1.5">
-            <div className="flex items-center justify-between text-xs font-semibold text-text-secondary">
-              <span>Verified Wins</span>
-              <div className="p-2 rounded-xl bg-secondary/15 text-secondary">
-                <CheckCircleIcon className="w-4 h-4" />
+            <div className="p-5 border-b border-white/[0.06] lg:border-b-0 lg:border-r">
+              <div className="font-mono text-[11px] font-semibold uppercase tracking-widest text-text-secondary">
+                Verified Wins
               </div>
+              <div className="mt-2 text-3xl font-extrabold text-secondary tabular-nums tracking-tight">
+                {approvedProofs.length}
+              </div>
+              <p className="mt-1 text-xs text-text-secondary">Milestone proofs approved by admin</p>
             </div>
-            <div className="text-3xl font-extrabold text-secondary tabular-nums tracking-tight">
-              {approvedProofs.length}
-            </div>
-            <p className="text-xs text-text-secondary">Milestone proofs approved by admin</p>
-          </div>
 
-          {/* Pending Review */}
-          <div className="metallic-card p-5 space-y-1.5">
-            <div className="flex items-center justify-between text-xs font-semibold text-text-secondary">
-              <span>Under Review</span>
-              <div className="p-2 rounded-xl bg-primary/15 text-primary">
-                <ClockIcon className="w-4 h-4" />
+            <div className="p-5 border-b border-white/[0.06] sm:border-b-0 sm:border-r">
+              <div className="font-mono text-[11px] font-semibold uppercase tracking-widest text-text-secondary">
+                Under Review
               </div>
+              <div className="mt-2 text-3xl font-extrabold text-white tabular-nums tracking-tight">
+                {pendingCount}
+              </div>
+              <p className="mt-1 text-xs text-text-secondary">Audited by admin within 24 hours</p>
             </div>
-            <div className="text-3xl font-extrabold text-primary tabular-nums tracking-tight">
-              {pendingCount}
-            </div>
-            <p className="text-xs text-text-secondary">Audited by admin within 24 hours</p>
-          </div>
 
-          {/* Max Bounty Tier */}
-          <div className="metallic-card p-5 space-y-1.5">
-            <div className="flex items-center justify-between text-xs font-semibold text-text-secondary">
-              <span>Top Bounty Tier</span>
-              <div className="p-2 rounded-xl bg-primary/15 text-primary">
-                <RocketLaunchIcon className="w-4 h-4" />
+            <div className="p-5">
+              <div className="font-mono text-[11px] font-semibold uppercase tracking-widest text-text-secondary">
+                Top Bounty Tier
               </div>
+              <div className="mt-2 text-3xl font-extrabold text-white tabular-nums tracking-tight">
+                +50 Credits
+              </div>
+              <p className="mt-1 text-xs text-text-secondary">Per signed contract / paid client</p>
             </div>
-            <div className="text-3xl font-extrabold text-primary tabular-nums tracking-tight">
-              +50 Credits
-            </div>
-            <p className="text-xs text-text-secondary">Per signed contract / paid client</p>
           </div>
         </div>
 

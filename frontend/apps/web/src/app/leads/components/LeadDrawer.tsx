@@ -8,14 +8,13 @@ import {
   ArrowPathIcon,
   PhoneIcon,
   ClockIcon,
-  SparklesIcon,
   UserIcon,
   EnvelopeIcon,
   ChevronDownIcon,
   DocumentDuplicateIcon,
 } from '@heroicons/react/24/solid'
 import { AppLead } from '@/types/lead'
-import { Badge, Modal, Button } from '@/components/ui'
+import { Modal, Button } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
 import { getFirebaseToken } from '@/lib/firebase'
 
@@ -307,9 +306,6 @@ export default function LeadDrawer({
             </span>
             <span className="h-px w-8 bg-gradient-to-r from-primary/40 to-transparent" aria-hidden />
             <NicheBadge niche={lead.niche} keyword={lead.category} content={lead.signalContext} />
-            <Badge size="sm" color="purple">
-              Lead Hunter Club
-            </Badge>
           </div>
 
           <h2 className="text-lg sm:text-[22px] font-bold tracking-[-0.01em] text-white leading-[1.25]">
@@ -324,9 +320,8 @@ export default function LeadDrawer({
               </span>
             )}
             {lead.replyProbability > 0 && (
-              <span className="inline-flex items-center gap-1 rounded-lg border border-accent-purple/25 bg-accent-purple/10 px-2.5 py-1 font-medium text-accent-purple">
-                <SparklesIcon className="w-3 h-3" />
-                {lead.replyProbability}% AI Match
+              <span className="inline-flex items-center gap-1 rounded-lg border border-white/[0.08] bg-white/[0.04] px-2.5 py-1 font-medium tabular-nums text-text-secondary">
+                {lead.replyProbability}% reply odds
               </span>
             )}
             {lead.winProb === 'high' && (
@@ -351,47 +346,6 @@ export default function LeadDrawer({
         {/* Summary + skills layout */}
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.15fr_0.85fr]">
           <div className="min-w-0">
-            {lead.isRevealed && (
-              <section className="relative mb-5 overflow-hidden rounded-2xl border border-secondary/30 bg-secondary/[0.07] p-4">
-                <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-secondary/60 via-secondary/15 to-transparent" aria-hidden />
-                <div className="mb-3 flex items-center gap-2">
-                  <span className="font-mono text-[9px] font-semibold uppercase tracking-[0.2em] text-secondary">
-                    Contact details
-                  </span>
-                  <span className="h-px flex-1 bg-white/[0.06]" aria-hidden />
-                  <span className="rounded-full border border-secondary/35 bg-secondary/15 px-2 py-px font-mono text-[8px] font-bold uppercase tracking-[0.14em] text-secondary">
-                    Unlocked
-                  </span>
-                </div>
-                <div className="flex items-start gap-3">
-                  <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-secondary/40 bg-secondary/15 text-secondary">
-                    <UserIcon className="w-5 h-5" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[15px] font-bold text-white">{lead.name}</p>
-                    <div className="mt-1.5 flex flex-col gap-1">
-                      <a
-                        href={`mailto:${lead.email}`}
-                        className="flex items-center gap-1.5 truncate text-[13px] font-medium text-secondary hover:underline"
-                      >
-                        <EnvelopeIcon className="h-3.5 w-3.5 shrink-0" />
-                        <span className="truncate">{lead.email}</span>
-                      </a>
-                      {lead.phone && (
-                        <a
-                          href={`tel:${lead.phone}`}
-                          className="flex items-center gap-1.5 truncate text-[13px] font-medium text-accent-purple hover:underline"
-                        >
-                          <PhoneIcon className="h-3.5 w-3.5 shrink-0" />
-                          <span className="truncate">{lead.phone}</span>
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </section>
-            )}
-
             {detailsSummaryDisplay && detailsSummaryDisplay.trim() !== '' && (
               <section className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-surface-elevated/55 p-4">
                 <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-secondary/50 via-secondary/10 to-transparent" aria-hidden />
@@ -458,9 +412,6 @@ export default function LeadDrawer({
                 Deep intel
               </span>
               <span className="h-px flex-1 bg-gradient-to-r from-primary/35 to-transparent" aria-hidden />
-              <span className="font-mono text-[8px] uppercase tracking-[0.14em] text-text-muted">
-                Scroll
-              </span>
             </div>
 
             <div className="relative flex min-h-[240px] max-h-[min(58vh,520px)] flex-col overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.025] lg:sticky lg:top-0">
@@ -470,7 +421,7 @@ export default function LeadDrawer({
                     <LockClosedIcon className="w-5 h-5 text-primary" />
                   </div>
                   <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-white">
-                    AI intel locked
+                    Intel locked
                   </p>
                   <p className="mt-1 max-w-[200px] text-center text-[11px] text-text-secondary">
                     Reveal contact to unlock buyer, scope & requirements
@@ -538,7 +489,7 @@ export default function LeadDrawer({
                   {lead.phone && (
                     <a
                       href={`tel:${lead.phone}`}
-                      className="mt-0.5 flex items-center gap-1 truncate text-xs font-medium text-accent-purple hover:underline"
+                      className="mt-0.5 flex items-center gap-1 truncate text-xs font-medium text-secondary hover:underline"
                     >
                       <PhoneIcon className="h-3 w-3 shrink-0" />
                       <span className="truncate">{lead.phone}</span>

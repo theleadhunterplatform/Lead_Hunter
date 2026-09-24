@@ -4,9 +4,8 @@ import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import {
   MagnifyingGlassIcon,
-  SparklesIcon,
+  GlobeAltIcon,
   ChatBubbleLeftRightIcon,
-  ViewfinderCircleIcon,
   ExclamationTriangleIcon,
   BookmarkIcon,
   DocumentArrowDownIcon,
@@ -186,14 +185,14 @@ export default function SavedLeadsPage() {
       sub: 'Currently being contacted',
       count: `${activeCount} Active`,
       accent: 'purple',
-      icon: SparklesIcon,
+      icon: PaperAirplaneIcon,
     },
     {
       label: 'Ready to Contact',
       sub: 'Unlocked & waiting',
       count: `${readyCount} Ready`,
       accent: 'mint',
-      icon: ViewfinderCircleIcon,
+      icon: PhoneIcon,
     },
     {
       label: 'High Priority Targets',
@@ -1022,7 +1021,7 @@ export default function SavedLeadsPage() {
                 )}
                 {lead.source && (
                   <div className="flex items-start gap-2 text-xs">
-                    <SparklesIcon className="w-3.5 h-3.5 text-text-secondary shrink-0 mt-0.5" />
+                    <GlobeAltIcon className="w-3.5 h-3.5 text-text-secondary shrink-0 mt-0.5" />
                     <span className="text-text-secondary truncate">Source: {lead.source}</span>
                   </div>
                 )}
