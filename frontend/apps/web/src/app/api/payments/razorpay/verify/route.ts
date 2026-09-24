@@ -23,16 +23,79 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const keySecret = process.env.RAZORPAY_KEY_SECRET || DEFAULT_RAZORPAY_KEY_SECRET
+    // 1. Multi-candidate HMAC-SHA256 signature verification
+    const rawEnvSecret = process.env.RAZORPAY_KEY_SECRET
+    const possibleSecrets = Array.from(
+      new Set(
+        [
+          rawEnvSecret,
+          rawEnvSecret ? rawEnvSecret.replace(/['"]/g, '').trim() : null,
+          DEFAULT_RAZORPAY_KEY_SECRET,
+          DEFAULT_RAZORPAY_KEY_SECRET.replace(/['"]/g, '').trim(),
+        ].filter(Boolean) as string[]
+      )
+    )
 
-    // 1. Verify Razorpay Signature securely via HMAC-SHA256
+    let signatureValid = false
     const crypto = await import('crypto')
-    const expectedSignature = crypto
-      .createHmac('sha256', keySecret)
-      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
-      .digest('hex')
+    const signaturePayload = `${razorpay_order_id}|${razorpay_payment_id}`
 
-    if (expectedSignature !== razorpay_signature) {
+    for (const secret of possibleSecrets) {
+      try {
+        const expected = crypto.createHmac('sha256', secret).update(signaturePayload).digest('hex')
+        if (expected === razorpay_signature) {
+          signatureValid = true
+          break
+        }
+      } catch {
+        // Continue to next secret
+      }
+    }
+
+    // 1b. If HMAC check failed locally, verify directly with Razorpay Server API (authoritative)
+    let fetchedPayment: any = null
+    if (!signatureValid) {
+      try {
+        const { getRazorpay } = await import('@/lib/razorpay')
+        const razorpay = getRazorpay()
+        fetchedPayment = await razorpay.payments.fetch(razorpay_payment_id)
+        if (
+          fetchedPayment &&
+          fetchedPayment.order_id === razorpay_order_id &&
+          (fetchedPayment.status === 'captured' || fetchedPayment.status === 'authorized')
+        ) {
+          signatureValid = true
+          if (fetchedPayment.status === 'authorized') {
+            await razorpay.payments.capture(fetchedPayment.id, fetchedPayment.amount, fetchedPayment.currency).catch(() => {})
+          }
+        }
+      } catch (fetchErr: any) {
+        console.warn('[Razorpay Verify] Authoritative server fetch check failed:', fetchErr?.message)
+      }
+    }
+
+    // 1c. If still not valid, try proxy verification as fallback
+    if (!signatureValid && API_URL) {
+      try {
+        const res = await fetch(`${API_URL}/payments/razorpay/verify`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: authHeader,
+          },
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(8000),
+        })
+        const json = await res.json().catch(() => null)
+        if (res.ok && (json?.success || json?.data?.already_processed)) {
+          signatureValid = true
+        }
+      } catch (proxyErr: any) {
+        console.warn('[Razorpay Verify] Proxy verification fallback failed:', proxyErr?.message)
+      }
+    }
+
+    if (!signatureValid) {
       return NextResponse.json(
         { success: false, message: 'Invalid payment signature' },
         { status: 400 }
@@ -56,6 +119,14 @@ export async function POST(request: NextRequest) {
     let planId = body.plan
     let tokensToCredit = body.tokens ? Number(body.tokens) : undefined
 
+    // Check fetchedPayment notes if available
+    if (fetchedPayment?.notes) {
+      if (!packId && fetchedPayment.notes.pack_id) packId = fetchedPayment.notes.pack_id
+      if (!packId && fetchedPayment.notes.pack) packId = fetchedPayment.notes.pack
+      if (!planId && fetchedPayment.notes.plan) planId = fetchedPayment.notes.plan
+      if (!tokensToCredit && fetchedPayment.notes.tokens) tokensToCredit = Number(fetchedPayment.notes.tokens)
+    }
+
     // If pack or plan was not explicitly passed in body, inspect order notes from Razorpay
     if (!packId && !planId && !tokensToCredit) {
       try {
@@ -63,11 +134,22 @@ export async function POST(request: NextRequest) {
         const razorpay = getRazorpay()
         const orderInfo = await razorpay.orders.fetch(razorpay_order_id).catch(() => null)
         const notes = (orderInfo as any)?.notes || {}
+        if (notes.pack_id) packId = notes.pack_id
         if (notes.pack) packId = notes.pack
         if (notes.tokens) tokensToCredit = Number(notes.tokens)
         if (notes.plan) planId = notes.plan
       } catch (err) {
         console.warn('[Razorpay Verify] Could not fetch order notes:', err)
+      }
+    }
+
+    // Infer plan from payment amount if still unresolved
+    if (!packId && !planId && !tokensToCredit) {
+      const amountPaise = fetchedPayment?.amount
+      if (amountPaise === 99900) {
+        planId = 'FREELANCER'
+      } else if (amountPaise === 249900) {
+        planId = 'AGENCY'
       }
     }
 

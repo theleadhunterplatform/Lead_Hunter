@@ -34,14 +34,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ code: 'INVALID_PACK', message: `Selected refill pack (${packId}) not found` }, { status: 400 })
     }
 
-    const keyId =
+    const keyId = (
       process.env.RAZORPAY_KEY_ID ||
       process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ||
       DEFAULT_RAZORPAY_KEY_ID
+    )?.replace(/['"]/g, '').trim()
 
-    const keySecret =
+    const keySecret = (
       process.env.RAZORPAY_KEY_SECRET ||
       DEFAULT_RAZORPAY_KEY_SECRET
+    )?.replace(/['"]/g, '').trim()
 
     // 2. Direct Razorpay Order Creation via Next.js
     if (keyId && keySecret) {

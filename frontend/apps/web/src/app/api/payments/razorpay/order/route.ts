@@ -20,14 +20,16 @@ export async function POST(request: NextRequest) {
         ? 'AGENCY'
         : rawPlan
 
-    const keyId =
+    const keyId = (
       process.env.RAZORPAY_KEY_ID ||
       process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ||
       DEFAULT_RAZORPAY_KEY_ID
+    )?.replace(/['"]/g, '').trim()
 
-    const keySecret =
+    const keySecret = (
       process.env.RAZORPAY_KEY_SECRET ||
       DEFAULT_RAZORPAY_KEY_SECRET
+    )?.replace(/['"]/g, '').trim()
 
     // 1. Primary: Direct dynamic Razorpay order creation via Next.js
     if (keyId && keySecret) {

@@ -6,13 +6,16 @@ export const DEFAULT_RAZORPAY_KEY_ID = 'rzp_test_SxYOJz74qr94Pt'
 export const DEFAULT_RAZORPAY_KEY_SECRET = 'TT86QwQm86efbc7l6sv7V209'
 
 export function getRazorpay(): Razorpay {
-  const keyId =
+  const rawKeyId =
     process.env.RAZORPAY_KEY_ID ||
     process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ||
     DEFAULT_RAZORPAY_KEY_ID
-  const keySecret =
+  const rawKeySecret =
     process.env.RAZORPAY_KEY_SECRET ||
     DEFAULT_RAZORPAY_KEY_SECRET
+
+  const keyId = rawKeyId?.replace(/['"]/g, '').trim()
+  const keySecret = rawKeySecret?.replace(/['"]/g, '').trim()
 
   if (!keyId || !keySecret) {
     throw new Error('RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables are required')
