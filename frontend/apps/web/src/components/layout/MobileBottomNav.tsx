@@ -24,7 +24,7 @@ const tabs = [
   { name: 'Support', href: '/support', icon: LifebuoyIcon },
 ]
 
-const planLimits: Record<string, number> = { FREE: 50, FREELANCER: 500, AGENCY: 1000 }
+const planLimits: Record<string, number> = { FREE: 50, FREELANCER: 1000, AGENCY: 1000 }
 
 export function MobileBottomNav() {
   const pathname = usePathname()

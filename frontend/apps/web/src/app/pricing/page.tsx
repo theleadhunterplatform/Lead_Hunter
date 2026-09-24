@@ -52,11 +52,11 @@ const DEFAULT_PLANS: PlanConfig[] = [
   {
     id: 'FREELANCER',
     name: 'Freelancer Pro',
-    credits: 500,
+    credits: 1000,
     price: 999,
     description: 'Consistent lead pipeline for active independent contractors',
     features: [
-      '500 credits renewed monthly',
+      '1000 credits renewed monthly',
       'Unused credits rollover (up to 30 days)',
       'Priority lead delivery & email reveals',
       'Deep AI strategic intelligence report',

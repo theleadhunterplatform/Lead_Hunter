@@ -58,7 +58,7 @@ export default function AppSidebar({
   const { user, logout } = useAuth()
   const router = useRouter()
 
-  const planLimits: Record<string, number> = { FREE: 50, FREELANCER: 500, AGENCY: 1000 }
+  const planLimits: Record<string, number> = { FREE: 50, FREELANCER: 1000, AGENCY: 1000 }
   const planMax = planLimits[user?.plan ?? 'FREE'] ?? 50
   const creditTotal = user?.creditAccount?.total ?? 0
   const creditPercentage = Math.min(100, (creditTotal / planMax) * 100)

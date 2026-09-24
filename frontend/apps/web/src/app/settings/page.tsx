@@ -41,7 +41,7 @@ const PLAN_LABELS: Record<string, string> = {
 
 const PLAN_CREDITS: Record<string, number> = {
   FREE: 50,
-  FREELANCER: 500,
+  FREELANCER: 1000,
   AGENCY: 1000,
 }
 
@@ -72,6 +72,24 @@ export default function SettingsPage() {
   const { addToast } = useToast()
   const [billingLoading, setBillingLoading] = useState(false)
   const [planModalOpen, setPlanModalOpen] = useState(false)
+  const [planCredits, setPlanCredits] = useState<Record<string, number>>(PLAN_CREDITS)
+
+  useEffect(() => {
+    fetch('/api/plans')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.data?.plans)) {
+          const map: Record<string, number> = { ...PLAN_CREDITS }
+          data.data.plans.forEach((p: any) => {
+            if (p.id && typeof p.credits === 'number') {
+              map[p.id.toUpperCase()] = p.credits
+            }
+          })
+          setPlanCredits(map)
+        }
+      })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (otpCountdown <= 0) return
@@ -581,7 +599,7 @@ export default function SettingsPage() {
                     {PLAN_LABELS[user?.plan || 'FREE'] || user?.plan || 'Free'} Plan
                   </span>
                   <span className="px-2 py-0.5 rounded-md bg-surface-secondary border border-border-subtle text-9 font-bold text-text-secondary uppercase tracking-widest">
-                    {PLAN_CREDITS[user?.plan || 'FREE'] || 50} credits/mo
+                    {planCredits[user?.plan || 'FREE'] || user?.creditAccount?.subscriptionBalance || 1000} credits/mo
                   </span>
                 </div>
                 <span className="px-2 py-0.5 rounded-md bg-accent-mint/10 border border-accent-mint/20 text-9 font-bold text-accent-mint uppercase tracking-widest">
@@ -651,7 +669,7 @@ export default function SettingsPage() {
                     >
                       <div>
                         <div className="text-sm font-bold text-text-primary">Freelancer</div>
-                        <div className="text-xs text-text-secondary mt-1">500 credits / month</div>
+                        <div className="text-xs text-text-secondary mt-1">{planCredits['FREELANCER'] || 1000} credits / month</div>
                       </div>
                       <div className="text-sm font-bold text-accent-purple">₹999/mo</div>
                     </button>
@@ -664,7 +682,7 @@ export default function SettingsPage() {
                     >
                       <div>
                         <div className="text-sm font-bold text-text-primary">Agency</div>
-                        <div className="text-xs text-text-secondary mt-1">1000 credits / month</div>
+                        <div className="text-xs text-text-secondary mt-1">{planCredits['AGENCY'] || 1000} credits / month</div>
                       </div>
                       <div className="text-sm font-bold text-accent-purple">Contact us</div>
                     </button>

@@ -23,11 +23,11 @@ export const DEFAULT_PLANS = [
   {
     id: 'FREELANCER',
     name: 'Freelancer Pro',
-    credits: 500,
+    credits: 1000,
     price: 999,
     description: 'Perfect for active freelancers looking for consistent client pipeline',
     features: [
-      '500 credits renewed monthly',
+      '1000 credits renewed monthly',
       'Unused credits rollover (up to 30 days)',
       'Direct email & phone reveals',
       'Deep AI strategic intelligence breakdown',
