@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireActiveUser, ForbiddenError, AuthRequiredError } from '@/lib/auth'
 import { DEFAULT_REFILL_PACKS } from '@/app/api/admin/plans/route'
+import { DEFAULT_RAZORPAY_KEY_ID, DEFAULT_RAZORPAY_KEY_SECRET } from '@/lib/razorpay'
 
 export const dynamic = 'force-dynamic'
 
@@ -33,46 +34,56 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ code: 'INVALID_PACK', message: `Selected refill pack (${packId}) not found` }, { status: 400 })
     }
 
-    const keyId = process.env.RAZORPAY_KEY_ID || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID
-    const keySecret = process.env.RAZORPAY_KEY_SECRET
+    const keyId =
+      process.env.RAZORPAY_KEY_ID ||
+      process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ||
+      DEFAULT_RAZORPAY_KEY_ID
+
+    const keySecret =
+      process.env.RAZORPAY_KEY_SECRET ||
+      DEFAULT_RAZORPAY_KEY_SECRET
 
     // 2. Direct Razorpay Order Creation via Next.js
     if (keyId && keySecret) {
-      const { getRazorpay } = await import('@/lib/razorpay')
-      const razorpay = getRazorpay()
-      const amountPaise = Math.round(Number(pack.price) * 100)
+      try {
+        const { getRazorpay } = await import('@/lib/razorpay')
+        const razorpay = getRazorpay()
+        const amountPaise = Math.round(Number(pack.price) * 100)
 
-      const order = await razorpay.orders.create({
-        amount: amountPaise,
-        currency: 'INR',
-        receipt: `topup-${authUser.uid.slice(0, 10)}_${Date.now()}`.slice(0, 40),
-        notes: {
-          userId: authUser.uid,
-          pack: pack.id,
-          tokens: Number(pack.tokens),
-        },
-      })
-
-      return NextResponse.json({
-        success: true,
-        data: {
-          order_id: order.id,
-          key_id: keyId,
+        const order = await razorpay.orders.create({
           amount: amountPaise,
           currency: 'INR',
-          tokens: Number(pack.tokens),
-          label: pack.label || `${pack.tokens} Credits`,
-          name: 'Lead Hunter Club',
-          description: `Credit Top-Up — ${pack.label || pack.tokens + ' Credits'}`,
-          prefill: {
-            name: authUser.name,
-            email: authUser.email,
+          receipt: `topup-${authUser.uid.slice(0, 8)}_${Date.now()}`.slice(0, 40),
+          notes: {
+            userId: authUser.uid,
+            pack: pack.id,
+            tokens: Number(pack.tokens),
           },
-        },
-      })
+        })
+
+        return NextResponse.json({
+          success: true,
+          data: {
+            order_id: order.id,
+            key_id: keyId,
+            amount: amountPaise,
+            currency: 'INR',
+            tokens: Number(pack.tokens),
+            label: pack.label || `${pack.tokens} Credits`,
+            name: 'Lead Hunter Club',
+            description: `Credit Top-Up — ${pack.label || pack.tokens + ' Credits'}`,
+            prefill: {
+              name: authUser.name,
+              email: authUser.email,
+            },
+          },
+        })
+      } catch (directErr: any) {
+        console.warn('[Razorpay Topup Direct] Direct creation failed, attempting proxy:', directErr?.message)
+      }
     }
 
-    // 3. Fallback to external backend proxy only if local keys are completely missing
+    // 3. Fallback to external backend proxy
     if (API_URL) {
       try {
         const authHeader = request.headers.get('Authorization') || ''

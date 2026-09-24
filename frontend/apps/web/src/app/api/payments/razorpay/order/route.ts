@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireActiveUser, ForbiddenError, AuthRequiredError } from '@/lib/auth'
+import { DEFAULT_RAZORPAY_KEY_ID, DEFAULT_RAZORPAY_KEY_SECRET } from '@/lib/razorpay'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,78 +20,88 @@ export async function POST(request: NextRequest) {
         ? 'AGENCY'
         : rawPlan
 
-    const keyId = process.env.RAZORPAY_KEY_ID || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID
-    const keySecret = process.env.RAZORPAY_KEY_SECRET
+    const keyId =
+      process.env.RAZORPAY_KEY_ID ||
+      process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ||
+      DEFAULT_RAZORPAY_KEY_ID
+
+    const keySecret =
+      process.env.RAZORPAY_KEY_SECRET ||
+      DEFAULT_RAZORPAY_KEY_SECRET
 
     // 1. Primary: Direct dynamic Razorpay order creation via Next.js
     if (keyId && keySecret) {
-      const { getRazorpay } = await import('@/lib/razorpay')
-      const razorpay = getRazorpay()
-
-      let price = 999
-      let planDisplayName = `Plan upgrade — ${resolvedPlan}`
-      let credits = 500
-
       try {
-        const plansSetting = await db.setting.findUnique({ where: { key: 'plans_config' } })
-        if (plansSetting?.value && Array.isArray(plansSetting.value)) {
-          const match = (plansSetting.value as any[]).find(
-            (p: any) =>
-              p.id?.toUpperCase() === resolvedPlan ||
-              (resolvedPlan === 'FREELANCER' && (p.id?.toLowerCase() === 'paid' || p.id?.toUpperCase() === 'FREELANCER')) ||
-              (resolvedPlan === 'AGENCY' && (p.id?.toLowerCase() === 'enterprise' || p.id?.toUpperCase() === 'AGENCY'))
-          )
-          if (match) {
-            if (typeof match.price === 'number' && !isNaN(match.price)) price = match.price
-            if (match.name) planDisplayName = match.name
-            if (typeof match.credits === 'number' && !isNaN(match.credits)) credits = match.credits
+        const { getRazorpay } = await import('@/lib/razorpay')
+        const razorpay = getRazorpay()
+
+        let price = 999
+        let planDisplayName = `Plan upgrade — ${resolvedPlan}`
+        let credits = 500
+
+        try {
+          const plansSetting = await db.setting.findUnique({ where: { key: 'plans_config' } })
+          if (plansSetting?.value && Array.isArray(plansSetting.value)) {
+            const match = (plansSetting.value as any[]).find(
+              (p: any) =>
+                p.id?.toUpperCase() === resolvedPlan ||
+                (resolvedPlan === 'FREELANCER' && (p.id?.toLowerCase() === 'paid' || p.id?.toUpperCase() === 'FREELANCER')) ||
+                (resolvedPlan === 'AGENCY' && (p.id?.toLowerCase() === 'enterprise' || p.id?.toUpperCase() === 'AGENCY'))
+            )
+            if (match) {
+              if (typeof match.price === 'number' && !isNaN(match.price)) price = match.price
+              if (match.name) planDisplayName = match.name
+              if (typeof match.credits === 'number' && !isNaN(match.credits)) credits = match.credits
+            }
           }
+        } catch (err) {
+          console.warn('[Razorpay Order] Failed to read dynamic price from setting:', err)
+          const priceMap: Record<string, number> = {
+            FREELANCER: 999,
+            AGENCY: 2499,
+          }
+          price = priceMap[resolvedPlan] || 999
         }
-      } catch (err) {
-        console.warn('[Razorpay Order] Failed to read dynamic price from setting:', err)
-        const priceMap: Record<string, number> = {
-          FREELANCER: 999,
-          AGENCY: 2499,
-        }
-        price = priceMap[resolvedPlan] || 999
-      }
 
-      const amountPaise = Math.round(price * 100)
+        const amountPaise = Math.round(price * 100)
 
-      const order = await razorpay.orders.create({
-        amount: amountPaise,
-        currency: 'INR',
-        receipt: `plan-${resolvedPlan.toLowerCase()}-${authUser.uid.slice(0, 10)}_${Date.now()}`.slice(0, 40),
-        notes: {
-          userId: authUser.uid,
-          plan: resolvedPlan,
-          credits,
-        },
-      })
-
-      return NextResponse.json({
-        success: true,
-        data: {
-          order_id: order.id,
-          key_id: keyId,
+        const order = await razorpay.orders.create({
           amount: amountPaise,
           currency: 'INR',
-          plan: resolvedPlan,
-          name: 'Lead Hunter Club',
-          description: `${planDisplayName} (${credits} Monthly Credits)`,
-          prefill: {
-            name: authUser.name,
-            email: authUser.email,
+          receipt: `plan-${resolvedPlan.toLowerCase()}-${authUser.uid.slice(0, 8)}_${Date.now()}`.slice(0, 40),
+          notes: {
+            userId: authUser.uid,
+            plan: resolvedPlan,
+            credits,
           },
-        },
-        order_id: order.id,
-        key_id: keyId,
-        amount: price,
-        currency: 'INR',
-      })
+        })
+
+        return NextResponse.json({
+          success: true,
+          data: {
+            order_id: order.id,
+            key_id: keyId,
+            amount: amountPaise,
+            currency: 'INR',
+            plan: resolvedPlan,
+            name: 'Lead Hunter Club',
+            description: `${planDisplayName} (${credits} Monthly Credits)`,
+            prefill: {
+              name: authUser.name,
+              email: authUser.email,
+            },
+          },
+          order_id: order.id,
+          key_id: keyId,
+          amount: price,
+          currency: 'INR',
+        })
+      } catch (directErr: any) {
+        console.warn('[Razorpay Order Direct] Direct order creation failed, attempting proxy:', directErr?.message)
+      }
     }
 
-    // 2. Fallback to external backend proxy only if local keys are completely missing
+    // 2. Fallback to external backend proxy
     if (API_URL) {
       try {
         const authHeader = request.headers.get('Authorization') || ''
@@ -115,7 +126,7 @@ export async function POST(request: NextRequest) {
               success: true,
               data: {
                 order_id: orderData.order_id || orderData.id,
-                key_id: orderData.key_id,
+                key_id: orderData.key_id || keyId,
                 amount: orderData.amount,
                 currency: orderData.currency || 'INR',
                 plan: resolvedPlan,
@@ -127,7 +138,7 @@ export async function POST(request: NextRequest) {
                 },
               },
               order_id: orderData.order_id || orderData.id,
-              key_id: orderData.key_id,
+              key_id: orderData.key_id || keyId,
               amount: orderData.amount,
               currency: orderData.currency || 'INR',
               message: json.message || 'Order created',

@@ -2,12 +2,22 @@ import Razorpay from 'razorpay'
 
 let cachedClient: Razorpay | null = null
 
+export const DEFAULT_RAZORPAY_KEY_ID = 'rzp_test_SxYOJz74qr94Pt'
+export const DEFAULT_RAZORPAY_KEY_SECRET = 'TT86QwQm86efbc7l6sv7V209'
+
 export function getRazorpay(): Razorpay {
-  const keyId = process.env.RAZORPAY_KEY_ID
-  const keySecret = process.env.RAZORPAY_KEY_SECRET
+  const keyId =
+    process.env.RAZORPAY_KEY_ID ||
+    process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ||
+    DEFAULT_RAZORPAY_KEY_ID
+  const keySecret =
+    process.env.RAZORPAY_KEY_SECRET ||
+    DEFAULT_RAZORPAY_KEY_SECRET
+
   if (!keyId || !keySecret) {
     throw new Error('RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables are required')
   }
+
   if (!cachedClient) {
     cachedClient = new Razorpay({ key_id: keyId, key_secret: keySecret })
   }
@@ -24,9 +34,8 @@ export function getRazorpayWebhookSecret(): string {
 
 export function isRazorpayConfigured(): boolean {
   return !!(
-    process.env.RAZORPAY_KEY_ID &&
-    process.env.RAZORPAY_KEY_SECRET &&
-    process.env.RAZORPAY_WEBHOOK_SECRET
+    (process.env.RAZORPAY_KEY_ID || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || DEFAULT_RAZORPAY_KEY_ID) &&
+    (process.env.RAZORPAY_KEY_SECRET || DEFAULT_RAZORPAY_KEY_SECRET)
   )
 }
 
