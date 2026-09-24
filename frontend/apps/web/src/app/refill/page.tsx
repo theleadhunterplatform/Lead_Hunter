@@ -87,7 +87,7 @@ export default function RefillPage() {
                 Authorization: `Bearer ${token}`,
                 'Content-Type': 'application/json',
               },
-              body: JSON.stringify(response),
+              body: JSON.stringify({ ...response, pack: pack.id, tokens: pack.tokens }),
             })
             const vData = await vRes.json()
             if (vRes.ok && vData.success) {

@@ -153,7 +153,7 @@ function PricingContent() {
                 Authorization: `Bearer ${token}`,
                 'Content-Type': 'application/json',
               },
-              body: JSON.stringify(response),
+              body: JSON.stringify({ ...response, plan: plan.id }),
             })
             const vData = await vRes.json()
             if (vRes.ok && vData.success) {
@@ -218,7 +218,7 @@ function PricingContent() {
                 Authorization: `Bearer ${token}`,
                 'Content-Type': 'application/json',
               },
-              body: JSON.stringify(response),
+              body: JSON.stringify({ ...response, pack: pack.id, tokens: pack.tokens }),
             })
             const vData = await vRes.json()
             if (vRes.ok && vData.success) {

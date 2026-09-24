@@ -57,8 +57,11 @@ export async function POST(request: NextRequest) {
           const notes = (orderInfo as any)?.notes || {}
           if (notes.tokens) addedTokens = Number(notes.tokens)
           if (notes.plan) resolvedPlan = String(notes.plan)
+          if (!addedTokens && body.tokens) addedTokens = Number(body.tokens)
+          if (!resolvedPlan && body.plan) resolvedPlan = String(body.plan)
         } catch {
-          // ignore
+          if (body.tokens) addedTokens = Number(body.tokens)
+          if (body.plan) resolvedPlan = String(body.plan)
         }
 
         data = {
@@ -73,10 +76,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (res.ok && data.success) {
+    if (resOk && data?.success) {
       // 1. If backend already marked this payment as processed, do NOT credit tokens or plans again
       if (data.data?.already_processed === true) {
-        return NextResponse.json(data, { status: res.status })
+        return NextResponse.json(data, { status: resStatus })
       }
 
       const paymentId = body.razorpay_payment_id || body.razorpay_order_id
@@ -90,8 +93,8 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      const addedTokens = data.data?.added
-      const verifiedPlan = data.data?.plan
+      const addedTokens = data.data?.added || (body.tokens ? Number(body.tokens) : undefined)
+      const verifiedPlan = data.data?.plan || (body.plan ? String(body.plan) : undefined)
 
       if (typeof addedTokens === 'number' && addedTokens > 0) {
         await creditService.grantBonus(authUser.uid, addedTokens, 'razorpay_topup')
@@ -124,7 +127,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json(data, { status: res.status })
+    return NextResponse.json(data || { success: false, message: 'Payment verification failed' }, { status: resStatus })
   } catch (error: unknown) {
     if (error instanceof AuthRequiredError || error instanceof ForbiddenError) {
       return NextResponse.json({ code: 'UNAUTHORIZED', message: 'Authentication required' }, { status: 401 })
