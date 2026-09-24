@@ -380,6 +380,7 @@ export default function LeadsPage() {
   const hasTargetField = userServices.length > 0
 
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null)
+  const [drawerLeadDetail, setDrawerLeadDetail] = useState<AppLead | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const debouncedSearch = useDebounce(searchQuery, 250)
   const [selectedTags, setSelectedTags] = useState<string[]>([])
@@ -431,6 +432,8 @@ export default function LeadsPage() {
 
   const openLead = (id: string) => {
     setSelectedLeadId(id)
+    const initial = leadsList.find((l) => l.id === id) || null
+    setDrawerLeadDetail(initial)
     try {
       const url = new URL(window.location.href)
       url.searchParams.set('lead', id)
@@ -442,6 +445,7 @@ export default function LeadsPage() {
 
   const closeLead = () => {
     setSelectedLeadId(null)
+    setDrawerLeadDetail(null)
     try {
       const url = new URL(window.location.href)
       url.searchParams.delete('lead')
@@ -451,9 +455,12 @@ export default function LeadsPage() {
     }
   }
 
-  // Fresh detail on open: list rows can be stale, merge canonical detail
+  // Fresh detail on open: update drawer detail state without mutating or re-sorting the main feed
   useEffect(() => {
-    if (!selectedLeadId) return
+    if (!selectedLeadId) {
+      setDrawerLeadDetail(null)
+      return
+    }
     if (
       selectedLeadId.startsWith('mock') ||
       selectedLeadId.startsWith('hero') ||
@@ -470,30 +477,27 @@ export default function LeadsPage() {
         const json = await res.json()
         if (!cancelled && res.ok && json.data) {
           const fresh = json.data as AppLead
-          setLeadsList((prev) =>
-            prev.map((l) =>
-              l.id === fresh.id
-                ? {
-                    ...l,
-                    ...fresh,
-                    category:
-                      fresh.category && fresh.category !== 'General'
-                        ? fresh.category
-                        : l.category || fresh.category,
-                    niche:
-                      fresh.niche && fresh.niche !== 'General'
-                        ? fresh.niche
-                        : l.niche || fresh.niche,
-                    niches: fresh.niches && fresh.niches.length > 0 ? fresh.niches : l.niches,
-                    nicheTags:
-                      fresh.nicheTags && fresh.nicheTags.length > 0 ? fresh.nicheTags : l.nicheTags,
-                  }
-                : l,
-            ),
-          )
+          setDrawerLeadDetail((prev) => {
+            if (!prev || prev.id !== fresh.id) return fresh
+            return {
+              ...prev,
+              ...fresh,
+              category:
+                fresh.category && fresh.category !== 'General'
+                  ? fresh.category
+                  : prev.category || fresh.category,
+              niche:
+                fresh.niche && fresh.niche !== 'General'
+                  ? fresh.niche
+                  : prev.niche || fresh.niche,
+              niches: fresh.niches && fresh.niches.length > 0 ? fresh.niches : prev.niches,
+              nicheTags:
+                fresh.nicheTags && fresh.nicheTags.length > 0 ? fresh.nicheTags : prev.nicheTags,
+            }
+          })
         }
       } catch {
-        // keep list version, drawer still works
+        // keep existing drawer data
       }
     })()
     return () => {
@@ -543,7 +547,10 @@ export default function LeadsPage() {
       })
       if (res.ok) {
         setLeadsList((prev) =>
-          prev.map((l) => (l.id === leadId ? { ...l, status: isSaved ? 'saved' : 'new' } : l)),
+          prev.map((l) => (l.id === leadId ? { ...l, status: isSaved ? 'saved' : 'new', isSaved } : l)),
+        )
+        setDrawerLeadDetail((prev) =>
+          prev && prev.id === leadId ? { ...prev, status: isSaved ? 'saved' : 'new', isSaved } : prev,
         )
       }
     } catch (err) {
@@ -603,7 +610,11 @@ export default function LeadsPage() {
     setSelectedLeadId(null)
   }, [activeNiche, debouncedSearch, selectedTags])
 
-  const selectedLead = leadsList.find((l) => l.id === selectedLeadId) ?? filteredLeads.find((l) => l.id === selectedLeadId)
+  const selectedLead =
+    (drawerLeadDetail && drawerLeadDetail.id === selectedLeadId ? drawerLeadDetail : null) ??
+    leadsList.find((l) => l.id === selectedLeadId) ??
+    filteredLeads.find((l) => l.id === selectedLeadId) ??
+    null
 
   return (
     <main
@@ -906,9 +917,32 @@ export default function LeadsPage() {
                       setLeadsList((prev) =>
                         prev.map((l) =>
                           l.id === selectedLead.id
-                            ? { ...l, ...(fullLead || {}), isRevealed: true, name, email, phone }
+                            ? {
+                                ...l,
+                                isRevealed: true,
+                                name,
+                                email,
+                                phone: phone ?? l.phone,
+                                status: 'saved',
+                                isSaved: true,
+                                ...(fullLead?.creditCost !== undefined ? { creditCost: fullLead.creditCost } : {}),
+                              }
                             : l,
                         ),
+                      )
+                      setDrawerLeadDetail((prev) =>
+                        prev && prev.id === selectedLead.id
+                          ? {
+                              ...prev,
+                              isRevealed: true,
+                              name,
+                              email,
+                              phone: phone ?? prev.phone,
+                              status: 'saved',
+                              isSaved: true,
+                              ...(fullLead?.creditCost !== undefined ? { creditCost: fullLead.creditCost } : {}),
+                            }
+                          : prev,
                       )
                     }}
                   />

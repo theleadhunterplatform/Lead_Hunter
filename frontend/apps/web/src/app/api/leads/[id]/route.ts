@@ -176,7 +176,9 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       : externalLead.source === 'seed' ||
         (externalLead.review_status === 'approved' && !!externalLead.intelligence)
     const intel = externalLead.intelligence || ''
-    const primaryNiche = externalLead.niche || null
+    const primaryNiche =
+      (externalLead as any).niche ||
+      (externalLead.keyword ? externalLead.keyword.replace(/^watchlist:/, '') : null)
 
     const niches = extractNiches(
       externalLead.keyword,
@@ -212,7 +214,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       taskScope: summary,
       summary,
       detailsSummary,
-      mustHave: sanitizePublicText(extractSection(intel, 'What They Actually Want')),
+      mustHave: sanitizePublicText(extractSection(intel, 'What They Actually Want') || detailsSummary),
       nicheBonus: sanitizePublicText(extractSection(intel, 'How to Win')),
       buyerType: sanitizePublicText(intel),
       urgency: 'medium',
@@ -223,9 +225,9 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       replyProbability: Math.max(externalLead.ai_score || 0, 60),
       accent: 'mint',
       status: (userState?.status || 'new') as AppLead['status'],
-      timestamp: externalLead.posted_at?.postedAgoShort || formatTimeAgo(resolveOriginalPostDate(externalLead)),
-      scrapedAt: resolveOriginalPostDate(externalLead),
-      scrapedAgo: formatTimeAgo(resolveOriginalPostDate(externalLead)),
+      timestamp: externalLead.posted_at?.postedAgoShort || formatTimeAgo(externalLead.created_at),
+      scrapedAt: externalLead.created_at,
+      scrapedAgo: formatTimeAgo(externalLead.created_at),
       isSaved: userState?.isSaved || false,
       isRevealed,
       isClaimable,
