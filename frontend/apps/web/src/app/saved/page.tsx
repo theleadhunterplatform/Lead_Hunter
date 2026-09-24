@@ -314,6 +314,10 @@ export default function SavedLeadsPage() {
   }
 
   const handleCopyLeadInfo = async (lead: AppLead) => {
+    if (!lead.isRevealed) {
+      addToast({ type: 'info', message: 'Unlock the lead to copy lead intel' })
+      return
+    }
     const revealed = Boolean(lead.isRevealed)
     const emailVisible = revealed && !!lead.email && !lead.email.includes('hidden')
     const phoneVisible = revealed && !!lead.phone
@@ -904,7 +908,13 @@ export default function SavedLeadsPage() {
                                     handleCopyLeadInfo(lead)
                                     setOpenActionDropdownId(null)
                                   }}
-                                  className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-text-primary hover:bg-white/5 transition-colors"
+                                  disabled={!lead.isRevealed}
+                                  title={lead.isRevealed ? 'Copy lead intel' : 'Unlock the lead to copy lead intel'}
+                                  className={`w-full flex items-center gap-2 px-3 py-2.5 text-xs transition-colors ${
+                                    lead.isRevealed
+                                      ? 'text-text-primary hover:bg-white/5 cursor-pointer'
+                                      : 'text-text-secondary/40 cursor-not-allowed opacity-60'
+                                  }`}
                                 >
                                   <ClipboardDocumentListIcon className="w-3.5 h-3.5 text-accent-mint shrink-0" />
                                   Copy lead intel

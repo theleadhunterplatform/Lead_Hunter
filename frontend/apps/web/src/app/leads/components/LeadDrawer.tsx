@@ -120,6 +120,20 @@ export default function LeadDrawer({
   }, [displayTitle, detailsSummaryDisplay, lead])
 
   const handleCopyIntel = async () => {
+    if (!lead.isRevealed) {
+      if (lead.isClaimedByOther) {
+        addToast({
+          type: 'error',
+          message: 'This lead is claimed by another member. Intel cannot be copied.',
+        })
+      } else {
+        addToast({
+          type: 'info',
+          message: 'Unlock this lead to reveal and copy full lead intel',
+        })
+      }
+      return
+    }
     const ok = await copyText(buildIntelText())
     setCopyMenuOpen(false)
     addToast(
@@ -599,9 +613,14 @@ export default function LeadDrawer({
             <button
               type="button"
               onClick={handleCopyIntel}
-              title="Copy lead intel"
+              disabled={!lead.isRevealed}
+              title={lead.isRevealed ? 'Copy lead intel' : 'Unlock lead to copy lead intel'}
               aria-label="Copy lead intel"
-              className="flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-secondary/35 bg-secondary/12 px-3.5 text-[11px] font-bold text-secondary transition-all hover:border-secondary/55 hover:bg-secondary/18 active:scale-95"
+              className={`flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-xl border px-3.5 text-[11px] font-bold transition-all ${
+                lead.isRevealed
+                  ? 'border-secondary/35 bg-secondary/12 text-secondary hover:border-secondary/55 hover:bg-secondary/18 active:scale-95 cursor-pointer'
+                  : 'border-white/[0.08] bg-white/[0.03] text-text-secondary/40 cursor-not-allowed opacity-50'
+              }`}
             >
               <DocumentDuplicateIcon className="h-3.5 w-3.5 shrink-0" />
               <span>Copy lead intel</span>
