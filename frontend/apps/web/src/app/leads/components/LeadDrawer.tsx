@@ -94,17 +94,27 @@ export default function LeadDrawer({
   }, [])
 
   const buildIntelText = useCallback(() => {
+    if (!lead.isRevealed) {
+      const lines = [
+        `${displayTitle}`,
+        detailsSummaryDisplay ? `Summary: ${detailsSummaryDisplay}` : '',
+        `Tags: ${(lead.nicheTags || []).join(', ') || '—'}`,
+        lead.replyProbability > 0 ? `Reply probability: ${lead.replyProbability}%` : '',
+        'Strategic Intel & Contact: Locked — unlock lead to reveal full strategic brief & verified contact info',
+        `via Lead Hunter Club${lead.timestamp ? ` · ${lead.timestamp}` : ''}`,
+      ]
+      return lines.filter(Boolean).join('\n')
+    }
     const lines = [
       `${displayTitle}`,
       detailsSummaryDisplay ? `Summary: ${detailsSummaryDisplay}` : '',
       `Buyer: ${lead.buyerType || lead.role || '—'}`,
       `Scope: ${lead.taskScope || lead.category || '—'}`,
       `Requirements: ${lead.mustHave || '—'}`,
+      lead.nicheBonus ? `Bonus: ${lead.nicheBonus}` : '',
       `Tags: ${(lead.nicheTags || []).join(', ') || '—'}`,
       lead.replyProbability > 0 ? `Reply probability: ${lead.replyProbability}%` : '',
-      lead.isRevealed
-        ? `Contact: ${lead.name}${lead.email ? ` <${lead.email}>` : ''}${lead.phone ? ` · ${lead.phone}` : ''}`
-        : 'Contact: Locked — reveal to view',
+      `Contact: ${lead.name}${lead.email ? ` <${lead.email}>` : ''}${lead.phone ? ` · ${lead.phone}` : ''}`,
       `via Lead Hunter Club${lead.timestamp ? ` · ${lead.timestamp}` : ''}`,
     ]
     return lines.filter(Boolean).join('\n')
@@ -397,182 +407,6 @@ export default function LeadDrawer({
               </section>
             )}
 
-<<<<<<< HEAD
-          {lead.timestamp && (
-            <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/[0.04] border border-white/[0.08] text-text-secondary">
-              <ClockIcon className="w-3 h-3 text-text-secondary/70" />
-              <span>Posted {lead.timestamp}</span>
-            </div>
-          )}
-
-          {lead.replyProbability > 0 && (
-            <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-accent-purple/10 border border-accent-purple/20 text-accent-purple font-medium">
-              <SparklesIcon className="w-3 h-3 text-accent-purple" />
-              <span>{lead.replyProbability}% AI Match</span>
-            </div>
-          )}
-        </div>
-
-        {detailsSummaryDisplay && detailsSummaryDisplay.trim() !== '' && (
-          <div className="mb-6 p-4 rounded-xl bg-surface-elevated/70 border border-white/[0.08]">
-            <div className="flex items-center gap-1.5 mb-2">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-accent-mint">
-                Lead Summary
-              </span>
-            </div>
-            <p className="text-[13.5px] sm:text-[14px] font-medium leading-relaxed text-text-primary/95 whitespace-pre-line">
-              {detailsSummaryDisplay}
-            </p>
-          </div>
-        )}
-
-        {lead.nicheTags && lead.nicheTags.length > 0 && (
-          <div className="flex items-center gap-2 flex-wrap mb-6">
-            <span className="text-[11px] font-bold text-text-secondary uppercase tracking-wider mr-1">
-              Required Skills:
-            </span>
-            {lead.nicheTags.map((tag) => (
-              <span
-                key={tag}
-                className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-white/5 hover:bg-white/10 text-white border border-white/10 transition-colors"
-              >
-                {tag}
-              </span>
-            ))}
-          </div>
-        )}
-
-        <div className="w-full h-px bg-border-subtle mb-8" />
-
-        <div className="flex flex-col gap-6 relative">
-          {!lead.isRevealed && (
-            <div className="absolute inset-0 z-10 backdrop-blur-[6px] bg-surface-secondary/50 flex flex-col items-center justify-center rounded-xl border border-white/5 select-none pointer-events-none">
-              <LockClosedIcon className="w-6 h-6 text-text-secondary mb-2" />
-              <p className="text-[12px] font-bold text-text-primary tracking-widest uppercase">
-                AI Intel Locked
-              </p>
-              <p className="text-[10px] text-text-secondary mt-1">
-                Reveal contact to unlock deep intelligence
-              </p>
-            </div>
-          )}
-          {lead.isRevealed ? (
-            <div className="flex flex-col gap-6">
-              <IntelBlock label="Target Buyer" value={lead.buyerType} theme={theme} />
-              <IntelBlock label="Ideal Candidate" value={lead.role} theme={theme} />
-              <IntelBlock label="Core Scope" value={lead.taskScope} theme={theme} />
-              <IntelBlock label="Requirements" value={lead.mustHave} theme={theme} />
-              <IntelBlock label="Bonus Points" value={lead.nicheBonus} theme={theme} />
-            </div>
-          ) : (
-            <div
-              className="flex flex-col gap-6 opacity-20 blur-[4px] select-none pointer-events-none"
-              style={{ userSelect: 'none', WebkitUserSelect: 'none' }}
-              aria-hidden="true"
-            >
-              <IntelBlock label="Target Buyer" value="Enterprise decision maker actively looking for specialized services." theme={theme} />
-              <IntelBlock label="Ideal Candidate" value="Expert partner with proven track record in modern delivery." theme={theme} />
-              <IntelBlock label="Core Scope" value="Detailed project deliverables, technical execution scope, and timelines." theme={theme} />
-              <IntelBlock label="Requirements" value="Specific technical criteria, deliverables, and turnaround requirements." theme={theme} />
-              <IntelBlock label="Bonus Points" value="Actionable strategic tips to win this client proposal." theme={theme} />
-            </div>
-          )}
-        </div>
-
-        <div className="w-full h-px bg-border-subtle my-8" />
-
-        {lead.hashtags && lead.hashtags.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-6">
-            <span className="text-[12px] text-text-secondary font-medium mr-2 self-center">
-              Tags:
-            </span>
-            {lead.hashtags.map((t) => (
-              <span
-                key={t}
-                className="text-[12px] font-medium text-text-secondary/80 px-2 py-1 rounded bg-white/5"
-              >
-                {t}
-              </span>
-            ))}
-          </div>
-        )}
-
-        {lead.winProb === 'high' && (
-          <div className="flex items-center gap-4">
-            <div className="text-[12px] font-medium text-emerald-400">
-              Win Probability: <span className="font-bold">HIGH</span>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Footer Area */}
-      <div className="p-6 bg-surface border-t border-border-subtle shrink-0 rounded-b-2xl">
-        {lead.isRevealed ? (
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3 min-w-0 flex-1">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center bg-accent-mint/10 text-accent-mint shrink-0">
-                <UserIcon className="w-4 h-4" />
-              </div>
-              <div className="flex flex-col min-w-0">
-                <span className="text-[14px] font-bold text-text-primary truncate">
-                  {lead.name}
-                </span>
-                <a
-                  href={`mailto:${lead.email}`}
-                  className="text-[12px] font-medium text-accent-mint hover:underline flex items-center gap-1 truncate"
-                >
-                  <EnvelopeIcon className="w-3 h-3 shrink-0" />{' '}
-                  <span className="truncate">{lead.email}</span>
-                </a>
-                {lead.phone && (
-                  <a
-                    href={`tel:${lead.phone}`}
-                    className="text-[12px] font-medium text-accent-purple hover:underline flex items-center gap-1 mt-1 truncate"
-                  >
-                    <PhoneIcon className="w-3 h-3 shrink-0" />{' '}
-                    <span className="truncate">{lead.phone}</span>
-                  </a>
-                )}
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3 select-none">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center bg-white/5">
-                <LockClosedIcon className="w-4 h-4 text-text-secondary" />
-              </div>
-              <div className="flex flex-col gap-1.5 pointer-events-none">
-                <div className="h-2 w-32 rounded-[4px] bg-white/10 blur-[1px]" />
-                <div className="h-2 w-24 rounded-[4px] bg-white/5 blur-[1px]" />
-              </div>
-            </div>
-
-            {lead.isClaimedByOther ? (
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-xs font-bold select-none">
-                <LockClosedIcon className="w-4 h-4 text-amber-500 shrink-0" />
-                <span>Claimed by a member</span>
-              </div>
-            ) : (
-              <Button
-                variant="outline"
-                color="mint"
-                size="sm"
-                onClick={handleRevealClick}
-                loading={isRevealing}
-              >
-                {isRevealing ? (
-                  <>
-                    <ArrowPathIcon className="w-3 h-3 animate-spin" />
-                    Unlocking...
-                  </>
-                ) : (
-                  <>
-                    Unlock & Save Lead
-                    <span className="flex items-center gap-1 text-[10px] text-text-secondary uppercase tracking-widest ml-1">
-                      <BanknotesIcon className="w-3 h-3" /> -{tokenCost ?? '–'}
-=======
             {lead.nicheTags && lead.nicheTags.length > 0 && (
               <section className="mt-5">
                 <div className="mb-2.5 flex items-center gap-2">
@@ -588,12 +422,12 @@ export default function LeadDrawer({
                       className="rounded-lg border border-white/10 bg-white/[0.05] px-2.5 py-1 text-xs font-semibold text-white transition-colors hover:border-primary/35 hover:bg-primary/10"
                     >
                       {tag}
->>>>>>> cfc26cf7a96e01bdb912124379ea3ebfdcc2a2fa
                     </span>
                   ))}
                 </div>
               </section>
             )}
+
 
             {lead.hashtags && lead.hashtags.length > 0 && (
               <section className="mt-5">
@@ -646,17 +480,31 @@ export default function LeadDrawer({
 
               <div
                 className={`min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 scrollbar-hide ${
-                  !lead.isRevealed ? 'opacity-30 blur-[2.5px] select-none' : ''
+                  !lead.isRevealed ? 'opacity-30 blur-[2.5px] select-none pointer-events-none' : ''
                 }`}
-                style={{ WebkitOverflowScrolling: 'touch' }}
+                style={{ WebkitOverflowScrolling: 'touch', userSelect: !lead.isRevealed ? 'none' : 'auto' }}
               >
-                <div className="grid grid-cols-1 gap-4">
-                  <IntelBlock label="Target buyer" value={lead.buyerType} />
-                  <IntelBlock label="Ideal candidate" value={lead.role} />
-                  <IntelBlock label="Core scope" value={lead.taskScope} />
-                  <IntelBlock label="Requirements" value={lead.mustHave} />
-                  <IntelBlock label="Bonus points" value={lead.nicheBonus} />
-                </div>
+                {lead.isRevealed ? (
+                  <div className="grid grid-cols-1 gap-4">
+                    <IntelBlock label="Target buyer" value={lead.buyerType} />
+                    <IntelBlock label="Ideal candidate" value={lead.role} />
+                    <IntelBlock label="Core scope" value={lead.taskScope} />
+                    <IntelBlock label="Requirements" value={lead.mustHave} />
+                    <IntelBlock label="Bonus points" value={lead.nicheBonus} />
+                  </div>
+                ) : (
+                  <div
+                    className="grid grid-cols-1 gap-4 select-none pointer-events-none"
+                    style={{ userSelect: 'none', WebkitUserSelect: 'none' }}
+                    aria-hidden="true"
+                  >
+                    <IntelBlock label="Target buyer" value="Enterprise decision maker actively looking for specialized services." />
+                    <IntelBlock label="Ideal candidate" value="Expert partner with proven track record in modern delivery." />
+                    <IntelBlock label="Core scope" value="Detailed project deliverables, technical execution scope, and timelines." />
+                    <IntelBlock label="Requirements" value="Specific technical criteria, deliverables, and turnaround requirements." />
+                    <IntelBlock label="Bonus points" value="Actionable strategic tips to win this client proposal." />
+                  </div>
+                )}
               </div>
 
               {/* Fade hint when more content below */}

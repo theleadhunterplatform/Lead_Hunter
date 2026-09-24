@@ -901,12 +901,8 @@ export default function LeadsPage() {
                   <LeadDrawer
                     lead={selectedLead}
                     onClose={closeLead}
-<<<<<<< HEAD
                     onSaveToggle={(isSaved) => handleSaveToggle(selectedLead.id, isSaved)}
                     onReveal={(name, email, phone, fullLead) => {
-=======
-                    onReveal={(name, email, phone) => {
->>>>>>> cfc26cf7a96e01bdb912124379ea3ebfdcc2a2fa
                       setLeadsList((prev) =>
                         prev.map((l) =>
                           l.id === selectedLead.id

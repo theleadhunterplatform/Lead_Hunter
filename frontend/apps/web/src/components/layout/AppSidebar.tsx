@@ -18,12 +18,14 @@ import {
   GiftIcon,
   TrophyIcon,
   SparklesIcon,
+  CreditCardIcon,
 } from '@heroicons/react/24/solid'
 
 const navItems = [
   { name: 'Lead Feed', href: '/leads', icon: BanknotesIcon },
   { name: 'Saved Leads', href: '/saved', icon: BookmarkIcon },
   { name: 'Dashboard', href: '/dashboard', icon: Squares2X2Icon },
+  { name: 'Pricing & Plans', href: '/pricing', icon: CreditCardIcon },
   { name: 'Refer & Earn', href: '/referrals', icon: GiftIcon },
   { name: 'Milestone Rewards', href: '/rewards', icon: TrophyIcon },
   { name: 'Community Wins', href: '/community', icon: SparklesIcon },
@@ -213,15 +215,20 @@ export default function AppSidebar({
               </div>
             ) : null}
 
-            <button className="min-h-[24px] text-9 font-bold text-accent-orange uppercase tracking-super hover:opacity-80 transition-opacity block pt-0.5">
+            <Link
+              href="/pricing?tab=refills"
+              className="min-h-[24px] text-9 font-bold text-accent-orange uppercase tracking-super hover:opacity-80 transition-opacity block pt-0.5"
+            >
               Refill Pipeline →
-            </button>
+            </Link>
           </div>
         </div>
       ) : (
         <div className="px-2 mb-3 shrink-0 flex justify-center group/credit relative">
-          <div
-            className="w-10 h-10 rounded-xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center relative cursor-default hover:border-accent-orange/30 hover:bg-white/[0.06] transition-all duration-300"
+          <Link
+            href="/pricing"
+            title={`Credits: ${creditTotal} / ${planMax} · Click to view plans & refill`}
+            className="w-10 h-10 rounded-xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center relative cursor-pointer hover:border-accent-orange/30 hover:bg-white/[0.06] transition-all duration-300"
           >
             {/* Dynamic Radial Progress SVG */}
             <svg className="w-8 h-8 -rotate-90 transform" viewBox="0 0 36 36">
@@ -259,7 +266,7 @@ export default function AppSidebar({
             <div className="absolute inset-0 flex items-center justify-center">
               <BanknotesIcon className="w-3.5 h-3.5 text-accent-orange group-hover/credit:scale-110 transition-transform duration-200" />
             </div>
-          </div>
+          </Link>
 
           {/* Hover Tooltip */}
           <div className="absolute left-full ml-2.5 top-1/2 -translate-y-1/2 px-2.5 py-1.5 rounded-xl bg-surface-elevated border border-white/10 shadow-2xl backdrop-blur-xl opacity-0 pointer-events-none group-hover/credit:opacity-100 group-hover/credit:pointer-events-auto transition-all duration-200 z-50 whitespace-nowrap">
