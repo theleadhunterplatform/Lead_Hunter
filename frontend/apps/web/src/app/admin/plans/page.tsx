@@ -350,8 +350,9 @@ export default function AdminPlansPage() {
                     {/* Add Feature input */}
                     <div className="flex gap-1.5 mt-2">
                       <input
+                        id={`add-feat-${idx}`}
                         type="text"
-                        placeholder="Add feature bullet..."
+                        placeholder="Add feature bullet (Press Enter to add)..."
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
                             e.preventDefault()
@@ -361,6 +362,19 @@ export default function AdminPlansPage() {
                         }}
                         className="flex-1 bg-surface-elevated border border-white/10 text-xs text-white px-2.5 py-1 rounded-lg outline-none focus:border-accent-mint"
                       />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const input = document.getElementById(`add-feat-${idx}`) as HTMLInputElement | null
+                          if (input && input.value.trim()) {
+                            addPlanFeature(idx, input.value)
+                            input.value = ''
+                          }
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-accent-mint hover:text-black text-xs font-semibold text-zinc-300 transition-all cursor-pointer"
+                      >
+                        + Add
+                      </button>
                     </div>
                   </div>
                 </div>
