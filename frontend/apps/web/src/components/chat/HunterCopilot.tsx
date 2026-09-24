@@ -26,17 +26,17 @@ interface Message {
 const WELCOME_ID = 'welcome-1'
 
 const QUICK_QUESTIONS = [
-  { label: 'How do Credits work?', tag: '01' },
-  { label: 'Are revealed leads exclusive?', tag: '02' },
-  { label: 'How do plan renewals work?', tag: '03' },
-  { label: 'How to contact human support?', tag: '04' },
+  { label: 'How do credits work?', tag: '01' },
+  { label: 'How many leads can we get in a month?', tag: '02' },
+  { label: 'Do you close clients for us?', tag: '03' },
+  { label: 'What is the source of these leads?', tag: '04' },
 ]
 
 const CAPABILITIES = [
-  { title: 'Credits & reveal costs', hint: 'Standard vs custom overrides' },
-  { title: 'Lead exclusivity', hint: '1-to-1 claim rules' },
-  { title: 'Plans & renewals', hint: 'Upgrades, refills, refunds' },
-  { title: 'Human support', hint: 'Open a priority ticket' },
+  { title: 'Credits & Wolf Coins', hint: '1,000 coins / ₹999 plan · 10-15 per lead' },
+  { title: 'Monthly Lead Quota', hint: '65 to 100+ leads per month' },
+  { title: 'Zero Commission Closing', hint: 'You pitch & keep 100% of your earnings' },
+  { title: 'Verified Lead Sources', hint: 'LinkedIn, X, Reddit & private nets' },
 ]
 
 const INITIAL_WELCOME: Message = {
@@ -44,12 +44,11 @@ const INITIAL_WELCOME: Message = {
   role: 'assistant',
   content: `👋 Hey there! I'm **Hunter Copilot**, your 24/7 platform support assistant.
 
-I can answer questions about:
-• **Credits & Reveal Costs** (standard vs. custom overrides)
-• **1-to-1 Lead Exclusivity** & Claim rules
-• **Plan Renewals, Upgrades & Refills**
-• **Refund Policy** on invalid contacts
-• **Opening Support Tickets** with our admin team
+Here are the most common questions I can answer right away:
+• **How do credits work?**
+• **How many leads can we get in a month?**
+• **Do you close clients for us?**
+• **What is the source of these leads?**
 
 Tap a quick question below or ask anything!`,
   timestamp: 'Just now',

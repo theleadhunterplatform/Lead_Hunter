@@ -646,20 +646,20 @@ export default function LandingPage() {
         </div>
         <div className="border-t border-white/[0.03]">
           <FAQItem
-            q="Do you book clients for me?"
-            a="NO. We provide warm, fresh leads actively looking for your service, with AI-scored buyer context so you know exactly how to approach them. You own the relationship."
-          />
-          <FAQItem
-            q="Are these leads scraped from LinkedIn?"
-            a="No. Standard scraping is noise. We monitor intent signals across obscure forums, job boards, and community threads where real pain is expressed."
-          />
-          <FAQItem
             q="How do credits work?"
-            a="Credits fuel the intelligence engine. Revealing a lead identity costs between 2 and 10 credits depending on the contact data available (phone, email, or profile link). Unused credits roll over monthly."
+            a="You receive 1,000 Wolf Coins monthly with your ₹999 plan. Use coins to unlock lead details (Email = 10 coins, Phone = 12 coins, Both = 15 coins). If you run out, buy top-ups starting at ₹199. Top-up coins never expire."
           />
           <FAQItem
-            q="Can I contact these leads myself?"
-            a="Yes. You get the verified contact info and intelligence, and you reach out however you prefer: from your own email, LinkedIn, or phone. We focus on high-intent, quality conversations."
+            q="How many leads can we get in a month?"
+            a="Between 65 to 100+ leads per month using your base monthly credits. The exact number depends on whether you unlock email-only or full phone contacts. Top up anytime if you need more."
+          />
+          <FAQItem
+            q="Do you close clients for us?"
+            a="No. We provide verified client contacts and project details. You pitch and close them directly, keeping 100% of what you earn—we take 0% commission."
+          />
+          <FAQItem
+            q="What is the source of these leads?"
+            a="We track live hiring posts, founder requests, and project briefs across LinkedIn, Twitter/X, Reddit, and private networks."
           />
         </div>
       </section>

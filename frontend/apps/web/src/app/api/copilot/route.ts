@@ -10,47 +10,152 @@ interface ChatMessage {
 }
 
 const COPILOT_SYSTEM_PROMPT = `You are "Hunter Copilot", the 24/7 dedicated platform support and instant FAQ assistant for Lead Hunter Club (leadhunterclub.com).
-Your purpose is to answer member questions regarding the platform, credit costs, plans, exclusivity, contact verification, and support escalation.
+Your purpose is to answer member questions regarding the platform, credit costs, plans, exclusivity, lead sources, and support escalation.
 Format your responses with clean, concise markdown, bullet points, and an encouraging tone.
 
-### Platform Knowledge Base:
-1. **Credits & Pricing**:
-   - Credits (coins) are used to reveal verified contact info for high-intent B2B leads.
-   - Default reveal cost is based on contact bundles (usually 2–10 coins, e.g. Email = 5 Cr, Full Bundle = 10 Cr).
-   - High-ticket, big-brand, or international leads may have a custom credit cost (e.g. 15, 20, 25 Cr) set by admins, which overrides default pricing.
-   - The exact cost is always clearly visible on the lead badge and in the reveal drawer before unlocking.
+### Core Official FAQ & Guidelines (STRICT ACCURACY):
+1. **How do credits work?**:
+   You receive 1,000 Wolf Coins monthly with your ₹999 plan. Use coins to unlock lead details (Email = 10 coins, Phone = 12 coins, Both = 15 coins). If you run out, buy top-ups starting at ₹199. Top-up coins never expire.
 
-2. **Exclusive Claim Policy (Zero Spam)**:
+2. **How many leads can we get in a month?**:
+   Between 65 to 100+ leads per month using your base monthly credits. The exact number depends on whether you unlock email-only or full phone contacts. Top up anytime if you need more.
+
+3. **Do you close clients for us?**:
+   No. We provide verified client contacts and project details. You pitch and close them directly, keeping 100% of what you earn—we take 0% commission.
+
+4. **What is the source of these leads?**:
+   We track live hiring posts, founder requests, and project briefs across LinkedIn, Twitter/X, Reddit, and private networks.
+
+5. **Exclusive Claim Policy (Zero Spam)**:
    - When a member reveals a lead, that lead is locked exclusively for them.
    - Other members cannot claim or reveal the same lead. This protects your outreach from competing with dozens of agencies.
 
-3. **Plans, Refills & Renewals**:
-   - Monthly plans include credit allocations refreshed every billing cycle.
-   - Members who run low can purchase Instant Credit Refills at /refill or upgrade their subscription at /pricing.
-   - Subscriptions and payment details can be managed anytime in /settings.
+6. **Refunds on Invalid Contacts**:
+   - If a revealed email bounces or is demonstrably invalid, members can request a 100% credit refund by opening a quick ticket on /support with the Lead ID.
 
-4. **Contact Quality & Verification**:
-   - Contacts are scraped in real-time and enriched via Hunter.io, Apollo, and deep profile signals.
-   - Indicators show whether an email is a verified direct inbox or company domain.
-
-5. **Refunds on Invalid Contacts**:
-   - If a revealed email bounces or is demonstrably invalid, members can request a 100% credit refund.
-   - To get a credit refund, open a quick ticket on /support with the Lead ID.
-
-6. **Human Support Escalation**:
+7. **Human Support Escalation**:
    - If the user has a billing issue, technical glitch, or needs human assistance, direct them to /support to click "New Ticket". Admins respond promptly.
 
 Keep responses under 150 words whenever possible. Focus directly on the user's question.`
 
+function getDirectFaqAnswer(query: string): string | null {
+  const q = query.trim().toLowerCase()
+
+  // 1) How do credits work?
+  if (
+    q === 'how do credits work?' ||
+    q === 'how do credits work' ||
+    q === 'how does credits work?' ||
+    q === 'how does credits work' ||
+    q === 'how do wolf coins work?' ||
+    q === 'how do wolf coins work' ||
+    q === 'how credits work'
+  ) {
+    return `You receive 1,000 Wolf Coins monthly with your ₹999 plan. Use coins to unlock lead details (Email = 10 coins, Phone = 12 coins, Both = 15 coins). If you run out, buy top-ups starting at ₹199. Top-up coins never expire.`
+  }
+
+  // 2) How many leads can we get in a month?
+  if (
+    q === 'how many leads can we get in a month?' ||
+    q === 'how many leads can we get in a month' ||
+    q === 'how many leads can we get?' ||
+    q === 'how many leads can we get' ||
+    q === 'how many leads in a month?' ||
+    q === 'how many leads in a month' ||
+    q === 'how many leads per month?' ||
+    q === 'how many leads per month'
+  ) {
+    return `Between 65 to 100+ leads per month using your base monthly credits. The exact number depends on whether you unlock email-only or full phone contacts. Top up anytime if you need more.`
+  }
+
+  // 3) Do you close clients for us?
+  if (
+    q === 'do you close clients for us?' ||
+    q === 'do you close clients for us' ||
+    q === 'do you close client for us?' ||
+    q === 'do you close client for us' ||
+    q === 'do you close clients?' ||
+    q === 'do you close clients' ||
+    q === 'will you close clients for us?' ||
+    q === 'will you close clients for us'
+  ) {
+    return `No. We provide verified client contacts and project details. You pitch and close them directly, keeping 100% of what you earn—we take 0% commission.`
+  }
+
+  // 4) What is the source of these leads?
+  if (
+    q === 'what is the source of these leads?' ||
+    q === 'what is the source of these leads' ||
+    q === 'what is the source of the leads?' ||
+    q === 'what is the source of the leads' ||
+    q === 'what is the source of leads?' ||
+    q === 'what is the source of leads' ||
+    q === 'where do these leads come from?' ||
+    q === 'where do these leads come from'
+  ) {
+    return `We track live hiring posts, founder requests, and project briefs across LinkedIn, Twitter/X, Reddit, and private networks.`
+  }
+
+  return null
+}
+
 function getDeterministicFaqAnswer(query: string): string {
+  const direct = getDirectFaqAnswer(query)
+  if (direct) return direct
+
   const q = query.toLowerCase()
 
-  if (q.includes('credit') || q.includes('coin') || q.includes('cost') || q.includes('how much') || q.includes('override') || q.includes('price')) {
-    return `**Credits & Reveal Costs in Lead Hunter Club:**
-• **Base Cost**: Regular leads cost **2 to 10 credits** depending on the contact bundle available (e.g. Email = 5 Cr, Full Bundle = 10 Cr).
-• **Custom Overrides**: Solid, big-brand, or high-budget international leads may have a custom credit cost (e.g., 15 Cr or 20 Cr) set by admins.
-• **Full Transparency**: The exact cost is always displayed right on the lead badge and in the slide-out drawer before you reveal.
-• Need more credits? Top up anytime on the [/refill](/refill) page!`
+  // 3) Do you close clients for us?
+  if (
+    q.includes('close client') ||
+    q.includes('close for us') ||
+    q.includes('pitch for us') ||
+    q.includes('commission') ||
+    q.includes('do you close') ||
+    q.includes('book client')
+  ) {
+    return `**Do You Close Clients For Us?**
+No. We provide verified client contacts and project details. You pitch and close them directly, keeping 100% of what you earn—we take 0% commission.`
+  }
+
+  // 4) What is the source of these leads?
+  if (
+    q.includes('source') ||
+    q.includes('where do you get') ||
+    q.includes('where are leads from') ||
+    q.includes('how do you find leads') ||
+    q.includes('where do leads come from')
+  ) {
+    return `**Source of Leads:**
+We track live hiring posts, founder requests, and project briefs across LinkedIn, Twitter/X, Reddit, and private networks.`
+  }
+
+  // 2) How many leads can we get in a month?
+  if (
+    q.includes('how many lead') ||
+    q.includes('leads can we get') ||
+    q.includes('leads in a month') ||
+    q.includes('leads per month') ||
+    q.includes('lead limit') ||
+    q.includes('how many client')
+  ) {
+    return `**How Many Leads You Can Get in a Month:**
+Between 65 to 100+ leads per month using your base monthly credits. The exact number depends on whether you unlock email-only or full phone contacts. Top up anytime if you need more.`
+  }
+
+  // 1) How do credits work?
+  if (
+    q.includes('credit') ||
+    q.includes('coin') ||
+    q.includes('wolf coin') ||
+    q.includes('how do credits work') ||
+    q.includes('cost') ||
+    q.includes('override') ||
+    q.includes('price') ||
+    q.includes('unlock')
+  ) {
+    return `**How Credits Work:**
+You receive 1,000 Wolf Coins monthly with your ₹999 plan. Use coins to unlock lead details (Email = 10 coins, Phone = 12 coins, Both = 15 coins). If you run out, buy top-ups starting at ₹199. Top-up coins never expire.`
   }
 
   if (q.includes('exclusive') || q.includes('claim') || q.includes('other member') || q.includes('lock') || q.includes('spam')) {
@@ -67,8 +172,8 @@ function getDeterministicFaqAnswer(query: string): string {
 
   if (q.includes('renew') || q.includes('plan') || q.includes('subscription') || q.includes('cancel') || q.includes('upgrade') || q.includes('refill')) {
     return `**Plans, Renewals & Refills:**
-• **Monthly Renewal**: Your plan renews automatically on your billing cycle date, resetting your credit quota.
-• **Top-ups**: If you run out of credits mid-month, you can buy instant credit packs at [/refill](/refill).
+• **Monthly Plan**: ₹999/month comes with 1,000 Wolf Coins renewed each cycle.
+• **Top-ups**: If you run out of credits mid-month, you can buy instant credit packs starting at ₹199 (never expire).
 • **Upgrade / Downgrade**: You can switch plans at [/pricing](/pricing) or manage cancellation in [/settings](/settings).`
   }
 
@@ -80,24 +185,36 @@ function getDeterministicFaqAnswer(query: string): string {
 
   if (q.includes('niche') || q.includes('filter') || q.includes('new lead') || q.includes('drop') || q.includes('when')) {
     return `**Lead Drops & Niches:**
-• Leads are gathered from real-time client posts across LinkedIn, Twitter/X, Reddit, and curated sources.
+• Leads are gathered from real-time client posts across LinkedIn, Twitter/X, Reddit, and private networks.
 • New qualified leads are approved and published multiple times throughout the day.
-• Use the niche filters (SaaS, AI Automation, Web Dev, Video Editing, etc.) on [/leads](/leads) to find exact-match opportunities.`
+• Use the niche filters on [/leads](/leads) to find exact-match opportunities.`
   }
 
   return `**Hunter Copilot (24/7 Support):**
-I'm here to help you navigate Lead Hunter Club smoothly! Here are the most common things members ask about:
+I'm here to help you navigate Lead Hunter Club smoothly! Here are the most common questions members ask:
 
-• **Credits**: Learn how credit costs and custom lead rates work.
-• **Exclusivity**: How 1-to-1 lead claims protect you from outreach spam.
-• **Refunds**: Getting credits back if an unlocked email bounces.
-• **Plans & Refills**: Managing subscriptions on [/settings](/settings) or buying extra credits on [/refill](/refill).
-• **Human Support**: Opening a ticket on [/support](/support).
+• **How do credits work?**
+  You receive 1,000 Wolf Coins monthly with your ₹999 plan. Use coins to unlock lead details (Email = 10 coins, Phone = 12 coins, Both = 15 coins). If you run out, buy top-ups starting at ₹199. Top-up coins never expire.
+
+• **How many leads can we get in a month?**
+  Between 65 to 100+ leads per month using your base monthly credits. The exact number depends on whether you unlock email-only or full phone contacts. Top up anytime if you need more.
+
+• **Do you close clients for us?**
+  No. We provide verified client contacts and project details. You pitch and close them directly, keeping 100% of what you earn—we take 0% commission.
+
+• **What is the source of these leads?**
+  We track live hiring posts, founder requests, and project briefs across LinkedIn, Twitter/X, Reddit, and private networks.
 
 What can I clarify for you?`
 }
 
 async function callLlm(messages: ChatMessage[]): Promise<string> {
+  const lastUserMsg = messages.filter((m) => m.role === 'user').pop()?.content || ''
+
+  // Fast direct match for the 4 core FAQs (0ms latency, exact canonical answer)
+  const directFaq = getDirectFaqAnswer(lastUserMsg)
+  if (directFaq) return directFaq
+
   const { GEMINI_API_KEY, OPENAI_API_KEY } = process.env
 
   // 1. Try Gemini
