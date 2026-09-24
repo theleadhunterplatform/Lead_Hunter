@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useMemo, useEffect, useRef } from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import {
   auth,
@@ -44,6 +46,7 @@ const PLAN_CREDITS: Record<string, number> = {
 }
 
 export default function SettingsPage() {
+  const router = useRouter()
   const { user, logout } = useAuth()
   const [isEditing, setIsEditing] = useState(false)
   const [displayName, setDisplayName] = useState(user?.name || '')
@@ -176,18 +179,19 @@ export default function SettingsPage() {
         addToast({ type: 'error', message: json.message || 'Checkout is unavailable right now.' })
         return
       }
+      const orderData = json.data || json
       const checkoutKey =
-        mode === 'subscription'
-          ? { subscription_id: json.subscription_id }
-          : { order_id: json.order_id }
+        mode === 'subscription' && orderData.subscription_id
+          ? { subscription_id: orderData.subscription_id }
+          : { order_id: orderData.order_id || orderData.id }
       const result = await openRazorpayCheckout({
-        key: json.key_id,
+        key: orderData.key_id,
         ...checkoutKey,
-        amount: (json.amount ?? 0) * 100,
-        currency: json.currency || 'INR',
-        name: 'LeadHunter Club',
-        description: mode === 'subscription' ? 'Plan subscription' : 'One-time credits',
-        prefill: { name: user?.name, email: user?.email },
+        amount: (orderData.amount ?? 0) * 100,
+        currency: orderData.currency || 'INR',
+        name: orderData.name || 'Lead Hunter Club',
+        description: orderData.description || (mode === 'subscription' ? 'Plan subscription' : 'One-time credits'),
+        prefill: orderData.prefill || { name: user?.name, email: user?.email },
         theme: { color: '#7c3aed' },
       })
       if (result.succeeded) {
@@ -206,12 +210,12 @@ export default function SettingsPage() {
   }
 
   const handleRefillCredits = () => {
-    startCheckout('FREELANCER', 'one_time')
+    router.push('/pricing?tab=refills')
   }
 
-  const handleChangePlan = (planId: string) => {
+  const handleChangePlan = (_planId?: string) => {
     setPlanModalOpen(false)
-    startCheckout(planId, 'subscription')
+    router.push('/pricing')
   }
 
   const handleCancelSubscription = async () => {
@@ -543,15 +547,14 @@ export default function SettingsPage() {
               ) : null}
             </div>
 
-            <button
-              onClick={handleRefillCredits}
-              disabled={billingLoading}
-              className="w-full py-3.5 rounded-xl bg-accent-purple text-white font-bold text-sm flex items-center justify-center gap-2 hover:bg-surface-secondary transition-all shadow-[0_0_20px_rgba(var(--rgb-tab-purple),0.15)] hover:bg-accent-purple/90 disabled:opacity-50 disabled:cursor-not-allowed"
+            <Link
+              href="/pricing?tab=refills"
+              className="w-full py-3.5 rounded-xl bg-accent-purple text-white font-bold text-sm flex items-center justify-center gap-2 hover:bg-surface-secondary transition-all shadow-[0_0_20px_rgba(var(--rgb-tab-purple),0.15)] hover:bg-accent-purple/90"
             >
               <BoltIcon className="w-4 h-4" />
-              {billingLoading ? 'Processing…' : 'Refill Credits'}
+              Refill Credits
               <ArrowTopRightOnSquareIcon className="w-4 h-4" />
-            </button>
+            </Link>
           </motion.div>
 
           {/* Subscription */}
@@ -607,16 +610,12 @@ export default function SettingsPage() {
             </div>
 
             <div className="mt-4 flex gap-2">
-              <button
-                onClick={() => {
-                  loadRazorpayScript()
-                  setPlanModalOpen(true)
-                }}
-                disabled={billingLoading}
-                className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/[0.06] text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              <Link
+                href="/pricing"
+                className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/[0.06] text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-white/10 transition-all text-center flex items-center justify-center"
               >
                 Change Plan
-              </button>
+              </Link>
               <button
                 onClick={handleCancelSubscription}
                 disabled={billingLoading}

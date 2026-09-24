@@ -1,114 +1,151 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
-import { requireActiveUser } from '@/lib/auth'
-import { db } from '@/lib/db'
-import { getRazorpay } from '@/lib/razorpay'
-import { getPlan } from '@/lib/config/plans'
+import { requireActiveUser, ForbiddenError, AuthRequiredError } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
-const orderSchema = z.object({
-  plan: z.enum(['FREELANCER', 'AGENCY']),
-  mode: z.enum(['subscription', 'one_time']).default('subscription'),
-})
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://137.23.56.134:5001/api'
 
 export async function POST(request: NextRequest) {
   try {
     const authUser = await requireActiveUser(request)
-    const userId = authUser.uid
+    const authHeader = request.headers.get('Authorization') || ''
+    const body = await request.json().catch(() => ({}))
 
-    const body = await request.json()
-    const parsed = orderSchema.safeParse(body)
-    if (!parsed.success) {
-      return NextResponse.json(
-        { code: 'VALIDATION_ERROR', message: 'Invalid request', details: parsed.error.flatten().fieldErrors },
-        { status: 400 },
-      )
-    }
+    const rawPlan = (body.plan || 'freelancer').toString().toLowerCase()
+    const resolvedPlan =
+      rawPlan === 'freelancer' || rawPlan === 'paid'
+        ? 'paid'
+        : rawPlan === 'agency' || rawPlan === 'enterprise'
+        ? 'enterprise'
+        : rawPlan
 
-    const { plan: planId, mode } = parsed.data
-    const plan = getPlan(planId)
-    if (!plan || plan.price <= 0) {
-      return NextResponse.json(
-        { code: 'PLAN_UNAVAILABLE', message: 'This plan is not available for purchase' },
-        { status: 400 },
-      )
-    }
-
-    if (mode === 'subscription' && !plan.razorpayPlanId) {
-      return NextResponse.json(
-        {
-          code: 'RAZORPAY_PLAN_NOT_CONFIGURED',
-          message: 'Razorpay plan is not configured yet. Please set the plan ID on the Razorpay dashboard.',
-        },
-        { status: 400 },
-      )
-    }
-
-    const user = await db.user.findUnique({ where: { id: userId } })
-    if (!user) {
-      return NextResponse.json({ code: 'USER_NOT_FOUND', message: 'User not found' }, { status: 404 })
-    }
-
-    const razorpay = getRazorpay()
-    const amountPaise = plan.price * 100
-
-    if (mode === 'subscription') {
-      let customerId = user.razorpayCustomerId
-      if (!customerId) {
-        const customer = await razorpay.customers.create({
-          name: user.name || 'LeadHunter User',
-          email: user.email,
-          contact: user.phone?.replace(/[^0-9]/g, '') || undefined,
-          notes: { userId },
+    // 1. First, attempt to proxy to the backend payment engine (active Razorpay credentials & DB)
+    if (API_URL) {
+      try {
+        const res = await fetch(`${API_URL}/payments/razorpay/order`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: authHeader,
+          },
+          body: JSON.stringify({
+            plan: resolvedPlan,
+            mode: body.mode || 'one_time',
+          }),
+          signal: AbortSignal.timeout(15000),
         })
-        customerId = customer.id
-        await db.user.update({ where: { id: userId }, data: { razorpayCustomerId: customerId } })
+
+        const json = await res.json().catch(() => null)
+
+        if (res.ok && json) {
+          const orderData = json.data || json
+          return NextResponse.json(
+            {
+              success: true,
+              data: {
+                order_id: orderData.order_id || orderData.id,
+                key_id:
+                  orderData.key_id ||
+                  process.env.RAZORPAY_KEY_ID ||
+                  process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+                amount: orderData.amount,
+                currency: orderData.currency || 'INR',
+                plan: resolvedPlan,
+                name: orderData.name || 'Lead Hunter Club',
+                description: orderData.description || `Plan upgrade — ${resolvedPlan}`,
+                prefill: orderData.prefill || {
+                  name: authUser.name,
+                  email: authUser.email,
+                },
+              },
+              order_id: orderData.order_id || orderData.id,
+              key_id:
+                orderData.key_id ||
+                process.env.RAZORPAY_KEY_ID ||
+                process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+              amount: orderData.amount,
+              currency: orderData.currency || 'INR',
+              message: json.message || 'Order created',
+            },
+            { status: 200 },
+          )
+        } else {
+          console.warn('[Razorpay Order Proxy] Backend responded with status:', res.status, json)
+        }
+      } catch (backendErr: any) {
+        console.warn(
+          '[Razorpay Order Proxy] Backend proxy failed, falling back to local:',
+          backendErr.message,
+        )
       }
+    }
 
-      const subscription = await razorpay.subscriptions.create({
-        plan_id: plan.razorpayPlanId!,
-        customer_id: customerId,
-        customer_notify: 1,
-        total_count: 9999,
-        notes: { userId },
-      })
+    // 2. Local Fallback if RAZORPAY keys are configured locally in Next.js environment:
+    const keyId = process.env.RAZORPAY_KEY_ID || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID
+    const keySecret = process.env.RAZORPAY_KEY_SECRET
 
-      await db.user.update({
-        where: { id: userId },
-        data: { razorpaySubscriptionId: subscription.id },
+    if (keyId && keySecret) {
+      const { getRazorpay } = await import('@/lib/razorpay')
+      const razorpay = getRazorpay()
+
+      const priceMap: Record<string, number> = {
+        freelancer: 999,
+        paid: 999,
+        agency: 2499,
+        enterprise: 2499,
+      }
+      const price = priceMap[resolvedPlan] || 999
+      const amountPaise = price * 100
+
+      const order = await razorpay.orders.create({
+        amount: amountPaise,
+        currency: 'INR',
+        receipt: `plan-${resolvedPlan}-${authUser.uid.slice(0, 10)}_${Date.now()}`.slice(0, 40),
+        notes: { userId: authUser.uid, plan: resolvedPlan },
       })
 
       return NextResponse.json({
         success: true,
-        key_id: process.env.RAZORPAY_KEY_ID,
-        mode: 'subscription',
-        subscription_id: subscription.id,
-        customer_id: customerId,
-        amount: plan.price,
+        data: {
+          order_id: order.id,
+          key_id: keyId,
+          amount: amountPaise,
+          currency: 'INR',
+          plan: resolvedPlan,
+          name: 'Lead Hunter Club',
+          description: `Plan upgrade — ${resolvedPlan}`,
+          prefill: {
+            name: authUser.name,
+            email: authUser.email,
+          },
+        },
+        order_id: order.id,
+        key_id: keyId,
+        amount: price,
         currency: 'INR',
       })
     }
 
-    const order = await razorpay.orders.create({
-      amount: amountPaise,
-      currency: 'INR',
-      receipt: `plan-${planId}-${userId.slice(0, 12)}`,
-      notes: { userId, plan: planId },
-    })
-
-    return NextResponse.json({
-      success: true,
-      key_id: process.env.RAZORPAY_KEY_ID,
-      mode: 'one_time',
-      order_id: order.id,
-      amount: plan.price,
-      currency: 'INR',
-    })
-  } catch (err: any) {
-    console.error('[Razorpay Order] Error:', err.message)
     return NextResponse.json(
-      { code: 'PAYMENT_PROVIDER_ERROR', message: 'Failed to create payment. Please try again.' },
+      {
+        success: false,
+        code: 'PAYMENT_UNAVAILABLE',
+        message:
+          'Payment gateway configuration is temporarily unavailable. Please try again shortly or contact support.',
+      },
+      { status: 503 },
+    )
+  } catch (error: unknown) {
+    if (error instanceof AuthRequiredError || error instanceof ForbiddenError) {
+      return NextResponse.json({ code: 'UNAUTHORIZED', message: 'Authentication required' }, { status: 401 })
+    }
+    console.error('[Razorpay Order] Error:', error)
+    return NextResponse.json(
+      {
+        success: false,
+        code: 'PAYMENT_PROVIDER_ERROR',
+        message: error instanceof Error ? error.message : 'Failed to create payment order',
+      },
       { status: 500 },
     )
   }
