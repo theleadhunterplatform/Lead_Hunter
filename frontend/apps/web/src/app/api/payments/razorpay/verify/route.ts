@@ -10,129 +10,153 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL!
 export async function POST(request: NextRequest) {
   try {
     const authUser = await requireActiveUser(request)
-
     const authHeader = request.headers.get('Authorization') || ''
-    const body = await request.json()
+    const body = await request.json().catch(() => ({}))
 
-    let data: any = null
-    let resOk = false
-    let resStatus = 500
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = body || {}
 
-    if (API_URL) {
-      try {
-        const res = await fetch(`${API_URL}/payments/razorpay/verify`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: authHeader,
-          },
-          body: JSON.stringify(body),
-          signal: AbortSignal.timeout(15000),
-        })
-
-        data = await res.json().catch(() => null)
-        resOk = res.ok
-        resStatus = res.status
-      } catch (err: any) {
-        console.warn('[Razorpay Verify Proxy] Backend verification failed, trying local fallback:', err?.message)
-      }
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      return NextResponse.json(
+        { success: false, message: 'Missing required Razorpay payment verification fields' },
+        { status: 400 }
+      )
     }
 
     const keySecret = process.env.RAZORPAY_KEY_SECRET
-    if (!resOk && keySecret && body.razorpay_order_id && body.razorpay_payment_id && body.razorpay_signature) {
-      const crypto = await import('crypto')
-      const expected = crypto
-        .createHmac('sha256', keySecret)
-        .update(`${body.razorpay_order_id}|${body.razorpay_payment_id}`)
-        .digest('hex')
+    if (!keySecret) {
+      return NextResponse.json(
+        { success: false, message: 'Payment verification secret is not configured' },
+        { status: 500 }
+      )
+    }
 
-      if (expected === body.razorpay_signature) {
-        let addedTokens: number | undefined
-        let resolvedPlan: string | undefined
+    // 1. Verify Razorpay Signature securely via HMAC-SHA256
+    const crypto = await import('crypto')
+    const expectedSignature = crypto
+      .createHmac('sha256', keySecret)
+      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+      .digest('hex')
 
-        try {
-          const { getRazorpay } = await import('@/lib/razorpay')
-          const razorpay = getRazorpay()
-          const orderInfo = await razorpay.orders.fetch(body.razorpay_order_id).catch(() => null)
-          const notes = (orderInfo as any)?.notes || {}
-          if (notes.tokens) addedTokens = Number(notes.tokens)
-          if (notes.plan) resolvedPlan = String(notes.plan)
-          if (!addedTokens && body.tokens) addedTokens = Number(body.tokens)
-          if (!resolvedPlan && body.plan) resolvedPlan = String(body.plan)
-        } catch {
-          if (body.tokens) addedTokens = Number(body.tokens)
-          if (body.plan) resolvedPlan = String(body.plan)
-        }
+    if (expectedSignature !== razorpay_signature) {
+      return NextResponse.json(
+        { success: false, message: 'Invalid payment signature' },
+        { status: 400 }
+      )
+    }
 
-        data = {
-          success: true,
-          data: {
-            added: addedTokens,
-            plan: resolvedPlan,
-          },
-        }
-        resOk = true
-        resStatus = 200
+    // 2. Check Idempotency: Prevent crediting the same payment ID twice
+    const paymentId = razorpay_payment_id || razorpay_order_id
+    const existingTx = await db.auditLog.findFirst({
+      where: { action: 'PAYMENT_CREDITED', targetId: paymentId },
+    })
+    if (existingTx) {
+      return NextResponse.json(
+        { success: true, message: 'Payment already verified and credited' },
+        { status: 200 }
+      )
+    }
+
+    // 3. Resolve pack / plan info
+    let packId = body.pack
+    let planId = body.plan
+    let tokensToCredit = body.tokens ? Number(body.tokens) : undefined
+
+    // If pack or plan was not explicitly passed in body, inspect order notes from Razorpay
+    if (!packId && !planId && !tokensToCredit) {
+      try {
+        const { getRazorpay } = await import('@/lib/razorpay')
+        const razorpay = getRazorpay()
+        const orderInfo = await razorpay.orders.fetch(razorpay_order_id).catch(() => null)
+        const notes = (orderInfo as any)?.notes || {}
+        if (notes.pack) packId = notes.pack
+        if (notes.tokens) tokensToCredit = Number(notes.tokens)
+        if (notes.plan) planId = notes.plan
+      } catch (err) {
+        console.warn('[Razorpay Verify] Could not fetch order notes:', err)
       }
     }
 
-    if (resOk && data?.success) {
-      // 1. If backend already marked this payment as processed, do NOT credit tokens or plans again
-      if (data.data?.already_processed === true) {
-        return NextResponse.json(data, { status: resStatus })
-      }
-
-      const paymentId = body.razorpay_payment_id || body.razorpay_order_id
-      if (paymentId) {
-        // 2. Check local database idempotency: Has this specific payment ID already been credited?
-        const existingTx = await db.auditLog.findFirst({
-          where: { action: 'PAYMENT_CREDITED', targetId: paymentId },
-        })
-        if (existingTx) {
-          return NextResponse.json({ ...data, message: 'Payment already credited' }, { status: 200 })
+    // If it's a top-up pack, resolve the dynamic tokens from refill_packs_config in the DB
+    if (packId) {
+      try {
+        const refillSetting = await db.setting.findUnique({ where: { key: 'refill_packs_config' } })
+        if (refillSetting?.value && Array.isArray(refillSetting.value)) {
+          const matchedPack = (refillSetting.value as any[]).find((p: any) => p.id === packId)
+          if (matchedPack && typeof matchedPack.tokens === 'number') {
+            tokensToCredit = matchedPack.tokens
+          }
         }
-      }
-
-      const addedTokens = data.data?.added || (body.tokens ? Number(body.tokens) : undefined)
-      const verifiedPlan = data.data?.plan || (body.plan ? String(body.plan) : undefined)
-
-      if (typeof addedTokens === 'number' && addedTokens > 0) {
-        await creditService.grantBonus(authUser.uid, addedTokens, 'razorpay_topup')
-      } else if (verifiedPlan && !verifiedPlan.startsWith('topup_')) {
-        const appPlan =
-          verifiedPlan === 'paid' || verifiedPlan === 'freelancer'
-            ? 'FREELANCER'
-            : verifiedPlan === 'enterprise' || verifiedPlan === 'agency'
-            ? 'AGENCY'
-            : verifiedPlan.toUpperCase()
-        await creditService.assignPlan(authUser.uid, appPlan)
-      }
-
-      // Record payment credit in audit log to prevent any future replay
-      if (paymentId) {
-        await db.auditLog.create({
-          data: {
-            userId: authUser.uid,
-            adminId: authUser.uid,
-            action: 'PAYMENT_CREDITED',
-            targetType: 'RAZORPAY_PAYMENT',
-            targetId: paymentId,
-            details: {
-              orderId: body.razorpay_order_id,
-              addedTokens: addedTokens || 0,
-              plan: verifiedPlan || null,
-            },
-          },
-        }).catch((err) => console.warn('[Payment Verify] Audit log creation failed:', err))
+      } catch (err) {
+        console.warn('[Razorpay Verify] Failed to read refill_packs_config from DB:', err)
       }
     }
 
-    return NextResponse.json(data || { success: false, message: 'Payment verification failed' }, { status: resStatus })
+    let resultData: any = {}
+
+    // 4. Credit Tokens or Assign Plan
+    if (typeof tokensToCredit === 'number' && tokensToCredit > 0) {
+      await creditService.grantBonus(authUser.uid, tokensToCredit, 'razorpay_topup')
+      resultData = { added: tokensToCredit, pack: packId }
+    } else if (planId && !String(planId).startsWith('topup_')) {
+      const normalizedPlan = String(planId).toUpperCase()
+      const appPlan =
+        normalizedPlan === 'PAID' || normalizedPlan === 'FREELANCER'
+          ? 'FREELANCER'
+          : normalizedPlan === 'ENTERPRISE' || normalizedPlan === 'AGENCY'
+          ? 'AGENCY'
+          : normalizedPlan
+
+      await creditService.assignPlan(authUser.uid, appPlan)
+      resultData = { plan: appPlan }
+    } else if (body.added && typeof body.added === 'number') {
+      await creditService.grantBonus(authUser.uid, body.added, 'razorpay_topup')
+      resultData = { added: body.added }
+    }
+
+    // 5. Record in Audit Log for permanent verification and replay prevention
+    await db.auditLog.create({
+      data: {
+        userId: authUser.uid,
+        adminId: authUser.uid,
+        action: 'PAYMENT_CREDITED',
+        targetType: 'RAZORPAY_PAYMENT',
+        targetId: paymentId,
+        details: {
+          orderId: razorpay_order_id,
+          paymentId: razorpay_payment_id,
+          packId: packId || null,
+          addedTokens: tokensToCredit || 0,
+          plan: planId || null,
+        },
+      },
+    }).catch((err) => console.warn('[Payment Verify] Audit log creation failed:', err))
+
+    // 6. Optional: notify remote backend in background for sync if configured
+    if (API_URL) {
+      fetch(`${API_URL}/payments/razorpay/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: authHeader,
+        },
+        body: JSON.stringify(body),
+      }).catch(() => {})
+    }
+
+    return NextResponse.json(
+      {
+        success: true,
+        data: resultData,
+        message: 'Payment verified and credited successfully',
+      },
+      { status: 200 }
+    )
   } catch (error: unknown) {
     if (error instanceof AuthRequiredError || error instanceof ForbiddenError) {
       return NextResponse.json({ code: 'UNAUTHORIZED', message: 'Authentication required' }, { status: 401 })
     }
     const msg = error instanceof Error ? error.message : 'Failed to verify payment'
+    console.error('[Razorpay Verify] Error:', error)
     return NextResponse.json({ code: 'ERROR', message: msg }, { status: 500 })
   }
 }
