@@ -180,9 +180,9 @@ export default function PricingPage() {
           Back
         </button>
 
-        {/* Page Hero */}
+{/* Page Hero */}
         <div className="text-center max-w-2xl mx-auto space-y-3">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent-mint/10 border border-accent-mint/20 text-accent-mint text-xs font-bold uppercase tracking-wider">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-xs font-bold uppercase tracking-wider text-primary">
             <SparklesIcon className="w-4 h-4" />
             Transparent Pricing
           </div>
@@ -204,19 +204,19 @@ export default function PricingPage() {
               <div
                 key={plan.id}
                 className={`relative flex flex-col justify-between p-8 rounded-4xl border transition-all duration-300 ${isCurrent
-                    ? 'bg-surface/60 border-accent-mint/40 shadow-2xl ring-2 ring-accent-mint/40'
+                    ? 'metallic-card ring-2 ring-primary/40'
                     : isPopular
-                      ? 'bg-gradient-to-b from-surface-elevated to-surface/50 border-accent-purple/40 shadow-2xl ring-1 ring-accent-purple/30'
-                      : 'bg-surface/40 border-white/[0.08] hover:border-white/20'
+                      ? 'metallic-card ring-1 ring-primary/30 bg-gradient-to-b from-surface-elevated to-surface/50'
+                      : 'metallic-card'
                   }`}
-              >
+                >
                 {isCurrent && (
-                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-3.5 py-1 rounded-full bg-accent-mint text-black font-extrabold text-[10px] tracking-wider uppercase shadow-md">
+                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-3.5 py-1 rounded-full bg-primary text-black font-extrabold text-[10px] tracking-wider uppercase shadow-md">
                     Your Current Plan
                   </div>
                 )}
                 {!isCurrent && isPopular && (
-                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-3.5 py-1 rounded-full bg-accent-purple text-white font-extrabold text-[10px] tracking-wider uppercase shadow-md flex items-center gap-1">
+                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-3.5 py-1 rounded-full bg-primary text-black font-extrabold text-[10px] tracking-wider uppercase shadow-md flex items-center gap-1">
                     <StarIcon className="w-3 h-3" />
                     Recommended
                   </div>
@@ -235,7 +235,7 @@ export default function PricingPage() {
                     <span className="text-xs text-text-secondary font-medium">/ 30 days</span>
                   </div>
 
-                  <div className="p-3 bg-white/[0.03] rounded-2xl border border-white/5 flex items-center justify-between text-xs font-semibold">
+                  <div className="metallic-card p-3 flex items-center justify-between text-xs font-semibold">
                     <span className="text-text-secondary">Monthly Allowance</span>
                     <span className="text-white font-bold">{plan.credits} Credits</span>
                   </div>
@@ -255,14 +255,14 @@ export default function PricingPage() {
                   </div>
                 </div>
 
-                <div className="pt-8 mt-8 border-t border-white/5">
+<div className="pt-8 mt-8 border-t border-white/5">
                   <button
                     onClick={() => handleSelectPlan(plan)}
                     disabled={isCurrent || subscribingPlan === plan.id}
-                    className={`w-full py-3.5 rounded-2xl font-bold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-lg disabled:opacity-50 ${isCurrent
+                    className={`w-full min-h-[44px] py-3.5 rounded-2xl font-bold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-lg disabled:opacity-50 ${isCurrent
                         ? 'bg-white/5 text-text-secondary border border-white/10 cursor-default'
                         : isPopular
-                          ? 'bg-accent-purple text-white hover:bg-accent-purple/90 shadow-accent-purple/20'
+                          ? 'bg-primary text-black hover:bg-primary/90 shadow-primary/20'
                           : 'bg-white text-black hover:bg-white/90'
                       }`}
                   >
@@ -273,7 +273,7 @@ export default function PricingPage() {
                         : plan.price === 0
                           ? 'Downgrade to Free'
                           : `Upgrade to ${plan.name}`}
-                  </button>
+                    </button>
                 </div>
               </div>
             )

@@ -256,7 +256,7 @@ export default function SettingsPage() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="glass-panel rounded-4xl border-subtle bg-surface/40 p-8"
+            className="metallic-card p-6 sm:p-8"
           >
             <div className="flex items-center justify-between mb-8">
               <div className="flex items-center gap-4">
@@ -344,7 +344,7 @@ export default function SettingsPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.05 }}
-            className="glass-panel rounded-4xl border-subtle bg-surface/40 p-8"
+            className="metallic-card p-6 sm:p-8"
           >
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-4">
@@ -500,7 +500,7 @@ export default function SettingsPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="glass-panel rounded-4xl border-subtle bg-surface/40 p-8"
+            className="metallic-card p-6 sm:p-8"
           >
             <div className="flex items-center gap-4 mb-8">
               <div className="w-14 h-14 rounded-xl bg-surface-secondary border border-border-subtle flex items-center justify-center">
@@ -559,7 +559,7 @@ export default function SettingsPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="glass-panel rounded-4xl border-subtle bg-surface/40 p-8"
+            className="metallic-card p-6 sm:p-8"
           >
             <div className="flex items-center gap-4 mb-8">
               <div className="w-14 h-14 rounded-xl bg-accent-purple/10 border border-accent-purple/20 flex items-center justify-center">
@@ -632,7 +632,7 @@ export default function SettingsPage() {
                 onClick={() => setPlanModalOpen(false)}
               >
                 <div
-                  className="glass-panel rounded-4xl border-subtle bg-surface/40 p-8 w-full max-w-md shadow-2xl"
+                  className="metallic-card p-6 sm:p-8 w-full max-w-md"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <div className="flex items-center justify-between mb-6">
@@ -683,7 +683,7 @@ export default function SettingsPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="glass-panel rounded-4xl border border-red-500/10 bg-red-500/[0.02] p-8"
+            className="metallic-card p-6 sm:p-8 border-red-500/10 bg-red-500/[0.02]"
           >
             <div className="flex items-center gap-4 mb-6">
               <div className="w-14 h-14 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">

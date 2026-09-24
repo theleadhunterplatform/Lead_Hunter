@@ -267,7 +267,7 @@ export default function TicketDetailPage() {
                 <div className="flex justify-end">
                   <Button
                     variant="primary"
-                    color="mint"
+                    color="primary"
                     size="sm"
                     className="min-h-[44px]"
                     onClick={handleSend}

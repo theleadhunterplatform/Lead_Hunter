@@ -266,7 +266,7 @@ export default function TokenSystemSection() {
                         className={`text-left px-3 py-2 rounded-lg text-11 font-mono flex items-center justify-between border transition-all ${
                           activeCardId === lead.id
                             ? 'bg-white/5 border-white/10 text-text-primary font-bold'
-                            : 'bg-transparent border-transparent text-text-secondary/60 hover:text-text-primary'
+                            : 'bg-transparent border-transparent text-text-secondary/75 hover:text-text-primary'
                         }`}
                       >
                         <span>
@@ -402,7 +402,7 @@ export default function TokenSystemSection() {
                 scaleVal = 0.88
                 rotation = -6
                 filterClass =
-                  'blur-[1.5px] opacity-50 hover:opacity-75 cursor-pointer pointer-events-auto'
+                  'blur-[1.5px] hover:blur-[0.5px] cursor-pointer pointer-events-auto'
               } else if (displayOffset === 1) {
                 // Shifted to the right/behind
                 zIndex = 10
@@ -410,7 +410,7 @@ export default function TokenSystemSection() {
                 scaleVal = 0.88
                 rotation = 6
                 filterClass =
-                  'blur-[1.5px] opacity-50 hover:opacity-75 cursor-pointer pointer-events-auto'
+                  'blur-[1.5px] hover:blur-[0.5px] cursor-pointer pointer-events-auto'
               } else if (displayOffset === -2) {
                 // Far left/behind card (visible when active is the last card)
                 zIndex = 5
@@ -418,7 +418,7 @@ export default function TokenSystemSection() {
                 scaleVal = 0.76
                 rotation = -12
                 filterClass =
-                  'blur-[3px] opacity-25 hover:opacity-50 cursor-pointer pointer-events-auto'
+                  'blur-[3px] hover:blur-[1px] cursor-pointer pointer-events-auto'
               } else if (displayOffset === 2) {
                 // Far right/behind card (visible when active is the first card)
                 zIndex = 5
@@ -426,7 +426,7 @@ export default function TokenSystemSection() {
                 scaleVal = 0.76
                 rotation = 12
                 filterClass =
-                  'blur-[3px] opacity-25 hover:opacity-50 cursor-pointer pointer-events-auto'
+                  'blur-[3px] hover:blur-[1px] cursor-pointer pointer-events-auto'
               } else {
                 // Completely hidden cards out of sight
                 zIndex = 0

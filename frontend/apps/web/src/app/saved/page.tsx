@@ -20,6 +20,8 @@ import {
   EnvelopeIcon,
   TrashIcon,
   LockClosedIcon,
+  PhoneIcon,
+  BuildingOffice2Icon,
 } from '@heroicons/react/24/solid'
 import Link from 'next/link'
 import { AppLead } from '@/types/lead'
@@ -90,6 +92,75 @@ export default function SavedLeadsPage() {
       window.localStorage.setItem('lhc-saved-scrollhint', '1')
     }
   }
+
+  // --- Hover card: reveal contact details when hovering a lead's name ---
+  const [hoverCard, setHoverCard] = useState<{
+    leadId: string
+    top: number
+    left: number
+  } | null>(null)
+  const hoverShowTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const hoverHideTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const clearHoverTimers = () => {
+    if (hoverShowTimer.current) clearTimeout(hoverShowTimer.current)
+    if (hoverHideTimer.current) clearTimeout(hoverHideTimer.current)
+  }
+
+  const openLeadHoverCard = (lead: AppLead, el: HTMLElement, immediate = false) => {
+    if (openActionDropdownId === lead.id) return
+    clearHoverTimers()
+    const show = () => {
+      const rect = el.getBoundingClientRect()
+      const CARD_W = 300
+      const CARD_H = 248
+      const GAP = 10
+      const top =
+        rect.bottom + GAP + CARD_H > window.innerHeight
+          ? Math.max(8, rect.top - GAP - CARD_H)
+          : rect.bottom + GAP
+      const left = Math.min(
+        Math.max(8, rect.left),
+        Math.max(8, window.innerWidth - CARD_W - 8),
+      )
+      setHoverCard({ leadId: lead.id, top, left })
+    }
+    if (immediate) show()
+    else hoverShowTimer.current = setTimeout(show, 240)
+  }
+
+  const scheduleCloseLeadHoverCard = () => {
+    clearHoverTimers()
+    hoverHideTimer.current = setTimeout(() => setHoverCard(null), 160)
+  }
+
+  const keepLeadHoverCardOpen = () => {
+    if (hoverHideTimer.current) clearTimeout(hoverHideTimer.current)
+  }
+
+  const closeLeadHoverCard = () => {
+    clearHoverTimers()
+    setHoverCard(null)
+  }
+
+  useEffect(() => () => clearHoverTimers(), [])
+
+  // Close the hover card on scroll / resize / Escape
+  useEffect(() => {
+    if (!hoverCard) return
+    const close = () => setHoverCard(null)
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setHoverCard(null)
+    }
+    window.addEventListener('scroll', close, true)
+    window.addEventListener('resize', close)
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('scroll', close, true)
+      window.removeEventListener('resize', close)
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [hoverCard])
 
   const readyCount = savedLeads.filter(
     (l) => l.isRevealed && (l.status === 'new' || l.status === 'saved'),
@@ -238,6 +309,39 @@ export default function SavedLeadsPage() {
     try {
       await navigator.clipboard.writeText(lead.email)
       addToast({ type: 'success', message: `✓ Copied ${lead.email}` })
+    } catch {
+      addToast({ type: 'error', message: 'Clipboard access blocked' })
+    }
+  }
+
+  const handleCopyLeadInfo = async (lead: AppLead) => {
+    const revealed = Boolean(lead.isRevealed)
+    const emailVisible = revealed && !!lead.email && !lead.email.includes('hidden')
+    const phoneVisible = revealed && !!lead.phone
+    const displayName =
+      revealed && lead.name ? lead.name : lead.title || lead.category || 'Saved Lead'
+
+    const role = Array.from(
+      new Set([lead.role, lead.title].filter(Boolean) as string[]),
+    ).join(' · ')
+
+    const lines: string[] = [`Lead: ${displayName}`]
+    if (role) lines.push(`Role: ${role}`)
+    if (lead.company) lines.push(`Company: ${lead.company}`)
+    lines.push(`Email: ${emailVisible ? lead.email : 'Locked — reveal to view'}`)
+    if (phoneVisible) lines.push(`Phone: ${lead.phone}`)
+    else if (lead.hasPhone) lines.push('Phone: Locked — reveal to view')
+    if (lead.source) lines.push(`Source: ${lead.source}`)
+    if (lead.category) lines.push(`Category: ${lead.category}`)
+    lines.push(`Urgency: ${lead.urgency}`)
+    lines.push(`Status: ${lead.status}`)
+    if (lead.replyProbability > 0) lines.push(`Reply probability: ${lead.replyProbability}%`)
+    if (lead.signalContext) lines.push(`Signal: ${lead.signalContext}`)
+    if (lead.nicheTags?.length) lines.push(`Niches: ${lead.nicheTags.join(', ')}`)
+
+    try {
+      await navigator.clipboard.writeText(lines.join('\n'))
+      addToast({ type: 'success', message: `✓ Copied info for ${displayName}` })
     } catch {
       addToast({ type: 'error', message: 'Clipboard access blocked' })
     }
@@ -565,7 +669,17 @@ export default function SavedLeadsPage() {
                               ? lead.name.split(' ').map((n) => n[0]).join('')
                               : <LockClosedIcon className="w-3.5 h-3.5" />}
                           </div>
-                          <div className="min-w-0">
+                          <div
+                            className="min-w-0 rounded-md -m-1 p-1 outline-none focus-visible:ring-1 focus-visible:ring-accent-purple/50"
+                            tabIndex={0}
+                            onMouseEnter={(e) => openLeadHoverCard(lead, e.currentTarget)}
+                            onMouseLeave={scheduleCloseLeadHoverCard}
+                            onFocus={(e) => openLeadHoverCard(lead, e.currentTarget, true)}
+                            onBlur={closeLeadHoverCard}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Escape') closeLeadHoverCard()
+                            }}
+                          >
                             <div className="text-sm font-bold text-text-primary truncate flex items-center gap-1.5">
                               {lead.isRevealed ? lead.name : (lead.title || lead.category || 'Saved Lead')}
                               {!lead.isRevealed && (
@@ -788,6 +902,18 @@ export default function SavedLeadsPage() {
                                 <button
                                   type="button"
                                   onClick={() => {
+                                    handleCopyLeadInfo(lead)
+                                    setOpenActionDropdownId(null)
+                                  }}
+                                  className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-text-primary hover:bg-white/5 transition-colors"
+                                >
+                                  <ClipboardDocumentListIcon className="w-3.5 h-3.5 text-accent-mint shrink-0" />
+                                  Copy lead intel
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
                                     handleRemoveSaved(lead.id)
                                     setOpenActionDropdownId(null)
                                   }}
@@ -823,6 +949,115 @@ export default function SavedLeadsPage() {
           )}
         </div>
       </div>
+
+      {/* Hover card: contact details revealed when hovering a lead's name */}
+      {hoverCard &&
+        (() => {
+          const lead = savedLeads.find((l) => l.id === hoverCard.leadId)
+          if (!lead) return null
+          const revealed = Boolean(lead.isRevealed)
+          const emailVisible = revealed && !!lead.email && !lead.email.includes('hidden')
+          const phoneVisible = revealed && !!lead.phone
+          const displayName =
+            revealed && lead.name ? lead.name : lead.title || lead.category || 'Saved Lead'
+          const role = Array.from(
+            new Set([lead.role, lead.title].filter(Boolean) as string[]),
+          ).join(' · ')
+          const showPhoneRow = phoneVisible || lead.hasPhone
+
+          return createPortal(
+            <div
+              role="tooltip"
+              onMouseEnter={keepLeadHoverCardOpen}
+              onMouseLeave={scheduleCloseLeadHoverCard}
+              style={{ top: hoverCard.top, left: hoverCard.left, width: 300 }}
+              className="fixed z-[60] rounded-2xl bg-surface-elevated/95 border border-white/10 shadow-2xl shadow-black/80 backdrop-blur-xl p-4 text-left"
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className={`w-9 h-9 rounded-full border flex items-center justify-center text-11 font-bold overflow-hidden shrink-0 ${
+                    revealed
+                      ? 'bg-surface-elevated border-white/10 text-text-primary'
+                      : 'bg-accent-purple/10 border-accent-purple/20 text-accent-purple'
+                  }`}
+                >
+                  {revealed && lead.name ? (
+                    lead.name.split(' ').map((n) => n[0]).join('')
+                  ) : (
+                    <LockClosedIcon className="w-3.5 h-3.5" />
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <div className="text-sm font-bold text-text-primary truncate">{displayName}</div>
+                  <div className="text-[10px] text-text-secondary truncate">
+                    {[role, lead.company].filter(Boolean).join(' @ ') ||
+                      lead.category ||
+                      'Saved lead'}
+                  </div>
+                </div>
+              </div>
+
+              <div className="h-px bg-white/[0.08] my-3" />
+
+              <div className="space-y-2">
+                <div className="flex items-start gap-2 text-xs">
+                  <EnvelopeIcon className="w-3.5 h-3.5 text-text-secondary shrink-0 mt-0.5" />
+                  <span className={emailVisible ? 'text-text-primary break-all' : 'text-text-secondary italic'}>
+                    {emailVisible ? lead.email : 'Locked — reveal to view'}
+                  </span>
+                </div>
+                {showPhoneRow && (
+                  <div className="flex items-start gap-2 text-xs">
+                    <PhoneIcon className="w-3.5 h-3.5 text-text-secondary shrink-0 mt-0.5" />
+                    <span className={phoneVisible ? 'text-text-primary' : 'text-text-secondary italic'}>
+                      {phoneVisible ? lead.phone : 'Locked — reveal to view'}
+                    </span>
+                  </div>
+                )}
+                {lead.company && (
+                  <div className="flex items-start gap-2 text-xs">
+                    <BuildingOffice2Icon className="w-3.5 h-3.5 text-text-secondary shrink-0 mt-0.5" />
+                    <span className="text-text-primary truncate">{lead.company}</span>
+                  </div>
+                )}
+                {lead.source && (
+                  <div className="flex items-start gap-2 text-xs">
+                    <SparklesIcon className="w-3.5 h-3.5 text-text-secondary shrink-0 mt-0.5" />
+                    <span className="text-text-secondary truncate">Source: {lead.source}</span>
+                  </div>
+                )}
+              </div>
+
+              {lead.signalContext && (
+                <p className="text-[10px] text-text-secondary leading-relaxed mt-2.5 line-clamp-2">
+                  {lead.signalContext}
+                </p>
+              )}
+              {!revealed && (
+                <p className="text-[10px] text-accent-purple mt-2.5">
+                  Reveal this lead to unlock full contact details.
+                </p>
+              )}
+
+              <div className="h-px bg-white/[0.08] my-3" />
+              <div className="flex items-center justify-between gap-2">
+                <Badge size="sm" color={statusBadgeColor[lead.status] || 'mint'}>
+                  {lead.status}
+                </Badge>
+                <Badge
+                  size="sm"
+                  color={lead.urgency === 'critical' || lead.urgency === 'high' ? 'mint' : 'purple'}
+                >
+                  {lead.urgency} urgency
+                </Badge>
+                {lead.replyProbability > 0 && (
+                  <span className="text-xxs text-text-secondary">{lead.replyProbability}% reply</span>
+                )}
+              </div>
+            </div>,
+            document.body,
+          )
+        })()}
     </main>
   )
 }

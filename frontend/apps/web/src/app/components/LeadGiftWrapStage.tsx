@@ -95,7 +95,7 @@ const INITIAL_GIFT_LEADS: AppLead[] = [
 export function LeadGiftWrapStage() {
   const [leads, setLeads] = useState<AppLead[]>(INITIAL_GIFT_LEADS)
   const [activeIdx, setActiveIdx] = useState(0)
-  const [isHovered, setIsHovered] = useState(false)
+  const [isEngaged, setIsEngaged] = useState(false)
   const reduceMotion = useReducedMotion()
 
   const handleNext = () => {
@@ -108,9 +108,13 @@ export function LeadGiftWrapStage() {
 
   return (
     <div
-      className="w-full max-w-[360px] flex flex-col items-center justify-center select-none py-1"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      className="w-full max-w-full sm:max-w-[360px] flex flex-col items-center justify-center select-none py-1"
+      onMouseEnter={() => setIsEngaged(true)}
+      onMouseLeave={() => setIsEngaged(false)}
+      onClick={() => {
+        // Touch fallback: tap anywhere on the sleeve draws the next lead
+        if (window.matchMedia('(pointer: coarse)').matches) handleNext()
+      }}
     >
       {/* Top Notification Status Header (Matches reference image) */}
       <div className="w-full flex items-center justify-between mb-3 px-1 text-xs">
@@ -139,8 +143,11 @@ export function LeadGiftWrapStage() {
 
         <button
           type="button"
-          onClick={handleNext}
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] text-[10px] font-mono text-orange-400 transition-colors cursor-pointer"
+          onClick={(e) => {
+            e.stopPropagation()
+            handleNext()
+          }}
+          className="flex items-center gap-1.5 min-h-[44px] px-3 py-1 rounded-full bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] text-[11px] font-mono text-orange-400 transition-colors cursor-pointer"
         >
           <span>Tap to draw</span>
           <span className="text-zinc-500 font-sans">({activeIdx + 1}/3)</span>
@@ -148,17 +155,17 @@ export function LeadGiftWrapStage() {
       </div>
 
       {/* Gift Wrap / Envelope Sleeve Container */}
-      <div className="relative w-full h-[300px] flex items-end justify-center">
+      <div className="relative w-full h-[340px] sm:h-[300px] flex items-end justify-center">
         {/* Envelope Back Plate */}
         <div className="absolute inset-0 top-6 rounded-3xl bg-[#131316] border border-white/[0.06] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]" />
 
-        {/* Stacked Lead Cards Inside the Wrap */}
+        {/* Stacked Lead Cards Inside the Wrap — stack hidden on mobile (single card only) */}
         <div className="absolute inset-x-2 top-0 bottom-6 flex flex-col items-center">
-          {/* Card 3 (Furthest Back) */}
+          {/* Card 3 (Furthest Back) — desktop only */}
           <div
-            className="absolute w-[90%] transition-all duration-500 pointer-events-none"
+            className="hidden sm:block absolute w-[90%] transition-all duration-500 pointer-events-none"
             style={{
-              top: isHovered ? '-14px' : '4px',
+              top: isEngaged ? '-14px' : '4px',
               transform: 'scale(0.88)',
               opacity: 0.35,
               filter: 'blur(0.5px)',
@@ -167,11 +174,11 @@ export function LeadGiftWrapStage() {
             <PipelineLeadCard lead={thirdLead} index={2} />
           </div>
 
-          {/* Card 2 (Middle) */}
+          {/* Card 2 (Middle) — desktop only */}
           <div
-            className="absolute w-[95%] transition-all duration-500 pointer-events-none"
+            className="hidden sm:block absolute w-[95%] transition-all duration-500 pointer-events-none"
             style={{
-              top: isHovered ? '-6px' : '10px',
+              top: isEngaged ? '-6px' : '10px',
               transform: 'scale(0.94)',
               opacity: 0.65,
             }}
@@ -185,11 +192,11 @@ export function LeadGiftWrapStage() {
               key={currentLead.id}
               initial={reduceMotion ? false : { y: -35, opacity: 0, scale: 0.96 }}
               animate={{
-                y: isHovered ? -20 : 0,
+                y: isEngaged && !reduceMotion ? -20 : 0,
                 opacity: 1,
                 scale: 1,
               }}
-              exit={reduceMotion ? false : { y: -80, opacity: 0, scale: 1.04 }}
+              exit={reduceMotion ? { opacity: 0 } : { y: -80, opacity: 0, scale: 1.04 }}
               transition={{ type: 'spring', stiffness: 350, damping: 25 }}
               className="relative w-full z-10"
             >
@@ -208,8 +215,8 @@ export function LeadGiftWrapStage() {
 
         {/* Front Frosted Pocket Sleeve of the Gift Wrap */}
         <div className="relative w-full h-[110px] z-20 pointer-events-none">
-          {/* Frosted Translucent Acrylic Pocket */}
-          <div className="absolute inset-0 rounded-b-3xl bg-gradient-to-b from-white/[0.08] to-white/[0.02] backdrop-blur-md border-t border-x border-white/[0.14] shadow-[0_14px_35px_rgba(0,0,0,0.7)] overflow-hidden">
+          {/* Frosted Translucent Acrylic Pocket — backdrop-blur disabled on mobile (GPU) */}
+          <div className="absolute inset-0 rounded-b-3xl bg-gradient-to-b from-white/[0.08] to-white/[0.02] sm:backdrop-blur-md border-t border-x border-white/[0.14] shadow-[0_14px_35px_rgba(0,0,0,0.7)] overflow-hidden">
             {/* V-neck collar contour */}
             <svg
               className="absolute top-0 left-0 right-0 w-full h-8 text-white/[0.06]"
@@ -226,12 +233,15 @@ export function LeadGiftWrapStage() {
             <motion.div
               whileHover={{ scale: 1.08 }}
               whileTap={{ scale: 0.94 }}
-              onClick={handleNext}
-              className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 via-orange-500 to-orange-700 p-0.5 shadow-[0_4px_16px_rgba(249,115,22,0.4)] cursor-pointer flex items-center justify-center"
+              onClick={(e) => {
+                e.stopPropagation()
+                handleNext()
+              }}
+              className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 via-orange-500 to-orange-700 p-0.5 shadow-[0_4px_16px_rgba(249,115,22,0.4)] cursor-pointer flex items-center justify-center"
             >
               <div className="w-full h-full rounded-[10px] bg-[#161618] flex items-center justify-center text-orange-400">
                 {/* Envelope Seal Icon */}
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <rect x="3" y="5" width="18" height="14" rx="2" />
                   <polyline points="3 7 12 13 21 7" />
                 </svg>
@@ -243,10 +253,13 @@ export function LeadGiftWrapStage() {
           <div className="absolute bottom-3 left-0 right-0 text-center pointer-events-auto">
             <button
               type="button"
-              onClick={handleNext}
-              className="text-[10px] font-mono text-zinc-400 hover:text-zinc-200 transition-colors cursor-pointer"
+              onClick={(e) => {
+                e.stopPropagation()
+                handleNext()
+              }}
+              className="min-h-[44px] px-3 text-[11px] font-mono text-zinc-400 hover:text-zinc-200 transition-colors cursor-pointer"
             >
-              Click seal or sleeve to unpack next
+              Tap seal or sleeve to unpack next
             </button>
           </div>
         </div>

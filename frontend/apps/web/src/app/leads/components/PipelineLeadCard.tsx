@@ -262,7 +262,7 @@ function PipelineLeadCard({
       onClick={onClick}
       whileHover={{ y: -3, scale: 1.01 }}
       transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-      className={`group relative text-left flex flex-col justify-between p-5 rounded-[22px] overflow-hidden h-[260px] min-h-[260px] max-h-[260px] w-full col-span-1 shadow-elevation-3 transition-all duration-300 cursor-pointer ${
+      className={`group relative text-left flex flex-col justify-between p-4 sm:p-5 rounded-[22px] overflow-hidden h-auto min-h-[240px] sm:h-[260px] sm:min-h-[260px] sm:max-h-[260px] w-full col-span-1 shadow-elevation-3 transition-all duration-300 cursor-pointer ${
         theme.cardBg
       } ${isSelected ? 'ring-1 ring-primary/60' : ''}`}
     >
@@ -290,19 +290,19 @@ function PipelineLeadCard({
         </div>
 
         {/* Scaled-down Headline */}
-        <h4 className={`text-[10.5px] font-bold tracking-[0.12em] uppercase mb-1.5 line-clamp-1 select-none opacity-90 shrink-0 h-[16px] ${theme.text}`}>
+        <p className={`text-[10.5px] font-bold tracking-[0.12em] uppercase mb-1.5 line-clamp-1 select-none opacity-90 shrink-0 h-[16px] ${theme.text}`}>
           {displayHeadline}
-        </h4>
+        </p>
 
         {/* Scaled-down Quote: fixed height container ensures 100% uniform card layout regardless of copy length */}
-        <div className="h-[52px] mb-2.5 flex items-start select-none overflow-hidden shrink-0">
-          <h3 className={`text-[13px] sm:text-[13.5px] font-semibold tracking-tight leading-[1.35] line-clamp-2 ${theme.text}`}>
+        <div className="h-auto sm:h-[52px] mb-2.5 flex items-start select-none overflow-hidden shrink-0">
+          <p className={`text-[15px] sm:text-[13.5px] font-semibold tracking-tight leading-[1.4] sm:leading-[1.35] line-clamp-3 sm:line-clamp-2 ${theme.text}`}>
             &quot;{quoteContent}&quot;
-          </h3>
+          </p>
         </div>
 
         {/* Clean Tags Row without match score badge */}
-        <div className="flex items-center gap-1.5 mb-2.5 shrink-0 select-none overflow-hidden flex-nowrap h-[22px]">
+        <div className="flex items-center gap-1.5 mb-2.5 shrink-0 select-none overflow-hidden flex-wrap sm:flex-nowrap h-auto sm:h-[22px]">
           {visibleTags.map((tag, i) => (
             <span
               key={tag}
@@ -314,8 +314,50 @@ function PipelineLeadCard({
         </div>
       </div>
 
+      {/* Hover overlay: quick contact peek (revealed leads only — locked ones stay locked)
+          Hidden on touch/coarse pointers: group-hover never fires there (dead interaction) */}
+      <div className="hidden md:flex absolute inset-x-0 top-0 bottom-[54px] z-10 rounded-t-[22px] bg-[#0d0e0f]/95 p-5 flex-col justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none select-none">
+        {isRevealed ? (
+          <>
+            <span className={`text-[9px] font-bold tracking-[0.2em] uppercase ${theme.accentText}`}>
+              Contact details
+            </span>
+            <span className={`text-[15px] font-bold truncate ${theme.text}`}>{lead.name}</span>
+            {lead.company && (
+              <span className={`text-[11px] font-medium truncate ${theme.textMuted}`}>
+                {lead.company}{lead.role ? ` · ${lead.role}` : ''}
+              </span>
+            )}
+            {lead.email && (
+              <span className={`text-[11.5px] truncate flex items-center gap-1.5 ${theme.textMuted}`}>
+                <Mail size={11} className="shrink-0" />
+                <span className="truncate">{lead.email}</span>
+              </span>
+            )}
+            {lead.phone && (
+              <span className={`text-[11.5px] truncate flex items-center gap-1.5 ${theme.textMuted}`}>
+                <Phone size={11} className="shrink-0" />
+                <span className="truncate">{lead.phone}</span>
+              </span>
+            )}
+          </>
+        ) : (
+          <div className="flex flex-col items-center justify-center gap-2 text-center h-full">
+            <div className={`w-9 h-9 rounded-full flex items-center justify-center ${theme.blurBg}`}>
+              <Lock size={14} className={theme.textMuted} />
+            </div>
+            <span className={`text-[11px] font-black uppercase tracking-widest ${theme.text}`}>
+              Contact locked
+            </span>
+            <span className={`text-[10px] font-medium ${theme.textMuted}`}>
+              Unlock &amp; Save to reveal contact
+            </span>
+          </div>
+        )}
+      </div>
+
       {/* Footer Area: Cute scaled-down lock and reveal button */}
-      <div className="w-full h-[34px] flex items-center justify-between shrink-0 mt-auto pt-1 border-t border-border-subtle">
+      <div className="w-full min-h-[44px] sm:h-[34px] flex items-center justify-between gap-2 shrink-0 mt-auto pt-2 sm:pt-1 border-t border-border-subtle">
         {!isRevealed ? (
           <>
             {/* Cute Micro Locked Placeholder */}
@@ -338,11 +380,12 @@ function PipelineLeadCard({
                 <span>Claimed by a member</span>
               </div>
             ) : (
+              <div className="flex items-center gap-1.5 shrink-0">
               <button
                 type="button"
                 onClick={handleReveal}
                 disabled={isRevealing}
-                className={`h-11 px-3 rounded-xl font-bold text-[10.5px] shadow-sm flex items-center justify-center gap-1.5 transition-all active:scale-95 shrink-0 whitespace-nowrap ${theme.button} ${
+                className={`h-11 sm:h-8 px-3 sm:px-2.5 rounded-lg font-bold text-[11px] sm:text-[10px] shadow-sm flex items-center justify-center gap-1.5 transition-all active:scale-95 shrink-0 whitespace-nowrap ${theme.button} ${
                   isRevealing ? 'opacity-85 cursor-wait pointer-events-none' : 'cursor-pointer'
                 }`}
               >
@@ -361,6 +404,7 @@ function PipelineLeadCard({
                   </span>
                 )}
               </button>
+              </div>
             )}
           </>
         ) : (
@@ -403,7 +447,7 @@ function PipelineLeadCard({
             <button
               type="button"
               onClick={handleSave}
-              className={`w-[66px] h-11 rounded-xl text-[9.5px] font-extrabold tracking-wider uppercase transition-all shrink-0 cursor-pointer border flex items-center justify-center ${
+              className={`w-[72px] sm:w-[60px] h-11 sm:h-8 rounded-lg text-[10px] sm:text-[9.5px] font-extrabold tracking-wider uppercase transition-all shrink-0 cursor-pointer border flex items-center justify-center ${
                 isSaved ? theme.savedButton : theme.saveButton
               }`}
             >

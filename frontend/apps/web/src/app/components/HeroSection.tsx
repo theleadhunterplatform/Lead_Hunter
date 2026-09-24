@@ -2,7 +2,8 @@
 
 import Image from 'next/image'
 import { useState, useRef, useEffect, useMemo } from 'react'
-import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion'
+import { motion, AnimatePresence, useScroll, useTransform, useReducedMotion } from 'framer-motion'
+import { useIsMobile } from '@/hooks/useMediaQuery'
 import {
   BanknotesIcon,
   BookmarkIcon,
@@ -24,6 +25,7 @@ import {
   ClockIcon,
   ChevronDownIcon,
   GlobeAltIcon,
+  LifebuoyIcon,
 } from '@heroicons/react/24/solid'
 import Link from 'next/link'
 import { AppLead } from '@/types/lead'
@@ -242,6 +244,14 @@ const tabs = [
   { id: 'dashboard', label: 'Dashboard', icon: Squares2X2Icon },
 ]
 
+// Mobile dock — exact MobileBottomNav destinations (Feed / Saved / Home / Support / More)
+const mobileTabs = [
+  { id: 'leads', label: 'Feed', icon: BanknotesIcon },
+  { id: 'saved', label: 'Saved', icon: BookmarkIcon },
+  { id: 'dashboard', label: 'Home', icon: Squares2X2Icon },
+  { id: 'support', label: 'Support', icon: LifebuoyIcon },
+]
+
 // ─── Real Lead Feed content (compact hero preview) ──────────────
 function LeadsContent() {
   const [searchQuery, setSearchQuery] = useState('')
@@ -273,7 +283,7 @@ function LeadsContent() {
         {/* Real Lead Feed Header - Simplified */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-3.5">
           <div className="flex items-center gap-3 shrink-0">
-            <h3 className="text-base font-bold text-text-primary tracking-tight">Lead Feed</h3>
+            <p className="text-base font-bold text-text-primary tracking-tight">Lead Feed</p>
             <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-accent-purple/10 border border-accent-purple/20 text-accent-purple text-[10px] font-medium font-mono">
               <span className="w-1.5 h-1.5 rounded-full bg-accent-purple animate-pulse" />
               <span>{filteredLeads.length} Live Signals</span>
@@ -308,7 +318,7 @@ function LeadsContent() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 items-stretch w-full mx-auto">
           {displayLeads.map((lead, i) => (
             <div key={lead.id} className="w-full flex justify-center">
-              <div className="w-full max-w-[320px]">
+              <div className="w-full max-w-full sm:max-w-[320px]">
                 <LeadCard lead={lead} index={i} isHeroPreview />
               </div>
             </div>
@@ -355,7 +365,7 @@ function SavedContent() {
         {/* Table Controls */}
         <div className="flex items-center justify-between mb-3 gap-2">
           <div className="flex items-center gap-2">
-            <h3 className="text-sm font-semibold text-text-primary tracking-tight">Saved Leads</h3>
+            <p className="text-sm font-semibold text-text-primary tracking-tight">Saved Leads</p>
             <div className="flex items-center gap-1 bg-white/5 p-0.5 rounded-lg border border-white/5">
               {['All', 'In Progress'].map((tab) => (
                 <button
@@ -428,7 +438,7 @@ function DashboardContent() {
     <div className="flex-1 overflow-y-auto px-5 py-4 pb-16 relative scrollbar-hide">
       <div className="max-w-3xl mx-auto relative z-10">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-text-primary tracking-tight">Performance</h3>
+          <p className="text-sm font-semibold text-text-primary tracking-tight">Performance</p>
           <span className="text-[9px] font-mono text-text-secondary/60 uppercase">Past 7 days</span>
         </div>
 
@@ -504,7 +514,7 @@ function PipelineContent() {
       <div className="max-w-3xl mx-auto relative z-10">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <h3 className="text-sm font-semibold text-text-primary tracking-tight">Pipeline</h3>
+            <p className="text-sm font-semibold text-text-primary tracking-tight">Pipeline</p>
             <span className="text-[9px] font-mono text-text-secondary/60 uppercase">
               {savedLeads.length} active leads
             </span>
@@ -590,10 +600,43 @@ function PipelineContent() {
   )
 }
 
+// ─── Real Support content (compact hero preview) ────────────────
+function SupportContent() {
+  const faqs = [
+    { q: 'How do credits work?', a: 'Each unlocked contact costs credits. Plans refill monthly.' },
+    { q: 'Is the data verified?', a: 'Signals are cross-checked before they hit your feed.' },
+    { q: 'Can I export leads?', a: 'Yes — CSV export is available from Saved Leads.' },
+  ]
+  return (
+    <div className="flex-1 overflow-y-auto px-5 py-4 pb-16 relative scrollbar-hide">
+      <div className="max-w-2xl mx-auto relative z-10">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-sm font-semibold text-text-primary tracking-tight">Support</p>
+          <span className="text-[9px] font-mono text-text-secondary/60 uppercase">24/7 Copilot</span>
+        </div>
+        <div className="space-y-2.5">
+          {faqs.map((f) => (
+            <div key={f.q} className="p-3 rounded-xl bg-surface-secondary/40 border border-white/[0.05]">
+              <p className="text-xs font-semibold text-text-primary mb-1">{f.q}</p>
+              <p className="text-[11px] text-text-secondary/70 leading-relaxed">{f.a}</p>
+            </div>
+          ))}
+        </div>
+        <div className="mt-3 p-3 rounded-xl bg-accent-orange/10 border border-accent-orange/25 flex items-center gap-2.5">
+          <LifebuoyIcon className="w-4 h-4 text-accent-orange shrink-0" />
+          <span className="text-[11px] text-text-primary">Still stuck? Open the chat copilot anytime.</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── HERO ─────────────────────────────────────────────────────────────────────
 export default function HeroSection() {
   const [activeTab, setActiveTab] = useState('leads')
   const heroCardRef = useRef<HTMLDivElement>(null)
+  const isMobile = useIsMobile(768)
+  const reduceMotion = useReducedMotion()
 
   const { scrollYProgress: heroProgress } = useScroll({
     target: heroCardRef,
@@ -607,13 +650,17 @@ export default function HeroSection() {
   const { scrollY } = useScroll()
 
   // Direct scroll-linked transforms — no spring wrapper to avoid fighting Lenis
-  const rotateX = useTransform(scrollY, [0, 600], [22, 0])
-  const scale = useTransform(scrollY, [0, 600], [0.95, 1])
-  const y = useTransform(scrollY, [0, 600], [0, 0])
+  // Mobile / reduced-motion: static values (no scroll-linked 3D tilt / GPU jank)
+  const scrollRotateX = useTransform(scrollY, [0, 600], [22, 0])
+  const scrollScale = useTransform(scrollY, [0, 600], [0.95, 1])
+  const tiltOff = isMobile || reduceMotion
+  const rotateX = tiltOff ? 0 : scrollRotateX
+  const scale = tiltOff ? 1 : scrollScale
+  const y = 0
 
   return (
     <section
-      className="relative min-h-screen flex flex-col items-center grain-texture overflow-hidden bg-page-bg pt-20 pb-0 px-0"
+      className="relative min-h-[100dvh] flex flex-col items-center grain-texture overflow-hidden bg-page-bg pt-20 pb-0 px-0"
     >
       {/* Crisp geometric grid background (Engineering precision) */}
       <div
@@ -730,25 +777,51 @@ export default function HeroSection() {
             scale,
             y,
           }}
-          className="w-full transform-gpu will-change-transform"
+          className={`w-full ${tiltOff ? '' : 'transform-gpu will-change-transform'}`}
         >
           <div className="rounded-t-[24px] overflow-hidden shadow-[0_-25px_60px_-15px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.12)] border border-white/[0.08] border-b-0 relative">
             {/* Glass reflection sheen overlay */}
             <div className="absolute inset-0 pointer-events-none z-20 bg-gradient-to-tr from-transparent via-white/[0.015] to-white/[0.05] mix-blend-overlay" />
-            {/* macOS chrome */}
-            <div className="flex items-center gap-2 px-5 py-3 bg-code-header border-b border-white/[0.06]">
-              <span className="w-3 h-3 rounded-full bg-dot-red" />
-              <span className="w-3 h-3 rounded-full bg-dot-yellow" />
-              <span className="w-3 h-3 rounded-full bg-dot-green" />
-              <span className="ml-4 text-xs font-mono text-text-secondary/30 tracking-wider">
-                lead-hunter.app
-              </span>
+            {/* Window chrome — macOS traffic lights on desktop, iOS status/safe bar on mobile */}
+            <div className="flex items-center bg-code-header border-b border-white/[0.06]">
+              {/* Desktop: macOS chrome */}
+              <div className="hidden md:flex items-center gap-2 px-5 py-3 w-full">
+                <span className="w-3 h-3 rounded-full bg-dot-red" />
+                <span className="w-3 h-3 rounded-full bg-dot-yellow" />
+                <span className="w-3 h-3 rounded-full bg-dot-green" />
+                <span className="ml-4 text-xs font-mono text-text-secondary/30 tracking-wider">
+                  lead-hunter.app
+                </span>
+              </div>
+              {/* Mobile: iOS-style compact status bar (time + signal/battery glyphs) */}
+              <div className="flex md:hidden items-center justify-between px-5 pt-2 pb-1.5 w-full">
+                <span className="text-[11px] font-semibold text-text-primary tabular-nums">9:41</span>
+                <span className="flex items-center gap-1 text-text-primary">
+                  {/* signal bars */}
+                  <svg width="14" height="10" viewBox="0 0 14 10" fill="currentColor" aria-hidden="true">
+                    <rect x="0" y="6" width="2.5" height="4" rx="0.5" />
+                    <rect x="3.5" y="4" width="2.5" height="6" rx="0.5" />
+                    <rect x="7" y="2" width="2.5" height="8" rx="0.5" />
+                    <rect x="10.5" y="0" width="2.5" height="10" rx="0.5" />
+                  </svg>
+                  {/* wifi */}
+                  <svg width="12" height="10" viewBox="0 0 12 10" fill="currentColor" aria-hidden="true">
+                    <path d="M6 9.5a1 1 0 100-2 1 1 0 000 2zM2.7 6.2a4.7 4.7 0 016.6 0l-1.1 1.1a3.1 3.1 0 00-4.4 0L2.7 6.2zM.6 4.1a7.7 7.7 0 0110.8 0L10.3 5.2a6.1 6.1 0 00-8.6 0L.6 4.1z" />
+                  </svg>
+                  {/* battery */}
+                  <svg width="22" height="10" viewBox="0 0 22 10" fill="none" aria-hidden="true">
+                    <rect x="0.5" y="0.5" width="18" height="9" rx="2" stroke="currentColor" opacity="0.4" />
+                    <rect x="2" y="2" width="14" height="6" rx="1" fill="currentColor" />
+                    <path d="M20 3.5v3a1.5 1.5 0 000-3z" fill="currentColor" opacity="0.4" />
+                  </svg>
+                </span>
+              </div>
             </div>
 
-            {/* App body */}
-            <div className="flex h-[480px] md:h-[510px] bg-bg-main overflow-hidden">
-              {/* Sidebar — matches AppSidebar visually, uses state instead of router */}
-              <div className="w-[210px] lg:w-[215px] shrink-0 bg-code-header border-r border-white/[0.04] flex flex-col py-4">
+            {/* App body — column on mobile (content + bottom dock), row on desktop (sidebar) */}
+            <div className="flex flex-col md:flex-row h-[520px] sm:h-[480px] md:h-[510px] bg-bg-main overflow-hidden">
+              {/* Sidebar — matches AppSidebar visually, uses state instead of router (desktop only) */}
+              <div className="hidden md:flex w-[210px] lg:w-[215px] shrink-0 bg-code-header border-r border-white/[0.04] flex-col py-4">
                 <div className="px-5 mb-6 flex items-center gap-3">
                   <Image
                     src="/logo.svg"
@@ -820,13 +893,50 @@ export default function HeroSection() {
                     {activeTab === 'saved' && <SavedContent />}
                     {activeTab === 'pipeline' && <PipelineContent />}
                     {activeTab === 'dashboard' && <DashboardContent />}
+                    {activeTab === 'support' && <SupportContent />}
                   </motion.div>
                 </AnimatePresence>
               </div>
+
+              {/* Mobile bottom dock — mirrors MobileBottomNav (Feed / Saved / Home / Support / More) */}
+              <div className="md:hidden flex items-stretch h-16 shrink-0 bg-surface/90 backdrop-blur-xl border-t border-white/[0.06]">
+                {mobileTabs.map((t) => {
+                  const isActive = activeTab === t.id
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => setActiveTab(t.id)}
+                      aria-label={t.label}
+                      aria-pressed={isActive}
+                      className={`flex-1 flex flex-col items-center justify-center gap-1 min-h-[56px] transition-colors active:scale-95 ${
+                        isActive ? 'text-accent-orange' : 'text-text-secondary'
+                      }`}
+                    >
+                      <t.icon className="w-[22px] h-[22px]" />
+                      <span className="text-[10px] font-semibold leading-none">{t.label}</span>
+                      <span
+                        className={`h-1 w-1 rounded-full transition-opacity ${
+                          isActive ? 'bg-accent-orange opacity-100' : 'opacity-0'
+                        }`}
+                      />
+                    </button>
+                  )
+                })}
+                <button
+                  type="button"
+                  aria-label="More options"
+                  className="flex-1 flex flex-col items-center justify-center gap-1 min-h-[56px] text-text-secondary transition-colors active:scale-95"
+                >
+                  <EllipsisHorizontalIcon className="w-[22px] h-[22px]" />
+                  <span className="text-[10px] font-semibold leading-none">More</span>
+                  <span className="h-1 w-1 rounded-full opacity-0" />
+                </button>
+              </div>
             </div>
 
-            {/* Bottom fade-out overlay (subtle edge blend) */}
-            <div className="absolute bottom-0 left-0 right-0 h-16 pointer-events-none z-30">
+            {/* Bottom fade-out overlay (desktop only — mobile has the bottom dock) */}
+            <div className="hidden md:block absolute bottom-0 left-0 right-0 h-16 pointer-events-none z-30">
               <div className="absolute inset-0 bg-gradient-to-t from-page-bg/80 to-transparent pointer-events-none" />
             </div>
           </div>

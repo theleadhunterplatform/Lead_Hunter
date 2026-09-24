@@ -218,7 +218,7 @@ function OnboardingSkeleton() {
             </div>
           ))}
         </div>
-        <div className="bg-surface/40 backdrop-blur-xl border border-white/[0.06] rounded-4xl p-8 md:p-10">
+        <div className="metallic-card p-8 md:p-10">
           <div className="space-y-4">
             <div className="h-6 w-48 bg-white/5 rounded animate-pulse mx-auto" />
             <div className="h-4 w-64 bg-white/5 rounded animate-pulse mx-auto" />
@@ -438,15 +438,15 @@ export default function OnboardingPage() {
   if (!emailVerified) {
     return (
       <main className="min-h-dvh bg-bg-main flex items-center justify-center px-4 relative overflow-hidden">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[radial-gradient(circle_at_center,rgba(var(--rgb-primary),0.08)_0%,transparent_60%)] pointer-events-none" />
+<div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[radial-gradient(circle_at_center,rgba(var(--rgb-accent-mint),0.08)_0%,transparent_60%)] pointer-events-none" />
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          className="relative z-10 w-full max-w-md bg-surface/40 backdrop-blur-xl border border-white/[0.06] rounded-3xl shadow-elevation-4 p-8 text-center"
+          className="metallic-card p-8 text-center"
         >
-          <ShieldExclamationIcon className="w-10 h-10 text-primary mx-auto mb-4" />
+          <ShieldExclamationIcon className="w-10 h-10 text-accent-mint mx-auto mb-4" />
           <h1 className="text-xl font-bold text-text-primary tracking-tight">Verify your email</h1>
           <p className="text-sm text-text-secondary mt-2 leading-relaxed">
             We sent a verification link to{' '}
@@ -461,7 +461,7 @@ export default function OnboardingPage() {
             <button
               onClick={handleResendVerification}
               disabled={resending}
-              className="px-5 py-3 rounded-xl bg-primary hover:bg-primary/90 text-black font-semibold text-sm transition-all shadow-[0_4px_20px_rgba(var(--rgb-primary),0.25)] active:scale-98 disabled:opacity-50 flex items-center justify-center gap-2"
+              className="px-5 py-3 rounded-xl bg-accent-mint hover:bg-accent-mint/90 text-black font-semibold text-sm transition-all shadow-[0_4px_20px_rgba(var(--rgb-accent-mint),0.25)] active:scale-98 disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {resending ? (
                 <div className="w-5 h-5 rounded-full border-2 border-black/20 border-t-black animate-spin" />
@@ -489,7 +489,7 @@ export default function OnboardingPage() {
                   setCheckingVerification(false)
                 }
               }}
-              className="px-5 py-3 rounded-xl border border-white/[0.06] text-text-secondary text-sm font-medium hover:bg-white/[0.04] transition-all"
+              className="px-5 py-3 rounded-xl bg-accent-mint/10 border border-accent-mint/30 text-accent-mint text-sm font-medium hover:bg-accent-mint/20 transition-all"
             >
               I&apos;ve verified &mdash; refresh
             </button>
@@ -637,9 +637,9 @@ export default function OnboardingPage() {
               <div
                 className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
                   s < step
-                    ? 'bg-primary text-black'
+                    ? 'bg-accent-mint text-black'
                     : s === step
-                      ? 'bg-primary text-black shadow-[0_0_16px_rgba(var(--rgb-primary),0.35)]'
+                      ? 'bg-accent-mint text-black shadow-[0_0_16px_rgba(var(--rgb-accent-mint),0.35)]'
                       : 'bg-white/5 text-text-secondary/40'
                 }`}
               >
@@ -648,7 +648,7 @@ export default function OnboardingPage() {
               {s < 3 && (
                 <div
                   className={`w-12 h-px transition-all duration-300 ${
-                    s < step ? 'bg-primary' : 'bg-white/5'
+                    s < step ? 'bg-accent-mint' : 'bg-white/5'
                   }`}
                 />
               )}
@@ -656,7 +656,7 @@ export default function OnboardingPage() {
           ))}
         </div>
 
-        <div className="bg-surface/40 backdrop-blur-xl border border-white/[0.06] rounded-3xl shadow-elevation-4 w-full p-8 md:p-10">
+        <div className="metallic-card w-full p-8 md:p-10">
             <AnimatePresence mode="wait">
               {step === 1 && (
                 <motion.div
@@ -818,23 +818,23 @@ export default function OnboardingPage() {
                     </div>
                   )}
 
-                  <button
-                    onClick={() => {
-                      if (!linkedin.trim()) {
-                        setStep1Error('LinkedIn profile link is required')
-                        return
-                      }
-                      if (!phoneNumber.trim()) {
-                        setStep1Error('Phone number is required')
-                        return
-                      }
-                      setStep1Error('')
-                      setStep(2)
-                    }}
-                    className="mt-6 w-full bg-primary hover:bg-primary/90 text-black font-semibold rounded-xl active:scale-98 transition-all shadow-[0_4px_20px_rgba(var(--rgb-primary),0.25)] px-4 py-3"
-                  >
-                    Continue
-                  </button>
+<button
+                      onClick={() => {
+                        if (!linkedin.trim()) {
+                          setStep1Error('LinkedIn profile link is required')
+                          return
+                        }
+                        if (!phoneNumber.trim()) {
+                          setStep1Error('Phone number is required')
+                          return
+                        }
+                        setStep1Error('')
+                        setStep(2)
+                      }}
+                      className="mt-6 w-full bg-primary hover:bg-primary/90 text-black font-semibold rounded-xl active:scale-98 transition-all shadow-[0_4px_20px_rgba(var(--rgb-primary),0.25)] px-4 py-3"
+                    >
+                      Continue
+                    </button>
 
                   <div className="mt-4 text-center">
                     <button
@@ -846,6 +846,7 @@ export default function OnboardingPage() {
                   </div>
                 </motion.div>
               )}
+            </AnimatePresence>
 
               {step === 2 && (
                 <motion.div
@@ -900,7 +901,7 @@ export default function OnboardingPage() {
                               key={cat.id}
                               className={`rounded-2xl border transition-all duration-200 overflow-hidden ${
                                 selectedCount > 0
-                                  ? 'border-primary/30 bg-white/[0.03]'
+                                  ? 'border-primary/30 metallic-card'
                                   : 'border-white/[0.06] bg-white/[0.015] hover:border-white/10'
                               }`}
                             >
@@ -1004,7 +1005,7 @@ export default function OnboardingPage() {
                               key={cat.id}
                               className={`rounded-2xl border transition-all duration-200 overflow-hidden ${
                                 selectedCount > 0
-                                  ? 'border-primary/30 bg-white/[0.03]'
+                                  ? 'border-primary/30 metallic-card'
                                   : 'border-white/[0.06] bg-white/[0.015] hover:border-white/10'
                               }`}
                             >
@@ -1097,17 +1098,17 @@ export default function OnboardingPage() {
                     </div>
                   </div>
 
-                  <button
-                    onClick={() => setStep(3)}
-                    disabled={!canProceedFromStep2}
-                    className={`mt-8 w-full rounded-xl active:scale-98 transition-all px-4 py-3 font-semibold ${
-                      canProceedFromStep2
-                        ? 'bg-primary hover:bg-primary/90 text-black shadow-[0_4px_20px_rgba(var(--rgb-primary),0.25)]'
-                        : 'bg-white/5 text-text-secondary/40 cursor-not-allowed'
-                    }`}
-                  >
-                    Continue
-                  </button>
+<button
+                      onClick={() => setStep(3)}
+                      disabled={!canProceedFromStep2}
+                      className={`mt-8 w-full rounded-xl active:scale-98 transition-all px-4 py-3 font-semibold ${
+                        canProceedFromStep2
+                          ? 'bg-primary hover:bg-primary/90 text-black shadow-[0_4px_20px_rgba(var(--rgb-primary),0.25)]'
+                          : 'bg-white/5 text-text-secondary/40 cursor-not-allowed'
+                      }`}
+                    >
+                      Continue
+                    </button>
 
                   <div className="mt-4 text-center">
                     <button
@@ -1121,7 +1122,8 @@ export default function OnboardingPage() {
               )}
 
               {step === 3 && (
-                <motion.div
+                <AnimatePresence>
+                  <motion.div
                   key="step3"
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -1129,7 +1131,7 @@ export default function OnboardingPage() {
                   transition={{ duration: 0.3 }}
                 >
                   <div className="text-center mb-8">
-                    <SparklesIcon className="w-8 h-8 text-primary mx-auto mb-3" />
+                    <SparklesIcon className="w-8 h-8 text-accent-mint mx-auto mb-3" />
                     <h1 className="text-2xl font-bold text-text-primary tracking-tight">
                       Almost there!
                     </h1>
@@ -1146,7 +1148,7 @@ export default function OnboardingPage() {
                           onClick={() => setDiscoverySource(s)}
                           className={`px-4 py-3 rounded-xl text-sm font-medium border transition-all duration-200 ${
                             discoverySource === s
-                              ? 'bg-primary/15 border-primary/40 text-primary font-semibold shadow-[0_0_12px_rgba(var(--rgb-primary),0.12)]'
+                              ? 'bg-accent-mint/15 border-accent-mint/40 text-accent-mint font-semibold shadow-[0_0_12px_rgba(var(--rgb-accent-mint),0.12)]'
                               : 'bg-white/[0.02] border-white/[0.06] text-text-secondary hover:text-text-primary hover:bg-white/5 hover:border-white/10'
                           }`}
                         >
@@ -1203,8 +1205,8 @@ export default function OnboardingPage() {
                     </button>
                   </div>
                 </motion.div>
-              )}
-            </AnimatePresence>
+              </AnimatePresence>
+            )}
         </div>
       </motion.div>
     </main>

@@ -4,6 +4,7 @@ import React from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowRightIcon } from '@heroicons/react/24/solid'
+import { useMediaQuery } from '@/hooks'
 
 const ease = [0.16, 1, 0.3, 1] as const
 
@@ -96,15 +97,18 @@ export function ReviewScreenshotCard({
 export default function TestimonialsSection() {
   const [isHovered, setIsHovered] = React.useState(false)
   const [particles, setParticles] = React.useState<{ id: number; left: number; size: number; rotation: number; delay: number; duration: number; symbol: string }[]>([])
+  // Flying overlay + particle spray is desktop-only (coarse pointers get snap-x carousel)
+  const isCoarsePointer = useMediaQuery('(pointer: coarse)')
+  const disableFlyingOverlay = isCoarsePointer
 
   // Show a clean preview of 6 reviews on the homepage
   const homepageReviews = REVIEW_IMAGES.slice(0, 6)
   // Use subsequent reviews for the interactive flying cards overlay
   const flyingReviews = REVIEW_IMAGES.slice(6, 18)
 
-  // Emit brand reaction particles continuously when hovered
+  // Emit brand reaction particles continuously when hovered (fine pointer only)
   React.useEffect(() => {
-    if (!isHovered) {
+    if (!isHovered || disableFlyingOverlay) {
       setParticles([])
       return
     }
@@ -125,7 +129,12 @@ export default function TestimonialsSection() {
     }, 120)
 
     return () => clearInterval(interval)
-  }, [isHovered])
+  }, [isHovered, disableFlyingOverlay])
+
+  // Clear overlay if pointer becomes coarse while open
+  React.useEffect(() => {
+    if (disableFlyingOverlay) setIsHovered(false)
+  }, [disableFlyingOverlay])
 
   return (
     <section
@@ -199,24 +208,24 @@ export default function TestimonialsSection() {
       </div>
 
       {/* Live Feed Status Notice */}
-      <div className="flex items-center justify-center gap-2.5 text-[12px] text-text-secondary/45 leading-relaxed mb-12 relative z-10">
+      <div className="flex items-center justify-center gap-2.5 text-[12px] text-text-secondary/70 leading-relaxed mb-12 relative z-10">
         <span>✨</span>
         <span>These screenshots are shared directly by active members inside our club: this feed is live.</span>
       </div>
 
-      {/* Reviews Grid & Hover Interactive Zone */}
-      <div className="relative z-10 mb-14 min-h-[500px] flex items-center justify-center">
+      {/* Reviews Grid (mobile: horizontal snap-x carousel) & Hover Interactive Zone */}
+      <div className="relative z-10 mb-14 md:min-h-[500px] flex items-center justify-center">
         {/* Normal Grid state */}
-        <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch w-full transition-all duration-700 ${isHovered ? 'blur-[4px] scale-[0.97] opacity-15' : 'opacity-100 blur-0 scale-100'}`}>
+        <div className={`flex md:grid md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 items-stretch w-full overflow-x-auto snap-x snap-mandatory pb-2 -mx-4 px-4 md:mx-0 md:px-0 md:overflow-visible md:pb-0 transition-all duration-700 ${isHovered ? 'blur-[4px] scale-[0.97] opacity-15' : 'opacity-100 blur-0 scale-100'}`}>
           {homepageReviews.map((imageUrl, index) => {
-            const isMiddleTrigger = index === 1
+            const isMiddleTrigger = index === 1 && !disableFlyingOverlay
             return (
               <div
                 key={imageUrl}
-                className={`h-full relative ${isMiddleTrigger ? 'cursor-pointer' : ''}`}
+                className={`h-full relative shrink-0 w-[calc(100vw-2.5rem)] max-w-[320px] md:w-auto md:max-w-none snap-start ${isMiddleTrigger ? 'cursor-pointer' : ''}`}
                 onMouseEnter={isMiddleTrigger ? () => setIsHovered(true) : undefined}
               >
-                {isMiddleTrigger && (
+                {index === 1 && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-accent-orange text-bg-main border border-accent-orange/40 text-[10px] font-mono font-bold tracking-wider uppercase shadow-[0_4px_14px_rgba(var(--rgb-accent-orange),0.35)] whitespace-nowrap">
                     <span>✨</span>
                     <span>Reviews (what people say)</span>
@@ -228,9 +237,9 @@ export default function TestimonialsSection() {
           })}
         </div>
 
-        {/* Fullscreen Overlay trigger mode */}
+        {/* Fullscreen Overlay trigger mode (fine pointer / desktop only) */}
         <AnimatePresence>
-          {isHovered && (
+          {isHovered && !disableFlyingOverlay && (
             <div 
               className="absolute inset-0 z-30 flex items-center justify-center pointer-events-auto"
               onMouseLeave={() => setIsHovered(false)}

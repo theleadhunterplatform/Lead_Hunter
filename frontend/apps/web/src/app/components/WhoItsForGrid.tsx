@@ -446,7 +446,7 @@ export default function WhoItsForGrid() {
                 className={`w-2.5 h-2.5 rounded-full transition-colors ${isHoveredPanel ? 'bg-dot-green' : 'bg-white/10'}`}
               />
             </div>
-            <span className="text-[10px] font-mono tracking-widest text-text-secondary/40 font-bold uppercase">
+            <span className="text-[10px] font-mono tracking-widest text-text-secondary/70 font-bold uppercase">
               Interactive App Inside Preview
             </span>
             <div className="w-12" />
@@ -492,16 +492,16 @@ export default function WhoItsForGrid() {
                     {/* Toggle Sidebar Button */}
                     <button
                       onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                      className="p-1.5 bg-surface/80 hover:bg-white/5 border border-white/[0.08] hover:border-white/15 rounded-xl text-text-secondary hover:text-text-primary transition-all cursor-pointer flex items-center justify-center mr-1 shadow-md"
+                      className="min-w-[24px] min-h-[24px] p-1.5 bg-surface/80 hover:bg-white/5 border border-white/[0.08] hover:border-white/15 rounded-xl text-text-secondary hover:text-text-primary transition-all cursor-pointer flex items-center justify-center mr-1 shadow-md"
                       title={isSidebarOpen ? 'Hide Sidebar' : 'Show Sidebar'}
                     >
                       <Bars3Icon
                         className={`w-3.5 h-3.5 transition-transform duration-300 ${isSidebarOpen ? 'rotate-90 text-text-secondary' : ''}`}
                       />
                     </button>
-                    <h3 className="text-base font-bold text-text-primary tracking-tight">
+                    <p className="text-base font-bold text-text-primary tracking-tight">
                       Lead Feed
-                    </h3>
+                    </p>
                     <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-accent-purple/10 border border-accent-purple/20 text-accent-purple text-[10px] font-medium font-mono">
                       <span className="w-1.5 h-1.5 rounded-full bg-accent-purple animate-pulse" />
                       <span>6 Live Signals</span>
@@ -524,7 +524,7 @@ export default function WhoItsForGrid() {
                         {searchQuery && (
                           <button
                             onClick={() => setSearchQuery('')}
-                            className="px-1 text-[10px] font-medium text-accent-purple hover:text-accent-purple/80 transition-colors"
+                            className="min-w-[24px] min-h-[24px] px-1 text-[10px] font-medium text-accent-purple hover:text-accent-purple/80 transition-colors flex items-center justify-center"
                           >
                             Clear
                           </button>
@@ -540,7 +540,7 @@ export default function WhoItsForGrid() {
                       <button
                         onClick={() => setViewMode('grid')}
                         type="button"
-                        className={`p-1.5 rounded-lg transition-all ${
+                        className={`min-w-[24px] min-h-[24px] p-1.5 rounded-lg transition-all flex items-center justify-center ${
                           viewMode === 'grid'
                             ? 'bg-white/10 text-white shadow-sm'
                             : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
@@ -565,7 +565,7 @@ export default function WhoItsForGrid() {
                       <button
                         onClick={() => setViewMode('pipeline')}
                         type="button"
-                        className={`p-1.5 rounded-lg transition-all ${
+                        className={`min-w-[24px] min-h-[24px] p-1.5 rounded-lg transition-all flex items-center justify-center ${
                           viewMode === 'pipeline'
                             ? 'bg-primary/20 text-primary border border-primary/20 shadow-sm'
                             : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
@@ -600,7 +600,7 @@ export default function WhoItsForGrid() {
                               : 'newest',
                         )
                       }
-                      className="hidden sm:flex items-center gap-1 px-2 py-1 rounded-xl bg-code-bg/80 border border-white/[0.08] text-[11px] text-text-secondary cursor-pointer hover:border-white/15 transition-colors select-none"
+                      className="hidden sm:flex items-center gap-1 min-h-[24px] px-2 py-1 rounded-xl bg-code-bg/80 border border-white/[0.08] text-[11px] text-text-secondary cursor-pointer hover:border-white/15 transition-colors select-none"
                       title="Click to cycle sort order"
                     >
                       <span>
@@ -616,7 +616,7 @@ export default function WhoItsForGrid() {
                     {/* Filters Button */}
                     <button
                       onClick={() => setIsFilterOpen(!isFilterOpen)}
-                      className={`flex items-center gap-1 px-2.5 py-1 rounded-xl bg-code-bg/80 border text-[11px] font-medium transition-all ${
+                      className={`flex items-center gap-1 min-h-[24px] px-2.5 py-1 rounded-xl bg-code-bg/80 border text-[11px] font-medium transition-all ${
                         isFilterOpen
                           ? 'border-accent-purple bg-accent-purple/10 text-accent-purple'
                           : 'border-white/[0.08] text-text-secondary hover:text-text-primary hover:border-white/15'
@@ -639,7 +639,7 @@ export default function WhoItsForGrid() {
                           setSelectedNicheId(niche.id)
                           setActiveTab(niche.personaId)
                         }}
-                        className={`px-3 py-1 text-[11px] font-semibold rounded-full border transition-all duration-200 whitespace-nowrap cursor-pointer ${
+                        className={`min-h-[24px] px-3 py-1 text-[11px] font-semibold rounded-full border transition-all duration-200 whitespace-nowrap cursor-pointer flex items-center ${
                           isActive
                             ? 'bg-accent-purple/10 border-accent-purple text-accent-purple shadow-[0_0_12px_rgba(168,85,247,0.18)]'
                             : 'bg-white/5 border-white/[0.06] text-text-secondary hover:bg-white/10 hover:border-white/12 hover:text-text-primary'
@@ -719,9 +719,9 @@ export default function WhoItsForGrid() {
                           />
                         </div>
                         <div>
-                          <h3 className="text-sm font-bold text-text-primary leading-tight">
+                          <p className="text-sm font-bold text-text-primary leading-tight">
                             {activePersona.lead.name}
-                          </h3>
+                          </p>
                           <span className="text-[10px] text-text-secondary/60">
                             {activePersona.lead.company} · Sourced from {activePersona.lead.source}
                           </span>
@@ -788,7 +788,7 @@ export default function WhoItsForGrid() {
 
                       {/* Sending controls footer */}
                       <div className="flex items-center justify-between mt-4 pt-3 border-t border-white/[0.03] select-none shrink-0">
-                        <span className="text-[8px] font-mono text-text-secondary/40 tracking-wider">
+                        <span className="text-[8px] font-mono text-text-secondary/70 tracking-wider">
                           Contact verified · export anytime
                         </span>
 
@@ -810,7 +810,7 @@ export default function WhoItsForGrid() {
           </div>
 
           {/* Window status footer */}
-          <div className="h-10 bg-white/[0.01] border-t border-white/[0.04] flex items-center px-6 justify-between text-[9px] font-mono text-text-secondary/40 shrink-0 select-none">
+          <div className="h-10 bg-white/[0.01] border-t border-white/[0.04] flex items-center px-6 justify-between text-[9px] font-mono text-text-secondary/70 shrink-0 select-none">
             <div className="flex items-center gap-1.5">
               <CheckCircleIcon className="w-[11px] h-[11px] text-accent-purple" />
               <span>Product pipeline integrity verified</span>

@@ -454,9 +454,9 @@ export function LeadOutreachFlowchart() {
             </div>
 
             {/* Headline */}
-            <h4 className="text-[10.5px] font-extrabold tracking-wide uppercase mb-1 text-[#11150C]">
+            <p className="text-[10.5px] font-extrabold tracking-wide uppercase mb-1 text-[#11150C]">
               LUXURY JEWELRY 3D VISUALIZER
-            </h4>
+            </p>
 
             {/* Quote */}
             <p className="text-[11.5px] font-bold tracking-tight leading-[1.3] text-[#11150C] mb-2.5">
@@ -956,159 +956,203 @@ export function LeadOutreachFlowchart() {
       </div>
 
       {/* ======================================================== */}
-      {/* MOBILE VERTICAL PIPELINE (Clean, spacious step layout)    */}
+      {/* MOBILE VERTICAL TIMELINE (rail + numbered nodes)         */}
       {/* ======================================================== */}
-      <div className="block md:hidden relative z-10 space-y-6">
+      <div className="block md:hidden relative z-10">
+        {/* Connecting rail */}
+        <div
+          className="absolute left-[17px] top-5 bottom-5 w-px bg-gradient-to-b from-primary/50 via-primary/25 to-secondary/40 pointer-events-none"
+          aria-hidden="true"
+        />
+        <ol className="relative space-y-5 list-none m-0 p-0">
         {/* Step 1: Social Signal */}
-        <div className="p-4 rounded-2xl bg-surface border border-white/[0.08]">
-          <div className="flex items-center justify-between text-[10px] font-mono text-primary mb-1">
-            <span>01 // RAW BUYER SIGNAL</span>
-            <span className="text-text-secondary">2h ago</span>
-          </div>
-          <div className="flex items-center gap-2 mb-1.5">
-            <LinkedinOfficialLogo className="w-3.5 h-3.5 shrink-0" />
-            <span className="text-xs font-semibold text-text-primary">Marcus Vance (Founder @ Vesper)</span>
-          </div>
-          <p className="text-xs text-text-secondary">
-            &quot;Starting a brand for luxury jewelry. Need a web designer who can build custom 3D visuals on Shopify Plus.&quot;
-          </p>
-        </div>
-
-        {/* Step 2: Lead Hunter RAG AI */}
-        <div className="p-4 rounded-2xl bg-surface-container border border-white/[0.08]">
-          <div className="flex items-center justify-between text-[10px] font-mono text-primary mb-2">
-            <div className="flex items-center gap-1.5">
-              <CpuChipIcon className="w-3.5 h-3.5 text-primary" />
-              <span>02 // RAG INTEL ENGINE</span>
+        <li className="relative pl-11">
+          <span
+            className="absolute left-0 top-3 w-9 h-9 rounded-full bg-surface-container-lowest border border-primary/40 flex items-center justify-center text-[11px] font-mono font-bold text-primary z-10"
+            aria-hidden="true"
+          >
+            1
+          </span>
+          <div className="p-4 rounded-2xl bg-surface border border-white/[0.08]">
+            <div className="flex items-center justify-between flex-wrap gap-1 text-[11px] font-mono text-primary mb-1">
+              <span>01 // RAW BUYER SIGNAL</span>
+              <span className="text-text-secondary">2h ago</span>
             </div>
-            <span className="text-[9px] px-1.5 py-0.5 rounded bg-primary/10 border border-primary/20 font-bold">
-              Score: 9.4/10
-            </span>
-          </div>
-
-
-          <div className="p-2.5 rounded-xl bg-surface-container-lowest border border-white/[0.04] space-y-2 mb-2.5">
-            <div>
-              <span className="text-[9px] font-mono font-bold text-primary block mb-0.5">🧠 ONE-LINER</span>
-              <p className="text-text-primary text-[10.5px] leading-snug">
-                High-intent founder seeking custom 3D WebGL for Shopify Plus. Dealbreaker: mobile Safari checkout speed.
-              </p>
+            <div className="flex items-center gap-2 mb-1.5">
+              <LinkedinOfficialLogo className="w-3.5 h-3.5 shrink-0" />
+              <span className="text-[12px] font-semibold text-text-primary">Marcus Vance (Founder @ Vesper)</span>
             </div>
-            <div className="h-px bg-white/[0.04]" />
-            <div>
-              <span className="text-[9px] font-mono font-bold text-[#E5C07B] block mb-0.5">🧩 CONTEXT YOU MIGHT MISS</span>
-              <p className="text-text-secondary text-[10px] leading-snug">
-                Direct project brief bypassing agencies: owner seeking direct specialist relationship for flagship luxury launch.
-              </p>
-            </div>
-            <div className="h-px bg-white/[0.04]" />
-            <div>
-              <span className="text-[9px] font-mono font-bold text-[#FF6B6B] block mb-0.5">🔥 THE REAL X-FACTOR</span>
-              <p className="text-text-secondary text-[10px] leading-snug">
-                Stock 3D apps tank mobile checkout. Pitching Draco GLTF compression with sub-50ms load wins the deal.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between pt-2 border-t border-white/[0.06] text-[9.5px]">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="font-mono px-2 py-0.5 rounded bg-white/[0.05] text-text-secondary text-[9px]">Shopify Plus</span>
-              <span className="font-mono px-2 py-0.5 rounded bg-white/[0.05] text-text-secondary text-[9px]">3D / WebGL</span>
-              <span className="font-mono px-2 py-0.5 rounded bg-white/[0.05] text-text-secondary text-[9px]">Draco GLTF</span>
-            </div>
-            <span className="font-mono text-[#B8F36B] font-semibold text-[9px]">Intent: High</span>
-          </div>
-        </div>
-
-        {/* Step 3: Authentic LeadCard in Feed */}
-        <div className="p-4 rounded-[20px] bg-[#B8F36B] text-[#11150C] shadow-lg">
-          <div className="flex items-center justify-between text-[9px] font-extrabold uppercase mb-1">
-            <span>03 // DELIVERED TO YOUR FEED</span>
-            <span>2h ago</span>
-          </div>
-          <h4 className="text-[11px] font-extrabold uppercase mb-1">LUXURY JEWELRY 3D VISUALIZER</h4>
-          <p className="text-xs font-bold leading-snug mb-2.5">
-            &quot;Starting a brand for luxury jewelry. Need a web designer who can build custom 3D visuals on Shopify Plus.&quot;
-          </p>
-          <div className="pt-2 border-t border-[#11150C]/15 flex items-center justify-between text-[10px]">
-            <div>
-              <div className="font-extrabold">Marcus Vance (Founder)</div>
-              <div className="text-[#11150C]/75 font-mono text-[9px]">marcus@vesperjewelry.co</div>
-            </div>
-            <span className="px-2 py-0.5 rounded bg-[#11150C] text-white font-extrabold uppercase text-[9px]">
-              ✓ Claimed
-            </span>
-          </div>
-        </div>
-
-        {/* Step 4: Your AI Outreach */}
-        <div className="p-4 rounded-2xl bg-surface-container-low border border-white/[0.1]">
-          <div className="flex items-center justify-between text-[10px] font-mono text-primary mb-2">
-            <span>04 // YOUR AI ENGINE</span>
-            <button
-              type="button"
-              onClick={() => setActiveAngleIdx((prev) => (prev === 0 ? 1 : 0))}
-              className="text-[10px] text-primary underline"
-            >
-              Angle {activeAngleIdx + 1}/2
-            </button>
-          </div>
-          <div className="flex gap-1 mb-2.5">
-            {(['claude', 'chatgpt', 'gemini'] as AiModelId[]).map((id) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => {
-                  setActiveModel(id)
-                  setActiveAngleIdx(0)
-                }}
-                className={`flex-1 py-1 text-[10px] rounded font-medium ${
-                  activeModel === id ? 'bg-primary/20 text-primary border border-primary/40' : 'text-text-secondary'
-                }`}
-              >
-                {AI_MODELS[id].name}
-              </button>
-            ))}
-          </div>
-          <div className="bg-surface-container-lowest p-3 rounded-xl border border-white/[0.04]">
-            <div className="text-[10px] font-mono text-zinc-400 mb-1">
-              Subject: <span className="text-white font-medium">{currentAngle.subject}</span>
-            </div>
-            <p className="text-xs text-text-secondary font-sans leading-relaxed">
-              {currentAngle.body}
+            <p className="text-[12px] text-text-secondary leading-snug">
+              &quot;Starting a brand for luxury jewelry. Need a web designer who can build custom 3D visuals on Shopify Plus.&quot;
             </p>
           </div>
-        </div>
+        </li>
+
+        {/* Step 2: Lead Hunter RAG AI */}
+        <li className="relative pl-11">
+          <span
+            className="absolute left-0 top-3 w-9 h-9 rounded-full bg-surface-container-lowest border border-primary/40 flex items-center justify-center text-[11px] font-mono font-bold text-primary z-10"
+            aria-hidden="true"
+          >
+            2
+          </span>
+          <div className="p-4 rounded-2xl bg-surface-container border border-white/[0.08]">
+            <div className="flex items-center justify-between flex-wrap gap-1.5 text-[11px] font-mono text-primary mb-2">
+              <div className="flex items-center gap-1.5">
+                <CpuChipIcon className="w-3.5 h-3.5 text-primary" />
+                <span>02 // RAG INTEL ENGINE</span>
+              </div>
+              <span className="text-[11px] px-1.5 py-0.5 rounded bg-primary/10 border border-primary/20 font-bold">
+                Score: 9.4/10
+              </span>
+            </div>
+
+
+            <div className="p-2.5 rounded-xl bg-surface-container-lowest border border-white/[0.04] space-y-2 mb-2.5">
+              <div>
+                <span className="text-[11px] font-mono font-bold text-primary block mb-0.5">🧠 ONE-LINER</span>
+                <p className="text-text-primary text-[11px] leading-snug">
+                  High-intent founder seeking custom 3D WebGL for Shopify Plus. Dealbreaker: mobile Safari checkout speed.
+                </p>
+              </div>
+              <div className="h-px bg-white/[0.04]" />
+              <div>
+                <span className="text-[11px] font-mono font-bold text-[#E5C07B] block mb-0.5">🧩 CONTEXT YOU MIGHT MISS</span>
+                <p className="text-text-secondary text-[11px] leading-snug">
+                  Direct project brief bypassing agencies: owner seeking direct specialist relationship for flagship luxury launch.
+                </p>
+              </div>
+              <div className="h-px bg-white/[0.04]" />
+              <div>
+                <span className="text-[11px] font-mono font-bold text-[#FF6B6B] block mb-0.5">🔥 THE REAL X-FACTOR</span>
+                <p className="text-text-secondary text-[11px] leading-snug">
+                  Stock 3D apps tank mobile checkout. Pitching Draco GLTF compression with sub-50ms load wins the deal.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between flex-wrap gap-1.5 pt-2 border-t border-white/[0.06] text-[11px]">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="font-mono px-2 py-0.5 rounded bg-white/[0.05] text-text-secondary text-[11px]">Shopify Plus</span>
+                <span className="font-mono px-2 py-0.5 rounded bg-white/[0.05] text-text-secondary text-[11px]">3D / WebGL</span>
+                <span className="font-mono px-2 py-0.5 rounded bg-white/[0.05] text-text-secondary text-[11px]">Draco GLTF</span>
+              </div>
+              <span className="font-mono text-[#B8F36B] font-semibold text-[11px]">Intent: High</span>
+            </div>
+          </div>
+        </li>
+
+        {/* Step 3: Authentic LeadCard in Feed */}
+        <li className="relative pl-11">
+          <span
+            className="absolute left-0 top-3 w-9 h-9 rounded-full bg-[#B8F36B] border border-[#B8F36B] flex items-center justify-center text-[11px] font-mono font-bold text-[#11150C] z-10"
+            aria-hidden="true"
+          >
+            3
+          </span>
+          <div className="p-4 rounded-[20px] bg-[#B8F36B] text-[#11150C] shadow-lg">
+            <div className="flex items-center justify-between flex-wrap gap-1 text-[11px] font-extrabold uppercase mb-1">
+              <span>03 // DELIVERED TO YOUR FEED</span>
+              <span>2h ago</span>
+            </div>
+            <p className="text-[12px] font-extrabold uppercase mb-1">LUXURY JEWELRY 3D VISUALIZER</p>
+            <p className="text-[12px] font-bold leading-snug mb-2.5">
+              &quot;Starting a brand for luxury jewelry. Need a web designer who can build custom 3D visuals on Shopify Plus.&quot;
+            </p>
+            <div className="pt-2 border-t border-[#11150C]/15 flex items-center justify-between flex-wrap gap-1.5 text-[11px]">
+              <div>
+                <div className="font-extrabold">Marcus Vance (Founder)</div>
+                <div className="text-[#11150C]/75 font-mono text-[11px] break-all">marcus@vesperjewelry.co</div>
+              </div>
+              <span className="px-2 py-0.5 rounded bg-[#11150C] text-white font-extrabold uppercase text-[11px]">
+                ✓ Claimed
+              </span>
+            </div>
+          </div>
+        </li>
+
+        {/* Step 4: Your AI Outreach */}
+        <li className="relative pl-11">
+          <span
+            className="absolute left-0 top-3 w-9 h-9 rounded-full bg-surface-container-lowest border border-primary/40 flex items-center justify-center text-[11px] font-mono font-bold text-primary z-10"
+            aria-hidden="true"
+          >
+            4
+          </span>
+          <div className="p-4 rounded-2xl bg-surface-container-low border border-white/[0.1]">
+            <div className="flex items-center justify-between flex-wrap gap-2 text-[11px] font-mono text-primary mb-2">
+              <span>04 // YOUR AI ENGINE</span>
+              <button
+                type="button"
+                onClick={() => setActiveAngleIdx((prev) => (prev === 0 ? 1 : 0))}
+                className="min-h-[44px] px-3 -my-2 text-[11px] text-primary underline underline-offset-2"
+              >
+                Angle {activeAngleIdx + 1}/2
+              </button>
+            </div>
+            <div className="flex gap-1.5 mb-2.5">
+              {(['claude', 'chatgpt', 'gemini'] as AiModelId[]).map((id) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => {
+                    setActiveModel(id)
+                    setActiveAngleIdx(0)
+                  }}
+                  className={`flex-1 min-h-[44px] py-2 text-[11px] rounded-lg font-medium border transition-colors ${
+                    activeModel === id ? 'bg-primary/20 text-primary border-primary/40' : 'text-text-secondary border-white/[0.06]'
+                  }`}
+                >
+                  {AI_MODELS[id].name}
+                </button>
+              ))}
+            </div>
+            <div className="bg-surface-container-lowest p-3 rounded-xl border border-white/[0.04]">
+              <div className="text-[11px] font-mono text-zinc-400 mb-1">
+                Subject: <span className="text-white font-medium">{currentAngle.subject}</span>
+              </div>
+              <p className="text-[12px] text-text-secondary font-sans leading-relaxed">
+                {currentAngle.body}
+              </p>
+            </div>
+          </div>
+        </li>
 
         {/* Step 5: Result */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between px-1">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-secondary font-bold">
+        <li className="relative pl-11 space-y-2">
+          <span
+            className="absolute left-0 top-3 w-9 h-9 rounded-full bg-surface-container-lowest border border-secondary/40 flex items-center justify-center text-[11px] font-mono font-bold text-secondary z-10"
+            aria-hidden="true"
+          >
+            5
+          </span>
+          <div className="flex items-center justify-between flex-wrap gap-2 px-1">
+            <span className="text-[11px] font-mono uppercase tracking-wider text-secondary font-bold">
               05 // CLIENT CONVERSION
             </span>
-            <div className="flex items-center gap-0.5 bg-surface-container-lowest p-0.5 rounded-lg border border-white/[0.08]">
+            <div className="flex items-center gap-1 bg-surface-container-lowest p-0.5 rounded-lg border border-white/[0.08]">
               <button
                 type="button"
                 onClick={() => setConversionChannel('email')}
-                className={`flex items-center gap-1 py-0.5 px-2 rounded-md text-[9.5px] font-medium ${
+                className={`flex items-center gap-1 min-h-[44px] px-3 rounded-md text-[11px] font-medium ${
                   conversionChannel === 'email'
                     ? 'bg-[#1a73e8]/20 text-[#8ab4f8] border border-[#1a73e8]/40 font-semibold'
-                    : 'text-zinc-400'
+                    : 'text-zinc-400 border border-transparent'
                 }`}
               >
-                <Mail size={10} />
+                <Mail size={12} />
                 <span>Email</span>
               </button>
               <button
                 type="button"
                 onClick={() => setConversionChannel('whatsapp')}
-                className={`flex items-center gap-1 py-0.5 px-2 rounded-md text-[9.5px] font-medium ${
+                className={`flex items-center gap-1 min-h-[44px] px-3 rounded-md text-[11px] font-medium ${
                   conversionChannel === 'whatsapp'
                     ? 'bg-[#25D366]/20 text-[#25D366] border border-[#25D366]/40 font-semibold'
-                    : 'text-zinc-400'
+                    : 'text-zinc-400 border border-transparent'
                 }`}
               >
-                <WhatsAppOfficialLogo className="w-2.5 h-2.5" />
+                <WhatsAppOfficialLogo className="w-3 h-3" />
                 <span>WhatsApp</span>
               </button>
             </div>
@@ -1192,7 +1236,8 @@ export function LeadOutreachFlowchart() {
               </div>
             </div>
           )}
-        </div>
+          </li>
+        </ol>
       </div>
     </div>
   )

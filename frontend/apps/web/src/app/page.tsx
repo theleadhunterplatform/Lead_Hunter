@@ -29,9 +29,9 @@ function FAQItem({ q, a }: { q: string; a: string }) {
         onClick={() => setOpen(!open)}
         className="w-full flex items-center justify-between text-left group focus:outline-none"
       >
-        <h4 className="font-display text-xl text-text-primary group-hover:text-accent-orange transition-colors duration-300">
+        <h3 className="font-display text-xl text-text-primary group-hover:text-accent-orange transition-colors duration-300">
           {q}
-        </h4>
+        </h3>
         <motion.div animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.4, ease }}>
           <ChevronDownIcon className="w-[22px] h-[22px] text-text-secondary" />
         </motion.div>
@@ -550,7 +550,7 @@ export default function LandingPage() {
                   >
                     <SparklesIcon className="w-[18px] h-[18px]" />
                   </div>
-                  <h4 className="font-display text-xl font-bold tracking-tight mb-1.5">{p.name}</h4>
+                  <h3 className="font-display text-xl font-bold tracking-tight mb-1.5">{p.name}</h3>
                   <p className="text-xs text-text-secondary font-light leading-relaxed">{p.desc}</p>
                 </div>
 
@@ -601,7 +601,7 @@ export default function LandingPage() {
                 {/* CTA */}
                 <Link
                   href="/register"
-                  className={`block w-full py-2.5 rounded-xl font-semibold text-xs tracking-wide text-center transition-all duration-300 ${
+                  className={`block w-full min-h-[44px] py-3 rounded-xl font-semibold text-xs tracking-wide text-center transition-all duration-300 ${
                     p.featured
                       ? 'bg-accent-orange text-text-on-accent hover:brightness-110 shadow-[0_4px_20px_rgba(var(--rgb-accent-orange),0.3)]'
                       : 'bg-white/[0.04] shadow-[inset_0_1px_0_rgba(var(--rgb-white),0.06)] text-text-primary hover:bg-white/[0.07]'
@@ -796,15 +796,15 @@ export default function LandingPage() {
 
             {/* Product Column */}
             <div className="md:col-span-2">
-              <h5 className="text-11 font-bold text-text-secondary/40 uppercase tracking-[0.15em] mb-5">
+              <h3 className="text-11 font-bold text-text-secondary/70 uppercase tracking-[0.15em] mb-5">
                 Product
-              </h5>
+              </h3>
               <ul className="space-y-3">
                 {['Features', 'How It Works', 'Pricing', 'Token System'].map((item) => (
                   <li key={item}>
                     <a
                       href={`#${item.toLowerCase().replace(/\s+/g, '-')}`}
-                      className="text-sm text-text-secondary/70 hover:text-text-primary transition-colors duration-300 font-light"
+                      className="inline-flex items-center min-h-[24px] text-sm text-text-secondary/70 hover:text-text-primary transition-colors duration-300 font-light"
                     >
                       {item}
                     </a>
@@ -815,15 +815,15 @@ export default function LandingPage() {
 
             {/* Company Column */}
             <div className="md:col-span-2">
-              <h5 className="text-11 font-bold text-text-secondary/40 uppercase tracking-[0.15em] mb-5">
+              <h3 className="text-11 font-bold text-text-secondary/70 uppercase tracking-[0.15em] mb-5">
                 Company
-              </h5>
+              </h3>
               <ul className="space-y-3">
                 {['About', 'Blog', 'Careers', 'Contact'].map((item) => (
                   <li key={item}>
                     <a
                       href="#"
-                      className="text-sm text-text-secondary/70 hover:text-text-primary transition-colors duration-300 font-light"
+                      className="inline-flex items-center min-h-[24px] text-sm text-text-secondary/70 hover:text-text-primary transition-colors duration-300 font-light"
                     >
                       {item}
                     </a>
@@ -834,9 +834,9 @@ export default function LandingPage() {
 
             {/* Stay Updated Column */}
             <div className="md:col-span-4">
-              <h5 className="text-11 font-bold text-text-secondary/40 uppercase tracking-[0.15em] mb-5">
+              <h3 className="text-11 font-bold text-text-secondary/70 uppercase tracking-[0.15em] mb-5">
                 Stay Updated
-              </h5>
+              </h3>
               <p className="text-sm text-text-secondary/60 font-light leading-relaxed mb-4">
                 Get notified about new features, lead-hunting tactics, and platform updates.
               </p>
@@ -846,7 +846,7 @@ export default function LandingPage() {
 
           {/* Divider */}
           <div className="border-t border-white/[0.04] pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="text-11 font-mono text-text-secondary/30 uppercase tracking-[0.15em]">
+            <div className="text-11 font-mono text-text-secondary/60 uppercase tracking-[0.15em]">
               © 2026 Lead Hunter Club · All rights reserved.
             </div>
             <div className="flex items-center gap-6">
@@ -854,7 +854,7 @@ export default function LandingPage() {
                 <a
                   key={item}
                   href="#"
-                  className="text-11 font-mono text-text-secondary/30 uppercase tracking-[0.12em] hover:text-text-secondary/60 transition-colors duration-300"
+                  className="inline-flex items-center min-h-[24px] text-11 font-mono text-text-secondary/60 uppercase tracking-[0.12em] hover:text-text-secondary transition-colors duration-300"
                 >
                   {item}
                 </a>

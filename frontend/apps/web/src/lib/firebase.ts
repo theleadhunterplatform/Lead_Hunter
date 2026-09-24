@@ -54,9 +54,46 @@ const firebaseConfig = {
 }
 
 import { getStorage } from 'firebase/storage'
+import type { Auth } from 'firebase/auth'
 
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig)
-const auth = getAuth(app)
+
+// Lazy Auth: avoid getAuth() (and Firebase's apis.google.com auth iframe)
+// on marketing pages until auth is actually needed.
+let _auth: Auth | null = null
+function ensureAuth(): Auth {
+  if (!_auth) _auth = getAuth(app)
+  return _auth
+}
+
+export const auth: Auth = new Proxy({} as Auth, {
+  get(_target, prop, receiver) {
+    // React Refresh / tooling inspects exports (e.g. $$typeof) at load time.
+    // Never initialize Auth for those probes — it loads apis.google.com + 3P cookies.
+    if (typeof prop === 'symbol' || prop === 'then' || prop.startsWith('$$')) {
+      return undefined
+    }
+    const instance = ensureAuth()
+    const value = Reflect.get(instance, prop, instance) as unknown
+    if (typeof value === 'function') {
+      return (value as (...args: unknown[]) => unknown).bind(instance)
+    }
+    return value
+  },
+  set(_target, prop, value) {
+    if (typeof prop === 'symbol' || prop === 'then' || prop.startsWith('$$')) {
+      return true
+    }
+    return Reflect.set(ensureAuth(), prop, value)
+  },
+  has(_target, prop) {
+    if (typeof prop === 'symbol' || prop === 'then' || prop.startsWith('$$')) {
+      return false
+    }
+    return Reflect.has(ensureAuth(), prop)
+  },
+}) as Auth
+
 const storage = getStorage(app)
 
 export async function getAnalyticsInstance() {
@@ -107,7 +144,6 @@ export async function getFirebaseToken(): Promise<string | null> {
 
 export {
   app,
-  auth,
   onAuthStateChanged,
   onIdTokenChanged,
   signInWithEmailAndPassword,

@@ -171,7 +171,7 @@ export default function ReferralsPage() {
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="relative overflow-hidden rounded-3xl bg-surface/50 border border-white/[0.08] backdrop-blur-xl p-6 md:p-8 shadow-2xl"
+          className="metallic-card p-6 md:p-8"
         >
           <div className="absolute top-0 right-0 w-80 h-80 bg-[radial-gradient(circle_at_top_right,rgba(var(--rgb-primary),0.12)_0%,transparent_70%)] pointer-events-none" />
 
@@ -269,7 +269,7 @@ export default function ReferralsPage() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="p-6 rounded-2xl bg-surface/40 border border-white/[0.06] backdrop-blur-md"
+            className="metallic-card p-6"
           >
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
@@ -289,7 +289,7 @@ export default function ReferralsPage() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15 }}
-            className="p-6 rounded-2xl bg-surface/40 border border-white/[0.06] backdrop-blur-md"
+            className="metallic-card p-6"
           >
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
@@ -309,7 +309,7 @@ export default function ReferralsPage() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="p-6 rounded-2xl bg-surface/40 border border-white/[0.06] backdrop-blur-md"
+            className="metallic-card p-6"
           >
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
@@ -327,7 +327,7 @@ export default function ReferralsPage() {
         </div>
 
         {/* How It Works */}
-        <div className="p-6 md:p-8 rounded-3xl bg-surface/30 border border-white/[0.06]">
+        <div className="metallic-card p-6 sm:p-8">
           <h3 className="text-base font-bold text-white mb-6">How Referral Rewards Work</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="flex gap-4 items-start">
@@ -374,7 +374,7 @@ export default function ReferralsPage() {
           <div className="lg:col-span-2 space-y-4">
             <h3 className="text-base font-bold text-white">Referral Activity</h3>
 
-            <div className="rounded-2xl border border-white/[0.06] bg-surface/20 overflow-hidden">
+            <div className="metallic-card overflow-hidden">
               {loading ? (
                 <div className="p-8 text-center text-sm text-text-secondary">Loading history...</div>
               ) : !data?.history || data.history.length === 0 ? (
@@ -433,7 +433,7 @@ export default function ReferralsPage() {
           {/* Claim Code Box (1 column) */}
           <div className="space-y-4">
             <h3 className="text-base font-bold text-white">Have a Friend&apos;s Code?</h3>
-            <div className="p-6 rounded-2xl bg-surface/30 border border-white/[0.06] flex flex-col gap-4">
+            <div className="metallic-card flex flex-col gap-4">
               <p className="text-xs text-text-secondary leading-relaxed">
                 If someone invited you and you missed entering their code during registration, you can claim your{' '}
                 <strong className="text-white">+5 welcome credits</strong> here.

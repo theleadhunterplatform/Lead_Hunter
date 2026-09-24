@@ -94,12 +94,12 @@ export function SignalInterceptStage() {
                     className="w-8 h-8 rounded-full object-cover border border-white/10 shadow-sm shrink-0"
                   />
                 </motion.div>
-                <div className="flex items-center gap-1.5 text-[12px] whitespace-nowrap overflow-hidden">
+                <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[12px] min-w-0">
                   <span className="font-bold text-white hover:underline cursor-pointer">
                     r/smallbusiness
                   </span>
                   <span className="text-zinc-500">·</span>
-                  <span className="text-zinc-400">Posted by u/growth_pilot</span>
+                  <span className="text-zinc-400 truncate max-w-[140px]">Posted by u/growth_pilot</span>
                   <span className="text-zinc-500">·</span>
                   <span className="text-zinc-500">4m ago</span>
                 </div>
@@ -120,22 +120,22 @@ export function SignalInterceptStage() {
               Currently spending $12k/mo on Meta. Looking for an expert or boutique agency to audit our ad account, fix creative fatigue, and scale past $50k. Please DM with case studies.
             </p>
 
-            {/* Authentic Reddit Footer Action Bar */}
-            <div className="flex items-center gap-2 text-[12px] text-zinc-300 font-semibold">
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#272729]">
+            {/* Authentic Reddit Footer Action Bar — min 44px tap targets on mobile */}
+            <div className="flex flex-wrap items-center gap-2 text-[12px] text-zinc-300 font-semibold">
+              <div className="flex items-center gap-2 min-h-[44px] px-3 py-1.5 rounded-full bg-[#272729]">
                 <span className="text-[11px] text-zinc-400">▲</span>
                 <span>28</span>
                 <span className="text-[11px] text-zinc-500">▼</span>
               </div>
 
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#272729]">
+              <div className="flex items-center gap-1.5 min-h-[44px] px-3 py-1.5 rounded-full bg-[#272729]">
                 <svg className="w-3.5 h-3.5 text-zinc-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                 </svg>
                 <span>14 comments</span>
               </div>
 
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#272729]">
+              <div className="flex items-center gap-1.5 min-h-[44px] px-3 py-1.5 rounded-full bg-[#272729]">
                 <svg className="w-3.5 h-3.5 text-zinc-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
                   <polyline points="16 6 12 2 8 6" />
@@ -214,21 +214,21 @@ export function SignalInterceptStage() {
               <span>18 comments · 4 reposts</span>
             </div>
 
-            {/* Action Buttons */}
-            <div className="grid grid-cols-4 pt-2 text-[11.5px] font-medium text-zinc-400">
-              <button type="button" className="flex items-center justify-center gap-1.5 py-1 hover:text-zinc-200 transition-colors">
+            {/* Action Buttons — 2x2 grid + 44px targets on mobile, 4-col on sm+ */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 pt-2 text-[11.5px] font-medium text-zinc-400">
+              <button type="button" className="flex items-center justify-center gap-1.5 min-h-[44px] sm:min-h-[32px] py-1 hover:text-zinc-200 transition-colors">
                 <span>👍</span>
                 <span>Like</span>
               </button>
-              <button type="button" className="flex items-center justify-center gap-1.5 py-1 hover:text-zinc-200 transition-colors">
+              <button type="button" className="flex items-center justify-center gap-1.5 min-h-[44px] sm:min-h-[32px] py-1 hover:text-zinc-200 transition-colors">
                 <span>💬</span>
                 <span>Comment</span>
               </button>
-              <button type="button" className="flex items-center justify-center gap-1.5 py-1 hover:text-zinc-200 transition-colors">
+              <button type="button" className="flex items-center justify-center gap-1.5 min-h-[44px] sm:min-h-[32px] py-1 hover:text-zinc-200 transition-colors">
                 <span>🔁</span>
                 <span>Repost</span>
               </button>
-              <button type="button" className="flex items-center justify-center gap-1.5 py-1 hover:text-zinc-200 transition-colors">
+              <button type="button" className="flex items-center justify-center gap-1.5 min-h-[44px] sm:min-h-[32px] py-1 hover:text-zinc-200 transition-colors">
                 <span>✈️</span>
                 <span>Send</span>
               </button>
@@ -261,13 +261,13 @@ export function SignalInterceptStage() {
               Need a Webflow & automation expert who can overhaul our client onboarding portal by next Friday. Budget is flexible, just need top-tier execution. Who should I talk to?
             </p>
 
-            {/* Threads Action Bar */}
-            <div className="flex items-center justify-between pt-1 text-zinc-400">
-              <div className="flex items-center gap-4 text-[15px]">
-                <button type="button" className="hover:text-rose-400 transition-colors">♡</button>
-                <button type="button" className="hover:text-zinc-200 transition-colors">💬</button>
-                <button type="button" className="hover:text-zinc-200 transition-colors">🔁</button>
-                <button type="button" className="hover:text-zinc-200 transition-colors">✈️</button>
+            {/* Threads Action Bar — 44px tap targets */}
+            <div className="flex items-center justify-between gap-2 pt-1 text-zinc-400">
+              <div className="flex items-center gap-1 text-[15px]">
+                <button type="button" aria-label="Like" className="w-11 h-11 flex items-center justify-center hover:text-rose-400 transition-colors">♡</button>
+                <button type="button" aria-label="Reply" className="w-11 h-11 flex items-center justify-center hover:text-zinc-200 transition-colors">💬</button>
+                <button type="button" aria-label="Repost" className="w-11 h-11 flex items-center justify-center hover:text-zinc-200 transition-colors">🔁</button>
+                <button type="button" aria-label="Send" className="w-11 h-11 flex items-center justify-center hover:text-zinc-200 transition-colors">✈️</button>
               </div>
 
               <span className="text-[11.5px] text-zinc-500">34 likes · 12 replies</span>

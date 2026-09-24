@@ -107,11 +107,11 @@ export default function AnalyticsPage() {
           {loading ? (
             <CustomLoader page="analytics" />
           ) : error ? (
-            <div className="flex flex-col items-center justify-center py-20 px-6 text-center bg-surface-secondary/20 border border-white/[0.04] rounded-3xl max-w-md mx-auto">
+            <div className="metallic-card p-6 max-w-md mx-auto">
               <h3 className="text-base font-bold text-text-primary mb-2">Couldn&apos;t load analytics</h3>
               <p className="text-sm text-text-secondary/70 mb-6">{error}</p>
               <button
-                onClick={load}
+                onClick={() => load(true)}
                 className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-xs font-semibold text-text-primary transition-all inline-flex items-center gap-2"
               >
                 <ArrowPathIcon className="w-3.5 h-3.5" />
@@ -232,7 +232,7 @@ export default function AnalyticsPage() {
                     )}
                   </div>
 
-                  <div className="p-8 rounded-4xl bg-accent-mint text-text-on-accent">
+                  <div className="metallic-card p-6 sm:p-8 bg-gradient-to-br from-accent-mint/20 to-accent-mint/5 border-accent-mint/30">
                     <h3 className="text-lg font-bold mb-1">Ready to work</h3>
                     <p className="text-3xl font-bold">{readyLeadCount}</p>
                     <p className="text-sm opacity-80 mt-2">

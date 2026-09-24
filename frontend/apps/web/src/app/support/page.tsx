@@ -203,7 +203,7 @@ export default function SupportPage() {
               <Squares2X2Icon className="w-3.5 h-3.5" />
               <span>Dashboard</span>
             </Link>
-            <Button variant="primary" color="mint" size="sm" className="min-h-[44px]" onClick={() => setCreateOpen(true)}>
+            <Button variant="primary" color="primary" size="sm" className="min-h-[44px]" onClick={() => setCreateOpen(true)}>
               <PlusIcon className="w-3.5 h-3.5" />
               <span>New Ticket</span>
             </Button>
@@ -480,7 +480,7 @@ export default function SupportPage() {
 
           {/* Empty State - No Tickets At All */}
           {tickets.length === 0 && !loading && (
-            <div className="p-16 text-center">
+            <div className="metallic-card p-16 text-center">
               <div className="w-14 h-14 rounded-2xl bg-accent-orange/10 border border-accent-orange/20 flex items-center justify-center text-accent-orange mx-auto mb-4">
                 <LifebuoyIcon className="w-7 h-7" />
               </div>
@@ -497,7 +497,7 @@ export default function SupportPage() {
 
           {/* Empty State - Filter Has No Matches */}
           {tickets.length > 0 && filteredTickets.length === 0 && !loading && (
-            <div className="p-14 text-center">
+            <div className="metallic-card p-14 text-center">
               <FunnelIcon className="w-8 h-8 text-text-secondary/60 mx-auto mb-3" />
               <p className="text-text-primary text-sm font-semibold mb-1">No tickets match your filter</p>
               <p className="text-xxs text-text-secondary mb-4">

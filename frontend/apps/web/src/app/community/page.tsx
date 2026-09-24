@@ -213,71 +213,71 @@ export default function CommunityPage() {
 
         {/* Real-time Metric Ticker Strip */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="p-5 rounded-2xl bg-surface/50 border border-white/[0.08] backdrop-blur-xl space-y-1.5 transition-all">
+          <div className="metallic-card p-5 space-y-1.5">
             <div className="flex items-center justify-between text-xs font-semibold text-text-secondary">
               <span>Verified Deals Closed</span>
-              <div className="p-2 rounded-xl bg-amber-500/15 text-amber-400">
+              <div className="p-2 rounded-xl bg-primary/15 text-primary">
                 <TrophyIcon className="w-4 h-4" />
               </div>
             </div>
-            <div className="text-3xl font-extrabold text-amber-400 tabular-nums tracking-tight">
+            <div className="text-3xl font-extrabold text-primary tabular-nums tracking-tight">
               {stats.totalDeals}
             </div>
             <p className="text-xs text-text-secondary">Signed client contracts & retainers</p>
           </div>
 
-          <div className="p-5 rounded-2xl bg-surface/50 border border-white/[0.08] backdrop-blur-xl space-y-1.5 transition-all">
+          <div className="metallic-card p-5 space-y-1.5">
             <div className="flex items-center justify-between text-xs font-semibold text-text-secondary">
               <span>Meetings Booked</span>
-              <div className="p-2 rounded-xl bg-accent-mint/15 text-accent-mint">
+              <div className="p-2 rounded-xl bg-secondary/15 text-secondary">
                 <CalendarDaysIcon className="w-4 h-4" />
               </div>
             </div>
-            <div className="text-3xl font-extrabold text-accent-mint tabular-nums tracking-tight">
+            <div className="text-3xl font-extrabold text-secondary tabular-nums tracking-tight">
               {stats.totalMeetings}
             </div>
             <p className="text-xs text-text-secondary">Sales discovery calls scheduled</p>
           </div>
 
-          <div className="p-5 rounded-2xl bg-surface/50 border border-white/[0.08] backdrop-blur-xl space-y-1.5 transition-all">
+          <div className="metallic-card p-5 space-y-1.5">
             <div className="flex items-center justify-between text-xs font-semibold text-text-secondary">
               <span>Total Verified Wins</span>
-              <div className="p-2 rounded-xl bg-sky-500/15 text-sky-400">
+              <div className="p-2 rounded-xl bg-secondary/15 text-secondary">
                 <CheckBadgeIcon className="w-4 h-4" />
               </div>
             </div>
-            <div className="text-3xl font-extrabold text-white tabular-nums tracking-tight">
+            <div className="text-3xl font-extrabold text-secondary tabular-nums tracking-tight">
               {stats.totalWins}
             </div>
             <p className="text-xs text-text-secondary">Total admin-approved social proofs</p>
           </div>
         </div>
 
-        {/* Category Filters Bar */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-white/[0.08]">
-          {CATEGORY_TABS.map((tab) => {
-            const isActive = selectedCategory === tab.id
-            const Icon = tab.icon
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setSelectedCategory(tab.id)}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
-                  isActive
-                    ? 'bg-accent-mint text-black shadow-lg shadow-accent-mint/20'
-                    : 'bg-surface-elevated text-text-secondary hover:text-white border border-white/[0.08]'
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                <span>{tab.label}</span>
-              </button>
-            )
-          })}
-        </div>
+{/* Category Filters Bar */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-white/[0.08]">
+            {CATEGORY_TABS.map((tab) => {
+              const isActive = selectedCategory === tab.id
+              const Icon = tab.icon
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setSelectedCategory(tab.id)}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
+                    isActive
+                      ? 'bg-primary text-black shadow-lg shadow-primary/20'
+                      : 'metallic-card text-text-secondary hover:text-white'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span>{tab.label}</span>
+                </button>
+              )
+            })}
+          </div>
 
         {/* Posts Feed */}
         {posts.length === 0 ? (
-          <div className="py-20 text-center border border-white/[0.06] rounded-3xl bg-surface/30 backdrop-blur-md space-y-3">
+          <div className="metallic-card py-20 text-center space-y-3">
             <div className="w-14 h-14 rounded-2xl bg-white/[0.05] border border-white/[0.08] flex items-center justify-center mx-auto text-text-secondary">
               <SparklesIcon className="w-7 h-7" />
             </div>
@@ -298,39 +298,39 @@ export default function CommunityPage() {
               return (
                 <div
                   key={post.id}
-                  className={`rounded-3xl bg-surface/60 border backdrop-blur-xl p-6 md:p-8 space-y-5 transition-all shadow-xl ${
+                  className={`metallic-card p-6 md:p-8 space-y-5 transition-all ${
                     post.isPinned
-                      ? 'border-accent-mint/30 ring-1 ring-accent-mint/20 bg-gradient-to-b from-accent-mint/[0.03] to-surface/60'
-                      : 'border-white/[0.08] hover:border-white/[0.15]'
+                      ? 'ring-1 ring-accent-mint/20 bg-gradient-to-b from-accent-mint/[0.03] to-surface/60'
+                      : 'hover:ring-1 ring-white/10'
                   }`}
                 >
                   {/* Top Bar: Pinned Badge + Category + Deal Metrics */}
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex flex-wrap items-center gap-2">
                       {post.isPinned && (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-accent-mint/15 text-accent-mint border border-accent-mint/30">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-primary/15 text-primary border border-primary/30">
                           📌 Pinned Featured Win
                         </span>
                       )}
 
                       {/* Category Badge */}
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-white/[0.06] text-white border border-white/[0.1]">
-                        {post.category === 'DEAL_CLOSED' && <span>🏆 Deal Closed</span>}
-                        {post.category === 'MEETING_SCHEDULED' && <span>📅 Meeting Booked</span>}
-                        {post.category === 'POSITIVE_REPLY' && <span>💬 Warm Reply</span>}
-                        {post.category === 'SPOTLIGHT' && <span>⭐ Member Spotlight</span>}
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-primary/15 text-primary border border-primary/30">
+                        {post.category === 'DEAL_CLOSED' && <span>Deal Closed</span>}
+                        {post.category === 'MEETING_SCHEDULED' && <span>Meeting Booked</span>}
+                        {post.category === 'POSITIVE_REPLY' && <span>Warm Reply</span>}
+                        {post.category === 'SPOTLIGHT' && <span>Member Spotlight</span>}
                       </span>
 
                       {/* Deal Size Pill */}
                       {post.dealSize && (
-                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-mono">
+                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-extrabold bg-tertiary/15 text-tertiary border border-tertiary/30 font-mono">
                           {post.dealSize}
                         </span>
                       )}
 
                       {/* Client Niche Pill */}
                       {post.clientNiche && (
-                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-sky-500/10 text-sky-300 border border-sky-500/20">
+                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-tertiary/10 text-tertiary border border-tertiary/20">
                           {post.clientNiche}
                         </span>
                       )}
@@ -380,17 +380,17 @@ export default function CommunityPage() {
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-3 border-t border-white/[0.06]">
                     {/* Author Details */}
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-accent-mint/20 to-primary/20 border border-white/[0.1] flex items-center justify-center text-accent-mint font-bold text-xs uppercase">
+                      <div className="w-9 h-9 rounded-full bg-accent-mint/20 border border-accent-mint/30 flex items-center justify-center text-accent-mint font-bold text-xs uppercase">
                         {post.authorName.slice(0, 2)}
                       </div>
                       <div className="space-y-0.5">
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-bold text-white">{post.authorName}</span>
-                          <span className="px-1.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-white/[0.06] text-zinc-400 border border-white/[0.08]">
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-accent-mint/15 text-accent-mint border border-accent-mint/30">
                             {post.authorPlan || 'MEMBER'}
                           </span>
                         </div>
-                        <div className="text-[11px] text-zinc-500">{formattedDate}</div>
+                        <div className="text-[11px] text-text-secondary">{formattedDate}</div>
                       </div>
                     </div>
 
@@ -404,10 +404,10 @@ export default function CommunityPage() {
                           <button
                             key={react.type}
                             onClick={() => handleToggleReaction(post.id, react.type)}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border active:scale-95 ${
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border active:scale-95 metallic-card ${
                               isReacted
-                                ? 'bg-accent-mint/15 border-accent-mint/40 text-accent-mint shadow-md shadow-accent-mint/10'
-                                : 'bg-surface-elevated/70 border-white/[0.08] text-zinc-400 hover:text-white hover:border-white/20'
+                                ? 'bg-primary/15 border-primary/40 text-primary shadow-md shadow-primary/10'
+                                : 'border-white/[0.08] text-zinc-400 hover:text-white hover:border-white/20'
                             }`}
                             title={`Celebrate with ${react.label}`}
                           >
@@ -425,10 +425,10 @@ export default function CommunityPage() {
         )}
 
         {/* Motivational Callout to Earn Rewards */}
-        <div className="p-8 rounded-3xl bg-gradient-to-r from-accent-mint/[0.08] via-surface-elevated to-primary/[0.08] border border-white/[0.1] flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-2xl">
+        <div className="metallic-card p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 bg-gradient-to-r from-primary/[0.08] via-surface-elevated to-primary/[0.08] border border-white/[0.1] shadow-2xl">
           <div className="space-y-1.5">
             <h3 className="text-lg font-bold text-white flex items-center gap-2">
-              <TrophyIcon className="w-5 h-5 text-accent-mint" />
+              <TrophyIcon className="w-5 h-5 text-primary" />
               Did you close a client with Lead Hunter?
             </h3>
             <p className="text-xs md:text-sm text-text-secondary max-w-xl">
@@ -438,7 +438,7 @@ export default function CommunityPage() {
           </div>
           <Link
             href="/rewards"
-            className="px-5 py-3 rounded-xl bg-accent-mint hover:bg-accent-mint/90 text-black font-extrabold text-xs transition-all flex items-center justify-center gap-2 shadow-lg shadow-accent-mint/20 shrink-0"
+            className="px-5 py-3 rounded-xl bg-primary hover:bg-primary/90 text-black font-extrabold text-xs transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/20 shrink-0"
           >
             <span>Submit Milestone Proof</span>
             <ArrowRightIcon className="w-4 h-4" />
@@ -457,9 +457,9 @@ export default function CommunityPage() {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 onClick={(e) => e.stopPropagation()}
-                className="relative max-w-4xl max-h-[85vh] bg-surface border border-white/10 shadow-2xl rounded-3xl overflow-hidden flex flex-col"
+                className="relative max-w-4xl max-h-[85vh] metallic-card shadow-2xl rounded-3xl overflow-hidden flex flex-col"
               >
-                <div className="p-4 border-b border-white/10 flex items-center justify-between bg-surface-elevated">
+                <div className="p-4 border-b border-white/10 flex items-center justify-between metallic-card">
                   <div className="flex items-center gap-2 text-xs font-bold text-white">
                     <ShieldCheckIcon className="w-4 h-4 text-accent-mint" />
                     <span>Verified Screenshot Proof</span>

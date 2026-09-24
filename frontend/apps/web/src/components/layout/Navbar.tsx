@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useScroll, useMotionValueEvent } from 'framer-motion'
 import { useState, useEffect } from 'react'
 import { Bars3Icon, XMarkIcon, ArrowRightIcon } from '@heroicons/react/24/solid'
 import { useAuth } from '@/hooks/useAuth'
@@ -26,15 +26,14 @@ export default function Navbar() {
   const pathname = usePathname()
   const { user, loading } = useAuth()
 
-  // Scroll listener to toggle isScrolled once scroll exceeds 50px
+  // Scroll-driven isScrolled (framer-motion useScroll replaces raw scroll listener)
+  const { scrollY } = useScroll()
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 50)
-    }
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    handleScroll()
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [])
+    setIsScrolled(scrollY.get() > 50)
+  }, [scrollY])
+  useMotionValueEvent(scrollY, 'change', (latest) => {
+    setIsScrolled(latest > 50)
+  })
 
   // Active hash sync using Intersection Observer
   useEffect(() => {
@@ -124,10 +123,8 @@ export default function Navbar() {
               height={32}
               className="w-8 h-8 rounded-xl"
             />
-            {/* Show brand name on desktop, or if not scrolled on mobile */}
-            <span className={`font-display text-[16px] font-semibold tracking-tight text-text-primary group-hover:opacity-80 transition-opacity duration-300 whitespace-nowrap ${
-              isScrolled ? 'hidden sm:block' : 'block'
-            }`}>
+            {/* Brand name: always visible (mobile CTA lives only in the hamburger) */}
+            <span className="font-display text-[16px] font-semibold tracking-tight text-text-primary group-hover:opacity-80 transition-opacity duration-300 whitespace-nowrap">
               Lead Hunter Club
             </span>
           </Link>
@@ -171,13 +168,15 @@ export default function Navbar() {
                   <ArrowRightIcon className="w-3.5 h-3.5 transition-transform duration-300 group-hover:translate-x-0.5" />
                 </a>
 
-                {/* Compact Mobile Dashboard Link */}
-                <a
-                  href="/dashboard"
-                  className="md:hidden flex items-center justify-center px-4 py-2 rounded-full bg-text-primary text-bg-main text-[12px] font-bold transition-all duration-300 active:scale-95 shadow-[0_4px_12px_rgba(var(--rgb-white),0.1)] shrink-0"
-                >
-                  Dashboard
-                </a>
+                {/* Compact Mobile Dashboard Link — unmounted when scrolled (name takes its place) */}
+                {!isScrolled && (
+                  <a
+                    href="/dashboard"
+                    className="md:hidden flex items-center justify-center min-h-[44px] px-4 py-2 rounded-full bg-text-primary text-bg-main text-[12px] font-bold transition-all duration-300 active:scale-95 shadow-[0_4px_12px_rgba(var(--rgb-white),0.1)] shrink-0"
+                  >
+                    Dashboard
+                  </a>
+                )}
               </>
             ) : (
               <>
@@ -206,21 +205,14 @@ export default function Navbar() {
                     <ArrowRightIcon className="w-3.5 h-3.5 transition-transform duration-300 group-hover:translate-x-0.5" />
                   </a>
                 </div>
-
-                {/* Compact Mobile "Start Hunting" Link */}
-                <a
-                  href="/register"
-                  className="md:hidden flex items-center justify-center px-4 py-2 rounded-full bg-text-primary text-bg-main text-[12px] font-bold transition-all duration-300 active:scale-95 shadow-[0_4px_12px_rgba(var(--rgb-white),0.1)]"
-                >
-                  Start Hunting
-                </a>
+                {/* Mobile CTA lives only inside the hamburger menu */}
               </>
             )}
 
             {/* Mobile Menu Button */}
             <button
               onClick={() => setMobileOpen(!mobileOpen)}
-              className="md:hidden w-9 h-9 rounded-full bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-white/[0.08] transition-all duration-300"
+              className="md:hidden w-11 h-11 rounded-full bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-white/[0.08] transition-all duration-300"
               aria-label="Toggle menu"
               aria-expanded={mobileOpen}
               aria-controls="mobile-menu"

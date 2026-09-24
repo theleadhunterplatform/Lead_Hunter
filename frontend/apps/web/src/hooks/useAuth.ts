@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import {
   auth,
   onAuthStateChanged,
@@ -40,6 +40,7 @@ function updateGlobalCachedUser(user: User | null) {
 
 export function useAuth() {
   const router = useRouter()
+  const pathname = usePathname()
   const [user, setUser] = useState<User | null>(globalCachedUser)
   const [loading, setLoading] = useState(!globalCachedUser)
   const [error, setError] = useState<string | null>(null)
@@ -64,6 +65,24 @@ export function useAuth() {
 
   useEffect(() => {
     let isMounted = true
+
+    // Marketing pages: skip Firebase Auth init (loads apis.google.com iframe
+    // + third-party cookies) unless a session cookie proves a logged-in user.
+    const isMarketingPath =
+      pathname === '/' ||
+      pathname === '/reviews' ||
+      pathname === '/wall-of-love' ||
+      pathname.startsWith('/sneak-peek')
+    const hasSession =
+      typeof document !== 'undefined' && /(?:^|;\s*)__session=/.test(document.cookie)
+    if (isMarketingPath && !hasSession) {
+      updateGlobalCachedUser(null)
+      setUser(null)
+      setFirebaseUser(null)
+      setLoading(false)
+      setError(null)
+      return
+    }
 
     const syncUser = async (fbUser: import('firebase/auth').User) => {
       const now = Date.now()
@@ -212,7 +231,7 @@ export function useAuth() {
       document.removeEventListener('visibilitychange', handleVisibilityChange)
       clearInterval(syncInterval)
     }
-  }, [router])
+  }, [router, pathname])
 
   const handleLogout = useCallback(async (redirectPath: string = '/login') => {
     // 1. Immediately wipe React in-memory state synchronously

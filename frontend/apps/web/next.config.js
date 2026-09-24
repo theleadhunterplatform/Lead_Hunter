@@ -48,7 +48,7 @@ const CSP_DIRECTIVES = {
     process.env.NEXT_PUBLIC_API_URL ? process.env.NEXT_PUBLIC_API_URL : '',
     process.env.UPSTASH_REDIS_REST_URL ? process.env.UPSTASH_REDIS_REST_URL : '',
   ].filter(Boolean),
-  'frame-src': ["'self'", 'https://www.google.com', 'https://apis.google.com'],
+  'frame-src': ["'self'", 'https://www.google.com', 'https://apis.google.com', 'https://lead-hunter-club.firebaseapp.com'],
   'frame-ancestors': ["'none'"],
   'form-action': [
     "'self'",

@@ -282,7 +282,7 @@ export default function RewardsPage() {
         {/* 4-Card Performance Strip */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Total Credits Won */}
-          <div className="p-5 rounded-2xl bg-surface/50 border border-white/[0.08] backdrop-blur-xl space-y-1.5 transition-all">
+          <div className="metallic-card p-5 space-y-1.5">
             <div className="flex items-center justify-between text-xs font-semibold text-text-secondary">
               <span>Credits Earned</span>
               <div className="p-2 rounded-xl bg-primary/15 text-primary">
@@ -296,7 +296,7 @@ export default function RewardsPage() {
           </div>
 
           {/* Verified Wins */}
-          <div className="p-5 rounded-2xl bg-surface/50 border border-white/[0.08] backdrop-blur-xl space-y-1.5 transition-all">
+          <div className="metallic-card p-5 space-y-1.5">
             <div className="flex items-center justify-between text-xs font-semibold text-text-secondary">
               <span>Verified Wins</span>
               <div className="p-2 rounded-xl bg-secondary/15 text-secondary">
@@ -310,28 +310,28 @@ export default function RewardsPage() {
           </div>
 
           {/* Pending Review */}
-          <div className="p-5 rounded-2xl bg-surface/50 border border-white/[0.08] backdrop-blur-xl space-y-1.5 transition-all">
+          <div className="metallic-card p-5 space-y-1.5">
             <div className="flex items-center justify-between text-xs font-semibold text-text-secondary">
               <span>Under Review</span>
-              <div className="p-2 rounded-xl bg-primary/10 text-primary">
+              <div className="p-2 rounded-xl bg-primary/15 text-primary">
                 <ClockIcon className="w-4 h-4" />
               </div>
             </div>
-            <div className="text-3xl font-extrabold text-white tabular-nums tracking-tight">
+            <div className="text-3xl font-extrabold text-primary tabular-nums tracking-tight">
               {pendingCount}
             </div>
             <p className="text-xs text-text-secondary">Audited by admin within 24 hours</p>
           </div>
 
           {/* Max Bounty Tier */}
-          <div className="p-5 rounded-2xl bg-surface/50 border border-white/[0.08] backdrop-blur-xl space-y-1.5 transition-all">
+          <div className="metallic-card p-5 space-y-1.5">
             <div className="flex items-center justify-between text-xs font-semibold text-text-secondary">
               <span>Top Bounty Tier</span>
-              <div className="p-2 rounded-xl bg-tertiary/15 text-tertiary">
+              <div className="p-2 rounded-xl bg-primary/15 text-primary">
                 <RocketLaunchIcon className="w-4 h-4" />
               </div>
             </div>
-            <div className="text-3xl font-extrabold text-tertiary tabular-nums tracking-tight">
+            <div className="text-3xl font-extrabold text-primary tabular-nums tracking-tight">
               +50 Credits
             </div>
             <p className="text-xs text-text-secondary">Per signed contract / paid client</p>
@@ -357,7 +357,7 @@ export default function RewardsPage() {
                   onClick={() => setSelectedType(tier.id)}
                   className={`p-5 rounded-3xl border cursor-pointer transition-all duration-200 relative overflow-hidden flex flex-col justify-between ${
                     isSelected
-                      ? 'bg-surface/80 border-primary ring-1 ring-primary/40 shadow-[0_0_24px_rgba(var(--rgb-primary),0.15)] scale-[1.01]'
+                      ? 'metallic-card ring-1 ring-primary/40 shadow-[0_0_24px_rgba(var(--rgb-primary),0.15)] scale-[1.01]'
                       : 'bg-surface/40 border-white/[0.08] hover:border-white/20 hover:bg-surface/60'
                   }`}
                 >
@@ -366,9 +366,7 @@ export default function RewardsPage() {
                       <div className="p-2.5 rounded-2xl bg-surface-elevated border border-white/10 text-primary">
                         <Icon className="w-5 h-5" />
                       </div>
-                      <span
-                        className={`px-3 py-1 rounded-full text-xs font-bold border uppercase tracking-wide ${tier.badgeColor}`}
-                      >
+                      <span className="px-3 py-1 rounded-full text-xs font-bold border uppercase tracking-wide bg-primary/15 text-primary border-primary/30">
                         {tier.credits}
                       </span>
                     </div>
@@ -383,7 +381,7 @@ export default function RewardsPage() {
                   </div>
 
                   <div className="pt-3 mt-3 border-t border-white/[0.08] text-[11px] text-text-secondary flex items-center gap-1.5">
-                    <ShieldCheckIcon className="w-3.5 h-3.5 text-secondary shrink-0" />
+                    <ShieldCheckIcon className="w-3.5 h-3.5 text-primary shrink-0" />
                     <span>{tier.criteria}</span>
                   </div>
                 </div>
@@ -396,7 +394,7 @@ export default function RewardsPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Left Column: Upload Form */}
           <div className="lg:col-span-6 space-y-6">
-            <div className="p-6 md:p-7 rounded-3xl bg-surface/50 border border-white/[0.08] backdrop-blur-xl shadow-2xl space-y-6">
+            <div className="metallic-card p-6 sm:p-8 space-y-6">
               <div className="flex items-center justify-between border-b border-white/[0.08] pb-4">
                 <div className="flex items-center gap-2.5">
                   <div className="p-2 rounded-xl bg-primary/10 text-primary">
@@ -549,28 +547,28 @@ export default function RewardsPage() {
             </div>
 
             {/* 3-Step How It Works Card */}
-            <div className="p-6 rounded-3xl bg-surface/50 border border-white/[0.08] backdrop-blur-xl space-y-3">
+            <div className="metallic-card p-6 space-y-3">
               <h3 className="text-xs font-bold uppercase tracking-wider text-white flex items-center gap-2">
-                <BoltIcon className="w-4 h-4 text-primary" />
+                <BoltIcon className="w-4 h-4 text-accent-mint" />
                 <span>How Bounty Credits Work</span>
               </h3>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-text-secondary">
-                <div className="p-3.5 rounded-2xl bg-surface-elevated/70 border border-white/5 space-y-1">
+                <div className="metallic-card p-3.5 space-y-1">
                   <div className="font-bold text-white">1. Pitch Leads</div>
                   <p className="text-[11px] leading-relaxed">
                     Contact decision makers using Lead Hunter verified emails/phones.
                   </p>
                 </div>
 
-                <div className="p-3.5 rounded-2xl bg-surface-elevated/70 border border-white/5 space-y-1">
+                <div className="metallic-card p-3.5 space-y-1">
                   <div className="font-bold text-white">2. Snap Proof</div>
                   <p className="text-[11px] leading-relaxed">
                     Take a screenshot of client reply, booked call, or signed agreement.
                   </p>
                 </div>
 
-                <div className="p-3.5 rounded-2xl bg-surface-elevated/70 border border-white/5 space-y-1">
+                <div className="metallic-card p-3.5 space-y-1">
                   <div className="font-bold text-white">3. Get Rewarded</div>
                   <p className="text-[11px] leading-relaxed">
                     Admin audits within 24h and auto-deposits credits to your balance!
@@ -582,7 +580,7 @@ export default function RewardsPage() {
 
           {/* Right Column: Proof Submission History */}
           <div className="lg:col-span-6 space-y-6">
-            <div className="p-6 md:p-7 rounded-3xl bg-surface/50 border border-white/[0.08] backdrop-blur-xl shadow-2xl space-y-5">
+            <div className="metallic-card p-6 sm:p-8 space-y-5">
               {/* Header & Filter Tabs */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/[0.08] pb-4">
                 <div>
@@ -619,7 +617,7 @@ export default function RewardsPage() {
 
               {/* List */}
               {filteredProofs.length === 0 ? (
-                <div className="py-16 text-center text-xs text-text-secondary border border-white/[0.06] rounded-2xl bg-surface-container-lowest/30 space-y-2">
+                <div className="metallic-card py-16 text-center text-xs text-text-secondary space-y-2">
                   <PhotoIcon className="w-8 h-8 text-text-secondary/50 mx-auto mb-1" />
                   <p className="font-bold text-white text-sm">No milestone proofs found</p>
                   <p className="max-w-xs mx-auto text-text-secondary">
@@ -635,7 +633,7 @@ export default function RewardsPage() {
                     return (
                       <div
                         key={proof.id}
-                        className="p-4 rounded-2xl bg-surface-elevated/80 border border-white/[0.08] hover:border-white/20 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                        className="metallic-card p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
                       >
                         {/* Left: Thumbnail & Details */}
                         <div className="flex items-start gap-3.5 min-w-0 flex-1">

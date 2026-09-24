@@ -97,7 +97,7 @@ export default function AppSidebar({
             <button
               onClick={() => setIsCollapsed(true)}
               title="Collapse sidebar"
-              className="p-1.5 rounded-lg hover:bg-white/5 text-text-secondary hover:text-text-primary transition-colors active:scale-95 shrink-0"
+              className="min-w-[24px] min-h-[24px] p-1.5 rounded-lg hover:bg-white/5 text-text-secondary hover:text-text-primary transition-colors active:scale-95 shrink-0 flex items-center justify-center"
             >
               <ChevronLeftIcon className="w-4 h-4" />
             </button>
@@ -106,18 +106,16 @@ export default function AppSidebar({
           <button
             onClick={() => setIsCollapsed(false)}
             title="Expand sidebar"
-            className="w-10 h-10 rounded-xl hover:bg-white/5 flex items-center justify-center text-text-secondary hover:text-text-primary transition-all relative group"
+            className="w-10 h-10 rounded-xl hover:bg-white/5 flex items-center justify-center text-text-secondary hover:text-accent-orange transition-all relative group"
           >
             <Image
               src="/logo.svg"
               alt="Lead Hunter Club"
               width={22}
               height={22}
-              className="w-[22px] h-[22px] rounded-md transition-transform group-hover:scale-95 shrink-0"
+              className="w-[22px] h-[22px] rounded-md transition-all duration-200 group-hover:opacity-0 group-hover:scale-75 group-hover:-translate-x-0.5 shrink-0 absolute"
             />
-            <span className="absolute -right-0.5 -bottom-0.5 w-4 h-4 bg-surface border border-white/10 rounded-full flex items-center justify-center text-text-secondary group-hover:text-accent-orange transition-colors shadow-sm">
-              <ChevronRightIcon className="w-2.5 h-2.5" />
-            </span>
+            <ChevronRightIcon className="w-5 h-5 absolute opacity-0 scale-75 -translate-x-0.5 transition-all duration-200 group-hover:opacity-100 group-hover:scale-100 group-hover:translate-x-0" />
           </button>
         )}
       </div>
@@ -215,7 +213,7 @@ export default function AppSidebar({
               </div>
             ) : null}
 
-            <button className="text-9 font-bold text-accent-orange uppercase tracking-super hover:opacity-80 transition-opacity block pt-0.5">
+            <button className="min-h-[24px] text-9 font-bold text-accent-orange uppercase tracking-super hover:opacity-80 transition-opacity block pt-0.5">
               Refill Pipeline →
             </button>
           </div>

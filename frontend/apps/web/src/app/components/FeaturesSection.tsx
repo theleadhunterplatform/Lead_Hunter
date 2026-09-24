@@ -97,102 +97,26 @@ function AmberMosaicScatter({ cardIndex }: { cardIndex: number }) {
   )
 }
 
-// ─── Visual 1: Fresh Daily Leads Interceptor Visual ───────────────────────────
+// ─── Visual 1: Fresh Daily Leads — real-time interception loop ─────────────────
 function FreshLeadsInteractiveVisual() {
-  const [activePlatform, setActivePlatform] = useState<'All' | 'Twitter' | 'Reddit' | 'LinkedIn'>('All')
-
-  const leads = [
-    {
-      platform: 'Twitter / X',
-      time: '2m ago',
-      title: 'Looking for a Shopify Plus developer to rebuild checkout before Black Friday ($6,500)',
-      budget: '$6.5k',
-      intent: '98%',
-      user: '@david_dtc',
-      badgeClass: 'text-sky-400 bg-sky-500/10 border-sky-500/20',
-    },
-    {
-      platform: 'Reddit',
-      time: '5m ago',
-      title: 'Our agency is scaling to $100k/mo and desperately needs an Apollo & Clay cold email RevOps setup',
-      budget: 'High',
-      intent: '95%',
-      user: 'u/growth_founder',
-      badgeClass: 'text-orange-400 bg-orange-500/10 border-orange-500/20',
-    },
-    {
-      platform: 'LinkedIn',
-      time: '11m ago',
-      title: 'Hiring a senior Next.js 15 contract engineer to optimize our Core Web Vitals score',
-      budget: '$8k/mo',
-      intent: '92%',
-      user: 'Sarah M. (CTO)',
-      badgeClass: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
-    },
-  ]
-
-  const filtered = activePlatform === 'All' 
-    ? leads 
-    : leads.filter(l => l.platform.toLowerCase().includes(activePlatform.toLowerCase()))
-
   return (
-    <div className="w-full h-full p-4 flex flex-col justify-between bg-[#0B0D14] rounded-xl border border-white/[0.08] shadow-inner relative overflow-hidden">
-      {/* Platform Filter Controls */}
-      <div className="flex items-center justify-between pb-3 border-b border-white/[0.06]">
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-accent-orange animate-pulse" />
-          <span className="text-[10px] font-mono font-bold tracking-wider text-accent-orange uppercase">
-            REAL-TIME RADAR
-          </span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          {(['All', 'Twitter', 'Reddit', 'LinkedIn'] as const).map((p) => (
-            <button
-              key={p}
-              onClick={() => setActivePlatform(p)}
-              className={`px-2 py-0.5 rounded-full text-[9px] font-mono transition-all ${
-                activePlatform === p
-                  ? 'bg-accent-orange text-black font-bold shadow-sm'
-                  : 'bg-white/5 text-text-secondary/70 hover:text-white'
-              }`}
-            >
-              {p}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Leads List */}
-      <div className="space-y-2 my-auto">
-        {filtered.map((lead, i) => (
-          <motion.div
-            key={i}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.2, delay: i * 0.05 }}
-            className="p-2.5 rounded-lg bg-surface-secondary/60 border border-white/[0.06] hover:border-white/15 transition-all flex flex-col gap-1"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className={`text-[9px] font-mono px-2 py-0.5 rounded-full border font-medium ${lead.badgeClass}`}>
-                  {lead.platform}
-                </span>
-                <span className="text-[9px] font-mono text-text-secondary/60">{lead.user}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-[9px] font-mono font-bold text-accent-mint">{lead.intent} INTENT</span>
-                <span className="text-[9px] font-mono text-text-secondary/50">{lead.time}</span>
-              </div>
-            </div>
-            <p className="text-xs text-text-primary/95 font-medium leading-snug line-clamp-1 mt-0.5">
-              {lead.title}
-            </p>
-          </motion.div>
-        ))}
-      </div>
-
-      {/* Footer */}
-      <div className="flex items-center justify-between pt-2 border-t border-white/[0.06] text-[10px] font-mono text-text-secondary/60">
+    <div className="w-full h-full rounded-xl border border-white/[0.08] shadow-inner relative overflow-hidden bg-black">
+      <video
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="metadata"
+        poster="/videos/leadhunter-realtime-poster.jpg"
+        className="block w-full h-full object-cover bg-black"
+      >
+        {/* MP4 only: the VP9/WebM encode's 540px height (not a multiple of 8)
+            renders a green fringe row on its top edge in Chrome, so WebM is
+            intentionally not served here. The 156KB H.264 file plays everywhere. */}
+        <source src="/videos/leadhunter-realtime-card.mp4" type="video/mp4" />
+      </video>
+      {/* Bottom status bar */}
+      <div className="absolute bottom-0 inset-x-0 flex items-center justify-between px-3 py-1.5 bg-gradient-to-t from-black/80 to-transparent text-[10px] font-mono text-text-secondary/60 pointer-events-none">
         <span>3,480 SIGNALS / HR</span>
         <span className="text-accent-orange font-medium">SUB-SECOND LATENCY</span>
       </div>
@@ -386,7 +310,7 @@ function CreditEconomicsInteractiveVisual() {
             <button
               key={tierKey}
               onClick={() => setSelectedTier(tierKey)}
-              className={`py-2 px-3 rounded-lg text-xs font-semibold capitalize transition-all border ${
+              className={`min-h-[44px] py-2.5 px-3 rounded-lg text-xs font-semibold capitalize transition-all border ${
                 selectedTier === tierKey
                   ? 'bg-accent-orange text-black border-accent-orange font-bold shadow-md'
                   : 'bg-white/5 text-text-secondary border-white/10 hover:border-white/20'
@@ -501,7 +425,7 @@ export default function FeaturesSection() {
           <span className="text-sm font-semibold text-accent-orange mb-3 block">
             Capabilities
           </span>
-          <h2 className="font-display text-2xl sm:text-3xl md:text-[38px] font-semibold tracking-tight text-white leading-[1.15]">
+          <h2             className="font-display text-2xl sm:text-3xl md:text-[38px] font-semibold tracking-tight text-text-primary leading-[1.15]">
             Engineered for speed,
             <br />
             <span className="text-text-secondary/70">built for conversion.</span>
@@ -529,12 +453,13 @@ export default function FeaturesSection() {
 
           return (
             <Card
-              variant="elevated"
+              key={card.id}
+              variant="metallic"
               padding="md"
               hover={true}
               className={isActive
-                ? 'flex-[2.4] bg-[#141724] border border-white/20 shadow-[0_24px_70px_-15px_rgba(0,0,0,0.95),inset_0_1px_0_rgba(255,255,255,0.12)] rounded-[24px] p-6 flex flex-col justify-between cursor-default'
-                : 'flex-1 bg-[#10121A] hover:bg-[#141722] border border-white/[0.08] hover:border-white/20 rounded-[20px] p-5 flex flex-col justify-between cursor-pointer group shadow-md'}
+                ? 'flex-[2.4] !rounded-[24px] p-6 flex flex-col justify-between cursor-default'
+                : 'flex-1 !rounded-[20px] p-5 flex flex-col justify-between cursor-pointer group'}
               onMouseEnter={() => setActiveCardIndex(i)}
               onClick={() => setActiveCardIndex(i)}
             >
@@ -559,7 +484,7 @@ export default function FeaturesSection() {
                         {card.tag}
                       </span>
                     </div>
-                    <h3 className="font-display text-xl lg:text-2xl font-bold tracking-tight text-white mb-1.5 leading-snug">
+                    <h3 className="font-display text-xl lg:text-2xl font-bold tracking-tight text-text-primary mb-1.5 leading-snug">
                       {card.title}
                     </h3>
                     <p className="text-text-secondary text-xs lg:text-sm leading-relaxed font-light line-clamp-3">
@@ -576,7 +501,7 @@ export default function FeaturesSection() {
                   className="h-full flex flex-col justify-between items-start select-none"
                 >
                   {/* Top: Large Numeric Indicator */}
-                  <span className="text-3xl lg:text-4xl font-display font-bold text-white/20 group-hover:text-white/40 transition-colors font-mono tracking-tighter">
+                  <span className="text-3xl lg:text-4xl font-display font-bold text-text-secondary/25 group-hover:text-text-secondary/60 transition-colors font-mono tracking-tighter">
                     {card.indexStr}
                   </span>
 
@@ -584,8 +509,8 @@ export default function FeaturesSection() {
                   <AmberMosaicScatter cardIndex={i} />
 
                   {/* Bottom: Clean Title Label */}
-                  <div className="w-full border-t border-white/[0.06] pt-3">
-                    <span className="text-sm font-semibold text-text-secondary/80 group-hover:text-white transition-colors tracking-tight line-clamp-1 block">
+                  <div className="w-full border-t border-border-subtle pt-3">
+                    <span className="text-sm font-semibold text-text-secondary/80 group-hover:text-text-primary transition-colors tracking-tight line-clamp-1 block">
                       {card.shortLabel}
                     </span>
                   </div>
@@ -605,17 +530,17 @@ export default function FeaturesSection() {
             <Card
                 key={card.id}
                 hover={false}
-                variant="elevated"
+                variant="metallic"
                 padding="md"
                 onClick={() => setActiveCardIndex(i)}
-                className={isActive ? 'bg-[#141724] border-white/20 shadow-lg' : 'bg-[#10121A] border-white/[0.08]'}
+                className="!rounded-xl"
               >
-              <div className="flex items-center justify-between cursor-pointer">
+              <div className="flex items-center justify-between cursor-pointer min-h-[44px]">
                 <div className="flex items-center gap-2.5">
                   <span className="font-mono text-sm font-bold text-accent-orange">
                     {card.indexStr}
                   </span>
-                  <span className="text-base font-semibold text-white">{card.shortLabel}</span>
+                  <span className="text-base font-semibold text-text-primary">{card.shortLabel}</span>
                 </div>
                 <ArrowRightIcon
                   className={`w-4 h-4 text-accent-orange transition-transform duration-300 ${
@@ -625,13 +550,13 @@ export default function FeaturesSection() {
               </div>
 
               {isActive && (
-                <div className="mt-4 pt-3 border-t border-white/[0.08]">
-                  <div className="h-[260px] w-full rounded-xl overflow-hidden mb-3">
+                  <div className="mt-4 pt-3 border-t border-border-subtle">
+                  <div className="h-[240px] sm:h-[260px] w-full rounded-xl overflow-hidden mb-3">
                     {renderActiveVisual(i)}
                   </div>
-                  <h4 className="font-display text-lg font-bold text-white mb-1.5">
+                  <h3 className="font-display text-lg font-bold text-text-primary mb-1.5">
                     {card.title}
-                  </h4>
+                  </h3>
                   <p className="text-xs text-text-secondary leading-relaxed font-light">
                     {card.description}
                   </p>
