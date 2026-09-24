@@ -283,7 +283,6 @@ async function callLlm(messages: ChatMessage[]): Promise<string> {
   }
 
   // 3. Deterministic Knowledge Base Fallback
-  const lastUserMsg = messages.filter((m) => m.role === 'user').pop()?.content || ''
   return getDeterministicFaqAnswer(lastUserMsg)
 }
 
