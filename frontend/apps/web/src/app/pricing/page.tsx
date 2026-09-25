@@ -122,7 +122,49 @@ function PricingContent() {
   }
 
   const handleSelectPlan = async (plan: PlanConfig) => {
-    if (plan.id === user?.plan) return
+    if (plan.id.toUpperCase() === currentPlanId) return
+
+    if (plan.price === 0 || plan.id.toUpperCase() === 'FREE') {
+      const confirmed = window.confirm(
+        'Are you sure you want to downgrade to the Free Starter plan? Any active paid subscription will be cancelled and your monthly credits will be reset to 50.'
+      )
+      if (!confirmed) return
+
+      setSubscribingPlan(plan.id)
+      try {
+        const token = await getToken()
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+        if (token) headers['Authorization'] = `Bearer ${token}`
+
+        const res = await fetch('/api/payments/razorpay/cancel', {
+          method: 'POST',
+          headers,
+        })
+        const json = await res.json()
+        if (res.ok && json.success) {
+          addToast({
+            type: 'success',
+            message: json.message || 'Your plan has been reset to Free Starter (50 monthly credits).',
+          })
+          setTimeout(() => {
+            window.location.reload()
+          }, 1200)
+        } else {
+          addToast({
+            type: 'error',
+            message: json.message || 'Failed to downgrade to Free plan.',
+          })
+        }
+      } catch (err: any) {
+        addToast({
+          type: 'error',
+          message: err.message || 'Network error during downgrade.',
+        })
+      } finally {
+        setSubscribingPlan(null)
+      }
+      return
+    }
 
     setSubscribingPlan(plan.id)
     try {

@@ -20,6 +20,16 @@ export async function POST(request: NextRequest) {
         ? 'AGENCY'
         : rawPlan
 
+    if (resolvedPlan === 'FREE') {
+      return NextResponse.json(
+        {
+          code: 'INVALID_PLAN',
+          message: 'The Free Starter plan does not require payment. Please use the downgrade option.',
+        },
+        { status: 400 }
+      )
+    }
+
     const keyId = (
       process.env.RAZORPAY_KEY_ID ||
       process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ||
