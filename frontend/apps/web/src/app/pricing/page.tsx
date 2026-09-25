@@ -12,6 +12,7 @@ import {
   BanknotesIcon,
   ShieldCheckIcon,
   ClockIcon,
+  ExclamationTriangleIcon,
 } from '@heroicons/react/24/solid'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState, Suspense } from 'react'
@@ -98,6 +99,8 @@ function PricingContent() {
   const [refillPacks, setRefillPacks] = useState<RefillPack[]>(DEFAULT_REFILL_PACKS)
   const [subscribingPlan, setSubscribingPlan] = useState<string | null>(null)
   const [processingPack, setProcessingPack] = useState<string | null>(null)
+  const [confirmDowngradePlan, setConfirmDowngradePlan] = useState<PlanConfig | null>(null)
+  const [downgrading, setDowngrading] = useState(false)
 
   useEffect(() => {
     const tabParam = searchParams.get('tab')
@@ -121,48 +124,49 @@ function PricingContent() {
     }
   }
 
+  const handleConfirmDowngrade = async () => {
+    if (!confirmDowngradePlan) return
+    setDowngrading(true)
+    try {
+      const token = await getToken()
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (token) headers['Authorization'] = `Bearer ${token}`
+
+      const res = await fetch('/api/payments/razorpay/cancel', {
+        method: 'POST',
+        headers,
+      })
+      const json = await res.json()
+      if (res.ok && json.success) {
+        addToast({
+          type: 'success',
+          message: json.message || 'Your plan has been reset to Free Starter (50 monthly credits).',
+        })
+        setConfirmDowngradePlan(null)
+        setTimeout(() => {
+          window.location.reload()
+        }, 1200)
+      } else {
+        addToast({
+          type: 'error',
+          message: json.message || 'Failed to downgrade to Free plan.',
+        })
+        setDowngrading(false)
+      }
+    } catch (err: any) {
+      addToast({
+        type: 'error',
+        message: err.message || 'Network error during downgrade.',
+      })
+      setDowngrading(false)
+    }
+  }
+
   const handleSelectPlan = async (plan: PlanConfig) => {
     if (plan.id.toUpperCase() === currentPlanId) return
 
     if (plan.price === 0 || plan.id.toUpperCase() === 'FREE') {
-      const confirmed = window.confirm(
-        'Are you sure you want to downgrade to the Free Starter plan? Any active paid subscription will be cancelled and your monthly credits will be reset to 50.'
-      )
-      if (!confirmed) return
-
-      setSubscribingPlan(plan.id)
-      try {
-        const token = await getToken()
-        const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-        if (token) headers['Authorization'] = `Bearer ${token}`
-
-        const res = await fetch('/api/payments/razorpay/cancel', {
-          method: 'POST',
-          headers,
-        })
-        const json = await res.json()
-        if (res.ok && json.success) {
-          addToast({
-            type: 'success',
-            message: json.message || 'Your plan has been reset to Free Starter (50 monthly credits).',
-          })
-          setTimeout(() => {
-            window.location.reload()
-          }, 1200)
-        } else {
-          addToast({
-            type: 'error',
-            message: json.message || 'Failed to downgrade to Free plan.',
-          })
-        }
-      } catch (err: any) {
-        addToast({
-          type: 'error',
-          message: err.message || 'Network error during downgrade.',
-        })
-      } finally {
-        setSubscribingPlan(null)
-      }
+      setConfirmDowngradePlan(plan)
       return
     }
 
@@ -179,6 +183,17 @@ function PricingContent() {
       })
 
       const data = await res.json()
+      if (data.success && data.isFreePlan) {
+        addToast({
+          type: 'success',
+          message: data.message || 'Your plan has been reset to Free Starter (50 monthly credits).',
+        })
+        setTimeout(() => {
+          window.location.reload()
+        }, 1200)
+        return
+      }
+
       if (data.success && data.data?.order_id) {
         await openRazorpayCheckout({
           key: data.data.key_id,
@@ -547,6 +562,44 @@ function PricingContent() {
                 </span>
                 <span>•</span>
                 <span>100% Secure Razorpay Checkout</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* In-App Downgrade Confirmation Modal */}
+        {confirmDowngradePlan && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="relative w-full max-w-md bg-surface border border-white/10 rounded-3xl p-6 md:p-8 shadow-2xl space-y-6">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
+                  <ExclamationTriangleIcon className="w-6 h-6 text-amber-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white">Downgrade to Free Starter?</h3>
+                  <p className="text-xs text-text-secondary mt-1.5 leading-relaxed">
+                    Your account will reset to the Free Starter plan with 50 monthly credits. Any active paid subscription will be cancelled and will not renew.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  type="button"
+                  disabled={downgrading}
+                  onClick={() => setConfirmDowngradePlan(null)}
+                  className="flex-1 py-3 rounded-xl border border-white/10 text-xs font-bold text-text-secondary hover:text-white hover:bg-white/5 transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  Keep My Plan
+                </button>
+                <button
+                  type="button"
+                  disabled={downgrading}
+                  onClick={handleConfirmDowngrade}
+                  className="flex-1 py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-bold transition-colors cursor-pointer shadow-lg shadow-red-900/30 disabled:opacity-50"
+                >
+                  {downgrading ? 'Downgrading...' : 'Yes, Downgrade'}
+                </button>
               </div>
             </div>
           </div>

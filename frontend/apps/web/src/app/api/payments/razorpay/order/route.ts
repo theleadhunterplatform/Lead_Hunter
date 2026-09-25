@@ -21,13 +21,33 @@ export async function POST(request: NextRequest) {
         : rawPlan
 
     if (resolvedPlan === 'FREE') {
-      return NextResponse.json(
-        {
-          code: 'INVALID_PLAN',
-          message: 'The Free Starter plan does not require payment. Please use the downgrade option.',
-        },
-        { status: 400 }
-      )
+      try {
+        const user = await db.user.findUnique({ where: { id: authUser.uid } })
+        if (user?.razorpaySubscriptionId) {
+          try {
+            const { getRazorpay } = await import('@/lib/razorpay')
+            await getRazorpay().subscriptions.cancel(user.razorpaySubscriptionId)
+          } catch (err: any) {
+            console.warn(`[Razorpay Order] Failed to cancel subscription: ${err.message}`)
+          }
+        }
+        const { paymentService } = await import('@/lib/services/payment')
+        await paymentService.cancel(authUser.uid, 'razorpay')
+        return NextResponse.json({
+          success: true,
+          isFreePlan: true,
+          message: 'Your subscription has been cancelled and reset to the Free Starter plan (50 monthly credits).',
+        })
+      } catch (err: any) {
+        console.error('[Razorpay Order] Error downgrading to FREE plan:', err)
+        return NextResponse.json(
+          {
+            code: 'DOWNGRADE_ERROR',
+            message: 'Failed to downgrade to Free plan. Please try again.',
+          },
+          { status: 500 }
+        )
+      }
     }
 
     const keyId = (
