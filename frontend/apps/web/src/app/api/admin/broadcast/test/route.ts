@@ -29,6 +29,20 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // 1. Pre-flight verification of SMTP connection
+    const health = await emailService.verifySmtpConnection()
+    if (!health.working) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: 'MAILER_NOT_CONNECTED',
+          message: health.message,
+          provider: health.provider,
+        },
+        { status: 400 },
+      )
+    }
+
     const toEmail = (parsed.data.toEmail || parsed.data.testEmail)?.trim()
     if (!toEmail) {
       return NextResponse.json(
@@ -40,7 +54,7 @@ export async function POST(request: NextRequest) {
     const flowType = parsed.data.flowType || 'custom'
     const { subject, message } = parsed.data
 
-    let result: { id: string }
+    let result: { id: string; success: boolean; error?: string }
 
     switch (flowType) {
       case 'application_received':
@@ -88,7 +102,15 @@ export async function POST(request: NextRequest) {
           formattedHtml,
           customMessage,
         )
-        result = { id: res.sent > 0 ? 'sent' : 'error' }
+        if (res.sent > 0) {
+          result = { id: 'sent', success: true }
+        } else {
+          result = {
+            id: 'error',
+            success: false,
+            error: res.errors.length > 0 ? res.errors[0] : 'Failed to send test email',
+          }
+        }
         break
       }
 
@@ -96,17 +118,18 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ code: 'INVALID_FLOW', message: 'Unknown flow type' }, { status: 400 })
     }
 
-    if (result.id === 'error') {
+    if (!result.success || result.id === 'error' || result.id === 'mock-sent') {
+      const failureReason = result.error || `Failed to dispatch email to ${toEmail}.`
       return NextResponse.json(
-        { success: false, message: `Failed to send test email to ${toEmail}. Check SMTP/Resend logs.` },
-        { status: 500 },
+        { success: false, message: failureReason },
+        { status: 400 },
       )
     }
 
     return NextResponse.json({
       success: true,
       resultId: result.id,
-      message: `Test email (${flowType}) delivered to ${toEmail}.`,
+      message: `Test email (${flowType}) delivered to ${toEmail} via ${health.provider}.`,
     })
   } catch (error: unknown) {
     if (error instanceof AuthRequiredError || error instanceof ForbiddenError) {

@@ -19,21 +19,24 @@ interface SendOptions {
   html?: string
 }
 
-interface EmailResult {
+export interface EmailResult {
   id: string
+  success: boolean
+  error?: string
+  provider?: 'smtp' | 'resend' | 'mock'
 }
 
-const SMTP_HOST = process.env.SMTP_HOST
-const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587', 10)
-const SMTP_USER = process.env.SMTP_USER
-const SMTP_PASS = process.env.SMTP_PASS
-const SMTP_SECURE = process.env.SMTP_SECURE === 'true' || SMTP_PORT === 465
+const SMTP_HOST = process.env.SMTP_HOST?.trim()
+const SMTP_PORT = parseInt(process.env.SMTP_PORT?.trim() || '587', 10)
+const SMTP_USER = process.env.SMTP_USER?.trim()
+const SMTP_PASS = process.env.SMTP_PASS?.trim()
+const SMTP_SECURE = process.env.SMTP_SECURE?.trim() === 'true' || SMTP_PORT === 465
 
-const RESEND_API_KEY = process.env.RESEND_API_KEY
-const EMAIL_FROM = process.env.EMAIL_FROM || 'Lead Hunter Club <noreply@leadhunterclub.com>'
-const ADMIN_NOTIFICATION_EMAIL = process.env.ADMIN_NOTIFICATION_EMAIL || ''
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://leadhunterclub.com'
-const IS_PRODUCTION = process.env.NODE_ENV === 'production'
+const RESEND_API_KEY = process.env.RESEND_API_KEY?.trim()
+const EMAIL_FROM = process.env.EMAIL_FROM?.trim() || (SMTP_USER ? `Lead Hunter Club <${SMTP_USER}>` : 'Lead Hunter Club <noreply@leadhunterclub.com>')
+const ADMIN_NOTIFICATION_EMAIL = process.env.ADMIN_NOTIFICATION_EMAIL?.trim() || ''
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL?.trim() || 'https://leadhunterclub.com'
+const IS_PRODUCTION = process.env.NODE_ENV === 'production' || !!process.env.VERCEL
 
 function logDev(...args: unknown[]) {
   if (!IS_PRODUCTION) {
@@ -44,7 +47,7 @@ function logDev(...args: unknown[]) {
 async function logEmail(type: string, to: string, subject: string, status: string, error?: string) {
   try {
     await db.emailLog.create({
-      data: { type, to, subject, status, error },
+      data: { type, to, subject, status, error: error || null },
     })
   } catch (logError) {
     console.error('[Email Service] Failed to write EmailLog:', logError)
@@ -66,9 +69,9 @@ function getSmtpTransporter(): nodemailer.Transporter | null {
         user: SMTP_USER,
         pass: SMTP_PASS,
       },
-      pool: true,
-      maxConnections: 5,
-      maxMessages: 100,
+      connectionTimeout: 10000,
+      greetingTimeout: 5000,
+      socketTimeout: 15000,
     })
   }
   return cachedTransporter
@@ -81,6 +84,7 @@ async function sendViaHybridTransport(
   opts?: SendOptions,
 ): Promise<EmailResult> {
   const smtp = getSmtpTransporter()
+  let lastError: string | null = null
 
   // 1. Primary Transport: Custom Domain SMTP (Nodemailer)
   if (smtp) {
@@ -93,9 +97,19 @@ async function sendViaHybridTransport(
         html: opts?.html || body,
       })
       logDev(`Sent email via Custom SMTP to ${to}: ${info.messageId}`)
-      return { id: info.messageId || 'sent-smtp' }
+      return { id: info.messageId || 'sent-smtp', success: true, provider: 'smtp' }
     } catch (smtpErr) {
-      console.error('[Email Service] Custom SMTP failed, falling back to Resend:', smtpErr)
+      cachedTransporter = null
+      lastError = smtpErr instanceof Error ? smtpErr.message : String(smtpErr)
+      console.error('[Email Service] Custom SMTP failed:', smtpErr)
+      if (!RESEND_API_KEY) {
+        return {
+          id: 'error',
+          success: false,
+          error: `SMTP error: ${lastError}`,
+          provider: 'smtp',
+        }
+      }
     }
   }
 
@@ -115,20 +129,53 @@ async function sendViaHybridTransport(
 
       if (error) {
         console.error('[Email Service] Resend API error:', error)
-        return { id: 'error' }
+        return {
+          id: 'error',
+          success: false,
+          error: error.message || 'Resend API error',
+          provider: 'resend',
+        }
       }
 
       logDev(`Sent email via Resend to ${to}: ${data?.id}`)
-      return { id: data?.id || 'sent-resend' }
+      return { id: data?.id || 'sent-resend', success: true, provider: 'resend' }
     } catch (resendErr) {
+      const resendMsg = resendErr instanceof Error ? resendErr.message : String(resendErr)
       console.error('[Email Service] Resend API exception:', resendErr)
-      return { id: 'error' }
+      return {
+        id: 'error',
+        success: false,
+        error: `Resend exception: ${resendMsg}`,
+        provider: 'resend',
+      }
     }
   }
 
-  // 3. Fallback for development without credentials
-  logDev(`[DEV MOCK EMAIL] To: ${to} | Subject: "${subject}" | (No SMTP/Resend configured)`)
-  return { id: 'mock-sent' }
+  // 3. Fallback / Missing credentials check
+  const missingVars: string[] = []
+  if (!SMTP_HOST) missingVars.push('SMTP_HOST')
+  if (!SMTP_USER) missingVars.push('SMTP_USER')
+  if (!SMTP_PASS) missingVars.push('SMTP_PASS')
+  const missingDetail = missingVars.length > 0 ? `Missing variables: ${missingVars.join(', ')}` : 'SMTP authentication unconfigured'
+
+  if (IS_PRODUCTION) {
+    const errorMsg = lastError ? `SMTP error: ${lastError}` : `Email service unconfigured in production (${missingDetail}).`
+    console.error(`[Email Service] Cannot send email: ${errorMsg}`)
+    return {
+      id: 'error',
+      success: false,
+      error: errorMsg,
+      provider: 'mock',
+    }
+  }
+
+  logDev(`[DEV MOCK EMAIL] To: ${to} | Subject: "${subject}" | (${missingDetail})`)
+  return {
+    id: 'mock-sent',
+    success: false,
+    error: `Development mock mode: Live email not dispatched (${missingDetail}). Set SMTP credentials to enable live sending.`,
+    provider: 'mock',
+  }
 }
 
 async function send(
@@ -140,13 +187,13 @@ async function send(
 ): Promise<EmailResult> {
   try {
     const result = await sendViaHybridTransport(to, subject, body, opts)
-    await logEmail(type, to, subject, result.id === 'error' ? 'FAILED' : 'SENT')
+    await logEmail(type, to, subject, result.success ? 'SENT' : 'FAILED', result.error)
     return result
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error'
     console.error(`[Email Service] Failed to send "${subject}" to ${to}:`, error)
     await logEmail(type, to, subject, 'FAILED', message)
-    return { id: 'error' }
+    return { id: 'error', success: false, error: message, provider: 'mock' }
   }
 }
 
@@ -260,9 +307,9 @@ export const emailService = {
     subject: string,
     contentHtml: string,
     contentText: string,
-  ): Promise<{ sent: number; failed: number }> {
+  ): Promise<{ sent: number; failed: number; errors: string[] }> {
     if (recipients.length === 0) {
-      return { sent: 0, failed: 0 }
+      return { sent: 0, failed: 0, errors: [] }
     }
 
     const { subject: renderedSubject, text: defaultText, html: defaultHtml } =
@@ -275,6 +322,7 @@ export const emailService = {
 
     let sent = 0
     let failed = 0
+    const errors: string[] = []
     const CHUNK_SIZE = 15
 
     for (let i = 0; i < recipients.length; i += CHUNK_SIZE) {
@@ -287,15 +335,18 @@ export const emailService = {
         }),
       )
       for (const res of results) {
-        if (res.id !== 'error') {
+        if (res.success) {
           sent++
         } else {
           failed++
+          if (res.error && !errors.includes(res.error)) {
+            errors.push(res.error)
+          }
         }
       }
     }
 
-    return { sent, failed }
+    return { sent, failed, errors }
   },
 
   /**
@@ -307,6 +358,11 @@ export const emailService = {
     working: boolean
     message: string
   }> {
+    const missing: string[] = []
+    if (!SMTP_HOST) missing.push('SMTP_HOST')
+    if (!SMTP_USER) missing.push('SMTP_USER')
+    if (!SMTP_PASS) missing.push('SMTP_PASS')
+
     const smtp = getSmtpTransporter()
     if (smtp) {
       try {
@@ -315,15 +371,16 @@ export const emailService = {
           configured: true,
           provider: 'smtp',
           working: true,
-          message: `Custom SMTP verified successfully (${SMTP_HOST}:${SMTP_PORT})`,
+          message: `Custom SMTP verified successfully (${SMTP_HOST}:${SMTP_PORT}, user: ${SMTP_USER})`,
         }
       } catch (err: unknown) {
+        cachedTransporter = null
         const errorMsg = err instanceof Error ? err.message : 'SMTP verification failed'
         return {
           configured: true,
           provider: 'smtp',
           working: false,
-          message: `SMTP connection error: ${errorMsg}`,
+          message: `SMTP connection error (${SMTP_HOST}:${SMTP_PORT}): ${errorMsg}`,
         }
       }
     }
@@ -340,9 +397,30 @@ export const emailService = {
     return {
       configured: false,
       provider: 'mock',
-      working: true,
-      message: 'Running in development mock mode. Add SMTP or Resend credentials for live dispatching.',
+      working: false,
+      message: `Mailer not configured. Missing variables: ${missing.join(', ') || 'No credentials'}. Set them in Vercel and redeploy.`,
     }
+  },
+
+  /**
+   * Sends a newsletter broadcast to all active subscribers.
+   */
+  async sendBroadcast(subject: string, bodyHtml: string, bodyText: string) {
+    const subscribers = await db.newsletterSubscriber.findMany({
+      where: { status: 'SUBSCRIBED' },
+      select: { email: true },
+    })
+    let sent = 0
+    let failed = 0
+    for (const sub of subscribers) {
+      const res = await this.sendNewsletter(sub.email, subject, bodyHtml, bodyText)
+      if (res.success) {
+        sent++
+      } else {
+        failed++
+      }
+    }
+    return { sent, failed, total: subscribers.length }
   },
 
   async sendNewsletterConfirmation(email: string, confirmUrl: string) {

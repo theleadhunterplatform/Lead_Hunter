@@ -96,12 +96,38 @@ export async function POST(request: NextRequest) {
           .map((para) => `<p style="margin:0 0 16px;line-height:1.6">${para.replace(/\n/g, '<br/>')}</p>`)
           .join('')
 
+    const health = await emailService.verifySmtpConnection()
+    if (!health.working) {
+      return NextResponse.json(
+        {
+          code: 'MAILER_NOT_CONNECTED',
+          message: `Cannot dispatch broadcast: ${health.message}`,
+        },
+        { status: 400 },
+      )
+    }
+
     const dispatchResult = await emailService.sendBroadcastToUsers(
       recipients,
       subject,
       formattedHtml,
       message,
     )
+
+    if (dispatchResult.sent === 0 && dispatchResult.failed > 0) {
+      const failureReason = dispatchResult.errors.length > 0
+        ? dispatchResult.errors[0]
+        : 'Failed to deliver broadcast emails. Check SMTP configuration.'
+      return NextResponse.json(
+        {
+          success: false,
+          sent: 0,
+          failed: dispatchResult.failed,
+          message: failureReason,
+        },
+        { status: 500 },
+      )
+    }
 
     return NextResponse.json({
       success: true,

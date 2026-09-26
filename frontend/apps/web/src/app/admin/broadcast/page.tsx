@@ -462,13 +462,13 @@ export default function AdminBroadcastPage() {
             className={`flex items-center gap-3 px-4 py-2 rounded-2xl border backdrop-blur-md shadow-sm transition-all ${
               data?.smtpStatus.working
                 ? 'bg-secondary/10 border-secondary/30 text-secondary'
-                : 'bg-primary/10 border-primary/30 text-primary'
+                : 'bg-red-500/10 border-red-500/30 text-red-400'
             }`}
           >
             <div className="relative flex items-center justify-center">
               <span
                 className={`w-2.5 h-2.5 rounded-full ${
-                  data?.smtpStatus.working ? 'bg-secondary' : 'bg-primary'
+                  data?.smtpStatus.working ? 'bg-secondary' : 'bg-red-500'
                 }`}
               />
               {data?.smtpStatus.working && (
@@ -482,10 +482,17 @@ export default function AdminBroadcastPage() {
                     ? 'Custom SMTP Mailer'
                     : data?.smtpStatus.provider === 'resend'
                     ? 'Resend Cloud API'
-                    : 'Development Mock Mailer'}
+                    : 'Mailer Not Configured'}
+                </span>
+                <span
+                  className={`px-1.5 py-0.2 rounded text-[9px] font-semibold uppercase ${
+                    data?.smtpStatus.working ? 'bg-secondary/20 text-secondary' : 'bg-red-500/20 text-red-300'
+                  }`}
+                >
+                  {data?.smtpStatus.working ? 'Online' : 'Offline'}
                 </span>
               </div>
-              <p className="text-[10px] text-text-secondary truncate max-w-[200px]">
+              <p className="text-[10px] text-text-secondary max-w-[280px] line-clamp-2" title={data?.smtpStatus.message}>
                 {data?.smtpStatus.message}
               </p>
             </div>
@@ -840,26 +847,57 @@ export default function AdminBroadcastPage() {
             </div>
 
             {/* Test Send Card */}
-            <div className="p-5 rounded-2xl bg-surface/50 border border-white/[0.08] backdrop-blur-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-2 text-xs font-bold text-white">
-                <EnvelopeIcon className="w-4 h-4 text-primary" />
-                <span>Send Test Preview:</span>
+            <div className="p-5 rounded-2xl bg-surface/50 border border-white/[0.08] backdrop-blur-xl flex flex-col gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-xs font-bold text-white">
+                  <EnvelopeIcon className="w-4 h-4 text-primary" />
+                  <span>Send Test Preview:</span>
+                </div>
+                <div className="flex items-center gap-2 flex-1 sm:max-w-md">
+                  <input
+                    type="email"
+                    placeholder="Enter your email to test draft..."
+                    value={testEmail}
+                    onChange={(e) => setTestEmail(e.target.value)}
+                    className="flex-1 px-4 py-2.5 rounded-xl bg-surface-container-lowest border border-white/10 text-xs text-white placeholder:text-text-secondary/50 focus:outline-none focus:border-primary"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSendTest}
+                    disabled={isSendingTest || !testEmail}
+                    className="px-4 py-2.5 rounded-xl bg-surface hover:bg-white/10 border border-white/10 text-xs font-semibold text-white transition-all disabled:opacity-50 cursor-pointer shrink-0"
+                  >
+                    {isSendingTest ? 'Sending...' : 'Send Test'}
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center gap-2 flex-1 sm:max-w-md">
-                <input
-                  type="email"
-                  placeholder="Enter your email to test draft..."
-                  value={testEmail}
-                  onChange={(e) => setTestEmail(e.target.value)}
-                  className="flex-1 px-4 py-2.5 rounded-xl bg-surface-container-lowest border border-white/10 text-xs text-white placeholder:text-text-secondary/50 focus:outline-none focus:border-primary"
-                />
+
+              {/* Real-time SMTP Status Bar */}
+              <div className="flex items-center justify-between pt-2 border-t border-white/5 text-[11px]">
+                <div className="flex items-center gap-2 max-w-[85%]">
+                  <span
+                    className={`w-2 h-2 rounded-full shrink-0 ${
+                      data?.smtpStatus.working ? 'bg-secondary' : 'bg-red-500'
+                    }`}
+                  />
+                  <span
+                    className={`truncate ${
+                      data?.smtpStatus.working ? 'text-secondary font-medium' : 'text-red-400 font-medium'
+                    }`}
+                    title={data?.smtpStatus.message}
+                  >
+                    {data?.smtpStatus.working
+                      ? `SMTP Ready: ${data?.smtpStatus.message}`
+                      : `SMTP Not Ready: ${data?.smtpStatus.message || 'Credentials missing in Vercel'}`}
+                  </span>
+                </div>
                 <button
                   type="button"
-                  onClick={handleSendTest}
-                  disabled={isSendingTest || !testEmail}
-                  className="px-4 py-2.5 rounded-xl bg-surface hover:bg-white/10 border border-white/10 text-xs font-semibold text-white transition-all disabled:opacity-50 cursor-pointer shrink-0"
+                  onClick={handleRefreshDiagnostics}
+                  disabled={isRefreshingDiagnostics}
+                  className="text-text-secondary hover:text-white underline text-[10px] cursor-pointer shrink-0"
                 >
-                  {isSendingTest ? 'Sending...' : 'Send Test'}
+                  {isRefreshingDiagnostics ? 'Checking...' : 'Re-verify'}
                 </button>
               </div>
             </div>
