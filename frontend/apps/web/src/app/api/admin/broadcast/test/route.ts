@@ -6,8 +6,12 @@ import { z } from 'zod'
 export const dynamic = 'force-dynamic'
 
 const testSchema = z.object({
-  toEmail: z.string().email('Valid test email address required'),
-  flowType: z.enum(['application_received', 'approved', 'low_credits', 'renewal_reminder', 'custom']),
+  toEmail: z.string().email('Valid test email address required').optional(),
+  testEmail: z.string().email('Valid test email address required').optional(),
+  flowType: z
+    .enum(['application_received', 'approved', 'low_credits', 'renewal_reminder', 'custom'])
+    .optional()
+    .default('custom'),
   subject: z.string().optional(),
   message: z.string().optional(),
 })
@@ -15,7 +19,7 @@ const testSchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     await requireAdmin(request)
-    const body = await request.json()
+    const body = await request.json().catch(() => ({}))
     const parsed = testSchema.safeParse(body)
 
     if (!parsed.success) {
@@ -25,7 +29,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { toEmail, flowType, subject, message } = parsed.data
+    const toEmail = (parsed.data.toEmail || parsed.data.testEmail)?.trim()
+    if (!toEmail) {
+      return NextResponse.json(
+        { code: 'VALIDATION_ERROR', message: 'Valid test email address required' },
+        { status: 400 },
+      )
+    }
+
+    const flowType = parsed.data.flowType || 'custom'
+    const { subject, message } = parsed.data
 
     let result: { id: string }
 

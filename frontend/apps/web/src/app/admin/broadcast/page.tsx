@@ -361,9 +361,10 @@ export default function AdminBroadcastPage() {
         },
         body: JSON.stringify({
           flowType: 'custom',
+          toEmail: testEmail.trim(),
           testEmail: testEmail.trim(),
-          subject: subject || 'Test Preview Subject',
-          message: message || 'This is a test preview of your broadcast content.',
+          subject: subject.trim() || 'Test Preview Subject',
+          message: message.trim() || 'This is a test preview of your broadcast content.',
         }),
       })
       const json = await res.json()
