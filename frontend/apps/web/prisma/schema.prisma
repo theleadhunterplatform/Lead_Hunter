@@ -436,6 +436,9 @@ model LeadPost {
   @@index([platform])
   @@index([is_deleted])
   @@index([review_status])
+  @@index([review_status, is_deleted, created_at(sort: Desc)])
+  @@index([niche, created_at(sort: Desc)])
+  @@index([created_at(sort: Desc)])
   @@map("lead_posts")
 }
 

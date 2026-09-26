@@ -103,8 +103,23 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  swcMinify: true,
+  compiler: {
+    removeConsole:
+      process.env.NODE_ENV === 'production'
+        ? { exclude: ['error', 'warn'] }
+        : false,
+  },
   experimental: {
     serverComponentsExternalPackages: ['firebase-admin'],
+    optimizePackageImports: [
+      '@heroicons/react/24/solid',
+      '@heroicons/react/24/outline',
+      '@heroicons/react/20/solid',
+      'lucide-react',
+      'framer-motion',
+      'geist',
+    ],
   },
   compress: true,
   images: {

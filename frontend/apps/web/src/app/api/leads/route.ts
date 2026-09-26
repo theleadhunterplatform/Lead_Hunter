@@ -25,6 +25,34 @@ import {
 
 export const dynamic = 'force-dynamic'
 
+interface FeedCacheEntry {
+  rawLeads: any[]
+  total: number
+  cachedAt: number
+}
+
+const feedCache = new Map<string, FeedCacheEntry>()
+const FEED_CACHE_TTL = 30_000 // 30 seconds
+const MAX_FEED_CACHE_SIZE = 50
+
+function getCachedFeed(key: string): FeedCacheEntry | null {
+  const entry = feedCache.get(key)
+  if (!entry) return null
+  if (Date.now() - entry.cachedAt > FEED_CACHE_TTL) {
+    feedCache.delete(key)
+    return null
+  }
+  return entry
+}
+
+function setCachedFeed(key: string, data: { rawLeads: any[]; total: number }) {
+  if (feedCache.size >= MAX_FEED_CACHE_SIZE) {
+    const oldestKey = feedCache.keys().next().value
+    if (oldestKey) feedCache.delete(oldestKey)
+  }
+  feedCache.set(key, { ...data, cachedAt: Date.now() })
+}
+
 function formatTimeAgo(dateStr: string): string {
   const diffMs = new Date().getTime() - new Date(dateStr).getTime()
   const seconds = Math.max(0, Math.floor(diffMs / 1000))
@@ -274,28 +302,43 @@ export async function GET(request: NextRequest) {
     } else {
       let externalLeads: ExternalPost[] = []
       try {
-        // Active discovery feed strictly shows fresh opportunities from the last 10 days
-        const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000)
-        const where: any = {
-          is_deleted: false,
-          review_status: 'approved',
-          intelligence: { not: null as string | null },
-          source: { not: 'seed' },
-          created_at: { gte: tenDaysAgo },
+        const cacheKey = `${niche || 'All'}:${page}:${pageSize}`
+        const cached = getCachedFeed(cacheKey)
+
+        let rawLeads: any[]
+        let total: number
+
+        if (cached) {
+          rawLeads = cached.rawLeads
+          total = cached.total
+        } else {
+          // Active discovery feed strictly shows fresh opportunities from the last 10 days
+          const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000)
+          const where: any = {
+            is_deleted: false,
+            review_status: 'approved',
+            intelligence: { not: null as string | null },
+            source: { not: 'seed' },
+            created_at: { gte: tenDaysAgo },
+          }
+          if (niche && niche !== 'All') {
+            where.niche = niche
+          }
+          const [fetchedLeads, fetchedTotal] = await Promise.all([
+            oracleDb.leadPost.findMany({
+              where,
+              select: LEAD_POST_SELECT,
+              orderBy: { created_at: 'desc' },
+              skip: (page - 1) * pageSize,
+              take: pageSize,
+            }),
+            oracleDb.leadPost.count({ where }),
+          ])
+          rawLeads = fetchedLeads
+          total = fetchedTotal
+          setCachedFeed(cacheKey, { rawLeads, total })
         }
-        if (niche && niche !== 'All') {
-          where.niche = niche
-        }
-        const [rawLeads, total] = await Promise.all([
-          oracleDb.leadPost.findMany({
-            where,
-            select: LEAD_POST_SELECT,
-            orderBy: { created_at: 'desc' },
-            skip: (page - 1) * pageSize,
-            take: pageSize,
-          }),
-          oracleDb.leadPost.count({ where }),
-        ])
+
         externalLeads = rawLeads.map(mapLeadPostToExternal)
         const leadIds = externalLeads.map((l) => l.id)
 

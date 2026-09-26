@@ -1,4 +1,3 @@
-import ExcelJS from 'exceljs'
 import type { AppLead } from '@/types/lead'
 
 const TRUNCATE_LENGTH = 200
@@ -79,6 +78,7 @@ export async function downloadXlsx(
   if (rows.length === 0) return
 
   const headers = Object.keys(rows[0] ?? {})
+  const ExcelJS = (await import('exceljs')).default
   const workbook = new ExcelJS.Workbook()
   workbook.creator = metadata || 'LeadHunter'
   const sheet = workbook.addWorksheet('Leads')

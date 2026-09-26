@@ -9,10 +9,8 @@
     "start": "next start",
     "lint": "next lint",
     "test": "vitest run",
-    "verify:rollover": "tsx scripts/verify-rollover.mjs",
     "prisma": "prisma",
-    "db:studio": "prisma studio",
-    "seed:admin": "tsx scripts/seed-admin.ts"
+    "db:studio": "prisma studio"
   },
   "dependencies": {
     "@heroicons/react": "^2.1.3",
