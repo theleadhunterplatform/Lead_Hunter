@@ -6,8 +6,9 @@ import { z } from 'zod'
 export const dynamic = 'force-dynamic'
 
 const testSchema = z.object({
-  toEmail: z.string().email('Valid test email address required').optional(),
-  testEmail: z.string().email('Valid test email address required').optional(),
+  toEmail: z.string().trim().email('Valid test email address required').optional().or(z.literal('')),
+  testEmail: z.string().trim().email('Valid test email address required').optional().or(z.literal('')),
+  email: z.string().trim().email('Valid test email address required').optional().or(z.literal('')),
   flowType: z
     .enum(['application_received', 'approved', 'low_credits', 'renewal_reminder', 'custom'])
     .optional()
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const toEmail = (parsed.data.toEmail || parsed.data.testEmail)?.trim()
+    const toEmail = (parsed.data.toEmail || parsed.data.testEmail || parsed.data.email)?.trim()
     if (!toEmail) {
       return NextResponse.json(
         { code: 'VALIDATION_ERROR', message: 'Valid test email address required' },
