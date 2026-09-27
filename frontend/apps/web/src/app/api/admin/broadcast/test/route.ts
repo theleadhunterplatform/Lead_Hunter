@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { db } from '@/lib/db'
 import { requireAdmin, AuthRequiredError, ForbiddenError } from '@/lib/auth'
 import { emailService } from '@/lib/services/email'
 import { z } from 'zod'
@@ -96,9 +97,14 @@ export async function POST(request: NextRequest) {
       case 'custom': {
         const customSubject = subject || 'Test Broadcast Announcement'
         const customMessage = message || 'This is a test broadcast sent from the Lead Hunter Admin Communications Hub.'
+        const recipientUser = await db.user.findUnique({
+          where: { email: toEmail },
+          select: { name: true },
+        })
+        const recipientName = recipientUser?.name?.trim() || 'Admin Tester'
         const formattedHtml = `<p style="margin:0 0 16px;line-height:1.6">${customMessage.replace(/\n/g, '<br/>')}</p>`
         const res = await emailService.sendBroadcastToUsers(
-          [{ name: 'Admin Tester', email: toEmail }],
+          [{ name: recipientName, email: toEmail }],
           customSubject,
           formattedHtml,
           customMessage,

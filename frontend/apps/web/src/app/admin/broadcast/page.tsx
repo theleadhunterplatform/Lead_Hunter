@@ -417,6 +417,23 @@ export default function AdminBroadcastPage() {
   const charCount = message.length
   const wordCount = message.trim() ? message.trim().split(/\s+/).length : 0
 
+  // Live Email Preview formatting
+  const isRefillPreview = useMemo(() => {
+    return /refill|credit|top-up|topup|bonus/i.test(`${subject} ${message}`)
+  }, [subject, message])
+
+  const previewCtaText = isRefillPreview ? 'Claim Refill Credits' : 'Open Lead Hunter Dashboard'
+
+  const formattedPreviewMessage = useMemo(() => {
+    if (!message.trim()) return ''
+    return message
+      .replace(/\{\{\s*name\s*\}\}/gi, 'there')
+      .replace(/\{\{\s*appUrl\s*\}\}/gi, 'https://leadhunterclub.com')
+      .replace(/\{\{\s*refillUrl\s*\}\}/gi, 'https://leadhunterclub.com/refill')
+      .replace(/\{\{\s*dashboardUrl\s*\}\}/gi, 'https://leadhunterclub.com/dashboard')
+      .replace(/\{\{\s*pricingUrl\s*\}\}/gi, 'https://leadhunterclub.com/pricing')
+  }, [message])
+
   if (loading) {
     return <CustomLoader fullscreen />
   }
@@ -819,6 +836,35 @@ export default function AdminBroadcastPage() {
                   </div>
                 </div>
 
+                {/* Variable Quick-Insert Chips */}
+                <div className="flex flex-wrap items-center gap-1.5 py-1">
+                  <span className="text-[10px] text-text-secondary font-semibold uppercase tracking-wider mr-1">
+                    Insert:
+                  </span>
+                  {[
+                    { token: '{{name}}', label: 'Name' },
+                    { token: '{{appUrl}}/refill', label: 'Refill Page' },
+                    { token: '{{appUrl}}', label: 'Base URL' },
+                    { token: '{{dashboardUrl}}', label: 'Dashboard' },
+                  ].map((v) => (
+                    <button
+                      key={v.token}
+                      type="button"
+                      onClick={() =>
+                        setMessage((prev) =>
+                          prev
+                            ? prev + (prev.endsWith(' ') || prev.endsWith('\n') ? '' : ' ') + v.token
+                            : v.token,
+                        )
+                      }
+                      className="px-2 py-0.5 rounded-lg bg-surface-elevated hover:bg-primary/20 hover:text-primary text-text-secondary border border-white/10 text-[10px] font-mono transition-colors cursor-pointer"
+                      title={`Click to insert ${v.token}`}
+                    >
+                      {v.token} <span className="opacity-50 text-[9px]">({v.label})</span>
+                    </button>
+                  ))}
+                </div>
+
                 <textarea
                   rows={14}
                   placeholder="Write your email announcement here. Line breaks and paragraphs are automatically formatted into clean, responsive email blocks..."
@@ -999,8 +1045,16 @@ export default function AdminBroadcastPage() {
                   {/* Body Content */}
                   <div className="p-5 rounded-2xl bg-surface-container border border-white/5 space-y-4">
                     <div className="text-xs sm:text-sm text-text-primary leading-relaxed whitespace-pre-line break-words">
-                      {message.trim() ? (
-                        message
+                      {formattedPreviewMessage ? (
+                        formattedPreviewMessage.split(/(https?:\/\/[^\s<]+)/g).map((part, i) =>
+                          part.startsWith('http') ? (
+                            <span key={i} className="text-primary underline font-medium">
+                              {part}
+                            </span>
+                          ) : (
+                            part
+                          ),
+                        )
                       ) : (
                         <span className="text-text-secondary/50 italic">
                           Type your announcement in the composer. Your formatted text, links, and line breaks
@@ -1012,7 +1066,7 @@ export default function AdminBroadcastPage() {
                     {/* Action CTA Button */}
                     <div className="pt-2">
                       <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-black text-xs font-bold shadow-[0_2px_12px_rgba(var(--rgb-primary),0.3)] cursor-default">
-                        <span>Open Lead Hunter Dashboard</span>
+                        <span>{previewCtaText}</span>
                         <ArrowTopRightOnSquareIcon className="w-3.5 h-3.5" />
                       </div>
                     </div>

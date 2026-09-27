@@ -1,5 +1,5 @@
 import { db } from '@/lib/db'
-import nodemailer from 'nodemailer'
+import nodemailer, { type Transporter } from 'nodemailer'
 import {
   renderApproved,
   renderRejected,
@@ -54,9 +54,9 @@ async function logEmail(type: string, to: string, subject: string, status: strin
   }
 }
 
-let cachedTransporter: nodemailer.Transporter | null = null
+let cachedTransporter: Transporter | null = null
 
-function getSmtpTransporter(): nodemailer.Transporter | null {
+function getSmtpTransporter(): Transporter | null {
   if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
     return null
   }
@@ -312,14 +312,6 @@ export const emailService = {
       return { sent: 0, failed: 0, errors: [] }
     }
 
-    const { subject: renderedSubject, text: defaultText, html: defaultHtml } =
-      renderBroadcastAnnouncement({
-        subject,
-        messageHtml: contentHtml,
-        messageText: contentText,
-        appUrl: APP_URL,
-      })
-
     let sent = 0
     let failed = 0
     const errors: string[] = []
@@ -329,8 +321,18 @@ export const emailService = {
       const chunk = recipients.slice(i, i + CHUNK_SIZE)
       const results = await Promise.all(
         chunk.map(async (user) => {
-          return send('broadcast', user.email, renderedSubject, defaultText, {
-            html: defaultHtml,
+          const recipientName = user.name?.trim() || 'there'
+          const { subject: userSubject, text: userText, html: userHtml } =
+            renderBroadcastAnnouncement({
+              name: recipientName,
+              subject,
+              messageHtml: contentHtml,
+              messageText: contentText,
+              appUrl: APP_URL,
+            })
+
+          return send('broadcast', user.email, userSubject, userText, {
+            html: userHtml,
           })
         }),
       )

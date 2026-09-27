@@ -14,7 +14,7 @@ function wrapHtml(body: string): string {
           <hr style="border:none;border-top:1px solid rgba(255,255,255,0.06);margin:24px 0" />
           <p style="margin:0;font-size:12px;color:#888;line-height:1.5">
             Lead Hunter Club &mdash; Find & close your ideal clients<br>
-            <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://leadhunterclub.com'}" style="color:#dc3b4c;text-decoration:none">Visit dashboard</a>
+            <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://leadhunterclub.com'}" style="color:#FFB800;font-weight:600;text-decoration:none">Visit dashboard</a>
           </p>
         </td></tr>
       </table>
@@ -33,12 +33,32 @@ function escapeHtml(str: string): string {
     .replace(/'/g, '&#039;')
 }
 
-function interpolateVariables(content: string, vars: Record<string, string | number>): string {
+export function interpolateVariables(content: string, vars: Record<string, string | number>): string {
   let result = content
-  for (const [key, val] of Object.entries(vars)) {
+  const appUrl = (vars.appUrl ? String(vars.appUrl) : (process.env.NEXT_PUBLIC_APP_URL || 'https://leadhunterclub.com')).replace(/\/$/, '')
+  const mergedVars: Record<string, string | number> = {
+    appUrl,
+    dashboardUrl: `${appUrl}/dashboard`,
+    refillUrl: `${appUrl}/refill`,
+    pricingUrl: `${appUrl}/pricing`,
+    name: vars.name ? String(vars.name).trim() : 'there',
+    ...vars,
+  }
+
+  if (!mergedVars.name || String(mergedVars.name).trim() === '') {
+    mergedVars.name = 'there'
+  }
+  if (!mergedVars.appUrl || String(mergedVars.appUrl).trim() === '') {
+    mergedVars.appUrl = appUrl
+  }
+
+  for (const [key, val] of Object.entries(mergedVars)) {
     const regex = new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, 'gi')
     result = result.replace(regex, String(val ?? ''))
   }
+
+  result = result.replace(/\{\{\s*name\s*\}\}/gi, 'there')
+  result = result.replace(/\{\{\s*appUrl\s*\}\}/gi, appUrl)
   return result
 }
 
@@ -67,7 +87,7 @@ function textToHtmlBody(text: string, cta?: { text: string; url: string }): stri
         .map((l) => {
           return escapeHtml(l).replace(
             /(https?:\/\/[^\s<]+)/g,
-            '<a href="$1" style="color:#dc3b4c;text-decoration:underline" target="_blank">$1</a>',
+            '<a href="$1" style="color:#FFB800;text-decoration:underline" target="_blank">$1</a>',
           )
         })
         .join('<br/>')
@@ -79,8 +99,8 @@ function textToHtmlBody(text: string, cta?: { text: string; url: string }): stri
   const ctaButton = cta
     ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0 16px">
         <tr>
-          <td align="center" style="border-radius:10px;background:#dc3b4c">
-            <a href="${cta.url}" target="_blank" style="display:inline-block;padding:12px 28px;background:#dc3b4c;color:#ffffff;border-radius:10px;text-decoration:none;font-size:14px;font-weight:600;letter-spacing:0.01em">${escapeHtml(
+          <td align="center" style="border-radius:12px;background:#FFB800">
+            <a href="${cta.url}" target="_blank" style="display:inline-block;padding:12px 28px;background:#FFB800;color:#0a0a0a;border-radius:12px;text-decoration:none;font-size:14px;font-weight:700;letter-spacing:0.01em">${escapeHtml(
         cta.text,
       )}</a>
           </td>
@@ -175,10 +195,13 @@ export interface NewsletterData {
 }
 
 export interface BroadcastData {
+  name?: string
   subject: string
-  messageHtml: string
+  messageHtml?: string
   messageText: string
   appUrl: string
+  ctaText?: string
+  ctaUrl?: string
 }
 
 // 1. Account Approved
@@ -424,7 +447,13 @@ export function renderNewsletterConfirmation(data: NewsletterConfirmationData) {
   const html = wrapHtml(`
     <p style="margin:16px 0;font-size:15px;color:#ccc;line-height:1.6">Thanks for subscribing to the <strong style="color:#fff">Lead Hunter Club</strong> newsletter!</p>
     <p style="margin:16px 0;font-size:15px;color:#ccc;line-height:1.6">Please confirm your subscription by clicking the button below. This ensures we only send updates to people who want them.</p>
-    <a href="${data.confirmUrl}" style="display:inline-block;margin:8px 0 16px;padding:12px 28px;background:#dc3b4c;color:#fff;border-radius:10px;text-decoration:none;font-size:14px;font-weight:600">Confirm Subscription</a>
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:20px 0 16px">
+      <tr>
+        <td align="center" style="border-radius:12px;background:#FFB800">
+          <a href="${data.confirmUrl}" target="_blank" style="display:inline-block;padding:12px 28px;background:#FFB800;color:#0a0a0a;border-radius:12px;text-decoration:none;font-size:14px;font-weight:700">Confirm Subscription</a>
+        </td>
+      </tr>
+    </table>
     <p style="margin:16px 0;font-size:13px;color:#888;line-height:1.6">If you didn't request this, you can safely ignore this email.</p>
   `)
   return { subject, text, html }
@@ -443,19 +472,46 @@ export function renderNewsletter(data: NewsletterData) {
   return { subject, text, html }
 }
 
+
 // 12. Manual Broadcast Announcement
 export function renderBroadcastAnnouncement(data: BroadcastData) {
-  const subject = data.subject
-  const text = `${data.messageText}\n\n---\nLead Hunter Club\nVisit platform: ${data.appUrl}/dashboard`
+  const vars: Record<string, string | number> = {
+    name: data.name?.trim() || 'there',
+    appUrl: data.appUrl,
+  }
+  const subject = interpolateVariables(data.subject, vars)
+  const rawText = interpolateVariables(data.messageText, vars)
+  const text = `${rawText}\n\n---\nLead Hunter Club\nVisit platform: ${data.appUrl}/dashboard`
+
+  const isRefill = /refill|credit|top-up|topup|bonus/i.test(`${subject} ${rawText}`)
+  const ctaText = data.ctaText || (isRefill ? 'Claim Refill Credits' : 'Open Lead Hunter Dashboard')
+  const ctaUrl = data.ctaUrl || (isRefill ? `${data.appUrl}/refill` : `${data.appUrl}/dashboard`)
+
+  let contentHtml = ''
+  if (
+    data.messageHtml &&
+    (data.messageHtml.includes('<p') ||
+      data.messageHtml.includes('<div') ||
+      data.messageHtml.includes('<br') ||
+      data.messageHtml.includes('<a'))
+  ) {
+    contentHtml = interpolateVariables(data.messageHtml, vars).replace(
+      /(https?:\/\/[^\s<"']+)/g,
+      (url) => `<a href="${url}" style="color:#FFB800;text-decoration:underline" target="_blank">${url}</a>`,
+    )
+  } else {
+    contentHtml = textToHtmlBody(rawText)
+  }
+
   const html = wrapHtml(`
-    <h2 style="margin:16px 0 16px;font-size:20px;font-weight:700;color:#ffffff;letter-spacing:-0.01em">${data.subject}</h2>
+    <h2 style="margin:16px 0 16px;font-size:20px;font-weight:700;color:#ffffff;letter-spacing:-0.01em">${escapeHtml(subject)}</h2>
     <div style="font-size:15px;color:#ccc;line-height:1.7;margin:16px 0">
-      ${data.messageHtml}
+      ${contentHtml}
     </div>
     <table role="presentation" cellpadding="0" cellspacing="0" style="margin:28px 0 12px">
       <tr>
-        <td align="center" style="border-radius:10px;background:#dc3b4c">
-          <a href="${data.appUrl}/dashboard" target="_blank" style="display:inline-block;padding:12px 28px;background:#dc3b4c;color:#ffffff;border-radius:10px;text-decoration:none;font-size:14px;font-weight:600">Open Lead Hunter Dashboard</a>
+        <td align="center" style="border-radius:12px;background:#FFB800">
+          <a href="${ctaUrl}" target="_blank" style="display:inline-block;padding:12px 28px;background:#FFB800;color:#0a0a0a;border-radius:12px;text-decoration:none;font-size:14px;font-weight:700;letter-spacing:0.01em">${escapeHtml(ctaText)}</a>
         </td>
       </tr>
     </table>
