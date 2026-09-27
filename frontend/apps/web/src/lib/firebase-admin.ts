@@ -1,6 +1,20 @@
 import { verifyFirebaseToken } from './verify-session'
 
 export async function verifyIdToken(token: string) {
+  try {
+    const adminAuth = await getAdminAuthInstance()
+    const decoded = await adminAuth.verifyIdToken(token)
+    return {
+      uid: decoded.uid,
+      email: decoded.email,
+      name: (decoded as any).name,
+      phone_number: (decoded as any).phone_number,
+      picture: (decoded as any).picture,
+      email_verified: decoded.email_verified,
+    }
+  } catch {
+    // Fall back to lightweight client/edge token verifier
+  }
   return verifyFirebaseToken(token)
 }
 

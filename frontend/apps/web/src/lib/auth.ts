@@ -11,10 +11,18 @@ export interface AuthUser {
 }
 
 export async function getAuthUser(request: Request): Promise<AuthUser | null> {
+  let token: string | null = null
   const authHeader = request.headers.get('Authorization')
-  if (!authHeader?.startsWith('Bearer ')) return null
+  if (authHeader?.startsWith('Bearer ')) {
+    token = authHeader.slice(7).trim()
+  }
 
-  const token = authHeader.slice(7)
+  if (!token) {
+    const cookieHeader = request.headers.get('cookie') || ''
+    const match = cookieHeader.match(/(?:^|;\s*)__session=([^;]+)/)
+    if (match) token = decodeURIComponent(match[1]).trim()
+  }
+
   if (!token) return null
 
   const decoded = await verifyIdToken(token)

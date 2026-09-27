@@ -119,11 +119,24 @@ export function useAuth() {
       // 3. Otherwise, create the inFlight promise
       inFlightMePromise = (async () => {
         try {
-          const token = await fbUser.getIdToken()
+          let token = await fbUser.getIdToken()
           setSessionCookie(token)
-          const res = await fetch('/api/auth/me', {
+          let res = await fetch('/api/auth/me', {
             headers: { Authorization: `Bearer ${token}` },
           })
+
+          // If 401, the cached token in IndexedDB might have expired. Force refresh from Firebase and retry once.
+          if (res.status === 401) {
+            try {
+              token = await fbUser.getIdToken(true)
+              setSessionCookie(token)
+              res = await fetch('/api/auth/me', {
+                headers: { Authorization: `Bearer ${token}` },
+              })
+            } catch (refreshErr) {
+              console.warn('[useAuth] Firebase token force-refresh failed:', refreshErr)
+            }
+          }
 
           if (res.ok) {
             const json = await res.json()
@@ -133,6 +146,13 @@ export function useAuth() {
               return userData as User
             }
           }
+
+          if (res.status === 401) {
+            // User session is invalid or revoked in Firebase
+            clearAuthState()
+            return null
+          }
+
           throw new Error(`Server returned ${res.status}`)
         } finally {
           inFlightMePromise = null
@@ -141,14 +161,18 @@ export function useAuth() {
 
       try {
         const userData = await inFlightMePromise
-        if (isMounted && userData) {
-          setUser(userData)
-          setLastSynced(Date.now())
-          setLoading(false)
+        if (isMounted) {
+          if (userData) {
+            setUser(userData)
+            setLastSynced(Date.now())
+            setLoading(false)
 
-          if (userData.status === 'SUSPENDED' || userData.status === 'REJECTED') {
-            setSessionCookie(null)
-            router.push('/pending-approval')
+            if (userData.status === 'SUSPENDED' || userData.status === 'REJECTED') {
+              setSessionCookie(null)
+              router.push('/pending-approval')
+            }
+          } else {
+            setLoading(false)
           }
         }
       } catch (err) {

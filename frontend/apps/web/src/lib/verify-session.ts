@@ -21,26 +21,27 @@ function parseJwtPart(part: string): Record<string, unknown> | null {
 async function getPublicKey(kid: string): Promise<JsonWebKey | null> {
   const now = Date.now()
 
-  if (!cachedKeys || now > cachedKeys.expiresAt) {
+  if (!cachedKeys || now > cachedKeys.expiresAt || !cachedKeys.keys[kid]) {
     try {
       const res = await fetch(
         'https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com',
       )
-      const data = (await res.json()) as { keys: JsonWebKey[] }
-
-      const keys: Record<string, JsonWebKey> = {}
-      for (const key of data.keys) {
-        const keyKid = (key as Record<string, unknown>).kid as string | undefined
-        if (keyKid) keys[keyKid] = key
+      if (res.ok) {
+        const data = (await res.json()) as { keys: JsonWebKey[] }
+        const keys: Record<string, JsonWebKey> = {}
+        for (const key of data.keys) {
+          const keyKid = (key as Record<string, unknown>).kid as string | undefined
+          if (keyKid) keys[keyKid] = key
+        }
+        cachedKeys = { keys, expiresAt: now + 86_400_000 }
       }
-
-      cachedKeys = { keys, expiresAt: now + 86_400_000 }
-    } catch {
+    } catch (err) {
+      console.error('[getPublicKey] Failed to fetch Google JWK keys:', err)
       if (!cachedKeys) return null
     }
   }
 
-  const kidKey = cachedKeys.keys[kid]
+  const kidKey = cachedKeys?.keys[kid]
   return kidKey ?? null
 }
 
@@ -63,8 +64,10 @@ export async function verifySession(
 
 export async function verifyFirebaseToken(token: string): Promise<FirebaseIdToken | null> {
   try {
-    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
-    if (!projectId) return null
+    const projectId =
+      process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ||
+      process.env.FIREBASE_PROJECT_ID ||
+      'lead-hunter-club'
 
     const parts = token.split('.')
     if (parts.length !== 3) return null
@@ -74,7 +77,13 @@ export async function verifyFirebaseToken(token: string): Promise<FirebaseIdToke
 
     const payload = parseJwtPart(parts[1]) as Record<string, unknown> | null
     if (!payload?.sub || typeof payload.sub !== 'string') return null
-    if (!payload.exp || Date.now() / 1000 > (payload.exp as number)) return null
+
+    // 60-second leeway for clock drift
+    const CLOCK_SKEW_LEEWAY_SECONDS = 60
+    if (!payload.exp || Date.now() / 1000 > (payload.exp as number) + CLOCK_SKEW_LEEWAY_SECONDS) {
+      return null
+    }
+
     if (payload.aud !== projectId) return null
     if (payload.iss !== `https://securetoken.google.com/${projectId}`) return null
 
@@ -109,7 +118,8 @@ export async function verifyFirebaseToken(token: string): Promise<FirebaseIdToke
       picture: typeof payload.picture === 'string' ? payload.picture : undefined,
       email_verified: typeof payload.email_verified === 'boolean' ? payload.email_verified : undefined,
     }
-  } catch {
+  } catch (err) {
+    console.error('[verifyFirebaseToken] Verification error:', err)
     return null
   }
 }
