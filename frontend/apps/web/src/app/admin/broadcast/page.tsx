@@ -82,6 +82,15 @@ const TEMPLATE_CATEGORIES = [
   { id: 'announcement', label: 'Announcement' },
 ]
 
+const AUTOMATED_TRIGGER_OPTIONS = [
+  { id: 'tpl-auto-account-approved', label: '⚡ When User Account is Approved (Welcome Email)' },
+  { id: 'tpl-auto-low-credits', label: '📉 When Credits Drop <= 2 Coins (Low Credits Alert)' },
+  { id: 'tpl-auto-renewal-reminder', label: '📅 3 Days Before Subscription Renews (Renewal Notice)' },
+  { id: 'tpl-auto-application-received', label: '📝 When Onboarding / Application is Submitted' },
+  { id: 'tpl-auto-account-rejected', label: '❌ When Application is Rejected' },
+  { id: 'tpl-auto-account-suspended', label: '🚫 When Account is Suspended' },
+]
+
 export default function AdminBroadcastPage() {
   const { addToast } = useToast()
 
@@ -114,6 +123,7 @@ export default function AdminBroadcastPage() {
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null)
   const [tName, setTName] = useState('')
   const [tCategory, setTCategory] = useState('general')
+  const [tTrigger, setTTrigger] = useState('tpl-auto-account-approved')
   const [tSubject, setTSubject] = useState('')
   const [tBody, setTBody] = useState('')
   const [isSavingTemplate, setIsSavingTemplate] = useState(false)
@@ -278,6 +288,9 @@ export default function AdminBroadcastPage() {
     setEditingTemplateId(tpl.id)
     setTName(tpl.name)
     setTCategory(tpl.category || 'general')
+    if (tpl.id.startsWith('tpl-auto-')) {
+      setTTrigger(tpl.id)
+    }
     setTSubject(tpl.subject)
     setTBody(tpl.body)
     // Scroll to form smoothly
@@ -289,6 +302,7 @@ export default function AdminBroadcastPage() {
     setEditingTemplateId(null)
     setTName('')
     setTCategory('general')
+    setTTrigger('tpl-auto-account-approved')
     setTSubject('')
     setTBody('')
   }
@@ -312,10 +326,11 @@ export default function AdminBroadcastPage() {
     setIsSavingTemplate(true)
     try {
       const token = await getFirebaseToken()
-      const url = editingTemplateId
-        ? `/api/admin/broadcast/templates/${editingTemplateId}`
+      const targetId = editingTemplateId || (tCategory === 'automated' ? tTrigger : undefined)
+      const url = targetId
+        ? `/api/admin/broadcast/templates/${targetId}`
         : '/api/admin/broadcast/templates'
-      const method = editingTemplateId ? 'PUT' : 'POST'
+      const method = targetId ? 'PUT' : 'POST'
 
       const res = await fetch(url, {
         method,
@@ -324,6 +339,7 @@ export default function AdminBroadcastPage() {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
+          id: targetId,
           name: tName.trim(),
           subject: tSubject.trim(),
           body: tBody.trim(),
@@ -1366,6 +1382,24 @@ export default function AdminBroadcastPage() {
                     <option value="announcement">Announcement &amp; Maintenance</option>
                   </select>
                 </div>
+
+                {/* Conditional Trigger Event Field for Automated Lifecycle */}
+                {tCategory === 'automated' && (
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-text-secondary">Trigger Event</label>
+                    <select
+                      value={tTrigger}
+                      onChange={(e) => setTTrigger(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl bg-surface-container-lowest border border-primary/30 text-xs text-white focus:outline-none focus:border-primary cursor-pointer"
+                    >
+                      {AUTOMATED_TRIGGER_OPTIONS.map((opt) => (
+                        <option key={opt.id} value={opt.id}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 {/* Subject */}
                 <div className="space-y-1.5">

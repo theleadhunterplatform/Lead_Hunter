@@ -15,6 +15,7 @@ export function invalidateBroadcastTemplatesCache() {
 }
 
 const createTemplateSchema = z.object({
+  id: z.string().optional(),
   name: z.string().min(2, 'Template name must be at least 2 characters'),
   subject: z.string().min(2, 'Subject must be at least 2 characters'),
   body: z.string().min(5, 'Body must be at least 5 characters'),
@@ -91,15 +92,34 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const newTemplate = await db.broadcastTemplate.create({
-      data: {
-        name: parsed.data.name,
-        subject: parsed.data.subject,
-        body: parsed.data.body,
-        category: parsed.data.category,
-        createdById: admin.id,
-      },
-    })
+    const customId = parsed.data.id?.trim()
+    const newTemplate = customId
+      ? await db.broadcastTemplate.upsert({
+          where: { id: customId },
+          update: {
+            name: parsed.data.name,
+            subject: parsed.data.subject,
+            body: parsed.data.body,
+            category: parsed.data.category,
+          },
+          create: {
+            id: customId,
+            name: parsed.data.name,
+            subject: parsed.data.subject,
+            body: parsed.data.body,
+            category: parsed.data.category,
+            createdById: admin.id,
+          },
+        })
+      : await db.broadcastTemplate.create({
+          data: {
+            name: parsed.data.name,
+            subject: parsed.data.subject,
+            body: parsed.data.body,
+            category: parsed.data.category,
+            createdById: admin.id,
+          },
+        })
 
     invalidateBroadcastTemplatesCache()
 

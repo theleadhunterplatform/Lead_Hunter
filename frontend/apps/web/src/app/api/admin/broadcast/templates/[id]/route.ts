@@ -36,13 +36,21 @@ export async function PUT(
       )
     }
 
-    const updated = await db.broadcastTemplate.update({
+    const updated = await db.broadcastTemplate.upsert({
       where: { id },
-      data: {
+      update: {
         name: parsed.data.name,
         subject: parsed.data.subject,
         body: parsed.data.body,
         category: parsed.data.category,
+      },
+      create: {
+        id,
+        name: parsed.data.name,
+        subject: parsed.data.subject,
+        body: parsed.data.body,
+        category: parsed.data.category,
+        createdById: admin.id,
       },
     })
 
