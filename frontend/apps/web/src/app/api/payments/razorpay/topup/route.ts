@@ -11,6 +11,30 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL!
 export async function POST(request: NextRequest) {
   try {
     const authUser = await requireActiveUser(request)
+
+    // Verify user has an active paid subscription plan
+    const dbUser = await db.user.findUnique({
+      where: { id: authUser.uid },
+      select: { plan: true, role: true, razorpayCurrentPeriodEnd: true },
+    })
+
+    const isFree = !dbUser?.plan || dbUser.plan.toUpperCase() === 'FREE'
+    const isExpired =
+      dbUser?.razorpayCurrentPeriodEnd &&
+      new Date(dbUser.razorpayCurrentPeriodEnd).getTime() < Date.now()
+
+    if (dbUser?.role !== 'admin' && (isFree || isExpired)) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: 'ACTIVE_PLAN_REQUIRED',
+          message:
+            'An active subscription plan (Freelancer or Agency) is required to purchase credit top-ups. Please subscribe to a plan first.',
+        },
+        { status: 403 },
+      )
+    }
+
     const body = await request.json().catch(() => ({}))
 
     const packId = body.pack

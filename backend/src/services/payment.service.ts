@@ -347,6 +347,11 @@ export async function createTokenTopupOrder(userId: string, packId: string) {
         throw new ErrorResponse('User not found', 404);
     }
 
+    const isFree = !user.plan || user.plan.toLowerCase() === 'free';
+    if (isFree && user.role !== 'admin') {
+        throw new ErrorResponse('An active subscription plan is required to purchase token top-ups. Please subscribe to a plan first.', 403);
+    }
+
     const receipt = `topup_${userId.slice(0, 8)}_${Date.now()}`.slice(0, 40);
 
     let order: any;

@@ -245,7 +245,19 @@ function PricingContent() {
     }
   }
 
+  const hasActivePlan =
+    user?.role === 'admin' || (!!user?.plan && user.plan.toUpperCase() !== 'FREE')
+
   const handleBuyPack = async (pack: RefillPack) => {
+    if (!hasActivePlan) {
+      addToast({
+        type: 'info',
+        message: 'An active subscription plan is required to purchase credit refills. Please choose a plan first.',
+      })
+      setActiveTab('plans')
+      return
+    }
+
     setProcessingPack(pack.id)
     try {
       const token = await getToken()
@@ -467,6 +479,28 @@ function PricingContent() {
         {/* TAB 2: Instant Credit Top-ups Grid */}
         {activeTab === 'refills' && (
           <div className="space-y-8 pt-2">
+            {!hasActivePlan && (
+              <div className="metallic-card p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-3xl border border-amber-500/25 bg-amber-500/10">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+                    <ExclamationTriangleIcon className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-white">Active Subscription Required</h4>
+                    <p className="text-xs text-text-secondary mt-0.5 leading-relaxed">
+                      Instant credit top-ups are available exclusively for active plan members. Subscribe to Freelancer Pro or Agency Scale to unlock credit refills.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setActiveTab('plans')}
+                  className="px-5 py-2.5 rounded-xl bg-amber-500 text-black font-extrabold text-xs uppercase tracking-wider hover:bg-amber-400 transition-all shrink-0 cursor-pointer shadow-lg shadow-amber-500/20"
+                >
+                  View Plans & Subscribe
+                </button>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {refillPacks.map((pack) => {
                 const isPopular = pack.id === 'topup_50'
@@ -527,15 +561,21 @@ function PricingContent() {
 
                     <div className="pt-8 mt-8 border-t border-white/5">
                       <button
-                        onClick={() => handleBuyPack(pack)}
+                        onClick={() => (!hasActivePlan ? setActiveTab('plans') : handleBuyPack(pack))}
                         disabled={processingPack === pack.id}
                         className={`w-full min-h-[44px] py-3.5 rounded-2xl font-bold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-lg disabled:opacity-50 ${
-                          isPopular
+                          !hasActivePlan
+                            ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-500/30'
+                            : isPopular
                             ? 'bg-accent-orange text-black hover:bg-accent-orange/90 shadow-accent-orange/20'
                             : 'bg-white text-black hover:bg-white/90'
                         }`}
                       >
-                        {processingPack === pack.id ? 'Processing...' : `Buy ${pack.tokens} Credits`}
+                        {!hasActivePlan
+                          ? 'Subscribe to Unlock'
+                          : processingPack === pack.id
+                          ? 'Processing...'
+                          : `Buy ${pack.tokens} Credits`}
                       </button>
                     </div>
                   </div>

@@ -197,20 +197,50 @@ async function send(
   }
 }
 
+export async function isEmailAutomationEnabled(
+  subKey?: 'renewal_reminders_enabled' | 'low_credits_nudge_enabled' | 'onboarding_emails_enabled',
+): Promise<boolean> {
+  try {
+    const setting = await db.setting.findUnique({
+      where: { key: 'email_automation_config' },
+    })
+    if (!setting?.value || typeof setting.value !== 'object') return true
+    const val = setting.value as Record<string, any>
+    if (val.auto_email_enabled === false) return false
+    if (subKey && val[subKey] === false) return false
+    return true
+  } catch (err) {
+    console.warn('[Email Service] Failed to read email_automation_config, defaulting to true:', err)
+    return true
+  }
+}
+
 export const emailService = {
   // Flow 1: Application Received
   async sendApplicationReceived(user: { name: string; email: string }) {
+    if (!(await isEmailAutomationEnabled('onboarding_emails_enabled'))) {
+      await logEmail('application_received', user.email, 'Application Received', 'SKIPPED', 'Email automation disabled by admin.')
+      return { id: 'skipped', success: true, provider: 'mock' }
+    }
     const { subject, text, html } = await renderApplicationReceived({ name: user.name, appUrl: APP_URL })
     return send('application_received', user.email, subject, text, { html })
   },
 
   async sendOnboardingComplete(user: { name: string; email: string }) {
+    if (!(await isEmailAutomationEnabled('onboarding_emails_enabled'))) {
+      await logEmail('onboarding_complete', user.email, 'Application Under Review', 'SKIPPED', 'Email automation disabled by admin.')
+      return { id: 'skipped', success: true, provider: 'mock' }
+    }
     const { subject, text, html } = await renderOnboardingComplete({ name: user.name, appUrl: APP_URL })
     return send('onboarding_complete', user.email, subject, text, { html })
   },
 
   // Flow 2: Account Approved
   async sendApproved(user: { name: string; email: string }, plan: string, credits: number) {
+    if (!(await isEmailAutomationEnabled('onboarding_emails_enabled'))) {
+      await logEmail('approved', user.email, 'Account Approved', 'SKIPPED', 'Email automation disabled by admin.')
+      return { id: 'skipped', success: true, provider: 'mock' }
+    }
     const { subject, text, html } = await renderApproved({
       name: user.name,
       plan,
@@ -221,17 +251,29 @@ export const emailService = {
   },
 
   async sendRejected(user: { name: string; email: string }) {
+    if (!(await isEmailAutomationEnabled('onboarding_emails_enabled'))) {
+      await logEmail('rejected', user.email, 'Application Rejected', 'SKIPPED', 'Email automation disabled by admin.')
+      return { id: 'skipped', success: true, provider: 'mock' }
+    }
     const { subject, text, html } = await renderRejected({ name: user.name, appUrl: APP_URL })
     return send('rejected', user.email, subject, text, { html })
   },
 
   async sendSuspended(user: { name: string; email: string }) {
+    if (!(await isEmailAutomationEnabled('onboarding_emails_enabled'))) {
+      await logEmail('suspended', user.email, 'Account Suspended', 'SKIPPED', 'Email automation disabled by admin.')
+      return { id: 'skipped', success: true, provider: 'mock' }
+    }
     const { subject, text, html } = await renderSuspended({ name: user.name, appUrl: APP_URL })
     return send('suspended', user.email, subject, text, { html })
   },
 
   // Flow 3: Low Credits Nudge (<= 2 credits remaining)
   async sendLowCreditsNudge(user: { name?: string; email: string }, credits: number) {
+    if (!(await isEmailAutomationEnabled('low_credits_nudge_enabled'))) {
+      await logEmail('low_credits', user.email, 'Low Credits Alert', 'SKIPPED', 'Email automation disabled by admin.')
+      return { id: 'skipped', success: true, provider: 'mock' }
+    }
     const { subject, text, html } = await renderLowCreditsNudge({
       name: user.name || '',
       credits,
@@ -247,6 +289,10 @@ export const emailService = {
     plan: string,
     renewalDate: string,
   ) {
+    if (!(await isEmailAutomationEnabled('renewal_reminders_enabled'))) {
+      await logEmail('renewal_reminder', user.email, 'Renewal Reminder', 'SKIPPED', 'Email automation disabled by admin.')
+      return { id: 'skipped', success: true, provider: 'mock' }
+    }
     const { subject, text, html } = await renderRenewalReminder({
       name: user.name || '',
       plan,

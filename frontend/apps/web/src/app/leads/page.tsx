@@ -267,8 +267,6 @@ function matchNicheFilter(lead: AppLead, activeNiche: string): boolean {
 
 export default function LeadsPage() {
   const { user } = useAuth()
-  const userServices = useMemo(() => user?.servicesOffered || [], [user?.servicesOffered])
-  const hasTargetField = userServices.length > 0
 
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null)
   const [drawerLeadDetail, setDrawerLeadDetail] = useState<AppLead | null>(null)
@@ -277,7 +275,6 @@ export default function LeadsPage() {
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [isFilterOpen, setIsFilterOpen] = useState(false)
   const [activeNiche, setActiveNiche] = useState<string>('All')
-  const [hasInitializedNiche, setHasInitializedNiche] = useState(false)
   const [sortBy, setSortBy] = useState<SortOption>('newest')
   const [viewMode] = useState<'grid' | 'pipeline'>('pipeline')
 
@@ -411,20 +408,6 @@ export default function LeadsPage() {
     }
   }, [selectedLeadId])
 
-  useEffect(() => {
-    if (!hasInitializedNiche && hasTargetField) {
-      setActiveNiche(FOR_YOU)
-      setHasInitializedNiche(true)
-    }
-  }, [hasInitializedNiche, hasTargetField])
-
-  const availableNiches = useMemo(() => {
-    if (hasTargetField) {
-      return [FOR_YOU, ...primaryNiches]
-    }
-    return primaryNiches
-  }, [hasTargetField])
-
   const handleSaveToggle = async (leadId: string, isSaved: boolean) => {
     try {
       const token = await getFirebaseToken()
@@ -494,7 +477,7 @@ export default function LeadsPage() {
     }
 
     return result
-  }, [leadsList, activeNiche, userServices, debouncedSearch, selectedTags, sortBy])
+  }, [leadsList, activeNiche, debouncedSearch, selectedTags, sortBy])
 
   // Close the detail drawer whenever niche, search query, or tag filters change
   useEffect(() => {
@@ -648,24 +631,16 @@ export default function LeadsPage() {
           className="flex items-center gap-2 overflow-x-auto pb-4 mb-4 -mx-4 px-4 md:-mx-0 md:px-0 scrollbar-hide [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
-          {availableNiches.map((niche) => {
+          {primaryNiches.map((niche) => {
             const isActive = activeNiche === niche
-            const isForYou = niche === FOR_YOU
             return (
               <button
                 key={niche}
-                onClick={() => {
-                  setActiveNiche(niche)
-                  setHasInitializedNiche(true)
-                }}
+                onClick={() => setActiveNiche(niche)}
                 className={`px-4 py-2 text-xs font-semibold rounded-full border transition-all duration-300 whitespace-nowrap flex items-center gap-1.5 ${
                   isActive
-                    ? isForYou
-                      ? 'bg-primary/20 border-primary/60 text-primary'
-                      : 'bg-accent-purple/10 border-accent-purple/60 text-accent-purple'
-                    : isForYou
-                      ? 'bg-primary/[0.07] border-primary/25 text-primary/80 hover:bg-primary/15 hover:border-primary/50 hover:text-primary'
-                      : 'bg-white/5 border-white/[0.06] text-text-secondary hover:bg-white/10 hover:border-white/12 hover:text-text-primary'
+                    ? 'bg-accent-purple/10 border-accent-purple/60 text-accent-purple'
+                    : 'bg-white/5 border-white/[0.06] text-text-secondary hover:bg-white/10 hover:border-white/12 hover:text-text-primary'
                 }`}
               >
                 <span>{niche}</span>
@@ -673,25 +648,6 @@ export default function LeadsPage() {
             )
           })}
         </div>
-
-        {/* Personalized Target Field Banner */}
-        {hasTargetField && activeNiche === FOR_YOU && (
-          <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-primary/10 border border-primary/25 mb-6 text-xs transition-all">
-            <div className="flex items-center gap-2 text-text-primary">
-              <span className="w-2 h-2 rounded-full bg-primary shrink-0" />
-              <span>
-                Showing leads tailored to your onboarding target field:{' '}
-                <strong className="text-primary font-semibold">{userServices.join(', ')}</strong>
-              </span>
-            </div>
-            <button
-              onClick={() => setActiveNiche('All')}
-              className="text-primary hover:underline font-medium shrink-0 ml-auto transition-colors"
-            >
-              Browse all platform leads &rarr;
-            </button>
-          </div>
-        )}
 
         <div
           className="grid gap-4 auto-rows-fr items-stretch transition-all duration-300 grid-cols-1 md:grid-cols-2 lg:grid-cols-3"

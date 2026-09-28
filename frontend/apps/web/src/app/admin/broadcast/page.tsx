@@ -22,6 +22,8 @@ import {
   ClockIcon,
   EnvelopeIcon,
   SparklesIcon,
+  BoltIcon,
+  ShieldExclamationIcon,
 } from '@heroicons/react/24/solid'
 import { useToast } from '@/components/ui/Toast'
 import { getFirebaseToken } from '@/lib/firebase'
@@ -61,6 +63,12 @@ interface BroadcastData {
     working: boolean
     message: string
   }
+  automationSettings?: {
+    auto_email_enabled: boolean
+    renewal_reminders_enabled: boolean
+    low_credits_nudge_enabled: boolean
+    onboarding_emails_enabled: boolean
+  }
   recentLogs: EmailLogItem[]
 }
 
@@ -90,6 +98,8 @@ export default function AdminBroadcastPage() {
   const [testEmail, setTestEmail] = useState('')
   const [isSendingTest, setIsSendingTest] = useState(false)
   const [isRefreshingDiagnostics, setIsRefreshingDiagnostics] = useState(false)
+  const [automationSaving, setAutomationSaving] = useState<string | null>(null)
+  const [isTriggeringLifecycle, setIsTriggeringLifecycle] = useState(false)
 
   // Preview Mode State
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>('desktop')
@@ -162,6 +172,84 @@ export default function AdminBroadcastPage() {
         ? 'Diagnostics updated: Mailer socket active'
         : 'Diagnostics updated: Verification refreshed',
     })
+  }
+
+  const handleToggleAutomation = async (key: string) => {
+    if (!data?.automationSettings) return
+    const currentValue = (data.automationSettings as any)[key] ?? true
+    const newValue = !currentValue
+
+    setAutomationSaving(key)
+    try {
+      const token = await getFirebaseToken()
+      const res = await fetch('/api/admin/broadcast/automation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ key, value: newValue }),
+      })
+      const json = await res.json()
+      if (res.ok && json.success) {
+        setData((prev) =>
+          prev
+            ? {
+                ...prev,
+                automationSettings: {
+                  ...prev.automationSettings,
+                  [key]: newValue,
+                } as any,
+              }
+            : null,
+        )
+        addToast({
+          type: 'success',
+          message: `Email automation ${newValue ? 'enabled' : 'disabled'} successfully`,
+        })
+      } else {
+        addToast({
+          type: 'error',
+          message: json.message || 'Failed to update automation',
+        })
+      }
+    } catch (err: any) {
+      addToast({ type: 'error', message: err.message || 'Failed to update automation' })
+    } finally {
+      setAutomationSaving(null)
+    }
+  }
+
+  const handleTriggerLifecycleNow = async () => {
+    setIsTriggeringLifecycle(true)
+    try {
+      const token = await getFirebaseToken()
+      const res = await fetch('/api/admin/broadcast/automation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ action: 'trigger_now' }),
+      })
+      const json = await res.json()
+      if (res.ok && json.success) {
+        addToast({
+          type: 'success',
+          message: json.message || 'Lifecycle check completed',
+        })
+        fetchData()
+      } else {
+        addToast({
+          type: 'error',
+          message: json.message || 'Failed to execute lifecycle check',
+        })
+      }
+    } catch (err: any) {
+      addToast({ type: 'error', message: err.message || 'Failed to execute trigger' })
+    } finally {
+      setIsTriggeringLifecycle(false)
+    }
   }
 
   // Quick-load a template into the composer
@@ -587,6 +675,135 @@ export default function AdminBroadcastPage() {
           <p className="text-xs text-text-secondary">
             {sentLogs} delivered in recent batches
           </p>
+        </div>
+      </div>
+
+      {/* Email Lifecycle Automations Banner / Controls */}
+      <div className="bg-surface/50 border border-white/[0.08] backdrop-blur-xl rounded-2xl p-5 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-white/[0.06]">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-accent-orange/15 text-accent-orange border border-accent-orange/20">
+              <BoltIcon className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-bold text-white">Email Automations &amp; Lifecycle Triggers</h2>
+                <span
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                    data?.automationSettings?.auto_email_enabled
+                      ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                      : 'bg-red-500/20 text-red-400 border border-red-500/30'
+                  }`}
+                >
+                  {data?.automationSettings?.auto_email_enabled ? 'Active' : 'Paused'}
+                </span>
+              </div>
+              <p className="text-xs text-text-secondary mt-0.5">
+                Automatically dispatch lifecycle emails for onboarding, approvals, 3-day renewal notices, and low-credit nudges.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 self-end sm:self-center">
+            {/* Manual Run Button */}
+            <button
+              onClick={handleTriggerLifecycleNow}
+              disabled={isTriggeringLifecycle || !data?.automationSettings?.auto_email_enabled}
+              title="Manually trigger renewal checks and lifecycle reminders now"
+              className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-white/[0.06] hover:bg-white/[0.12] text-white border border-white/[0.08] flex items-center gap-2 transition-all disabled:opacity-50 cursor-pointer shadow-sm"
+            >
+              <ArrowPathIcon className={`w-3.5 h-3.5 ${isTriggeringLifecycle ? 'animate-spin' : ''}`} />
+              <span>{isTriggeringLifecycle ? 'Running Cycle...' : 'Run Cycle Now'}</span>
+            </button>
+
+            {/* Master Switch Button (Same style as Auto Scrape / Auto Enrich in Tokens) */}
+            <button
+              onClick={() => handleToggleAutomation('auto_email_enabled')}
+              disabled={automationSaving === 'auto_email_enabled'}
+              className={`h-10 px-5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer shadow-md ${
+                data?.automationSettings?.auto_email_enabled
+                  ? 'bg-green-500 text-black hover:bg-green-400 shadow-green-500/20'
+                  : 'bg-red-500/15 text-red-400 border border-red-500/30 hover:bg-red-500 hover:text-black shadow-red-500/10'
+              } ${automationSaving === 'auto_email_enabled' ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              {automationSaving === 'auto_email_enabled' ? (
+                <>
+                  <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                  <span>Saving...</span>
+                </>
+              ) : data?.automationSettings?.auto_email_enabled ? (
+                <>
+                  <CheckCircleIcon className="w-4 h-4" />
+                  <span>Auto Email: ON</span>
+                </>
+              ) : (
+                <>
+                  <ShieldExclamationIcon className="w-4 h-4" />
+                  <span>Auto Email: OFF</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Sub-toggles grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {/* 1. Renewal Reminders */}
+          <div className="flex items-center justify-between p-3.5 rounded-xl bg-surface-elevated/40 border border-white/[0.04]">
+            <div className="space-y-0.5 pr-2">
+              <span className="text-xs font-semibold text-white block">Renewal Reminders</span>
+              <span className="text-[10px] text-text-secondary block">Notice 3 days before monthly renewal</span>
+            </div>
+            <button
+              onClick={() => handleToggleAutomation('renewal_reminders_enabled')}
+              disabled={automationSaving === 'renewal_reminders_enabled' || !data?.automationSettings?.auto_email_enabled}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-40 ${
+                data?.automationSettings?.renewal_reminders_enabled && data?.automationSettings?.auto_email_enabled
+                  ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                  : 'bg-white/5 text-text-secondary border border-white/10'
+              }`}
+            >
+              {data?.automationSettings?.renewal_reminders_enabled && data?.automationSettings?.auto_email_enabled ? 'ON' : 'OFF'}
+            </button>
+          </div>
+
+          {/* 2. Low Credits Nudge */}
+          <div className="flex items-center justify-between p-3.5 rounded-xl bg-surface-elevated/40 border border-white/[0.04]">
+            <div className="space-y-0.5 pr-2">
+              <span className="text-xs font-semibold text-white block">Low Credits Alert</span>
+              <span className="text-[10px] text-text-secondary block">Nudge when balance drops &lt; 5 credits</span>
+            </div>
+            <button
+              onClick={() => handleToggleAutomation('low_credits_nudge_enabled')}
+              disabled={automationSaving === 'low_credits_nudge_enabled' || !data?.automationSettings?.auto_email_enabled}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-40 ${
+                data?.automationSettings?.low_credits_nudge_enabled && data?.automationSettings?.auto_email_enabled
+                  ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                  : 'bg-white/5 text-text-secondary border border-white/10'
+              }`}
+            >
+              {data?.automationSettings?.low_credits_nudge_enabled && data?.automationSettings?.auto_email_enabled ? 'ON' : 'OFF'}
+            </button>
+          </div>
+
+          {/* 3. Onboarding & Approval */}
+          <div className="flex items-center justify-between p-3.5 rounded-xl bg-surface-elevated/40 border border-white/[0.04]">
+            <div className="space-y-0.5 pr-2">
+              <span className="text-xs font-semibold text-white block">User Approval / Welcome</span>
+              <span className="text-[10px] text-text-secondary block">Welcome email upon admin approval</span>
+            </div>
+            <button
+              onClick={() => handleToggleAutomation('onboarding_emails_enabled')}
+              disabled={automationSaving === 'onboarding_emails_enabled' || !data?.automationSettings?.auto_email_enabled}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-40 ${
+                data?.automationSettings?.onboarding_emails_enabled && data?.automationSettings?.auto_email_enabled
+                  ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                  : 'bg-white/5 text-text-secondary border border-white/10'
+              }`}
+            >
+              {data?.automationSettings?.onboarding_emails_enabled && data?.automationSettings?.auto_email_enabled ? 'ON' : 'OFF'}
+            </button>
+          </div>
         </div>
       </div>
 

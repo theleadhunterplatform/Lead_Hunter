@@ -14,6 +14,7 @@ import {
   CheckCircleIcon,
   ArrowLeftIcon,
   ShieldCheckIcon,
+  ExclamationTriangleIcon,
 } from '@heroicons/react/24/solid'
 
 interface RefillPack {
@@ -57,7 +58,19 @@ export default function RefillPage() {
     }
   }
 
+  const hasActivePlan =
+    user?.role === 'admin' || (!!user?.plan && user.plan.toUpperCase() !== 'FREE')
+
   const handleBuyPack = async (pack: RefillPack) => {
+    if (!hasActivePlan) {
+      addToast({
+        type: 'info',
+        message: 'An active paid subscription (Freelancer or Agency) is required to purchase credit refills. Please choose a plan first.',
+      })
+      router.push('/pricing')
+      return
+    }
+
     setProcessingPack(pack.id)
     try {
       const token = await getToken()
@@ -192,6 +205,30 @@ export default function RefillPage() {
           </div>
         </div>
 
+        {/* Active Plan Requirement Alert for Free Users */}
+        {!hasActivePlan && (
+          <div className="p-6 rounded-3xl bg-amber-500/10 border border-amber-500/25 backdrop-blur-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xl">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+                <ExclamationTriangleIcon className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-white">Active Subscription Required</h3>
+                <p className="text-xs text-text-secondary mt-0.5 leading-relaxed">
+                  Credit top-ups are exclusive add-ons for active subscribers. You are currently on the{' '}
+                  <strong className="text-amber-400">Free Starter</strong> plan. Subscribe to Freelancer Pro or Agency Scale to unlock credit refills.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => router.push('/pricing')}
+              className="px-5 py-2.5 rounded-xl bg-amber-500 text-black font-extrabold text-xs uppercase tracking-wider hover:bg-amber-400 transition-all shrink-0 cursor-pointer shadow-lg shadow-amber-500/20"
+            >
+              View Plans & Upgrade
+            </button>
+          </div>
+        )}
+
         {/* Top-up Pack Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-4">
           {packs.map((pack) => {
@@ -250,15 +287,21 @@ export default function RefillPage() {
 
                 <div className="pt-6 mt-6 border-t border-white/5">
                   <button
-                    onClick={() => handleBuyPack(pack)}
+                    onClick={() => (!hasActivePlan ? router.push('/pricing') : handleBuyPack(pack))}
                     disabled={processingPack === pack.id}
                     className={`w-full py-3 rounded-xl font-extrabold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-lg disabled:opacity-50 ${
-                      isPopular
+                      !hasActivePlan
+                        ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-500/30'
+                        : isPopular
                         ? 'bg-accent-orange text-black hover:bg-accent-orange/90 shadow-accent-orange/20'
                         : 'bg-white/10 text-white hover:bg-white/20 border border-white/10'
                     }`}
                   >
-                    {processingPack === pack.id ? 'Processing...' : `Refill ${pack.tokens} Credits`}
+                    {!hasActivePlan
+                      ? 'Subscribe to Unlock'
+                      : processingPack === pack.id
+                      ? 'Processing...'
+                      : `Refill ${pack.tokens} Credits`}
                   </button>
                 </div>
               </div>

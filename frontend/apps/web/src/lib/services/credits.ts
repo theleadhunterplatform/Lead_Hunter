@@ -65,7 +65,9 @@ async function checkAndRenewInTx(tx: Prisma.TransactionClient, userId: string) {
     if (isFree || hasPaidPeriod) {
       // Normal renewal (free tier monthly credit reset or active paid recurring renewal)
       const limit = await getDynamicPlanCredits(account.user.plan, tx)
-      const rollover = rolloverOnRenewal(account, account.subscriptionBalance)
+      const rollover = isFree
+        ? { rolloverBalance: 0, rolloverExpiresAt: null }
+        : rolloverOnRenewal(account, account.subscriptionBalance)
       const nextRenewal = hasPaidPeriod
         ? account.user.razorpayCurrentPeriodEnd!
         : new Date(now().getTime() + 30 * 24 * 60 * 60 * 1000)
@@ -499,8 +501,11 @@ export const creditService = {
 
       await expireRolloverInTx(tx, userId, account)
 
+      const isFree = account.user.plan === 'FREE'
       const limit = getPlanCredits(account.user.plan)
-      const rollover = rolloverOnRenewal(account, account.subscriptionBalance)
+      const rollover = isFree
+        ? { rolloverBalance: 0, rolloverExpiresAt: null }
+        : rolloverOnRenewal(account, account.subscriptionBalance)
 
       // Renewal Queuing: Preserve remaining days
       const currentExpiry =

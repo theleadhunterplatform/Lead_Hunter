@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
   try {
     await requireAdmin(request)
 
-    const [totalActive, paidCount, freeCount, recentLogs, smtpStatus] = await Promise.all([
+    const [totalActive, paidCount, freeCount, recentLogs, smtpStatus, automationSetting] = await Promise.all([
       db.user.count({ where: { status: 'ACTIVE' } }),
       db.user.count({ where: { status: 'ACTIVE', plan: { in: ['FREELANCER', 'AGENCY'] } } }),
       db.user.count({ where: { status: 'ACTIVE', plan: 'FREE' } }),
@@ -28,7 +28,16 @@ export async function GET(request: NextRequest) {
         orderBy: { sentAt: 'desc' },
       }),
       emailService.verifySmtpConnection(),
+      db.setting.findUnique({ where: { key: 'email_automation_config' } }),
     ])
+
+    const emailAutomation = {
+      auto_email_enabled: true,
+      renewal_reminders_enabled: true,
+      low_credits_nudge_enabled: true,
+      onboarding_emails_enabled: true,
+      ...((automationSetting?.value as Record<string, any>) || {}),
+    }
 
     return NextResponse.json({
       success: true,
@@ -38,6 +47,7 @@ export async function GET(request: NextRequest) {
         freeStarters: freeCount,
       },
       smtpStatus,
+      automationSettings: emailAutomation,
       recentLogs,
     })
   } catch (error: unknown) {
