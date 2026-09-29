@@ -8,22 +8,9 @@ import { useAuth } from '@/hooks/useAuth'
 import { CustomLoader } from '@/components/ui/CustomLoader'
 
 import {
-  BoltIcon,
-  ViewfinderCircleIcon,
-  ChatBubbleLeftRightIcon,
-  BanknotesIcon,
   ArrowTopRightOnSquareIcon,
   ArrowPathIcon,
 } from '@heroicons/react/24/solid'
-
-const iconMap: Record<string, typeof ViewfinderCircleIcon> = {
-  'Signals Intercepted': ViewfinderCircleIcon,
-  'Active Conversations': ChatBubbleLeftRightIcon,
-  'Response Rate': BoltIcon,
-  'Credits Remaining': BanknotesIcon,
-}
-
-const accentColors = ['mint', 'purple'] as const
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -133,40 +120,48 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8 md:mb-12">
-          {stats.map((stat) => {
-            const Icon = iconMap[stat.label] || ViewfinderCircleIcon
-            return (
-              <div
-                key={stat.label}
-                className="group metallic-card p-5 sm:p-6"
-              >
-                <div className="flex justify-between items-start mb-4">
-                  <div
-                    className={`p-3 rounded-xl bg-accent-${stat.accent}/10 text-accent-${stat.accent}`}
-                  >
-                    <Icon className="w-5 h-5" />
+        <div className="metallic-card overflow-hidden mb-8 md:mb-12">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+            {stats.map((stat, i) => {
+              const isLast = i === stats.length - 1
+              const classes = [
+                'p-5 sm:p-6',
+                !isLast && 'border-b border-white/[0.06]',
+                i % 2 === 0 && 'sm:border-r sm:border-white/[0.06]',
+                i >= 2 && 'sm:border-b-0',
+                'lg:border-b-0',
+                !isLast && 'lg:border-r lg:border-white/[0.06]',
+              ]
+                .filter(Boolean)
+                .join(' ')
+
+              return (
+                <div key={stat.label} className={classes}>
+                  <div className="font-mono text-[11px] font-semibold uppercase tracking-widest text-text-secondary">
+                    {stat.label}
                   </div>
-                  {stat.trend && (
+                  <div className="mt-2 flex items-baseline gap-2">
                     <span
-                      className={`text-11 font-bold ${stat.trendUp ? 'text-accent-mint' : 'text-text-secondary'} flex items-center gap-1 bg-white/5 px-2 py-1 rounded-md shrink-0`}
+                      className={`text-3xl font-extrabold tabular-nums tracking-tight ${
+                        stat.label === 'Credits Remaining' ? 'text-primary' : 'text-text-primary'
+                      }`}
                     >
-                      {stat.trend}
+                      {stat.value}
                     </span>
-                  )}
+                    {stat.trend && (
+                      <span
+                        className={`text-[11px] font-bold ${
+                          stat.trendUp ? 'text-accent-mint' : 'text-text-secondary'
+                        }`}
+                      >
+                        {stat.trend}
+                      </span>
+                    )}
+                  </div>
                 </div>
-
-                <h3 className="text-3xl font-bold text-text-primary mb-1">{stat.value}</h3>
-                <p className="text-xs font-medium text-text-secondary uppercase tracking-wider">
-                  {stat.label}
-                </p>
-
-                <div
-                  className={`absolute bottom-0 left-0 w-full h-[2px] bg-accent-${stat.accent}/20 group-hover:bg-accent-${stat.accent}/40 transition-all`}
-                />
-              </div>
-            )
-          })}
+              )
+            })}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
@@ -224,14 +219,14 @@ export default function DashboardPage() {
           </div>
 
           <div className="space-y-4 md:space-y-6">
-            <div className="p-5 sm:p-8 rounded-4xl bg-accent-mint text-text-on-accent relative overflow-hidden group">
+            <div className="p-5 sm:p-8 metallic-card bg-gradient-to-br from-accent-mint/20 to-accent-mint/5 border-accent-mint/30 relative overflow-hidden group">
               <h3 className="text-xl font-bold mb-2">Revealed Leads</h3>
               <p className="text-sm opacity-80 mb-6 md:mb-8 leading-relaxed">
                 You have {readyLeadCount} high-intent lead{readyLeadCount === 1 ? '' : 's'} revealed
                 and ready to work. Save them to your pipeline or export as CSV/Excel.
               </p>
               <Link href="/leads">
-                <button className="w-full py-4 bg-text-on-accent text-accent-mint font-bold rounded-2xl flex items-center justify-center gap-2 shadow-xl transition-transform duration-150 hover:scale-[1.02] active:scale-[0.98]">
+                <button className="w-full py-4 bg-accent-mint text-text-on-accent font-bold rounded-2xl flex items-center justify-center gap-2 shadow-xl transition-transform duration-150 hover:scale-[1.02] active:scale-[0.98]">
                   Review New Leads
                   <ArrowTopRightOnSquareIcon className="w-[18px] h-[18px]" />
                 </button>

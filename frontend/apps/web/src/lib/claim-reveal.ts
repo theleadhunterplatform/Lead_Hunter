@@ -236,6 +236,76 @@ export function extractSection(text: string, heading: string): string {
   return match ? match[1].replace(/^[\\s\-*#—]+|[\\s\-*#—]+$/g, '').trim() : ''
 }
 
+export interface IntelSection {
+  label: string
+  body: string
+}
+
+/** Strip markdown decoration from an AI intel section body. */
+export function cleanIntelBody(text: string): string {
+  if (!text) return ''
+  return text
+    .replace(/\*\*([^*\n]+)\*\*/g, '$1')
+    .replace(/__([^_\n]+)__/g, '$1')
+    .replace(/\*([^*\n]+)\*/g, '$1')
+    .replace(/^\s*#{1,6}\s*/gm, '')
+    .replace(/^\s*---+\s*$/gm, '')
+    .replace(/^\s*[-*•]\s+/gm, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+/**
+ * Parse a markdown-style AI intelligence blob into ordered labeled sections.
+ * Tolerates emoji glued to heading markers (`##📋 2-Line Summary`), headings
+ * that ended up mid-line after punctuation, and `## ##` doubling.
+ */
+export function parseIntelSections(intel: string): IntelSection[] {
+  if (!intel || !intel.trim()) return []
+
+  const normalized = intel
+    .replace(/\r\n?/g, '\n')
+    // Headings glued after punctuation: "development. ##📋 2-Line Summary"
+    .replace(/([.!?:;])[ \t]*(#{1,6}[ \t]*)/g, '$1\n$2')
+    // Headings glued after plain whitespace: "development ### Requirements"
+    .replace(/[ \t]+(#{1,6}[ \t]+)/g, '\n$1')
+
+  const lines = normalized.split('\n')
+  const sections: IntelSection[] = []
+  let label: string | null = null
+  let buf: string[] = []
+
+  const flush = () => {
+    if (label !== null) {
+      const cleanLabel = label
+        .replace(/[#*`_]/g, ' ')
+        .replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{200D}]/gu, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+      const body = cleanIntelBody(buf.join('\n'))
+      // Headings are short; reject false positives like "#hiring looking for..."
+      if (cleanLabel && body && label.length <= 80) {
+        sections.push({ label: cleanLabel, body })
+      }
+    }
+    label = null
+    buf = []
+  }
+
+  for (const line of lines) {
+    const match = line.match(/^\s*#{1,6}\s*(.+?)\s*$/)
+    if (match && match[1].length <= 80) {
+      flush()
+      label = match[1]
+    } else if (label !== null) {
+      buf.push(line)
+    }
+  }
+  flush()
+
+  return sections
+}
+
 export function cleanLeadSummary(text: string): string {
   if (!text) return ''
   return sanitizePublicText(text)

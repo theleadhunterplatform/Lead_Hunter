@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { CheckIcon, ArrowRightIcon } from '@heroicons/react/24/solid'
+import { ArrowRightIcon } from '@heroicons/react/24/solid'
 import { Card } from '@/components/ui/Card'
 
 const springTransition = { type: 'spring', stiffness: 320, damping: 32 } as const
@@ -112,76 +112,23 @@ function FreshLeadsInteractiveVisual() {
   )
 }
 
-// ─── Visual 2: Lead Intelligence with Revealed Contacts (Parley Plan Style) ─────
-function LeadIntelligenceInteractiveVisual() {
-  const [revealed, setRevealed] = useState(true)
-  const [checklist, setChecklist] = useState([
-    { label: 'Budget Verified: $8,000+ confirmed via funding signal', done: true },
-    { label: 'Decision Maker Identified: Alex K. (Head of Growth)', done: true },
-    { label: 'Verified Direct Email & Mobile: a.k***@vanguard.io', done: true },
-    { label: 'Pain Point: Scaling CAC on Meta/TikTok in Q4', done: true },
-    { label: 'Outreach Angle Generated & Saved to Pipeline', done: true },
-  ])
-
-  const toggleCheck = (index: number) => {
-    setChecklist((prev) =>
-      prev.map((item, idx) => (idx === index ? { ...item, done: !item.done } : item))
-    )
-  }
-
+// ─── Visual 2: Lead Intelligence — product walkthrough video ─────────────────
+function LeadIntelligenceVideoVisual() {
   return (
-    <div className="w-full h-full p-4 sm:p-5 flex flex-col justify-between bg-[#0B0D14] rounded-xl border border-white/[0.08] shadow-inner relative overflow-hidden">
-      {/* Floating Card inside (Parley Checklist Homage with LHC Content) */}
-      <div className="max-w-md w-full mx-auto p-4 rounded-xl bg-gradient-to-b from-[#141724] to-[#0E1018] border border-white/10 shadow-[0_12px_36px_rgba(0,0,0,0.7)] my-auto">
-        {/* Top Profile Header */}
-        <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-white/[0.08]">
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-full bg-accent-orange/15 border border-accent-orange/30 flex items-center justify-center text-accent-orange font-bold text-xs">
-              AK
-            </div>
-            <div>
-              <div className="text-xs font-bold text-text-primary leading-none">Alex K.</div>
-              <div className="text-[10px] text-text-secondary/70 mt-0.5">Vanguard DTC • Shopify Plus</div>
-            </div>
-          </div>
-          <span className="text-[9px] font-mono text-accent-orange/90 bg-accent-orange/10 px-2 py-0.5 rounded-full border border-accent-orange/20 font-bold">
-            INTEL REVEALED
-          </span>
-        </div>
-
-        {/* Action / Intel Checklist */}
-        <div className="space-y-1.5">
-          {checklist.map((item, idx) => (
-            <div
-              key={idx}
-              onClick={() => toggleCheck(idx)}
-              className="flex items-center gap-2.5 cursor-pointer group py-0.5 select-none"
-            >
-              <div
-                className={`w-4 h-4 rounded flex items-center justify-center transition-all ${
-                  item.done
-                    ? 'bg-accent-orange text-black font-bold shadow-[0_0_8px_rgba(255,107,0,0.4)]'
-                    : 'border border-white/25 group-hover:border-white/50 bg-white/5'
-                }`}
-              >
-                {item.done && <CheckIcon className="w-3 h-3 stroke-[3]" />}
-              </div>
-              <span
-                className={`text-xs transition-colors truncate ${
-                  item.done
-                    ? 'text-text-primary font-medium'
-                    : 'text-text-secondary/60 group-hover:text-text-secondary'
-                }`}
-              >
-                {item.label}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Bottom status */}
-      <div className="flex items-center justify-between text-[10px] font-mono text-text-secondary/60 pt-2 border-t border-white/[0.06]">
+    <div className="w-full h-full rounded-xl border border-white/[0.08] shadow-inner relative overflow-hidden bg-black">
+      <video
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="metadata"
+        poster="/videos/lead-intelligence-poster.jpg"
+        className="block w-full h-full object-cover bg-black"
+      >
+        <source src="/videos/lead-intelligence-card.mp4" type="video/mp4" />
+      </video>
+      {/* Bottom status bar (matches Visual 1 & 3 treatment) */}
+      <div className="absolute bottom-0 inset-x-0 flex items-center justify-between px-3 py-1.5 bg-gradient-to-t from-black/80 to-transparent text-[10px] font-mono text-text-secondary/60 pointer-events-none">
         <span>VERIFIED ENRICHMENT</span>
         <span className="text-accent-mint font-medium">100% DELIVERABLE</span>
       </div>
@@ -332,13 +279,13 @@ export default function FeaturesSection() {
       case 0:
         return <FreshLeadsInteractiveVisual />
       case 1:
-        return <LeadIntelligenceInteractiveVisual />
+        return <LeadIntelligenceVideoVisual />
       case 2:
         return <TrackEveryTouchVideoVisual />
       case 3:
         return <CreditEconomicsInteractiveVisual />
       default:
-        return <LeadIntelligenceInteractiveVisual />
+        return <LeadIntelligenceVideoVisual />
     }
   }
 

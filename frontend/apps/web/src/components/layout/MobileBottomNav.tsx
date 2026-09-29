@@ -26,24 +26,52 @@ const tabs = [
 
 const planLimits: Record<string, number> = { FREE: 50, FREELANCER: 1000, AGENCY: 1000 }
 
-export function MobileBottomNav() {
-  const pathname = usePathname()
+interface MobileBottomNavProps {
+  /** Renders inline inside a demo frame (no fixed positioning, no real navigation) */
+  isDemo?: boolean
+  activePathOverride?: string
+  onNavigate?: (href: string) => void
+  /** Demo-mode credit balance override (avoids reading auth state) */
+  demoCredits?: number
+  /** Demo-mode plan credit cap override */
+  demoPlanMax?: number
+}
+
+export function MobileBottomNav({
+  isDemo = false,
+  activePathOverride,
+  onNavigate,
+  demoCredits,
+  demoPlanMax,
+}: MobileBottomNavProps = {}) {
+  const routerPathname = usePathname()
+  const pathname = activePathOverride || routerPathname
   const { user, logout } = useAuth()
   const [moreOpen, setMoreOpen] = useState(false)
+
+  const handleNavClick = (e: React.MouseEvent, href: string) => {
+    if (isDemo) {
+      e.preventDefault()
+      onNavigate?.(href)
+    }
+  }
 
   useEffect(() => {
     setMoreOpen(false)
   }, [pathname])
 
   useEffect(() => {
+    // Demo mode lives inside the hero frame — never lock the landing page scroll.
+    if (isDemo) return
     document.body.style.overflow = moreOpen ? 'hidden' : ''
     return () => {
       document.body.style.overflow = ''
     }
-  }, [moreOpen])
+  }, [moreOpen, isDemo])
 
-  const creditTotal = user?.creditAccount?.total ?? 0
-  const planMax = planLimits[user?.plan ?? 'FREE'] ?? 50
+  const creditTotal = isDemo && demoCredits !== undefined ? demoCredits : user?.creditAccount?.total ?? 0
+  const planMax =
+    isDemo && demoPlanMax !== undefined ? demoPlanMax : planLimits[user?.plan ?? 'FREE'] ?? 50
 
   const isMoreActive =
     pathname.startsWith('/referrals') ||
@@ -54,7 +82,9 @@ export function MobileBottomNav() {
     <>
       <nav
         aria-label="Primary"
-        className="fixed bottom-0 inset-x-0 z-40 md:hidden bg-surface/90 backdrop-blur-xl border-t border-white/[0.06]"
+        className={`${
+          isDemo ? 'relative z-40 bottom-auto inset-x-auto' : 'fixed bottom-0 inset-x-0 z-40'
+        } md:hidden bg-surface/90 backdrop-blur-xl border-t border-white/[0.06]`}
       >
         <div className="flex items-stretch h-16 safe-area-bottom">
           {tabs.map((tab) => {
@@ -66,6 +96,7 @@ export function MobileBottomNav() {
                 href={tab.href}
                 aria-label={tab.name}
                 aria-current={isActive ? 'page' : undefined}
+                onClick={(e) => handleNavClick(e, tab.href)}
                 className={`flex-1 flex flex-col items-center justify-center gap-1 min-h-[56px] transition-colors active:scale-95 ${
                   isActive ? 'text-accent-orange' : 'text-text-secondary'
                 }`}
@@ -107,7 +138,9 @@ export function MobileBottomNav() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-50 md:hidden"
+            className={`${
+              isDemo ? 'absolute inset-0 z-50' : 'fixed inset-0 z-50'
+            } md:hidden`}
             role="dialog"
             aria-modal="true"
             aria-label="More options"
@@ -140,6 +173,7 @@ export function MobileBottomNav() {
                 <Link
                   key={item.href}
                   href={item.href}
+                  onClick={(e) => handleNavClick(e, item.href)}
                   className="w-full flex items-center gap-3 px-2 py-3.5 rounded-2xl text-text-primary hover:bg-white/5 transition-colors min-h-[56px]"
                 >
                   <item.icon className="w-5 h-5 text-text-secondary" />
@@ -148,7 +182,12 @@ export function MobileBottomNav() {
               ))}
               <button
                 type="button"
-                onClick={() => {
+                onClick={(e) => {
+                  if (isDemo) {
+                    e.preventDefault()
+                    setMoreOpen(false)
+                    return
+                  }
                   setMoreOpen(false)
                   logout()
                 }}

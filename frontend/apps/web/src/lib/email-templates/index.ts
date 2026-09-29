@@ -194,6 +194,22 @@ export interface NewsletterData {
   unsubscribeUrl: string
 }
 
+export interface PlanChangeData {
+  name: string
+  newPlan: string
+  credits: number
+  actionType: 'upgrade' | 'downgrade' | 'change'
+  oldPlan?: string
+  appUrl: string
+}
+
+export interface CreditTopupData {
+  name: string
+  creditsAdded: number
+  newTotalBalance?: number
+  appUrl: string
+}
+
 export interface BroadcastData {
   name?: string
   subject: string
@@ -517,4 +533,86 @@ export function renderBroadcastAnnouncement(data: BroadcastData) {
     </table>
   `)
   return { subject, text, html }
+}
+
+// 12. Plan Upgrade / Downgrade Notification
+export async function renderPlanChange(data: PlanChangeData) {
+  const isUpgrade = data.actionType === 'upgrade'
+  const isDowngrade = data.actionType === 'downgrade'
+
+  const fallbackSubject = isUpgrade
+    ? `Your Lead Hunter plan has been upgraded to {{newPlan}}!`
+    : isDowngrade
+    ? `Your Lead Hunter plan has been changed to {{newPlan}}`
+    : `Your Lead Hunter plan is now {{newPlan}}`
+
+  const fallbackBody = isUpgrade
+    ? `Hi {{name}},
+
+Congratulations! Your account has been upgraded to the {{newPlan}} plan.
+
+Your monthly credit allowance is now {{credits}} credits. Fresh high-intent client opportunities are ready for you to unlock and convert.
+
+• View your new leads: {{appUrl}}/leads
+• Manage subscription & billing: {{appUrl}}/settings
+
+Happy hunting,
+The Lead Hunter Club Team`
+    : `Hi {{name}},
+
+This email confirms that your Lead Hunter subscription has been changed to the {{newPlan}} plan.
+
+Your monthly credit allowance is now {{credits}} credits. Any eligible unused credits will roll over according to your plan rules.
+
+• Go to dashboard: {{appUrl}}/dashboard
+• Manage subscription: {{appUrl}}/settings
+
+Best,
+The Lead Hunter Club Team`
+
+  return resolveDynamicTemplate({
+    templateId: isUpgrade ? 'tpl-auto-plan-upgrade' : 'tpl-auto-plan-change',
+    fallbackSubject,
+    fallbackBody,
+    variables: {
+      name: data.name || 'Hunter',
+      newPlan: data.newPlan,
+      oldPlan: data.oldPlan || 'previous plan',
+      credits: data.credits,
+      appUrl: data.appUrl,
+    },
+    cta: {
+      text: isUpgrade ? 'Explore New Leads' : 'Open Dashboard',
+      url: isUpgrade ? `${data.appUrl}/leads` : `${data.appUrl}/dashboard`,
+    },
+  })
+}
+
+// 13. Credit Top-up Notification
+export async function renderCreditTopup(data: CreditTopupData) {
+  return resolveDynamicTemplate({
+    templateId: 'tpl-auto-credit-topup',
+    fallbackSubject: `Credits added: {{creditsAdded}} credits topped up to your account!`,
+    fallbackBody: `Hi {{name}},
+
+Your top-up of {{creditsAdded}} credit(s) has been successfully applied to your account.
+
+These credits are immediately available to unlock and claim verified client opportunities.
+
+• Explore & claim leads: {{appUrl}}/leads
+• View credit history & balances: {{appUrl}}/dashboard
+
+Happy hunting,
+The Lead Hunter Club Team`,
+    variables: {
+      name: data.name || 'Hunter',
+      creditsAdded: data.creditsAdded,
+      newTotalBalance: data.newTotalBalance !== undefined ? data.newTotalBalance : '',
+      appUrl: data.appUrl,
+    },
+    cta: {
+      text: 'Claim New Leads',
+      url: `${data.appUrl}/leads`,
+    },
+  })
 }

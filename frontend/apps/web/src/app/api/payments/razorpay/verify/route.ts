@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireActiveUser, ForbiddenError, AuthRequiredError } from '@/lib/auth'
 import { creditService } from '@/lib/services/credits'
+import { emailService } from '@/lib/services/email'
 import { DEFAULT_RAZORPAY_KEY_SECRET } from '@/lib/razorpay'
 
 export const dynamic = 'force-dynamic'
@@ -170,10 +171,25 @@ export async function POST(request: NextRequest) {
 
     let resultData: any = {}
 
+    // Fetch user profile for email notifications
+    const userProfile = await db.user.findUnique({
+      where: { id: authUser.uid },
+      select: { name: true, email: true, plan: true },
+    })
+
     // 4. Credit Tokens or Assign Plan
     if (typeof tokensToCredit === 'number' && tokensToCredit > 0) {
       await creditService.grantBonus(authUser.uid, tokensToCredit, 'razorpay_topup')
       resultData = { added: tokensToCredit, pack: packId }
+
+      if (userProfile?.email) {
+        emailService
+          .sendCreditTopup(
+            { name: userProfile.name || '', email: userProfile.email },
+            tokensToCredit,
+          )
+          .catch((err) => console.warn('[Razorpay Verify] Topup email failed:', err))
+      }
     } else if (planId && !String(planId).startsWith('topup_')) {
       const normalizedPlan = String(planId).toUpperCase()
       const appPlan =
@@ -183,11 +199,47 @@ export async function POST(request: NextRequest) {
           ? 'AGENCY'
           : normalizedPlan
 
-      await creditService.assignPlan(authUser.uid, appPlan)
+      const oldPlan = userProfile?.plan || 'FREE'
+      const assigned = await creditService.assignPlan(authUser.uid, appPlan)
       resultData = { plan: appPlan }
+
+      if (userProfile?.email) {
+        const planWeights: Record<string, number> = {
+          FREE: 0,
+          FREELANCER: 1,
+          PAID: 1,
+          AGENCY: 2,
+          ENTERPRISE: 2,
+        }
+        const actionType =
+          (planWeights[appPlan] ?? 1) > (planWeights[oldPlan] ?? 0)
+            ? 'upgrade'
+            : (planWeights[appPlan] ?? 1) < (planWeights[oldPlan] ?? 0)
+            ? 'downgrade'
+            : 'change'
+
+        emailService
+          .sendPlanChange(
+            { name: userProfile.name || '', email: userProfile.email },
+            appPlan,
+            assigned.subscriptionBalance,
+            actionType,
+            oldPlan,
+          )
+          .catch((err) => console.warn('[Razorpay Verify] Plan change email failed:', err))
+      }
     } else if (body.added && typeof body.added === 'number') {
       await creditService.grantBonus(authUser.uid, body.added, 'razorpay_topup')
       resultData = { added: body.added }
+
+      if (userProfile?.email) {
+        emailService
+          .sendCreditTopup(
+            { name: userProfile.name || '', email: userProfile.email },
+            body.added,
+          )
+          .catch((err) => console.warn('[Razorpay Verify] Topup email failed:', err))
+      }
     }
 
     // 5. Record in Audit Log for permanent verification and replay prevention

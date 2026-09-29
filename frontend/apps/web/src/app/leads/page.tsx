@@ -23,8 +23,7 @@ import { Select } from '@/components/ui'
 import { getFirebaseToken } from '@/lib/firebase'
 import { useAuth } from '@/hooks/useAuth'
 
-const primaryNiches = [
-  'All',
+const CANDIDATE_NICHES = [
   'Development',
   'Marketing',
   'Design',
@@ -34,6 +33,8 @@ const primaryNiches = [
   'SEO',
   'Sales & RevOps',
   'Copywriting',
+  'Video Production & Editing',
+  'Mobile Development',
 ]
 
 type SortOption = 'newest' | 'replyProbability' | 'urgency'
@@ -108,12 +109,17 @@ function matchNicheFilter(lead: AppLead, activeNiche: string): boolean {
       return (
         leadNiche === 'web design' ||
         allNiches.includes('web design') ||
-        (
-          (leadNiche.includes('design') || allNiches.includes('design')) &&
-          (tags.some((t) => ['web design', 'landing page', 'redesign', 'website design'].includes(t)) ||
-           lead.title.toLowerCase().includes('web design') ||
-           lead.title.toLowerCase().includes('website design'))
-        )
+        lead.title.toLowerCase().includes('web design') ||
+        lead.title.toLowerCase().includes('website design') ||
+        lead.title.toLowerCase().includes('web designer') ||
+        tags.some((t) =>
+          [
+            'web design', 'website design', 'landing page', 'redesign', 'ui/ux',
+            'figma', 'webflow', 'modern web design',
+          ].includes(t.toLowerCase()),
+        ) ||
+        (leadNiche.includes('design') &&
+          tags.some((t) => ['website', 'web', 'ui/ux', 'figma'].includes(t.toLowerCase())))
       )
 
     case 'mobile development':
@@ -202,17 +208,20 @@ function matchNicheFilter(lead: AppLead, activeNiche: string): boolean {
     case 'consulting & strategy':
       return (
         ((leadNiche.includes('sales') ||
-          leadNiche.includes('consulting') ||
-          leadNiche.includes('strategy') ||
-          leadNiche.includes('lead gen')) &&
+          leadNiche.includes('lead gen') ||
+          ((leadNiche.includes('consulting') || leadNiche.includes('strategy')) &&
+            !lead.title.toLowerCase().includes('app develop') &&
+            !lead.title.toLowerCase().includes('web develop') &&
+            !tags.some((t) => ['react native', 'flutter', 'ios', 'android', 'javascript', 'html', 'css', 'php', 'laravel'].includes(t.toLowerCase())))) &&
           !leadNiche.includes('web develop')) ||
         allNiches.some(
           (n) =>
             n === 'sales & revops' ||
             n === 'sales' ||
             n === 'lead gen' ||
-            n.includes('consulting') ||
-            n.includes('strategy'),
+            (n.includes('consulting') &&
+              !lead.title.toLowerCase().includes('app develop') &&
+              !lead.title.toLowerCase().includes('web develop')),
         ) ||
         (
           !leadNiche.includes('web develop') &&
@@ -436,6 +445,37 @@ export default function LeadsPage() {
     new Set(leadsList.flatMap((l) => l.nicheTags)),
   )
 
+  // Dynamically compute available niches based on leads actually present in the DB
+  const availableNiches = useMemo(() => {
+    if (!leadsList.length) return ['All']
+
+    const customNiches = new Set<string>()
+    for (const lead of leadsList) {
+      if (lead.category && lead.category !== 'General' && lead.category !== 'All') {
+        customNiches.add(lead.category)
+      }
+      for (const n of lead.niches || []) {
+        if (n && n !== 'General' && n !== 'All') {
+          customNiches.add(n)
+        }
+      }
+    }
+
+    const allCandidates = Array.from(new Set([...CANDIDATE_NICHES, ...customNiches]))
+    const activeFilters = allCandidates.filter((niche) =>
+      leadsList.some((lead) => matchNicheFilter(lead, niche)),
+    )
+
+    return ['All', ...activeFilters]
+  }, [leadsList])
+
+  // Reset activeNiche to 'All' if the active filter no longer has any leads in the DB
+  useEffect(() => {
+    if (activeNiche !== 'All' && availableNiches.length > 0 && !availableNiches.includes(activeNiche)) {
+      setActiveNiche('All')
+    }
+  }, [availableNiches, activeNiche])
+
   const filteredLeads = useMemo(() => {
     let result = leadsList.filter((lead) => {
       if (!matchNicheFilter(lead, activeNiche)) return false
@@ -649,7 +689,7 @@ export default function LeadsPage() {
           className="flex items-center gap-2 overflow-x-auto pb-4 mb-4 -mx-4 px-4 md:-mx-0 md:px-0 scrollbar-hide [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
-          {primaryNiches.map((niche) => {
+          {availableNiches.map((niche) => {
             const isActive = activeNiche === niche
             return (
               <button

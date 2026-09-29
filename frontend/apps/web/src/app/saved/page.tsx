@@ -27,6 +27,7 @@ import { AppLead } from '@/types/lead'
 import { Badge, Button, CustomLoader } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
 import { getFirebaseToken } from '@/lib/firebase'
+import { buildLeadIntelText } from '@/lib/intel'
 import { toCsv, toTsv, downloadXlsx, leadsToRows } from '@/lib/csv'
 
 export default function SavedLeadsPage() {
@@ -318,33 +319,11 @@ export default function SavedLeadsPage() {
       addToast({ type: 'info', message: 'Unlock the lead to copy lead intel' })
       return
     }
-    const revealed = Boolean(lead.isRevealed)
-    const emailVisible = revealed && !!lead.email && !lead.email.includes('hidden')
-    const phoneVisible = revealed && !!lead.phone
-    const displayName =
-      revealed && lead.name ? lead.name : lead.title || lead.category || 'Saved Lead'
-
-    const role = Array.from(
-      new Set([lead.role, lead.title].filter(Boolean) as string[]),
-    ).join(' · ')
-
-    const lines: string[] = [`Lead: ${displayName}`]
-    if (role) lines.push(`Role: ${role}`)
-    if (lead.company) lines.push(`Company: ${lead.company}`)
-    lines.push(`Email: ${emailVisible ? lead.email : 'Locked — reveal to view'}`)
-    if (phoneVisible) lines.push(`Phone: ${lead.phone}`)
-    else if (lead.hasPhone) lines.push('Phone: Locked — reveal to view')
-    if (lead.source) lines.push(`Source: ${lead.source}`)
-    if (lead.category) lines.push(`Category: ${lead.category}`)
-    lines.push(`Urgency: ${lead.urgency}`)
-    lines.push(`Status: ${lead.status}`)
-    if (lead.replyProbability > 0) lines.push(`Reply probability: ${lead.replyProbability}%`)
-    if (lead.signalContext) lines.push(`Signal: ${lead.signalContext}`)
-    if (lead.nicheTags?.length) lines.push(`Niches: ${lead.nicheTags.join(', ')}`)
-
     try {
-      await navigator.clipboard.writeText(lines.join('\n'))
-      addToast({ type: 'success', message: `✓ Copied info for ${displayName}` })
+      // Same builder the lead feed drawer uses, so the copied intel matches
+      // the Deep Intel shown on the lead feed cards exactly.
+      await navigator.clipboard.writeText(buildLeadIntelText(lead))
+      addToast({ type: 'success', message: '✓ Lead intel copied to clipboard' })
     } catch {
       addToast({ type: 'error', message: 'Clipboard access blocked' })
     }

@@ -13,6 +13,8 @@ import {
   renderLowCreditsNudge,
   renderRenewalReminder,
   renderBroadcastAnnouncement,
+  renderPlanChange,
+  renderCreditTopup,
 } from '@/lib/email-templates'
 
 interface SendOptions {
@@ -198,7 +200,12 @@ async function send(
 }
 
 export async function isEmailAutomationEnabled(
-  subKey?: 'renewal_reminders_enabled' | 'low_credits_nudge_enabled' | 'onboarding_emails_enabled',
+  subKey?:
+    | 'renewal_reminders_enabled'
+    | 'low_credits_nudge_enabled'
+    | 'onboarding_emails_enabled'
+    | 'plan_change_emails_enabled'
+    | 'topup_emails_enabled',
 ): Promise<boolean> {
   try {
     const setting = await db.setting.findUnique({
@@ -301,6 +308,48 @@ export const emailService = {
       appUrl: APP_URL,
     })
     return send('renewal_reminder', user.email, subject, text, { html })
+  },
+
+  // Flow 5: Plan Upgrade / Downgrade Notification
+  async sendPlanChange(
+    user: { name?: string; email: string },
+    newPlan: string,
+    credits: number,
+    actionType: 'upgrade' | 'downgrade' | 'change' = 'change',
+    oldPlan?: string,
+  ) {
+    if (!(await isEmailAutomationEnabled('plan_change_emails_enabled'))) {
+      await logEmail('plan_change', user.email, `Plan changed to ${newPlan}`, 'SKIPPED', 'Email automation disabled by admin.')
+      return { id: 'skipped', success: true, provider: 'mock' }
+    }
+    const { subject, text, html } = await renderPlanChange({
+      name: user.name || 'Hunter',
+      newPlan,
+      credits,
+      actionType,
+      oldPlan,
+      appUrl: APP_URL,
+    })
+    return send('plan_change', user.email, subject, text, { html })
+  },
+
+  // Flow 6: Credit Top-up Notification
+  async sendCreditTopup(
+    user: { name?: string; email: string },
+    creditsAdded: number,
+    newTotalBalance?: number,
+  ) {
+    if (!(await isEmailAutomationEnabled('topup_emails_enabled'))) {
+      await logEmail('credit_topup', user.email, `Top-up: ${creditsAdded} credits added`, 'SKIPPED', 'Email automation disabled by admin.')
+      return { id: 'skipped', success: true, provider: 'mock' }
+    }
+    const { subject, text, html } = await renderCreditTopup({
+      name: user.name || 'Hunter',
+      creditsAdded,
+      newTotalBalance,
+      appUrl: APP_URL,
+    })
+    return send('credit_topup', user.email, subject, text, { html })
   },
 
   async sendTicketReply(user: {

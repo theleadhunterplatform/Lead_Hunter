@@ -98,3 +98,51 @@ export function buildPasswordResetEmail(resetUrl: string) {
         `,
     };
 }
+
+export function buildPlanChangeEmail(
+    name: string,
+    planName: string,
+    actionType: 'upgrade' | 'downgrade' | 'change',
+    tokens: number,
+    appUrl: string = 'https://leadhunterclub.com'
+) {
+    const isUpgrade = actionType === 'upgrade';
+    const isDowngrade = actionType === 'downgrade';
+
+    const subject = isUpgrade
+        ? `Your Lead Hunter plan has been upgraded to ${planName}!`
+        : isDowngrade
+        ? `Your Lead Hunter plan has been changed to ${planName}`
+        : `Your Lead Hunter plan is now ${planName}`;
+
+    return {
+        subject,
+        html: `
+            <p>Hi ${name || 'there'},</p>
+            <p>${
+                isUpgrade
+                    ? `Congratulations! Your account has been upgraded to the <strong>${planName}</strong> plan.`
+                    : `This email confirms that your subscription has been changed to the <strong>${planName}</strong> plan.`
+            }</p>
+            <p>Your credit allowance is now <strong>${tokens}</strong> credits.</p>
+            <p><a href="${appUrl}/leads">Click here to explore and claim new leads</a></p>
+        `,
+    };
+}
+
+export function buildTopupEmail(
+    name: string,
+    tokensAdded: number,
+    totalTokens?: number,
+    appUrl: string = 'https://leadhunterclub.com'
+) {
+    return {
+        subject: `Credits added: ${tokensAdded} credits topped up to your account!`,
+        html: `
+            <p>Hi ${name || 'there'},</p>
+            <p>Your top-up of <strong>${tokensAdded}</strong> credit(s) has been successfully applied to your account.</p>
+            ${totalTokens !== undefined ? `<p>Your new credit balance is: <strong>${totalTokens}</strong> credits.</p>` : ''}
+            <p><a href="${appUrl}/leads">Claim new leads now</a></p>
+        `,
+    };
+}

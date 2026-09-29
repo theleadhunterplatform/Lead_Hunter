@@ -5,6 +5,12 @@ import config from '../config';
 import ErrorResponse from '../utils/error-response.utils';
 import { isPlanId, getPlanDefinition, PlanId } from '../utils/plan.utils';
 import { setUserPlan } from './plan.service';
+import {
+    sendEmail,
+    buildPlanChangeEmail,
+    buildTopupEmail,
+    isEmailConfigured,
+} from '../utils/email.service';
 
 const RAZORPAY_API = 'https://api.razorpay.com/v1';
 
@@ -225,6 +231,23 @@ export async function verifyRazorpayPayment(
         actorId: userId,
     });
 
+    if (isEmailConfigured()) {
+        prisma.user
+            .findUnique({ where: { id: userId } })
+            .then((user) => {
+                if (user?.email) {
+                    const { subject, html } = buildPlanChangeEmail(
+                        user.name || '',
+                        upgraded.plan_name,
+                        'upgrade',
+                        upgraded.tokens
+                    );
+                    return sendEmail({ to: user.email, subject, html });
+                }
+            })
+            .catch((err) => console.warn('[Payment Service] Upgrade email failed:', err.message));
+    }
+
     return {
         already_processed: false,
         plan: upgraded.plan,
@@ -430,6 +453,22 @@ export async function verifyTopupPayment(
         where: { id: userId },
         data: { tokens: { increment: tokens } },
     });
+
+    if (isEmailConfigured()) {
+        prisma.user
+            .findUnique({ where: { id: userId } })
+            .then((user) => {
+                if (user?.email) {
+                    const { subject, html } = buildTopupEmail(
+                        user.name || '',
+                        tokens,
+                        updated.tokens
+                    );
+                    return sendEmail({ to: user.email, subject, html });
+                }
+            })
+            .catch((err) => console.warn('[Payment Service] Topup email failed:', err.message));
+    }
 
     return { already_processed: false, tokens: updated.tokens, added: tokens, message: `${tokens} tokens added.` };
 }

@@ -9,6 +9,8 @@ export const DEFAULT_EMAIL_AUTOMATION_CONFIG = {
   renewal_reminders_enabled: true,
   low_credits_nudge_enabled: true,
   onboarding_emails_enabled: true,
+  plan_change_emails_enabled: true,
+  topup_emails_enabled: true,
 }
 
 export type EmailAutomationConfig = typeof DEFAULT_EMAIL_AUTOMATION_CONFIG
@@ -140,6 +142,8 @@ export async function POST(request: NextRequest) {
         ...(typeof body.renewal_reminders_enabled === 'boolean' ? { renewal_reminders_enabled: body.renewal_reminders_enabled } : {}),
         ...(typeof body.low_credits_nudge_enabled === 'boolean' ? { low_credits_nudge_enabled: body.low_credits_nudge_enabled } : {}),
         ...(typeof body.onboarding_emails_enabled === 'boolean' ? { onboarding_emails_enabled: body.onboarding_emails_enabled } : {}),
+        ...(typeof body.plan_change_emails_enabled === 'boolean' ? { plan_change_emails_enabled: body.plan_change_emails_enabled } : {}),
+        ...(typeof body.topup_emails_enabled === 'boolean' ? { topup_emails_enabled: body.topup_emails_enabled } : {}),
       }
     }
 

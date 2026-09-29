@@ -296,6 +296,15 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
       await creditService.grantBonus(targetUserId, amount, 'admin_grant_bonus', authUser.uid)
 
+      if (user.email && amount > 0) {
+        emailService
+          .sendCreditTopup(
+            { name: user.name || '', email: user.email },
+            amount,
+          )
+          .catch((err) => console.warn('[Admin User] Topup email failed:', err))
+      }
+
       const updatedAccount = await db.creditAccount.findUnique({
         where: { userId: targetUserId },
         select: {
@@ -352,12 +361,39 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         )
       }
 
+      const previousPlan = user.plan || 'FREE'
       const customRenewalDate = body.renewalDate ? new Date(body.renewalDate) : undefined
       const result = await creditService.assignPlan(targetUserId, body.changePlan, {
         customRenewalDate,
         customCredits: body.subscriptionCredits,
         adminId: authUser.uid,
       })
+
+      if (user.email && body.changePlan !== previousPlan) {
+        const planWeights: Record<string, number> = {
+          FREE: 0,
+          FREELANCER: 1,
+          PAID: 1,
+          AGENCY: 2,
+          ENTERPRISE: 2,
+        }
+        const actionType =
+          (planWeights[body.changePlan] ?? 1) > (planWeights[previousPlan] ?? 0)
+            ? 'upgrade'
+            : (planWeights[body.changePlan] ?? 1) < (planWeights[previousPlan] ?? 0)
+            ? 'downgrade'
+            : 'change'
+
+        emailService
+          .sendPlanChange(
+            { name: user.name || '', email: user.email },
+            body.changePlan,
+            result.subscriptionBalance,
+            actionType,
+            previousPlan,
+          )
+          .catch((err) => console.warn('[Admin User] Plan change email failed:', err))
+      }
 
       return NextResponse.json({
         data: {

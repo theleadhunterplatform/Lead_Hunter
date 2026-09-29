@@ -37,6 +37,11 @@ interface AppSidebarProps {
   isDemo?: boolean
   isSneakPeek?: boolean
   onNavItemClick?: (href: string) => void
+  /** Demo-only credit values (no auth/API needed) — used by hero preview */
+  demoCredits?: number
+  demoPlanMax?: number
+  /** Demo-only: routes to hide from the nav list (e.g. hero hides /pricing) */
+  hiddenPaths?: string[]
 }
 
 export default function AppSidebar({
@@ -44,6 +49,9 @@ export default function AppSidebar({
   isDemo = false,
   isSneakPeek = false,
   onNavItemClick,
+  demoCredits,
+  demoPlanMax,
+  hiddenPaths,
 }: AppSidebarProps = {}) {
   const [isCollapsed, setIsCollapsed] = useState(false)
 
@@ -59,9 +67,20 @@ export default function AppSidebar({
   const router = useRouter()
 
   const planLimits: Record<string, number> = { FREE: 50, FREELANCER: 1000, AGENCY: 1000 }
-  const planMax = planLimits[user?.plan ?? 'FREE'] ?? 50
-  const creditTotal = user?.creditAccount?.total ?? 0
+  const planMax =
+    isDemo && demoPlanMax !== undefined ? demoPlanMax : planLimits[user?.plan ?? 'FREE'] ?? 50
+  const creditTotal =
+    isDemo && demoCredits !== undefined ? demoCredits : user?.creditAccount?.total ?? 0
   const creditPercentage = Math.min(100, (creditTotal / planMax) * 100)
+
+  const isHidden = (href: string) => !!hiddenPaths && hiddenPaths.includes(href)
+  // In demo, hidden routes (e.g. /pricing when the hero removes the Pricing section) are inert.
+  const handleDemoNav = (href: string) => {
+    if (!isHidden(href)) onNavItemClick?.(href)
+  }
+  const visibleNavItems = hiddenPaths?.length
+    ? navItems.filter((item) => !isHidden(item.href))
+    : navItems
 
   return (
     <aside
@@ -128,7 +147,7 @@ export default function AppSidebar({
           isCollapsed ? 'px-2' : 'px-3'
         }`}
       >
-        {navItems.map((item) => {
+        {visibleNavItems.map((item) => {
           const isActive =
             pathname === item.href ||
             (item.href !== '/' && pathname.startsWith(item.href + '/')) ||
@@ -144,7 +163,7 @@ export default function AppSidebar({
                 if (isDemo || isBlurred) {
                   e.preventDefault()
                   if (isDemo && onNavItemClick) {
-                    onNavItemClick(item.href)
+                    handleDemoNav(item.href)
                   }
                 }
               }}
@@ -215,20 +234,46 @@ export default function AppSidebar({
               </div>
             ) : null}
 
-            <Link
-              href="/pricing?tab=refills"
-              className="min-h-[24px] text-9 font-bold text-accent-orange uppercase tracking-super hover:opacity-80 transition-opacity block pt-0.5"
-            >
-              Refill Pipeline →
-            </Link>
+            {isHidden('/pricing') ? (
+              <span className="min-h-[24px] text-9 font-bold text-accent-orange uppercase tracking-super block pt-0.5 opacity-60">
+                Refill Pipeline →
+              </span>
+            ) : (
+              <Link
+                href="/pricing?tab=refills"
+                onClick={(e) => {
+                  if (isDemo) {
+                    e.preventDefault()
+                    handleDemoNav('/pricing')
+                  }
+                }}
+                className="min-h-[24px] text-9 font-bold text-accent-orange uppercase tracking-super hover:opacity-80 transition-opacity block pt-0.5"
+              >
+                Refill Pipeline →
+              </Link>
+            )}
           </div>
         </div>
       ) : (
         <div className="px-2 mb-3 shrink-0 flex justify-center group/credit relative">
-          <Link
-            href="/pricing"
-            title={`Credits: ${creditTotal} / ${planMax} · Click to view plans & refill`}
-            className="w-10 h-10 rounded-xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center relative cursor-pointer hover:border-accent-orange/30 hover:bg-white/[0.06] transition-all duration-300"
+            <Link
+              href="/pricing"
+              title={
+                isHidden('/pricing')
+                  ? `Credits: ${creditTotal} / ${planMax}`
+                  : `Credits: ${creditTotal} / ${planMax} · Click to view plans & refill`
+              }
+              onClick={(e) => {
+                if (isDemo) {
+                  e.preventDefault()
+                  handleDemoNav('/pricing')
+                }
+              }}
+            className={`w-10 h-10 rounded-xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center relative ${
+              isHidden('/pricing')
+                ? 'cursor-default'
+                : 'cursor-pointer hover:border-accent-orange/30 hover:bg-white/[0.06] transition-all duration-300'
+              }`}
           >
             {/* Dynamic Radial Progress SVG */}
             <svg className="w-8 h-8 -rotate-90 transform" viewBox="0 0 36 36">
@@ -330,7 +375,7 @@ export default function AppSidebar({
           className={`w-full relative ${isSneakPeek ? 'opacity-40 blur-[2px] cursor-not-allowed select-none' : ''}`}
           title={isCollapsed ? 'Sign Out' : undefined}
           onClick={(e) => {
-            if (isSneakPeek) {
+            if (isDemo || isSneakPeek) {
               e.preventDefault()
               return
             }
