@@ -761,7 +761,7 @@ export default function HeroSection() {
       {/* ─── Social Proof Strip ─── */}
       <div className="mb-8 flex flex-col items-center justify-center gap-2 text-center">
         <span className="text-xs font-mono font-medium text-text-secondary/70 uppercase tracking-widest">
-          Trusted by 500+ freelancers, contractors & growth agencies
+          Trusted by 3500+ freelancers, contractors & growth agencies
         </span>
       </div>
 

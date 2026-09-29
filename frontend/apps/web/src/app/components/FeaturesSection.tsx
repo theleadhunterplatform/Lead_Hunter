@@ -2,19 +2,7 @@
 
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import {
-  CheckIcon,
-  SparklesIcon,
-  GlobeAltIcon,
-  BoltIcon,
-  ArrowRightIcon,
-  BookmarkIcon,
-  PaperAirplaneIcon,
-  ChatBubbleLeftRightIcon,
-  BanknotesIcon,
-  CheckCircleIcon,
-  UserIcon,
-} from '@heroicons/react/24/solid'
+import { CheckIcon, ArrowRightIcon } from '@heroicons/react/24/solid'
 import { Card } from '@/components/ui/Card'
 
 const springTransition = { type: 'spring', stiffness: 320, damping: 32 } as const
@@ -201,78 +189,25 @@ function LeadIntelligenceInteractiveVisual() {
   )
 }
 
-// ─── Visual 3: Track Every Touch (Pipeline Stages) ────────────────────────────
-function TrackEveryTouchInteractiveVisual() {
-  const [currentStage, setCurrentStage] = useState<number>(2) // Contacted by default
-
-  const stages = [
-    { label: 'Revealed', count: '18 leads', icon: SparklesIcon, desc: 'Contacts unlocked' },
-    { label: 'Saved', count: '12 leads', icon: BookmarkIcon, desc: 'Added to target list' },
-    { label: 'Contacted', count: '7 leads', icon: PaperAirplaneIcon, desc: 'Outreach dispatched' },
-    { label: 'Replied', count: '4 deals', icon: ChatBubbleLeftRightIcon, desc: 'Conversation active' },
-  ]
-
+// ─── Visual 3: Track Every Touch — product walkthrough video ──────────────────
+function TrackEveryTouchVideoVisual() {
   return (
-    <div className="w-full h-full p-4 flex flex-col justify-between bg-[#0B0D14] rounded-xl border border-white/[0.08] shadow-inner relative overflow-hidden">
-      {/* Top Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-white/[0.06]">
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-accent-orange animate-pulse" />
-          <span className="text-[10px] font-mono font-bold tracking-wider text-accent-orange uppercase">
-            PIPELINE STAGE TRACKER
-          </span>
-        </div>
-        <span className="text-[10px] font-mono text-accent-mint font-bold">+92% CONVERSION RATE</span>
-      </div>
-
-      {/* Interactive Stages Row */}
-      <div className="grid grid-cols-4 gap-2 my-auto">
-        {stages.map((stage, idx) => {
-          const Icon = stage.icon
-          const isSelected = currentStage === idx
-          const isPassed = currentStage >= idx
-
-          return (
-            <div
-              key={stage.label}
-              onClick={() => setCurrentStage(idx)}
-              className={`p-3 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
-                isSelected
-                  ? 'bg-accent-orange/15 border-accent-orange/40 shadow-[0_4px_16px_rgba(255,107,0,0.2)]'
-                  : 'bg-surface-secondary/60 border-white/[0.06] hover:border-white/20'
-              }`}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <div
-                  className={`w-6 h-6 rounded-lg flex items-center justify-center ${
-                    isPassed ? 'bg-accent-orange/20 text-accent-orange' : 'bg-white/5 text-text-secondary'
-                  }`}
-                >
-                  <Icon className="w-3.5 h-3.5" />
-                </div>
-                <span className="text-[9px] font-mono text-text-secondary/70">{stage.count}</span>
-              </div>
-              <div>
-                <div className="text-xs font-bold text-text-primary leading-tight">{stage.label}</div>
-                <div className="text-[9px] text-text-secondary/60 truncate mt-0.5">{stage.desc}</div>
-              </div>
-            </div>
-          )
-        })}
-      </div>
-
-      {/* Pipeline Progression Bar */}
-      <div className="pt-2 border-t border-white/[0.06]">
-        <div className="flex items-center justify-between text-[10px] font-mono text-text-secondary/60 mb-1.5">
-          <span>PIPELINE VELOCITY</span>
-          <span className="text-white font-medium">STAGE {currentStage + 1} OF 4 ACTIVE</span>
-        </div>
-        <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-gradient-to-r from-accent-orange to-accent-mint rounded-full transition-all duration-300"
-            style={{ width: `${((currentStage + 1) / 4) * 100}%` }}
-          />
-        </div>
+    <div className="w-full h-full rounded-xl border border-white/[0.08] shadow-inner relative overflow-hidden bg-black">
+      <video
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="metadata"
+        poster="/videos/track-every-touch-poster.jpg"
+        className="block w-full h-full object-cover bg-black"
+      >
+        <source src="/videos/track-every-touch-card.mp4" type="video/mp4" />
+      </video>
+      {/* Bottom status bar (matches Visual 1 treatment) */}
+      <div className="absolute bottom-0 inset-x-0 flex items-center justify-between px-3 py-1.5 bg-gradient-to-t from-black/80 to-transparent text-[10px] font-mono text-text-secondary/60 pointer-events-none">
+        <span>PIPELINE STAGE TRACKER</span>
+        <span className="text-accent-orange font-medium">+92% CONVERSION RATE</span>
       </div>
     </div>
   )
@@ -399,7 +334,7 @@ export default function FeaturesSection() {
       case 1:
         return <LeadIntelligenceInteractiveVisual />
       case 2:
-        return <TrackEveryTouchInteractiveVisual />
+        return <TrackEveryTouchVideoVisual />
       case 3:
         return <CreditEconomicsInteractiveVisual />
       default:

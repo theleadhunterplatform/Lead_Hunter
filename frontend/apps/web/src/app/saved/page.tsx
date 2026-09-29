@@ -56,7 +56,7 @@ export default function SavedLeadsPage() {
       const rect = btn.getBoundingClientRect()
       const W = 208
       const GAP = 8
-      const EST_H = 360
+      const EST_H = 380
       const openUp = window.innerHeight - rect.bottom < EST_H + GAP
       setMenuPos({
         left: Math.max(8, Math.min(rect.right - W, window.innerWidth - W - 8)),
@@ -773,7 +773,7 @@ export default function SavedLeadsPage() {
                                 <div
                                   role="menu"
                                   style={{ top: menuPos.top, left: menuPos.left }}
-                                  className="fixed w-52 max-h-[320px] overflow-y-auto scrollbar-hide rounded-2xl bg-surface-elevated/95 border border-white/10 shadow-2xl shadow-black/80 py-2 z-50 text-left backdrop-blur-xl"
+                                  className="fixed w-52 max-h-[380px] overflow-y-auto rounded-2xl bg-surface-elevated/95 border border-white/10 shadow-2xl shadow-black/80 py-2 z-50 text-left backdrop-blur-xl"
                                 >
                                 <div className="px-3 pb-1 pt-0.5 text-[10px] font-bold uppercase tracking-wider text-text-secondary/70">
                                   Stage / Status
