@@ -24,6 +24,10 @@ import {
   SparklesIcon,
   BoltIcon,
   ShieldExclamationIcon,
+  ChatBubbleLeftRightIcon,
+  QrCodeIcon,
+  ClipboardDocumentIcon,
+  ClipboardDocumentCheckIcon,
 } from '@heroicons/react/24/solid'
 import { useToast } from '@/components/ui/Toast'
 import { getFirebaseToken } from '@/lib/firebase'
@@ -70,6 +74,15 @@ interface BroadcastData {
     onboarding_emails_enabled: boolean
   }
   recentLogs: EmailLogItem[]
+}
+
+interface WhatsAppStatusData {
+  status: 'connected' | 'connecting' | 'waiting_for_qr' | 'disconnected'
+  botNumber: string | null
+  configuredGroupId: string
+  qrDataUrl: string | null
+  hasQr: boolean
+  groups: Array<{ id: string; subject: string; participantsCount: number }>
 }
 
 const TEMPLATE_CATEGORIES = [
@@ -133,6 +146,103 @@ export default function AdminBroadcastPage() {
   const debouncedLogSearch = useDebounce(logSearch, 250)
   const [logStatusFilter, setLogStatusFilter] = useState<'ALL' | 'SENT' | 'FAILED' | 'SKIPPED'>('ALL')
 
+  // WhatsApp Community Automation State
+  const [waData, setWaData] = useState<WhatsAppStatusData | null>(null)
+  const [waLoading, setWaLoading] = useState(false)
+  const [showQrModal, setShowQrModal] = useState(false)
+  const [isSendingWaTest, setIsSendingWaTest] = useState(false)
+  const [isReconnectingWa, setIsReconnectingWa] = useState(false)
+  const [copiedJid, setCopiedJid] = useState<string | null>(null)
+
+  const fetchWhatsAppStatus = useCallback(async (quiet = false) => {
+    if (!quiet) setWaLoading(true)
+    try {
+      const token = await getFirebaseToken()
+      const res = await fetch('/api/admin/whatsapp', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      const json = await res.json()
+      if (res.ok && json.success) {
+        setWaData(json.data)
+      }
+    } catch {
+      console.warn('[WhatsApp] Failed to fetch status')
+    } finally {
+      if (!quiet) setWaLoading(false)
+    }
+  }, [])
+
+  // Poll status while QR modal is open
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null
+    if (showQrModal) {
+      interval = setInterval(() => {
+        fetchWhatsAppStatus(true)
+      }, 3000)
+    }
+    return () => {
+      if (interval) clearInterval(interval)
+    }
+  }, [showQrModal, fetchWhatsAppStatus])
+
+  const handleSendWaTest = async () => {
+    setIsSendingWaTest(true)
+    try {
+      const token = await getFirebaseToken()
+      const res = await fetch('/api/admin/whatsapp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ action: 'alert', leadCount: 3, niche: 'Web & App Development' }),
+      })
+      const json = await res.json()
+      if (res.ok && json.success) {
+        addToast({ type: 'success', message: 'Test lead drop alert dispatched to WhatsApp group!' })
+      } else {
+        addToast({ type: 'error', message: json.message || 'Failed to dispatch WhatsApp alert' })
+      }
+    } catch (err: any) {
+      addToast({ type: 'error', message: err?.message || 'Network error sending WhatsApp alert' })
+    } finally {
+      setIsSendingWaTest(false)
+    }
+  }
+
+  const handleReconnectWa = async () => {
+    setIsReconnectingWa(true)
+    try {
+      const token = await getFirebaseToken()
+      const res = await fetch('/api/admin/whatsapp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ action: 'reconnect' }),
+      })
+      const json = await res.json()
+      if (res.ok && json.success) {
+        addToast({ type: 'info', message: 'WhatsApp reconnect requested. Fetching updated status...' })
+        setTimeout(() => fetchWhatsAppStatus(), 1500)
+      } else {
+        addToast({ type: 'error', message: json.message || 'Failed to reconnect WhatsApp' })
+      }
+    } catch {
+      addToast({ type: 'error', message: 'Network error reconnecting WhatsApp' })
+    } finally {
+      setIsReconnectingWa(false)
+    }
+  }
+
+  const handleCopyJid = (jid: string) => {
+    navigator.clipboard.writeText(jid)
+    setCopiedJid(jid)
+    addToast({ type: 'success', message: `Copied group ID: ${jid}` })
+    setTimeout(() => setCopiedJid(null), 3000)
+  }
+
   const fetchTemplates = useCallback(async () => {
     try {
       const token = await getFirebaseToken()
@@ -171,7 +281,8 @@ export default function AdminBroadcastPage() {
   useEffect(() => {
     fetchData()
     fetchTemplates()
-  }, [fetchData, fetchTemplates])
+    fetchWhatsAppStatus()
+  }, [fetchData, fetchTemplates, fetchWhatsAppStatus])
 
   const handleRefreshDiagnostics = async () => {
     setIsRefreshingDiagnostics(true)
@@ -819,6 +930,161 @@ export default function AdminBroadcastPage() {
             >
               {data?.automationSettings?.onboarding_emails_enabled && data?.automationSettings?.auto_email_enabled ? 'ON' : 'OFF'}
             </button>
+          </div>
+        </div>
+      </div>
+
+      {/* WhatsApp Community Lead Drop Automation Banner */}
+      <div className="bg-gradient-to-br from-emerald-950/20 via-surface/60 to-surface/40 border border-emerald-500/20 backdrop-blur-xl rounded-2xl p-5 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-white/[0.06]">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+              <ChatBubbleLeftRightIcon className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-bold text-white">WhatsApp Community Lead Drops</h2>
+                <span
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                    waData?.status === 'connected'
+                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                      : waData?.status === 'waiting_for_qr'
+                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30 animate-pulse'
+                      : waData?.status === 'connecting'
+                      ? 'bg-sky-500/20 text-sky-300 border border-sky-500/30'
+                      : 'bg-zinc-700/40 text-zinc-400 border border-zinc-700'
+                  }`}
+                >
+                  {waData?.status === 'connected'
+                    ? 'Connected & Active'
+                    : waData?.status === 'waiting_for_qr'
+                    ? 'Action: Scan QR'
+                    : waData?.status === 'connecting'
+                    ? 'Connecting...'
+                    : 'Disconnected'}
+                </span>
+                {waData?.botNumber && (
+                  <span className="hidden sm:inline-flex px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-emerald-900/30 text-emerald-300 border border-emerald-700/40">
+                    +{waData.botNumber}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-text-secondary mt-0.5">
+                Automatically posts real-time qualified lead drop alerts into your WhatsApp community group so members never miss a lead.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5 self-end sm:self-center">
+            {/* Scan QR Modal Trigger */}
+            <button
+              onClick={() => {
+                setShowQrModal(true)
+                fetchWhatsAppStatus(true)
+              }}
+              className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 flex items-center gap-2 transition-all cursor-pointer shadow-sm"
+            >
+              <QrCodeIcon className="w-3.5 h-3.5" />
+              <span>{waData?.status === 'connected' ? 'View Device QR' : 'Scan QR Code'}</span>
+            </button>
+
+            {/* Test Drop Alert Button */}
+            <button
+              onClick={handleSendWaTest}
+              disabled={isSendingWaTest || waData?.status !== 'connected'}
+              title={
+                waData?.status !== 'connected'
+                  ? 'Connect WhatsApp bot first'
+                  : 'Dispatch a sample lead drop announcement to community group'
+              }
+              className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-white/[0.06] hover:bg-white/[0.12] text-white border border-white/[0.08] flex items-center gap-2 transition-all disabled:opacity-40 cursor-pointer shadow-sm"
+            >
+              <PaperAirplaneIcon className={`w-3.5 h-3.5 ${isSendingWaTest ? 'animate-pulse' : ''}`} />
+              <span>{isSendingWaTest ? 'Sending Alert...' : 'Send Test Alert'}</span>
+            </button>
+
+            {/* Reconnect Button */}
+            <button
+              onClick={handleReconnectWa}
+              disabled={isReconnectingWa}
+              title="Restart WhatsApp socket & generate fresh QR code"
+              className="p-2 rounded-xl text-text-secondary hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] transition-all cursor-pointer"
+            >
+              <ArrowPathIcon className={`w-3.5 h-3.5 ${isReconnectingWa ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+        </div>
+
+        {/* Group Binding Status & Detected Groups */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+          {/* Configured Group Banner */}
+          <div className="p-3.5 rounded-xl bg-surface-elevated/40 border border-white/[0.04] flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between text-xs font-semibold text-white mb-1">
+                <span>Target Community WhatsApp Group</span>
+                {waData?.configuredGroupId ? (
+                  <span className="flex items-center gap-1 text-[10px] text-emerald-400 font-bold">
+                    <CheckCircleIcon className="w-3 h-3" /> Configured
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-amber-400 font-bold">Not Set in .env</span>
+                )}
+              </div>
+              <p className="text-[11px] font-mono text-text-secondary truncate">
+                {waData?.configuredGroupId || 'WHATSAPP_GROUP_ID is empty (set in backend .env)'}
+              </p>
+            </div>
+            <p className="text-[10px] text-text-secondary mt-2">
+              Leads qualified by the scraping engine are automatically batched and announced to this WhatsApp group.
+            </p>
+          </div>
+
+          {/* Bot-Joined Groups */}
+          <div className="p-3.5 rounded-xl bg-surface-elevated/40 border border-white/[0.04] flex flex-col justify-between">
+            <div className="flex items-center justify-between text-xs font-semibold text-white mb-1">
+              <span>Detected WhatsApp Groups</span>
+              <span className="text-[10px] text-text-secondary">
+                {waData?.groups?.length || 0} group(s) found
+              </span>
+            </div>
+            {waData?.groups && waData.groups.length > 0 ? (
+              <div className="space-y-1.5 max-h-24 overflow-y-auto pr-1">
+                {waData.groups.map((grp) => (
+                  <div
+                    key={grp.id}
+                    className="flex items-center justify-between p-1.5 rounded-lg bg-black/30 border border-white/[0.05] text-[11px]"
+                  >
+                    <div className="truncate pr-2">
+                      <span className="font-semibold text-white block truncate">{grp.subject}</span>
+                      <span className="font-mono text-[9px] text-text-secondary block truncate">{grp.id}</span>
+                    </div>
+                    <button
+                      onClick={() => handleCopyJid(grp.id)}
+                      title="Copy this group's JID to paste into WHATSAPP_GROUP_ID"
+                      className="px-2 py-1 rounded bg-white/10 hover:bg-white/20 text-white shrink-0 flex items-center gap-1 font-mono text-[10px] cursor-pointer"
+                    >
+                      {copiedJid === grp.id ? (
+                        <>
+                          <ClipboardDocumentCheckIcon className="w-3 h-3 text-emerald-400" />
+                          <span className="text-emerald-400">Copied</span>
+                        </>
+                      ) : (
+                        <>
+                          <ClipboardDocumentIcon className="w-3 h-3" />
+                          <span>Copy JID</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-[11px] text-text-secondary mt-1">
+                {waData?.status === 'connected'
+                  ? 'Bot is not added to any groups yet. Add the bot number to your community group and make it an admin.'
+                  : 'Link WhatsApp via QR code above to view groups.'}
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -1721,6 +1987,105 @@ export default function AdminBroadcastPage() {
           </div>
         </div>
       )}
+
+      {/* WhatsApp QR Code Pairing Modal */}
+      <AnimatePresence>
+        {showQrModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative w-full max-w-md bg-surface border border-white/10 rounded-3xl p-6 shadow-2xl text-center space-y-5"
+            >
+              {/* Close Button */}
+              <button
+                onClick={() => setShowQrModal(false)}
+                className="absolute top-4 right-4 p-2 rounded-xl text-text-secondary hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+              >
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+
+              <div className="inline-flex p-3 rounded-2xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                <ChatBubbleLeftRightIcon className="w-6 h-6" />
+              </div>
+
+              <div>
+                <h3 className="text-lg font-bold text-white">Link WhatsApp Community Bot</h3>
+                <p className="text-xs text-text-secondary mt-1">
+                  Connect your bot number to start auto-posting lead drops into your community group.
+                </p>
+              </div>
+
+              {/* QR Code Container */}
+              <div className="flex flex-col items-center justify-center min-h-[260px] p-4 rounded-2xl bg-black/40 border border-white/[0.08]">
+                {waData?.status === 'connected' ? (
+                  <div className="py-6 space-y-3">
+                    <div className="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center mx-auto">
+                      <CheckCircleIcon className="w-10 h-10" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-base font-bold text-white">WhatsApp Bot Connected!</p>
+                      <p className="text-xs text-emerald-400 font-mono">
+                        +{waData.botNumber || 'Active'}
+                      </p>
+                      <p className="text-[11px] text-text-secondary">
+                        The bot session is saved. You can now add the bot to your community group.
+                      </p>
+                    </div>
+                  </div>
+                ) : waData?.qrDataUrl ? (
+                  <div className="space-y-3">
+                    <div className="bg-white p-3 rounded-2xl inline-block shadow-inner">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={waData.qrDataUrl}
+                        alt="WhatsApp QR Code"
+                        className="w-56 h-56 object-contain"
+                      />
+                    </div>
+                    <p className="text-[11px] text-text-secondary animate-pulse">
+                      Waiting for scan... Refreshing automatically
+                    </p>
+                  </div>
+                ) : (
+                  <div className="py-10 space-y-2 text-text-secondary">
+                    <ArrowPathIcon className="w-8 h-8 animate-spin mx-auto text-primary" />
+                    <p className="text-xs">Generating QR pairing code...</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Step by step instructions */}
+              <div className="text-left bg-surface-elevated/40 border border-white/[0.04] rounded-xl p-3.5 text-xs space-y-2">
+                <p className="font-semibold text-white text-[11px] uppercase tracking-wider">How to link:</p>
+                <ol className="list-decimal list-inside space-y-1 text-[11px] text-text-secondary">
+                  <li>Open WhatsApp on the bot&apos;s phone</li>
+                  <li>Tap <strong className="text-white">Settings</strong> or <strong className="text-white">⋮ menu</strong> &gt; <strong className="text-white">Linked Devices</strong></li>
+                  <li>Tap <strong className="text-white">Link a Device</strong> and point your camera at the QR code above</li>
+                  <li>Add this bot number to your WhatsApp Community Group &amp; make it an Admin</li>
+                </ol>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => fetchWhatsAppStatus()}
+                  className="flex-1 py-2.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] text-xs font-semibold text-white border border-white/[0.08] transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <ArrowPathIcon className="w-3.5 h-3.5" />
+                  <span>Refresh Code</span>
+                </button>
+                <button
+                  onClick={() => setShowQrModal(false)}
+                  className="flex-1 py-2.5 rounded-xl bg-primary text-black text-xs font-bold hover:bg-primary/90 transition-all cursor-pointer"
+                >
+                  Done
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

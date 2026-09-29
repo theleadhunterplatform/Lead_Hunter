@@ -632,8 +632,12 @@ export const getAllPosts = async (currentUser: any, query: {
         ];
     }
 
+    const sort: Record<string, number> = !isInternal
+        ? { claimed_count: 1, reviewed_at: -1, updated_at: -1, created_at: -1 }
+        : { reviewed_at: -1, updated_at: -1, created_at: -1 };
+
     const posts = await LeadPost.find(filter, {
-        sort: { created_at: -1 },
+        sort,
         skip,
         limit,
         lean: true,

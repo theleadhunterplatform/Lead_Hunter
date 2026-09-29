@@ -459,20 +459,38 @@ export default function LeadsPage() {
 
     switch (sortBy) {
       case 'replyProbability':
-        result = [...result].sort((a, b) => b.replyProbability - a.replyProbability)
+        result = [...result].sort((a, b) => {
+          const aClaimed = a.isClaimedByOther ? 1 : 0
+          const bClaimed = b.isClaimedByOther ? 1 : 0
+          if (aClaimed !== bClaimed) return aClaimed - bClaimed
+          return b.replyProbability - a.replyProbability
+        })
         break
       case 'urgency': {
         const weights = { critical: 4, high: 3, medium: 2, low: 1 }
-        result = [...result].sort((a, b) => weights[b.urgency] - weights[a.urgency])
+        result = [...result].sort((a, b) => {
+          const aClaimed = a.isClaimedByOther ? 1 : 0
+          const bClaimed = b.isClaimedByOther ? 1 : 0
+          if (aClaimed !== bClaimed) return aClaimed - bClaimed
+          return weights[b.urgency] - weights[a.urgency]
+        })
         break
       }
       case 'newest':
       default:
-        result = [...result].sort(
-          (a, b) =>
-            new Date(b.scrapedAt || b.timestamp).getTime() -
-            new Date(a.scrapedAt || a.timestamp).getTime(),
-        )
+        result = [...result].sort((a, b) => {
+          // 1. Unclaimed leads always come before claimed leads
+          const aClaimed = a.isClaimedByOther ? 1 : 0
+          const bClaimed = b.isClaimedByOther ? 1 : 0
+          if (aClaimed !== bClaimed) {
+            return aClaimed - bClaimed // 0 (unclaimed) before 1 (claimed)
+          }
+
+          // 2. Most recently approved / added leads first
+          const aTime = new Date(a.approvedAt || a.reviewedAt || a.scrapedAt || 0).getTime()
+          const bTime = new Date(b.approvedAt || b.reviewedAt || b.scrapedAt || 0).getTime()
+          return bTime - aTime
+        })
         break
     }
 
@@ -534,7 +552,7 @@ export default function LeadsPage() {
           <div className="relative shrink-0 flex flex-wrap items-center gap-2 sm:gap-3 w-full md:w-auto justify-end">
             <Select
               options={[
-                { label: 'Newest First', value: 'newest' },
+                { label: 'Recently Approved', value: 'newest' },
                 { label: 'Highest Reply Probability', value: 'replyProbability' },
                 { label: 'Most Urgent', value: 'urgency' },
               ]}

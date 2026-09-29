@@ -38,5 +38,8 @@ export interface AppLead {
   isTargetMatch?: boolean
   scrapedAt?: string
   scrapedAgo?: string
+  reviewedAt?: string | null
+  approvedAt?: string | null
+  claimedCount?: number
   creditCost?: number | null
 }

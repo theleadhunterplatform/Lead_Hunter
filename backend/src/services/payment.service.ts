@@ -348,7 +348,7 @@ export async function createTokenTopupOrder(userId: string, packId: string) {
     }
 
     const isFree = !user.plan || user.plan.toLowerCase() === 'free';
-    if (isFree && user.role !== 'admin') {
+    if (isFree && (user as any).role !== 'admin') {
         throw new ErrorResponse('An active subscription plan is required to purchase token top-ups. Please subscribe to a plan first.', 403);
     }
 

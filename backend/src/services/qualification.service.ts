@@ -5,6 +5,7 @@ import { scheduleAutoTrain } from '../utils/auto-train.utils';
 import { isLocalAiModelReady } from './ai-training.service';
 import { enqueueContactEnrichment } from '../utils/enrichment-queue.utils';
 import { isAutoEnrichmentEnabled } from '../utils/automation-settings.utils';
+import { queueLeadDropNotification } from './whatsapp.service';
 import {
     classifyLeadIntent,
     confidenceToStatus,
@@ -317,6 +318,8 @@ export async function qualifyLeadPost(postId: string): Promise<QualificationResu
             updateData.enrichment_status = 'pending';
             updateData.enrichment_message = null;
         }
+        // Queue batched notification for WhatsApp group
+        queueLeadDropNotification(1, (post as any).niche || (post as any).keyword);
     } else if (result.status === 'pending') {
         updateData.review_status = null;
         updateData.is_training_data = false;

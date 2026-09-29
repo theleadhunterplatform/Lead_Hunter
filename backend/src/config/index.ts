@@ -1,3 +1,4 @@
+import path from 'path';
 import dotenv from 'dotenv';
 import { configureDatabaseEnv, resolveDatabaseMode } from './database-env';
 
@@ -129,6 +130,11 @@ const config = {
             .split(',')
             .map((e) => e.trim().toLowerCase())
             .filter(Boolean),
+    },
+    whatsapp: {
+        enabled: process.env.WHATSAPP_ENABLED !== 'false',
+        groupId: process.env.WHATSAPP_GROUP_ID || '',
+        sessionPath: process.env.WHATSAPP_SESSION_PATH || path.join(__dirname, '../../data/wa-session'),
     },
 };
 

@@ -158,16 +158,19 @@ function externalPostToAppLead(
     replyProbability: Math.max(post.ai_score || 0, 60),
     accent: 'mint',
     status: (userState?.status || 'new') as AppLead['status'],
-    timestamp: post.posted_at?.postedAgoShort || formatTimeAgo(post.created_at),
+    timestamp: formatTimeAgo(post.reviewed_at || post.updated_at || post.created_at),
     scrapedAt: post.created_at,
     scrapedAgo: formatTimeAgo(post.created_at),
+    reviewedAt: post.reviewed_at || null,
+    approvedAt: post.reviewed_at || post.updated_at || post.created_at,
+    claimedCount: post.claimed_count || 0,
     isSaved: userState?.isSaved || false,
     isRevealed,
-    isClaimable: isClaimedByOther ? false : isLeadClaimable(post),
-    isClaimedByOther,
-    hasPhone: !isClaimedByOther && !!phone,
+    isClaimable: (isClaimedByOther || (!isRevealed && ((post.claimed_count || 0) > 0 || post.is_claimed))) ? false : isLeadClaimable(post),
+    isClaimedByOther: isClaimedByOther || (!isRevealed && ((post.claimed_count || 0) > 0 || post.is_claimed)),
+    hasPhone: !(isClaimedByOther || (!isRevealed && ((post.claimed_count || 0) > 0 || post.is_claimed))) && !!phone,
     creditCost: (post as any).credit_cost ?? null,
-    revealCost: isClaimedByOther ? null : getLeadRevealCost(post),
+    revealCost: (isClaimedByOther || (!isRevealed && ((post.claimed_count || 0) > 0 || post.is_claimed))) ? null : getLeadRevealCost(post),
     phone: isRevealed ? phone : null,
   }
 }
@@ -312,14 +315,18 @@ export async function GET(request: NextRequest) {
           rawLeads = cached.rawLeads
           total = cached.total
         } else {
-          // Active discovery feed strictly shows fresh opportunities from the last 10 days
-          const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000)
+          // Active discovery feed strictly prioritizes freshly approved and unclaimed opportunities
+          const cutoffDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
           const where: any = {
             is_deleted: false,
             review_status: 'approved',
             intelligence: { not: null as string | null },
             source: { not: 'seed' },
-            created_at: { gte: tenDaysAgo },
+            OR: [
+              { reviewed_at: { gte: cutoffDate } },
+              { created_at: { gte: cutoffDate } },
+              { updated_at: { gte: cutoffDate } },
+            ],
           }
           if (niche && niche !== 'All') {
             where.niche = niche
@@ -328,7 +335,12 @@ export async function GET(request: NextRequest) {
             oracleDb.leadPost.findMany({
               where,
               select: LEAD_POST_SELECT,
-              orderBy: { created_at: 'desc' },
+              orderBy: [
+                { claimed_count: 'asc' },
+                { reviewed_at: 'desc' },
+                { updated_at: 'desc' },
+                { created_at: 'desc' },
+              ],
               skip: (page - 1) * pageSize,
               take: pageSize,
             }),
@@ -363,6 +375,18 @@ export async function GET(request: NextRequest) {
             externalPostToAppLead(lead, stateMap.get(lead.id), otherRevealedSet.has(lead.id)),
           )
           .filter((l) => l.status === 'new')
+          .sort((a, b) => {
+            // 1. Unclaimed leads always come before claimed leads
+            const aClaimed = a.isClaimedByOther ? 1 : 0
+            const bClaimed = b.isClaimedByOther ? 1 : 0
+            if (aClaimed !== bClaimed) {
+              return aClaimed - bClaimed // 0 (unclaimed) before 1 (claimed)
+            }
+            // 2. Most recently approved/added leads first
+            const aTime = new Date(a.approvedAt || a.reviewedAt || a.scrapedAt || 0).getTime()
+            const bTime = new Date(b.approvedAt || b.reviewedAt || b.scrapedAt || 0).getTime()
+            return bTime - aTime
+          })
 
         if (search) {
           const q = search.toLowerCase()
