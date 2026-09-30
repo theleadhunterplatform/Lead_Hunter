@@ -543,7 +543,7 @@ export async function renderPlanChange(data: PlanChangeData) {
   const fallbackSubject = isUpgrade
     ? `Your Lead Hunter plan has been upgraded to {{newPlan}}!`
     : isDowngrade
-    ? `Your Lead Hunter plan has been changed to {{newPlan}}`
+    ? `Your Lead Hunter plan has been downgraded to {{newPlan}}`
     : `Your Lead Hunter plan is now {{newPlan}}`
 
   const fallbackBody = isUpgrade
@@ -558,6 +558,19 @@ Your monthly credit allowance is now {{credits}} credits. Fresh high-intent clie
 
 Happy hunting,
 The Lead Hunter Club Team`
+    : isDowngrade
+    ? `Hi {{name}},
+
+This email confirms that your subscription has been downgraded to the {{newPlan}} plan.
+
+Your monthly credit allowance is now {{credits}} credits. Any eligible rollover credits remain available in your account.
+
+If you ever wish to restore your full credit limits or upgrade again, you can do so anytime:
+• Manage subscription & billing: {{appUrl}}/settings
+• Explore leads: {{appUrl}}/leads
+
+Best,
+The Lead Hunter Club Team`
     : `Hi {{name}},
 
 This email confirms that your Lead Hunter subscription has been changed to the {{newPlan}} plan.
@@ -570,20 +583,27 @@ Your monthly credit allowance is now {{credits}} credits. Any eligible unused cr
 Best,
 The Lead Hunter Club Team`
 
+  const templateId = isUpgrade
+    ? 'tpl-auto-plan-upgrade'
+    : isDowngrade
+    ? 'tpl-auto-plan-downgrade'
+    : 'tpl-auto-plan-change'
+
   return resolveDynamicTemplate({
-    templateId: isUpgrade ? 'tpl-auto-plan-upgrade' : 'tpl-auto-plan-change',
+    templateId,
     fallbackSubject,
     fallbackBody,
     variables: {
       name: data.name || 'Hunter',
+      plan: data.newPlan,
       newPlan: data.newPlan,
       oldPlan: data.oldPlan || 'previous plan',
       credits: data.credits,
       appUrl: data.appUrl,
     },
     cta: {
-      text: isUpgrade ? 'Explore New Leads' : 'Open Dashboard',
-      url: isUpgrade ? `${data.appUrl}/leads` : `${data.appUrl}/dashboard`,
+      text: isUpgrade ? 'Explore New Leads' : isDowngrade ? 'Manage Subscription' : 'Open Dashboard',
+      url: isUpgrade ? `${data.appUrl}/leads` : `${data.appUrl}/settings`,
     },
   })
 }

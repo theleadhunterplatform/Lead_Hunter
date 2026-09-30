@@ -318,8 +318,21 @@ export const emailService = {
     actionType: 'upgrade' | 'downgrade' | 'change' = 'change',
     oldPlan?: string,
   ) {
+    const logType =
+      actionType === 'downgrade'
+        ? 'plan_downgrade'
+        : actionType === 'upgrade'
+        ? 'plan_upgrade'
+        : 'plan_change'
+    const statusDesc =
+      actionType === 'downgrade'
+        ? `Plan downgraded to ${newPlan}`
+        : actionType === 'upgrade'
+        ? `Plan upgraded to ${newPlan}`
+        : `Plan changed to ${newPlan}`
+
     if (!(await isEmailAutomationEnabled('plan_change_emails_enabled'))) {
-      await logEmail('plan_change', user.email, `Plan changed to ${newPlan}`, 'SKIPPED', 'Email automation disabled by admin.')
+      await logEmail(logType, user.email, statusDesc, 'SKIPPED', 'Email automation disabled by admin.')
       return { id: 'skipped', success: true, provider: 'mock' }
     }
     const { subject, text, html } = await renderPlanChange({
@@ -330,7 +343,7 @@ export const emailService = {
       oldPlan,
       appUrl: APP_URL,
     })
-    return send('plan_change', user.email, subject, text, { html })
+    return send(logType, user.email, subject, text, { html })
   },
 
   // Flow 6: Credit Top-up Notification

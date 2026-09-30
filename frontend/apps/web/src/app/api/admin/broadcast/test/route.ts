@@ -94,7 +94,6 @@ export async function POST(request: NextRequest) {
         )
         break
 
-      case 'plan_change':
       case 'plan_upgrade':
         result = await emailService.sendPlanChange(
           { name: 'Demo Member', email: toEmail },
@@ -102,6 +101,26 @@ export async function POST(request: NextRequest) {
           1200,
           'upgrade',
           'Freelancer Starter',
+        )
+        break
+
+      case 'plan_downgrade':
+        result = await emailService.sendPlanChange(
+          { name: 'Demo Member', email: toEmail },
+          'Freelancer Starter',
+          300,
+          'downgrade',
+          'Agency Pro',
+        )
+        break
+
+      case 'plan_change':
+        result = await emailService.sendPlanChange(
+          { name: 'Demo Member', email: toEmail },
+          'Freelancer Starter',
+          300,
+          'change',
+          'Custom Plan',
         )
         break
 

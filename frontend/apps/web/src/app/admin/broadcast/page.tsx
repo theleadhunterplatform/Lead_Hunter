@@ -100,7 +100,8 @@ const TEMPLATE_CATEGORIES = [
 const AUTOMATED_TRIGGER_OPTIONS = [
   { id: 'tpl-auto-account-approved', label: '⚡ When User Account is Approved (Welcome Email)' },
   { id: 'tpl-auto-plan-upgrade', label: '🚀 When User Upgrades Plan' },
-  { id: 'tpl-auto-plan-change', label: '🔄 When User Downgrades or Changes Plan' },
+  { id: 'tpl-auto-plan-downgrade', label: '🔻 When User Downgrades Plan' },
+  { id: 'tpl-auto-plan-change', label: '🔄 When User Changes Plan' },
   { id: 'tpl-auto-credit-topup', label: '💰 When User Gets a Credit Topup' },
   { id: 'tpl-auto-low-credits', label: '📉 When Credits Drop <= 2 Coins (Low Credits Alert)' },
   { id: 'tpl-auto-renewal-reminder', label: '📅 3 Days Before Subscription Renews (Renewal Notice)' },
