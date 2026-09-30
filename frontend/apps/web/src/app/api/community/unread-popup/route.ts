@@ -17,6 +17,16 @@ export async function GET(request: NextRequest) {
 
     const userId = authUser.uid
 
+    // Only show to APPROVED active members (not pending onboarding / unverified)
+    const dbUser = await db.user.findUnique({
+      where: { id: userId },
+      select: { status: true },
+    })
+
+    if (!dbUser || dbUser.status !== 'ACTIVE') {
+      return NextResponse.json({ show: false, message: 'Account not active or approved' })
+    }
+
     // Get the latest published post in the community hub
     const latestPost = await db.communityPost.findFirst({
       where: { status: 'PUBLISHED' },

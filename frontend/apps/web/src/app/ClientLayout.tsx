@@ -138,16 +138,36 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     }
   }, [user?.id, loading, firebaseUser])
 
-  // Check for new additions in Community Hub
+  // Check for new additions in Community Hub (Only for approved active users, after 2 mins from login)
   useEffect(() => {
-    if (loading || !user) return
+    // Only show to APPROVED active members; ignore during registration/onboarding/pending
+    if (loading || !user || user.status !== 'ACTIVE') return
+
+    // Never show on onboarding, registration, verification, or auth pages
+    if (
+      pathname.startsWith('/community') ||
+      pathname.startsWith('/admin') ||
+      pathname.startsWith('/verify-email') ||
+      pathname.startsWith('/onboarding') ||
+      pathname.startsWith('/register') ||
+      pathname.startsWith('/login')
+    ) {
+      return
+    }
 
     let isSubscribed = true
     let lastCommunityCheckAt = 0
 
     const checkCommunityWinPopup = async () => {
-      // Don't show popup if user is already on /community or in /admin
-      if (pathname.startsWith('/community') || pathname.startsWith('/admin')) {
+      if (user?.status !== 'ACTIVE') return
+      if (
+        pathname.startsWith('/community') ||
+        pathname.startsWith('/admin') ||
+        pathname.startsWith('/verify-email') ||
+        pathname.startsWith('/onboarding') ||
+        pathname.startsWith('/register') ||
+        pathname.startsWith('/login')
+      ) {
         return
       }
 
@@ -182,21 +202,42 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
       }
     }
 
-    // Delay initial check slightly after page mount
+    // Require 2 minutes (120,000 ms) after logging in before showing the community achievements popup
+    let sessionStart = 0
+    try {
+      const stored = sessionStorage.getItem('lh_login_session_start')
+      if (stored) {
+        sessionStart = Number(stored)
+      } else {
+        sessionStart = Date.now()
+        sessionStorage.setItem('lh_login_session_start', String(sessionStart))
+      }
+    } catch {
+      sessionStart = Date.now()
+    }
+
+    const twoMinutes = 2 * 60_000
+    const elapsed = Date.now() - sessionStart
+    const initialDelay = Math.max(twoMinutes - elapsed, 0)
+
     const timer = setTimeout(() => {
       checkCommunityWinPopup()
-    }, 1200)
+    }, initialDelay)
 
-    // Listen for custom event when admin publishes a new win
+    // Listen for custom event when admin publishes a new win (still respects 2-min rule)
     const handleNewWinEvent = () => {
-      lastCommunityCheckAt = 0
-      checkCommunityWinPopup()
+      const currentElapsed = Date.now() - sessionStart
+      if (currentElapsed >= twoMinutes) {
+        lastCommunityCheckAt = 0
+        checkCommunityWinPopup()
+      }
     }
     window.addEventListener('community-new-post', handleNewWinEvent)
 
     // Poll periodically every 2 minutes
     const interval = setInterval(() => {
-      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+      const currentElapsed = Date.now() - sessionStart
+      if (currentElapsed >= twoMinutes && typeof document !== 'undefined' && document.visibilityState === 'visible') {
         checkCommunityWinPopup()
       }
     }, 2 * 60_000)
@@ -207,7 +248,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
       clearInterval(interval)
       window.removeEventListener('community-new-post', handleNewWinEvent)
     }
-  }, [user?.id, loading, firebaseUser, pathname])
+  }, [user?.id, user?.status, loading, firebaseUser, pathname])
 
   useEffect(() => {
     if (loading || error || !user) return
