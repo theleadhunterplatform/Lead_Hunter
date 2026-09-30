@@ -36,6 +36,8 @@ export async function GET(request: NextRequest) {
       renewal_reminders_enabled: true,
       low_credits_nudge_enabled: true,
       onboarding_emails_enabled: true,
+      plan_change_emails_enabled: true,
+      topup_emails_enabled: true,
       ...((automationSetting?.value as Record<string, any>) || {}),
     }
 

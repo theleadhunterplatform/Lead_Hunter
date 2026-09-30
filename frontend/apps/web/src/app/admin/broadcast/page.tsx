@@ -72,6 +72,8 @@ interface BroadcastData {
     renewal_reminders_enabled: boolean
     low_credits_nudge_enabled: boolean
     onboarding_emails_enabled: boolean
+    plan_change_emails_enabled?: boolean
+    topup_emails_enabled?: boolean
   }
   recentLogs: EmailLogItem[]
 }
@@ -97,6 +99,9 @@ const TEMPLATE_CATEGORIES = [
 
 const AUTOMATED_TRIGGER_OPTIONS = [
   { id: 'tpl-auto-account-approved', label: '⚡ When User Account is Approved (Welcome Email)' },
+  { id: 'tpl-auto-plan-upgrade', label: '🚀 When User Upgrades Plan' },
+  { id: 'tpl-auto-plan-change', label: '🔄 When User Downgrades or Changes Plan' },
+  { id: 'tpl-auto-credit-topup', label: '💰 When User Gets a Credit Topup' },
   { id: 'tpl-auto-low-credits', label: '📉 When Credits Drop <= 2 Coins (Low Credits Alert)' },
   { id: 'tpl-auto-renewal-reminder', label: '📅 3 Days Before Subscription Renews (Renewal Notice)' },
   { id: 'tpl-auto-application-received', label: '📝 When Onboarding / Application is Submitted' },
@@ -874,7 +879,7 @@ export default function AdminBroadcastPage() {
         </div>
 
         {/* Sub-toggles grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {/* 1. Renewal Reminders */}
           <div className="flex items-center justify-between p-3.5 rounded-xl bg-surface-elevated/40 border border-white/[0.04]">
             <div className="space-y-0.5 pr-2">
@@ -898,7 +903,7 @@ export default function AdminBroadcastPage() {
           <div className="flex items-center justify-between p-3.5 rounded-xl bg-surface-elevated/40 border border-white/[0.04]">
             <div className="space-y-0.5 pr-2">
               <span className="text-xs font-semibold text-white block">Low Credits Alert</span>
-              <span className="text-[10px] text-text-secondary block">Nudge when balance drops &lt; 5 credits</span>
+              <span className="text-[10px] text-text-secondary block">Nudge when balance drops &lt;= 2 credits</span>
             </div>
             <button
               onClick={() => handleToggleAutomation('low_credits_nudge_enabled')}
@@ -929,6 +934,44 @@ export default function AdminBroadcastPage() {
               }`}
             >
               {data?.automationSettings?.onboarding_emails_enabled && data?.automationSettings?.auto_email_enabled ? 'ON' : 'OFF'}
+            </button>
+          </div>
+
+          {/* 4. Plan Upgrade / Downgrade */}
+          <div className="flex items-center justify-between p-3.5 rounded-xl bg-surface-elevated/40 border border-white/[0.04]">
+            <div className="space-y-0.5 pr-2">
+              <span className="text-xs font-semibold text-white block">Plan Upgrade / Change</span>
+              <span className="text-[10px] text-text-secondary block">Notice on plan upgrade or downgrade</span>
+            </div>
+            <button
+              onClick={() => handleToggleAutomation('plan_change_emails_enabled')}
+              disabled={automationSaving === 'plan_change_emails_enabled' || !data?.automationSettings?.auto_email_enabled}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-40 ${
+                data?.automationSettings?.plan_change_emails_enabled !== false && data?.automationSettings?.auto_email_enabled
+                  ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                  : 'bg-white/5 text-text-secondary border border-white/10'
+              }`}
+            >
+              {data?.automationSettings?.plan_change_emails_enabled !== false && data?.automationSettings?.auto_email_enabled ? 'ON' : 'OFF'}
+            </button>
+          </div>
+
+          {/* 5. Credit Top-up */}
+          <div className="flex items-center justify-between p-3.5 rounded-xl bg-surface-elevated/40 border border-white/[0.04]">
+            <div className="space-y-0.5 pr-2">
+              <span className="text-xs font-semibold text-white block">Credit Top-ups</span>
+              <span className="text-[10px] text-text-secondary block">Confirmation when credits refilled</span>
+            </div>
+            <button
+              onClick={() => handleToggleAutomation('topup_emails_enabled')}
+              disabled={automationSaving === 'topup_emails_enabled' || !data?.automationSettings?.auto_email_enabled}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-40 ${
+                data?.automationSettings?.topup_emails_enabled !== false && data?.automationSettings?.auto_email_enabled
+                  ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                  : 'bg-white/5 text-text-secondary border border-white/10'
+              }`}
+            >
+              {data?.automationSettings?.topup_emails_enabled !== false && data?.automationSettings?.auto_email_enabled ? 'ON' : 'OFF'}
             </button>
           </div>
         </div>
@@ -1709,7 +1752,10 @@ export default function AdminBroadcastPage() {
                         {[
                           '{{name}}',
                           '{{plan}}',
+                          '{{newPlan}}',
+                          '{{oldPlan}}',
                           '{{credits}}',
+                          '{{creditsAdded}}',
                           '{{daysRemaining}}',
                           '{{renewalDate}}',
                           '{{ticketSubject}}',

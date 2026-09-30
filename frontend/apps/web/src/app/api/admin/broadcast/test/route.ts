@@ -94,6 +94,25 @@ export async function POST(request: NextRequest) {
         )
         break
 
+      case 'plan_change':
+      case 'plan_upgrade':
+        result = await emailService.sendPlanChange(
+          { name: 'Demo Member', email: toEmail },
+          'Agency Pro',
+          1200,
+          'upgrade',
+          'Freelancer Starter',
+        )
+        break
+
+      case 'credit_topup':
+        result = await emailService.sendCreditTopup(
+          { name: 'Demo Member', email: toEmail },
+          50,
+          350,
+        )
+        break
+
       case 'custom': {
         const customSubject = subject || 'Test Broadcast Announcement'
         const customMessage = message || 'This is a test broadcast sent from the Lead Hunter Admin Communications Hub.'
