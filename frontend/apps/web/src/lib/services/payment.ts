@@ -189,10 +189,15 @@ export const paymentService = {
 
   /** Cancels a subscription: resets plan to FREE, grants FREE-plan credits, clears provider references. */
   async cancel(userId: string, provider: PaymentProvider) {
-    return db.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT 1 FROM "credit_accounts" WHERE "userId" = ${userId} FOR UPDATE`
+    const userBefore = await db.user.findUnique({
+      where: { id: userId },
+      select: { email: true, name: true, plan: true },
+    })
+    const oldPlan = userBefore?.plan || 'FREELANCER'
+    const freeCredits = getPlanCredits('FREE')
 
-      const freeCredits = getPlanCredits('FREE')
+    await db.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT 1 FROM "credit_accounts" WHERE "userId" = ${userId} FOR UPDATE`
 
       await tx.user.update({
         where: { id: userId },
@@ -225,5 +230,21 @@ export const paymentService = {
         },
       })
     })
+
+    // Send downgrade notification email if user was on a paid plan
+    if (userBefore?.email && oldPlan !== 'FREE') {
+      try {
+        const { emailService } = await import('./email')
+        await emailService.sendPlanChange(
+          { name: userBefore.name || '', email: userBefore.email },
+          'FREE',
+          freeCredits,
+          'downgrade',
+          oldPlan,
+        )
+      } catch (err) {
+        console.warn('[Payment Cancel] Plan downgrade email failed:', err)
+      }
+    }
   },
 }

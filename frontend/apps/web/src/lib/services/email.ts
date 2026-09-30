@@ -56,27 +56,37 @@ async function logEmail(type: string, to: string, subject: string, status: strin
   }
 }
 
-let cachedTransporter: Transporter | null = null
+function getNormalizedSmtpHost(): string {
+  let host = SMTP_HOST || ''
+  if (host === 'relay.brevo.com' || host === 'smtp.brevo.com') {
+    return 'smtp-relay.brevo.com'
+  }
+  return host
+}
 
 function getSmtpTransporter(): Transporter | null {
   if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
     return null
   }
-  if (!cachedTransporter) {
-    cachedTransporter = nodemailer.createTransport({
-      host: SMTP_HOST,
-      port: SMTP_PORT,
-      secure: SMTP_SECURE,
-      auth: {
-        user: SMTP_USER,
-        pass: SMTP_PASS,
-      },
-      connectionTimeout: 10000,
-      greetingTimeout: 5000,
-      socketTimeout: 15000,
-    })
-  }
-  return cachedTransporter
+
+  const host = getNormalizedSmtpHost()
+
+  // In serverless environments, create a fresh transporter to avoid stale/frozen socket timeouts
+  return nodemailer.createTransport({
+    host,
+    port: SMTP_PORT,
+    secure: SMTP_SECURE,
+    auth: {
+      user: SMTP_USER,
+      pass: SMTP_PASS,
+    },
+    connectionTimeout: 10000,
+    greetingTimeout: 5000,
+    socketTimeout: 15000,
+    tls: {
+      rejectUnauthorized: false,
+    },
+  })
 }
 
 async function sendViaHybridTransport(
@@ -473,6 +483,7 @@ export const emailService = {
     if (!SMTP_USER) missing.push('SMTP_USER')
     if (!SMTP_PASS) missing.push('SMTP_PASS')
 
+    const host = getNormalizedSmtpHost()
     const smtp = getSmtpTransporter()
     if (smtp) {
       try {
@@ -481,16 +492,15 @@ export const emailService = {
           configured: true,
           provider: 'smtp',
           working: true,
-          message: `Custom SMTP verified successfully (${SMTP_HOST}:${SMTP_PORT}, user: ${SMTP_USER})`,
+          message: `Custom SMTP verified successfully (${host}:${SMTP_PORT}, user: ${SMTP_USER})`,
         }
       } catch (err: unknown) {
-        cachedTransporter = null
         const errorMsg = err instanceof Error ? err.message : 'SMTP verification failed'
         return {
           configured: true,
           provider: 'smtp',
           working: false,
-          message: `SMTP connection error (${SMTP_HOST}:${SMTP_PORT}): ${errorMsg}`,
+          message: `SMTP connection error (${host}:${SMTP_PORT}): ${errorMsg}`,
         }
       }
     }

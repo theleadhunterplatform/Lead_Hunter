@@ -87,6 +87,23 @@ export async function GET(request: NextRequest) {
           })
         })
 
+        if (account.user?.email) {
+          try {
+            const { emailService } = await import('@/lib/services/email')
+            emailService
+              .sendPlanChange(
+                { name: account.user.name || '', email: account.user.email },
+                'FREE',
+                freeLimit,
+                'downgrade',
+                account.user.plan,
+              )
+              .catch((err) => console.warn('[Subscription Check Cron] Downgrade email failed:', err))
+          } catch (e) {
+            console.warn('[Subscription Check Cron] Error loading emailService:', e)
+          }
+        }
+
         downgradedCount++
       }
     }
