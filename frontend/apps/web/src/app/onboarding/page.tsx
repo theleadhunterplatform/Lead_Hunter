@@ -409,7 +409,8 @@ export default function OnboardingPage() {
         },
         body: JSON.stringify({ email: auth.currentUser.email }),
       })
-      if (!res.ok) {
+      const json = await res.json().catch(() => null)
+      if (!res.ok || json?.data?.fallback || !json?.data?.success) {
         await sendEmailVerification(auth.currentUser).catch(() => {})
       }
     } catch {

@@ -100,15 +100,16 @@ function VerifyEmailContent() {
         },
         body: JSON.stringify({ email: auth.currentUser.email }),
       })
-      if (res.ok) {
-        setResendMessage('Verification email sent! Check your inbox.')
-      } else {
+      const json = await res.json().catch(() => null)
+      if (!res.ok || json?.data?.fallback || !json?.data?.success) {
         await sendEmailVerification(auth.currentUser)
-        setResendMessage('Verification email sent! Check your inbox.')
       }
+      setResendMessage('Verification email sent! Check your inbox (and spam folder).')
     } catch {
-      await sendEmailVerification(auth.currentUser).catch(() => {})
-      setResendMessage('Verification email sent! Check your inbox.')
+      if (auth.currentUser) {
+        await sendEmailVerification(auth.currentUser).catch(() => {})
+      }
+      setResendMessage('Verification email sent! Check your inbox (and spam folder).')
     } finally {
       setResending(false)
     }

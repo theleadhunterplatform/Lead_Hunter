@@ -18,14 +18,12 @@ import {
   GiftIcon,
   TrophyIcon,
   SparklesIcon,
-  CreditCardIcon,
 } from '@heroicons/react/24/solid'
 
 const navItems = [
   { name: 'Lead Feed', href: '/leads', icon: BanknotesIcon },
   { name: 'Saved Leads', href: '/saved', icon: BookmarkIcon },
   { name: 'Dashboard', href: '/dashboard', icon: Squares2X2Icon },
-  { name: 'Pricing & Plans', href: '/pricing', icon: CreditCardIcon },
   { name: 'Refer & Earn', href: '/referrals', icon: GiftIcon },
   { name: 'Milestone Rewards', href: '/rewards', icon: TrophyIcon },
   { name: 'Community Wins', href: '/community', icon: SparklesIcon },
@@ -40,7 +38,7 @@ interface AppSidebarProps {
   /** Demo-only credit values (no auth/API needed) — used by hero preview */
   demoCredits?: number
   demoPlanMax?: number
-  /** Demo-only: routes to hide from the nav list (e.g. hero hides /pricing) */
+  /** Demo-only: routes to hide from the nav list (e.g. hero hides /refill) */
   hiddenPaths?: string[]
 }
 
@@ -74,7 +72,7 @@ export default function AppSidebar({
   const creditPercentage = Math.min(100, (creditTotal / planMax) * 100)
 
   const isHidden = (href: string) => !!hiddenPaths && hiddenPaths.includes(href)
-  // In demo, hidden routes (e.g. /pricing when the hero removes the Pricing section) are inert.
+  // In demo, hidden routes (e.g. /refill when the hero removes the purchase CTA) are inert.
   const handleDemoNav = (href: string) => {
     if (!isHidden(href)) onNavItemClick?.(href)
   }
@@ -234,17 +232,17 @@ export default function AppSidebar({
               </div>
             ) : null}
 
-            {isHidden('/pricing') ? (
+            {isHidden('/refill') ? (
               <span className="min-h-[24px] text-9 font-bold text-accent-orange uppercase tracking-super block pt-0.5 opacity-60">
                 Refill Pipeline →
               </span>
             ) : (
               <Link
-                href="/pricing?tab=refills"
+                href="/refill"
                 onClick={(e) => {
                   if (isDemo) {
                     e.preventDefault()
-                    handleDemoNav('/pricing')
+                    handleDemoNav('/refill')
                   }
                 }}
                 className="min-h-[24px] text-9 font-bold text-accent-orange uppercase tracking-super hover:opacity-80 transition-opacity block pt-0.5"
@@ -257,20 +255,20 @@ export default function AppSidebar({
       ) : (
         <div className="px-2 mb-3 shrink-0 flex justify-center group/credit relative">
             <Link
-              href="/pricing"
+              href="/refill"
               title={
-                isHidden('/pricing')
+                isHidden('/refill')
                   ? `Credits: ${creditTotal} / ${planMax}`
-                  : `Credits: ${creditTotal} / ${planMax} · Click to view plans & refill`
+                  : `Credits: ${creditTotal} / ${planMax} · Click to refill credits`
               }
               onClick={(e) => {
                 if (isDemo) {
                   e.preventDefault()
-                  handleDemoNav('/pricing')
+                  handleDemoNav('/refill')
                 }
               }}
             className={`w-10 h-10 rounded-xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center relative ${
-              isHidden('/pricing')
+              isHidden('/refill')
                 ? 'cursor-default'
                 : 'cursor-pointer hover:border-accent-orange/30 hover:bg-white/[0.06] transition-all duration-300'
               }`}

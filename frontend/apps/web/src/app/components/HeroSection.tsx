@@ -2374,14 +2374,14 @@ export default function HeroSection() {
             {/* App body — column on mobile (content + bottom dock), row on desktop (sidebar).
                 `relative` clips the MobileBottomNav demo bottom-sheet to the frame. */}
             <div className="relative flex flex-col md:flex-row h-[520px] sm:h-[480px] md:h-[510px] bg-bg-main overflow-hidden">
-              {/* REAL AppSidebar in demo mode — identical 8-item nav, orange active states,
+              {/* REAL AppSidebar in demo mode — identical 7-item nav, orange active states,
                   interactive collapse, credits widget, Settings/Sign Out (demo-safe) */}
               <div className="hidden md:block shrink-0 h-full">
                 <AppSidebar
                   isDemo
                   demoCredits={750}
                   demoPlanMax={1000}
-                  hiddenPaths={['/pricing']}
+                  hiddenPaths={['/refill']}
                   activePathOverride={activeRoute}
                   onNavItemClick={(href) => setActiveRoute(href)}
                 />
