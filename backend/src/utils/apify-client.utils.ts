@@ -55,18 +55,30 @@ export function isApifyLimitError(error: any): boolean {
     const status = error?.statusCode ?? error?.status;
     const message = String(error?.message || error?.data?.message || '').toLowerCase();
 
-    // Do not treat every 403 as exhausted (can be auth/permission noise).
+    // Auth error: invalid, expired, revoked token or deleted account
+    if (status === 401) return true;
+    if (
+        message.includes('not valid') ||
+        message.includes('authentication token') ||
+        message.includes('invalid token') ||
+        message.includes('user was not found')
+    ) {
+        return true;
+    }
+
+    // Quota and billing limits
     if (status === 402) return true;
     if (
         message.includes('usage limit') ||
         message.includes('monthly usage') ||
         message.includes('limit exceeded') ||
         message.includes('payment required') ||
-        message.includes('insufficient credits')
+        message.includes('insufficient credits') ||
+        message.includes('platform-feature-disabled')
     ) {
         return true;
     }
-    if (status === 403 && (message.includes('limit') || message.includes('quota') || message.includes('usage'))) {
+    if (status === 403 && (message.includes('limit') || message.includes('quota') || message.includes('usage') || message.includes('disabled'))) {
         return true;
     }
     return false;
@@ -78,7 +90,7 @@ export async function handleApifyLimitError(error: any, activeKey: ApifyKeyRecor
     const keyId = activeKey._id || activeKey.id;
     if (!keyId) return;
 
-    console.warn(`⚠️ Token limit reached for ${activeKey.label || 'current key'}. Rotating...`);
+    console.warn(`⚠️ Apify error for ${activeKey.label || 'current key'} (${error?.message || 'limit/invalid'}). Marking inactive and rotating...`);
     await markApifyKeyExhausted(keyId);
 }
 

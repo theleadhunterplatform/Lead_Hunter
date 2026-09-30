@@ -35,6 +35,8 @@ export default function AdminTokensPage() {
   const [loading, setLoading] = useState(true)
   const [newKey, setNewKey] = useState('')
   const [newLabel, setNewLabel] = useState('')
+  const [isAddingKey, setIsAddingKey] = useState(false)
+  const [deletingKeyId, setDeletingKeyId] = useState<string | null>(null)
   const { addToast } = useToast()
 
   const [enrichmentKeys, setEnrichmentKeys] = useState<Record<string, { is_configured: boolean; value: string }>>({})
@@ -127,32 +129,77 @@ export default function AdminTokensPage() {
   }, [fetchTokens, fetchEnrichmentKeys, fetchAutomationSettings])
 
   const addKey = async () => {
-    if (!newKey.trim()) return
-    const token = await getFirebaseToken()
-    const res = await fetch('/api/admin/apify-keys', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key: newKey.trim(), label: newLabel.trim() || undefined }),
-    })
-    if (res.ok) {
-      setNewKey(''); setNewLabel('')
-      fetchTokens()
+    const keyTrimmed = newKey.trim()
+    if (!keyTrimmed) {
+      addToast({ type: 'error', message: 'Please enter an Apify API key' })
+      return
+    }
+
+    setIsAddingKey(true)
+    try {
+      const token = await getFirebaseToken()
+      if (!token) {
+        throw new Error('Not authenticated. Please log in as an administrator.')
+      }
+
+      const res = await fetch('/api/admin/apify-keys', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: keyTrimmed, label: newLabel.trim() || undefined }),
+      })
+
+      const json = await res.json().catch(() => ({}))
+
+      if (!res.ok) {
+        throw new Error(json?.message || `Failed to add key (HTTP ${res.status})`)
+      }
+
+      setNewKey('')
+      setNewLabel('')
+      await fetchTokens()
       window.dispatchEvent(new CustomEvent('apify-keys-updated'))
       try {
         sessionStorage.removeItem('apify_exhausted_modal_dismissed')
       } catch {}
       addToast({ type: 'success', message: 'Apify key added successfully' })
+    } catch (err: any) {
+      const msg = err?.message || 'Failed to add Apify key'
+      addToast({ type: 'error', message: msg })
+      console.error('Failed to add Apify key:', err)
+    } finally {
+      setIsAddingKey(false)
     }
   }
 
   const deleteKey = async (id: string) => {
-    const token = await getFirebaseToken()
-    await fetch(`/api/admin/apify-keys/${id}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    fetchTokens()
-    window.dispatchEvent(new CustomEvent('apify-keys-updated'))
+    setDeletingKeyId(id)
+    try {
+      const token = await getFirebaseToken()
+      if (!token) {
+        throw new Error('Not authenticated as an administrator')
+      }
+
+      const res = await fetch(`/api/admin/apify-keys/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+
+      const json = await res.json().catch(() => ({}))
+
+      if (!res.ok) {
+        throw new Error(json?.message || `Failed to delete key (HTTP ${res.status})`)
+      }
+
+      await fetchTokens()
+      window.dispatchEvent(new CustomEvent('apify-keys-updated'))
+      addToast({ type: 'success', message: 'Apify key removed successfully' })
+    } catch (err: any) {
+      const msg = err?.message || 'Failed to delete Apify key'
+      addToast({ type: 'error', message: msg })
+      console.error('Failed to delete Apify key:', err)
+    } finally {
+      setDeletingKeyId(null)
+    }
   }
 
   const handleEnrichmentSave = async (service: string, label: string, value: string) => {
@@ -292,32 +339,53 @@ export default function AdminTokensPage() {
                   className="w-full bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all px-4 py-2.5 text-sm"
                 />
               </div>
-              <button onClick={addKey} disabled={!newKey.trim()}
-                className="px-5 py-2.5 rounded-xl bg-accent-mint text-white text-sm font-medium hover:bg-accent-mint/90 transition-all disabled:opacity-50">
-                <PlusIcon className="w-4 h-4" />
+              <button
+                onClick={addKey}
+                disabled={!newKey.trim() || isAddingKey}
+                className="px-5 py-2.5 rounded-xl bg-accent-mint text-white text-sm font-medium hover:bg-accent-mint/90 transition-all disabled:opacity-50 flex items-center justify-center min-w-[48px]"
+                title="Add Apify Key"
+              >
+                {isAddingKey ? (
+                  <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                ) : (
+                  <PlusIcon className="w-4 h-4" />
+                )}
               </button>
             </div>
 
             <div className="space-y-2">
               {tokens.length === 0 ? (
                 <p className="text-sm text-text-secondary text-center py-6">No API keys added yet</p>
-              ) : tokens.map(k => (
-                <div key={k._id || k.id} className="flex items-center justify-between bg-surface-elevated/50 rounded-xl px-4 py-3 border border-white/[0.03]">
-                  <div className="flex items-center gap-3">
-                    {k.is_active ? <ShieldCheckIcon className="w-4 h-4 text-green-400" /> : <ShieldExclamationIcon className="w-4 h-4 text-gray-500" />}
-                    <div>
-                      <p className="text-sm font-medium text-text-primary">{k.label || k.key.substring(0, 20)}...</p>
-                      <p className="text-[10px] text-text-secondary">
-                        Used: {k.comments_used}/{k.comments_limit} | Remaining: {k.comments_remaining}
-                        {k.assigned_worker && <> | Worker: {k.assigned_worker}</>}
-                      </p>
+              ) : tokens.map(k => {
+                const keyId = k._id || k.id
+                const isDeleting = deletingKeyId === keyId
+                return (
+                  <div key={keyId} className="flex items-center justify-between bg-surface-elevated/50 rounded-xl px-4 py-3 border border-white/[0.03]">
+                    <div className="flex items-center gap-3">
+                      {k.is_active ? <ShieldCheckIcon className="w-4 h-4 text-green-400" /> : <ShieldExclamationIcon className="w-4 h-4 text-gray-500" />}
+                      <div>
+                        <p className="text-sm font-medium text-text-primary">{k.label || k.key.substring(0, 20)}...</p>
+                        <p className="text-[10px] text-text-secondary">
+                          Used: {k.comments_used}/{k.comments_limit} | Remaining: {k.comments_remaining}
+                          {k.assigned_worker && <> | Worker: {k.assigned_worker}</>}
+                        </p>
+                      </div>
                     </div>
+                    <button
+                      onClick={() => deleteKey(keyId)}
+                      disabled={isDeleting}
+                      className="p-1.5 rounded-lg hover:bg-red-500/10 text-red-400 transition-all disabled:opacity-50"
+                      title="Delete key"
+                    >
+                      {isDeleting ? (
+                        <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <TrashIcon className="w-4 h-4" />
+                      )}
+                    </button>
                   </div>
-                  <button onClick={() => deleteKey(k._id || k.id)} className="p-1.5 rounded-lg hover:bg-red-500/10 text-red-400 transition-all">
-                    <TrashIcon className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
 
