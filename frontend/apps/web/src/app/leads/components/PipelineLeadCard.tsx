@@ -234,6 +234,13 @@ function PipelineLeadCard({
       if (onReveal) {
         onReveal(lead.id, json.name, json.email, json.phone)
       }
+
+      if (typeof json.creditsRemaining === 'number') {
+        window.dispatchEvent(
+          new CustomEvent('credits-updated', { detail: { creditsRemaining: json.creditsRemaining } }),
+        )
+      }
+      window.dispatchEvent(new Event('user-refetch'))
     } catch {
       addToast({
         type: 'error',

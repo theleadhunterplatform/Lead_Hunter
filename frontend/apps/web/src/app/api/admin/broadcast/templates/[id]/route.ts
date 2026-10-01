@@ -21,7 +21,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    await requireAdmin(request)
+    const admin = await requireAdmin(request)
     const { id } = await params
     const body = await request.json()
     const parsed = updateTemplateSchema.safeParse(body)

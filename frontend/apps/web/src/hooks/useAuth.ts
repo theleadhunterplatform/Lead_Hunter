@@ -84,15 +84,16 @@ export function useAuth() {
       return
     }
 
-    const syncUser = async (fbUser: import('firebase/auth').User) => {
+    const syncUser = async (fbUser: import('firebase/auth').User, force: boolean = false) => {
       const now = Date.now()
       fbUserRef.current = fbUser
       setFirebaseUser(fbUser)
       setError(null)
       setLastTokenRefresh(now)
 
-      // 1. If we have a fresh user cache (< 10 seconds old) matching this UID, reuse immediately!
+      // 1. If we have a fresh user cache (< 10 seconds old) matching this UID, reuse immediately (unless force requested)
       if (
+        !force &&
         globalCachedUser &&
         globalCachedUser.id === fbUser.uid &&
         now - globalCachedTimestamp < 10_000
@@ -244,14 +245,40 @@ export function useAuth() {
           }
           updateGlobalCachedUser(updated)
         }
+        setUser((prev) => {
+          if (!prev) return prev
+          const prevAccount = prev.creditAccount || {
+            subscriptionBalance: 0,
+            bonusBalance: 0,
+            rolloverBalance: 0,
+            total: 0,
+          }
+          return {
+            ...prev,
+            creditAccount: {
+              ...prevAccount,
+              total: remaining,
+            },
+          }
+        })
       }
     }
+
+    const handleUserRefetch = () => {
+      if (fbUserRef.current && isMounted) {
+        syncUser(fbUserRef.current, true)
+      }
+    }
+
     window.addEventListener('credits-updated', handleCreditsUpdate)
+    window.addEventListener('user-refetch', handleUserRefetch)
 
     return () => {
       isMounted = false
       unsubToken()
       unsubAuth()
+      window.removeEventListener('credits-updated', handleCreditsUpdate)
+      window.removeEventListener('user-refetch', handleUserRefetch)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
       clearInterval(syncInterval)
     }

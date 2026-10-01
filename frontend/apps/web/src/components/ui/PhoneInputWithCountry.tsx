@@ -7,6 +7,7 @@ import {
   DEFAULT_COUNTRY,
   findCountryByDialCode,
   extractCountryAndLocalNumber,
+  getCountryDigitLimits,
   type Country,
 } from '@/lib/countries'
 
@@ -38,6 +39,10 @@ export function PhoneInputWithCountry({
   const selectedCountry = useMemo(() => {
     return findCountryByDialCode(countryCode) || DEFAULT_COUNTRY
   }, [countryCode])
+
+  const digitLimits = useMemo(() => {
+    return getCountryDigitLimits(selectedCountry)
+  }, [selectedCountry])
 
   // Handle clicking outside to close the dropdown
   useEffect(() => {
@@ -97,10 +102,16 @@ export function PhoneInputWithCountry({
     if (val.trim().startsWith('+')) {
       const parsed = extractCountryAndLocalNumber(val)
       onCountryCodeChange(parsed.dialCode)
-      onPhoneNumberChange(parsed.localNumber)
+      const parsedCountry = findCountryByDialCode(parsed.dialCode) || selectedCountry
+      const limits = getCountryDigitLimits(parsedCountry)
+      const digitsOnly = parsed.localNumber.replace(/\D/g, '').slice(0, limits.max)
+      onPhoneNumberChange(digitsOnly)
       return
     }
-    onPhoneNumberChange(val)
+
+    // Strictly enforce numbers only (0-9) and cap at the maximum allowed digits for the selected country
+    const digitsOnly = val.replace(/\D/g, '')
+    onPhoneNumberChange(digitsOnly.slice(0, digitLimits.max))
   }
 
   return (
@@ -209,14 +220,29 @@ export function PhoneInputWithCountry({
             onChange={(e) => handlePhoneChange(e.target.value)}
             disabled={disabled}
             type="tel"
-            inputMode="tel"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            maxLength={digitLimits.max}
             placeholder={selectedCountry.format || '98765 43210'}
-            className={`w-full h-[46px] bg-surface-elevated border text-white rounded-xl outline-none transition-all px-4 py-3 font-medium text-sm placeholder:text-text-secondary/40 ${
+            className={`w-full h-[46px] bg-surface-elevated border text-white rounded-xl outline-none transition-all pl-4 pr-16 py-3 font-medium text-sm placeholder:text-text-secondary/40 ${
               error
                 ? 'border-red-500/50 focus:ring-1 focus:ring-red-500/50'
                 : 'border-white/5 focus:ring-1 focus:ring-primary/50 focus:border-primary/50'
             } disabled:opacity-50 disabled:cursor-not-allowed`}
           />
+
+          {/* Live digit counter badge */}
+          {phoneNumber.length > 0 && (
+            <span
+              className={`absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-mono select-none px-2 py-0.5 rounded-md transition-colors ${
+                phoneNumber.length >= digitLimits.min && phoneNumber.length <= digitLimits.max
+                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                  : 'bg-white/5 text-text-secondary/60 border border-white/5'
+              }`}
+            >
+              {phoneNumber.length}/{digitLimits.min === digitLimits.max ? digitLimits.max : `${digitLimits.min}-${digitLimits.max}`}
+            </span>
+          )}
         </div>
       </div>
     </div>

@@ -11,7 +11,17 @@ const testSchema = z.object({
   testEmail: z.string().trim().email('Valid test email address required').optional().or(z.literal('')),
   email: z.string().trim().email('Valid test email address required').optional().or(z.literal('')),
   flowType: z
-    .enum(['application_received', 'approved', 'low_credits', 'renewal_reminder', 'custom'])
+    .enum([
+      'application_received',
+      'approved',
+      'low_credits',
+      'renewal_reminder',
+      'plan_upgrade',
+      'plan_downgrade',
+      'plan_change',
+      'credit_topup',
+      'custom',
+    ])
     .optional()
     .default('custom'),
   subject: z.string().optional(),

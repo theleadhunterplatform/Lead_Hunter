@@ -1681,7 +1681,18 @@ export default function AdminBroadcastPage() {
                   <label className="text-xs font-bold text-text-secondary">Category Group</label>
                   <select
                     value={tCategory}
-                    onChange={(e) => setTCategory(e.target.value)}
+                    onChange={(e) => {
+                      const newCat = e.target.value
+                      setTCategory(newCat)
+                      if (newCat === 'automated' && !editingTemplateId) {
+                        const existing = templates.find((t) => t.id === tTrigger)
+                        if (existing) {
+                          setTName(existing.name)
+                          setTSubject(existing.subject)
+                          setTBody(existing.body)
+                        }
+                      }
+                    }}
                     className="w-full px-4 py-2.5 rounded-xl bg-surface-container-lowest border border-white/10 text-xs text-white focus:outline-none focus:border-primary cursor-pointer"
                   >
                     <option value="general">General Broadcast</option>
@@ -1699,7 +1710,18 @@ export default function AdminBroadcastPage() {
                     <label className="text-xs font-bold text-text-secondary">Trigger Event</label>
                     <select
                       value={tTrigger}
-                      onChange={(e) => setTTrigger(e.target.value)}
+                      onChange={(e) => {
+                        const chosenId = e.target.value
+                        setTTrigger(chosenId)
+                        if (!editingTemplateId) {
+                          const existing = templates.find((t) => t.id === chosenId)
+                          if (existing) {
+                            setTName(existing.name)
+                            setTSubject(existing.subject)
+                            setTBody(existing.body)
+                          }
+                        }
+                      }}
                       className="w-full px-4 py-2.5 rounded-xl bg-surface-container-lowest border border-primary/30 text-xs text-white focus:outline-none focus:border-primary cursor-pointer"
                     >
                       {AUTOMATED_TRIGGER_OPTIONS.map((opt) => (

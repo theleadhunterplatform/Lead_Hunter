@@ -4,6 +4,11 @@ import { requireEmailVerified, AuthRequiredError, EmailNotVerifiedError } from '
 import { onboardingSchema } from '@/lib/validators/auth'
 import { emailService } from '@/lib/services/email'
 import { normalizePhone } from '@/lib/phone'
+import {
+  extractCountryAndLocalNumber,
+  findCountryByDialCode,
+  validatePhoneNumberLength,
+} from '@/lib/countries'
 import { normalizeSocialUrl, isValidSocialProfile } from '@/lib/social'
 
 export const dynamic = 'force-dynamic'
@@ -53,6 +58,21 @@ export async function POST(request: NextRequest) {
 
     const isAdmin = existingUser.role === 'admin'
     const rawPhone = parsed.data.phone.trim()
+
+    // Validate phone number digit count for country
+    const { dialCode, localNumber } = extractCountryAndLocalNumber(rawPhone)
+    const country = findCountryByDialCode(dialCode)
+    const phoneValidation = validatePhoneNumberLength(country, localNumber)
+    if (!phoneValidation.valid) {
+      return NextResponse.json(
+        {
+          code: 'INVALID_PHONE_LENGTH',
+          message: phoneValidation.message || 'Invalid phone number length for selected country.',
+        },
+        { status: 400 },
+      )
+    }
+
     const normalizedPhone = normalizePhone(rawPhone)
 
     // Strictly enforce 1 single mobile number across accounts via indexed database query

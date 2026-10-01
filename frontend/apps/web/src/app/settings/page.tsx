@@ -10,6 +10,10 @@ import {
   PhoneAuthProvider,
   RecaptchaVerifier,
   linkWithCredential,
+  EmailAuthProvider,
+  updatePassword,
+  reauthenticateWithCredential,
+  sendPasswordResetEmail,
   type ConfirmationResult,
 } from '@/lib/firebase'
 import { normalizePhone } from '@/lib/phone'
@@ -31,6 +35,10 @@ import {
   PhoneIcon,
   ArrowPathIcon,
   ShieldExclamationIcon,
+  ShieldCheckIcon,
+  KeyIcon,
+  EyeIcon,
+  EyeSlashIcon,
 } from '@heroicons/react/24/solid'
 
 const PLAN_LABELS: Record<string, string> = {
@@ -47,9 +55,24 @@ const PLAN_CREDITS: Record<string, number> = {
 
 export default function SettingsPage() {
   const router = useRouter()
-  const { user, logout } = useAuth()
+  const { user, logout, firebaseUser } = useAuth()
   const [isEditing, setIsEditing] = useState(false)
   const [displayName, setDisplayName] = useState(user?.name || '')
+
+  // Password Change State
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
+  const [showNewPassword, setShowNewPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [passwordLoading, setPasswordLoading] = useState(false)
+  const [passwordError, setPasswordError] = useState('')
+  const [passwordSuccess, setPasswordSuccess] = useState('')
+
+  // Password Reset Email State
+  const [resetEmailLoading, setResetEmailLoading] = useState(false)
+  const [resetEmailCountdown, setResetEmailCountdown] = useState(0)
 
   const remainingDays = useMemo(() => {
     if (!user?.creditAccount?.renewalDate) return null
@@ -96,6 +119,19 @@ export default function SettingsPage() {
     const id = setInterval(() => setOtpCountdown((c) => c - 1), 1000)
     return () => clearInterval(id)
   }, [otpCountdown])
+
+  useEffect(() => {
+    if (resetEmailCountdown <= 0) return
+    const id = setInterval(() => setResetEmailCountdown((c) => c - 1), 1000)
+    return () => clearInterval(id)
+  }, [resetEmailCountdown])
+
+  const isGoogleUser = useMemo(() => {
+    if (!firebaseUser?.providerData?.length) return false
+    const hasGoogle = firebaseUser.providerData.some((p) => p.providerId === 'google.com')
+    const hasPassword = firebaseUser.providerData.some((p) => p.providerId === 'password')
+    return hasGoogle && !hasPassword
+  }, [firebaseUser])
 
   const verifierRef = useRef<RecaptchaVerifier | null>(null)
 
@@ -174,6 +210,109 @@ export default function SettingsPage() {
       setPhoneError('Invalid verification code. Please try again.')
     } finally {
       setPhoneLoading(false)
+    }
+  }
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setPasswordError('')
+    setPasswordSuccess('')
+
+    const trimmedCurrent = currentPassword.trim()
+    const trimmedNew = newPassword.trim()
+    const trimmedConfirm = confirmPassword.trim()
+
+    if (!trimmedCurrent) {
+      setPasswordError('Please enter your current password.')
+      return
+    }
+    if (!trimmedNew) {
+      setPasswordError('Please enter a new password.')
+      return
+    }
+    if (trimmedNew.length < 6) {
+      setPasswordError('New password must be at least 6 characters long.')
+      return
+    }
+    if (trimmedNew === trimmedCurrent) {
+      setPasswordError('New password must be different from your current password.')
+      return
+    }
+    if (trimmedNew !== trimmedConfirm) {
+      setPasswordError('New passwords do not match.')
+      return
+    }
+
+    const email = firebaseUser?.email || user?.email
+    if (!firebaseUser || !email) {
+      setPasswordError('Authentication session not found. Please reload the page.')
+      return
+    }
+
+    setPasswordLoading(true)
+    try {
+      // 1. Re-authenticate user with current password
+      const credential = EmailAuthProvider.credential(email, trimmedCurrent)
+      await reauthenticateWithCredential(firebaseUser, credential)
+
+      // 2. Update password in Firebase
+      await updatePassword(firebaseUser, trimmedNew)
+
+      // 3. Clear inputs & indicate success
+      setCurrentPassword('')
+      setNewPassword('')
+      setConfirmPassword('')
+      setPasswordSuccess('Password successfully updated!')
+      addToast({ type: 'success', message: 'Your password has been changed successfully.' })
+    } catch (err: any) {
+      const code = err?.code || ''
+      let friendlyMsg = 'Failed to update password. Please check your credentials and try again.'
+      if (code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
+        friendlyMsg = 'The current password you entered is incorrect.'
+      } else if (code === 'auth/weak-password') {
+        friendlyMsg = 'The new password must be at least 6 characters long.'
+      } else if (code === 'auth/requires-recent-login') {
+        friendlyMsg = 'For security, please sign out and sign back in before changing your password.'
+      } else if (code === 'auth/too-many-requests') {
+        friendlyMsg = 'Too many attempts. Please wait a few moments and try again.'
+      } else if (code === 'auth/network-request-failed') {
+        friendlyMsg = 'Network error. Please check your connection and try again.'
+      }
+      setPasswordError(friendlyMsg)
+    } finally {
+      setPasswordLoading(false)
+    }
+  }
+
+  const handleSendResetEmail = async () => {
+    const email = firebaseUser?.email || user?.email
+    if (!email) {
+      addToast({ type: 'error', message: 'No registered email found.' })
+      return
+    }
+    setPasswordError('')
+    setPasswordSuccess('')
+    setResetEmailLoading(true)
+    try {
+      await sendPasswordResetEmail(auth, email)
+      setResetEmailCountdown(60)
+      setPasswordSuccess(`Password reset link sent to ${email}. Check your inbox!`)
+      addToast({
+        type: 'success',
+        message: `Password reset link sent to ${email}.`,
+      })
+    } catch (err: any) {
+      const code = err?.code || ''
+      let friendlyMsg = 'Failed to send password reset email. Please try again.'
+      if (code === 'auth/too-many-requests') {
+        friendlyMsg = 'Too many requests. Please wait a moment before trying again.'
+      } else if (code === 'auth/user-not-found') {
+        friendlyMsg = 'No user account found with this email address.'
+      }
+      setPasswordError(friendlyMsg)
+      addToast({ type: 'error', message: friendlyMsg })
+    } finally {
+      setResetEmailLoading(false)
     }
   }
 
@@ -514,6 +653,200 @@ export default function SettingsPage() {
                   </>
                 )}
               </div>
+            )}
+          </motion.div>
+
+          {/* Password & Security Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.08 }}
+            className="metallic-card p-6 sm:p-8"
+          >
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-xl bg-surface-secondary border border-border-subtle flex items-center justify-center">
+                  <KeyIcon className="w-6 h-6 text-text-secondary" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-text-primary">Password & Security</h2>
+                  <p className="text-sm text-text-secondary">Manage your password and authentication</p>
+                </div>
+              </div>
+              <span className="px-3 py-1 rounded-lg text-xs font-medium bg-white/5 text-text-secondary border border-white/10">
+                {isGoogleUser ? 'Google Account' : 'Password Protected'}
+              </span>
+            </div>
+
+            {isGoogleUser ? (
+              <div className="p-5 rounded-2xl bg-surface-elevated/50 border border-subtle/50 flex items-start gap-4">
+                <div className="w-10 h-10 rounded-xl bg-accent-mint/10 border border-accent-mint/20 flex items-center justify-center shrink-0 mt-0.5">
+                  <ShieldCheckIcon className="w-5 h-5 text-accent-mint" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-text-primary">Authenticated via Google</h3>
+                  <p className="text-xs text-text-secondary mt-1 leading-relaxed">
+                    You signed in using Google (<span className="text-text-primary font-medium">{firebaseUser?.email || user?.email}</span>). Your password is authenticated and protected directly by Google, so password changes are handled through your Google Account settings.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleUpdatePassword} className="space-y-4">
+                {passwordSuccess && (
+                  <div className="p-3.5 rounded-xl bg-accent-mint/10 border border-accent-mint/20 text-xs text-accent-mint flex items-center gap-2">
+                    <CheckCircleIcon className="w-4 h-4 shrink-0" />
+                    <span>{passwordSuccess}</span>
+                  </div>
+                )}
+
+                {passwordError && (
+                  <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-400 flex items-center gap-2">
+                    <ShieldExclamationIcon className="w-4 h-4 shrink-0" />
+                    <span>{passwordError}</span>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {/* Current Password */}
+                  <div>
+                    <label className="block text-xs font-medium text-text-secondary uppercase tracking-wider mb-2">
+                      Current Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showCurrentPassword ? 'text' : 'password'}
+                        value={currentPassword}
+                        onChange={(e) => {
+                          setCurrentPassword(e.target.value)
+                          setPasswordError('')
+                          setPasswordSuccess('')
+                        }}
+                        placeholder="••••••••"
+                        autoComplete="current-password"
+                        className="w-full px-4 py-3 pr-10 rounded-xl bg-surface-elevated border border-subtle text-text-primary text-sm outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all placeholder:text-text-secondary/40"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowCurrentPassword((prev) => !prev)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary/60 hover:text-text-primary transition-colors"
+                        tabIndex={-1}
+                        aria-label={showCurrentPassword ? 'Hide current password' : 'Show current password'}
+                      >
+                        {showCurrentPassword ? (
+                          <EyeSlashIcon className="w-4 h-4" />
+                        ) : (
+                          <EyeIcon className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* New Password */}
+                  <div>
+                    <label className="block text-xs font-medium text-text-secondary uppercase tracking-wider mb-2">
+                      New Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showNewPassword ? 'text' : 'password'}
+                        value={newPassword}
+                        onChange={(e) => {
+                          setNewPassword(e.target.value)
+                          setPasswordError('')
+                          setPasswordSuccess('')
+                        }}
+                        placeholder="Min. 6 characters"
+                        autoComplete="new-password"
+                        className="w-full px-4 py-3 pr-10 rounded-xl bg-surface-elevated border border-subtle text-text-primary text-sm outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all placeholder:text-text-secondary/40"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword((prev) => !prev)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary/60 hover:text-text-primary transition-colors"
+                        tabIndex={-1}
+                        aria-label={showNewPassword ? 'Hide new password' : 'Show new password'}
+                      >
+                        {showNewPassword ? (
+                          <EyeSlashIcon className="w-4 h-4" />
+                        ) : (
+                          <EyeIcon className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Confirm New Password */}
+                  <div>
+                    <label className="block text-xs font-medium text-text-secondary uppercase tracking-wider mb-2">
+                      Confirm New Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        value={confirmPassword}
+                        onChange={(e) => {
+                          setConfirmPassword(e.target.value)
+                          setPasswordError('')
+                          setPasswordSuccess('')
+                        }}
+                        placeholder="••••••••"
+                        autoComplete="new-password"
+                        className="w-full px-4 py-3 pr-10 rounded-xl bg-surface-elevated border border-subtle text-text-primary text-sm outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all placeholder:text-text-secondary/40"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword((prev) => !prev)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary/60 hover:text-text-primary transition-colors"
+                        tabIndex={-1}
+                        aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
+                      >
+                        {showConfirmPassword ? (
+                          <EyeSlashIcon className="w-4 h-4" />
+                        ) : (
+                          <EyeIcon className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <button
+                    type="submit"
+                    disabled={
+                      passwordLoading ||
+                      !currentPassword ||
+                      !newPassword ||
+                      !confirmPassword
+                    }
+                    className="px-6 py-2.5 rounded-xl bg-accent-mint text-text-on-accent text-sm font-bold hover:bg-accent-mint/90 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(var(--rgb-primary),0.2)]"
+                  >
+                    {passwordLoading ? (
+                      <div className="w-4 h-4 rounded-full border-2 border-black/20 border-t-black animate-spin" />
+                    ) : (
+                      'Update Password'
+                    )}
+                  </button>
+
+                  <div className="text-xs text-text-secondary flex items-center gap-1.5 flex-wrap">
+                    <span>Forgot your current password?</span>
+                    <button
+                      type="button"
+                      onClick={handleSendResetEmail}
+                      disabled={resetEmailLoading || resetEmailCountdown > 0}
+                      className="text-accent-mint hover:underline font-semibold disabled:opacity-50 disabled:no-underline inline-flex items-center gap-1"
+                    >
+                      {resetEmailLoading ? (
+                        'Sending link...'
+                      ) : resetEmailCountdown > 0 ? (
+                        `Resend reset email in ${resetEmailCountdown}s`
+                      ) : (
+                        'Send reset email'
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </form>
             )}
           </motion.div>
 

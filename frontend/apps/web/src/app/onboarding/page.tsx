@@ -7,7 +7,12 @@ import { useAuth } from '@/hooks/useAuth'
 import { api } from '@/lib/api/client'
 import { normalizePhone } from '@/lib/phone'
 import { PhoneInputWithCountry } from '@/components/ui/PhoneInputWithCountry'
-import { extractCountryAndLocalNumber } from '@/lib/countries'
+import {
+  extractCountryAndLocalNumber,
+  findCountryByDialCode,
+  validatePhoneNumberLength,
+  DEFAULT_COUNTRY,
+} from '@/lib/countries'
 import {
   auth,
   signInWithPhoneNumber,
@@ -571,6 +576,13 @@ export default function OnboardingPage() {
     if (!discoverySource) return
     if (!linkedin.trim()) { setError('LinkedIn profile link is required'); return }
     if (!phoneNumber.trim()) { setError('Phone number is required'); return }
+    const selectedCountry = findCountryByDialCode(countryCode) || DEFAULT_COUNTRY
+    const phoneValidation = validatePhoneNumberLength(selectedCountry, phoneNumber)
+    if (!phoneValidation.valid) {
+      setError(phoneValidation.message || 'Invalid phone number length')
+      setStep(1)
+      return
+    }
     if (servicesOffered.length === 0) { setError('Select at least one service'); return }
     if (preferredLeadCategories.length === 0) { setError('Select at least one lead category'); return }
     if (!outreachExperience) { setError('Select your outreach experience'); return }
@@ -803,7 +815,11 @@ export default function OnboardingPage() {
                             setPhoneNumber(num)
                             setStep1Error('')
                           }}
-                          error={step1Error && !phoneNumber.trim() ? step1Error : undefined}
+                          error={
+                            step1Error && (step1Error.toLowerCase().includes('phone') || !phoneNumber.trim())
+                              ? step1Error
+                              : undefined
+                          }
                         />
                         <p className="text-xs text-text-secondary/60 mt-0.5">
                           Defaulted to India (+91). Select your country code if outside India.
@@ -819,23 +835,29 @@ export default function OnboardingPage() {
                     </div>
                   )}
 
-<button
-                      onClick={() => {
-                        if (!linkedin.trim()) {
-                          setStep1Error('LinkedIn profile link is required')
-                          return
-                        }
-                        if (!phoneNumber.trim()) {
-                          setStep1Error('Phone number is required')
-                          return
-                        }
-                        setStep1Error('')
-                        setStep(2)
-                      }}
-                      className="mt-6 w-full bg-primary hover:bg-primary/90 text-black font-semibold rounded-xl active:scale-98 transition-all shadow-[0_4px_20px_rgba(var(--rgb-primary),0.25)] px-4 py-3"
-                    >
-                      Continue
-                    </button>
+                  <button
+                    onClick={() => {
+                      if (!linkedin.trim()) {
+                        setStep1Error('LinkedIn profile link is required')
+                        return
+                      }
+                      if (!phoneNumber.trim()) {
+                        setStep1Error('Phone number is required')
+                        return
+                      }
+                      const selectedCountry = findCountryByDialCode(countryCode) || DEFAULT_COUNTRY
+                      const phoneValidation = validatePhoneNumberLength(selectedCountry, phoneNumber)
+                      if (!phoneValidation.valid) {
+                        setStep1Error(phoneValidation.message || 'Invalid phone number length')
+                        return
+                      }
+                      setStep1Error('')
+                      setStep(2)
+                    }}
+                    className="mt-6 w-full bg-primary hover:bg-primary/90 text-black font-semibold rounded-xl active:scale-98 transition-all shadow-[0_4px_20px_rgba(var(--rgb-primary),0.25)] px-4 py-3"
+                  >
+                    Continue
+                  </button>
 
                   <div className="mt-4 text-center">
                     <button

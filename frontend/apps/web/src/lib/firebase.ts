@@ -15,6 +15,8 @@ import {
   EmailAuthProvider,
   applyActionCode,
   updateProfile,
+  updatePassword,
+  reauthenticateWithCredential,
   type User as FirebaseUser,
   type ConfirmationResult,
 } from 'firebase/auth'
@@ -158,6 +160,8 @@ export {
   EmailAuthProvider,
   applyActionCode,
   updateProfile,
+  updatePassword,
+  reauthenticateWithCredential,
   storage,
 }
 export type { FirebaseUser, ConfirmationResult }

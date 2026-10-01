@@ -111,7 +111,6 @@ async function sendViaHybridTransport(
       logDev(`Sent email via Custom SMTP to ${to}: ${info.messageId}`)
       return { id: info.messageId || 'sent-smtp', success: true, provider: 'smtp' }
     } catch (smtpErr) {
-      cachedTransporter = null
       lastError = smtpErr instanceof Error ? smtpErr.message : String(smtpErr)
       console.error('[Email Service] Custom SMTP failed:', smtpErr)
       if (!RESEND_API_KEY) {
