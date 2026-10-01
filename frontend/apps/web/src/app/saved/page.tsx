@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import { motion, AnimatePresence } from 'framer-motion'
+import dynamic from 'next/dynamic'
 import {
   MagnifyingGlassIcon,
   GlobeAltIcon,
@@ -30,11 +32,19 @@ import { getFirebaseToken } from '@/lib/firebase'
 import { buildLeadIntelText } from '@/lib/intel'
 import { toCsv, toTsv, downloadXlsx, leadsToRows } from '@/lib/csv'
 
+// Same drawer popup the lead feed opens — code-split the same way so the
+// saved page bundle stays lean until a lead name is clicked.
+const LeadDrawer = dynamic(() => import('../leads/components/LeadDrawer'), {
+  ssr: false,
+})
+
 export default function SavedLeadsPage() {
   const [activeTab, setActiveTab] = useState('All Leads')
   const [searchTerm, setSearchTerm] = useState('')
   const [savedLeads, setSavedLeads] = useState<AppLead[]>([])
   const [loading, setLoading] = useState(true)
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null)
+  const [drawerLeadDetail, setDrawerLeadDetail] = useState<AppLead | null>(null)
   const [syncing, setSyncing] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
   const [exporting, setExporting] = useState<'csv' | 'tsv' | 'sheet' | null>(null)
@@ -44,6 +54,7 @@ export default function SavedLeadsPage() {
     () => typeof window !== 'undefined' && window.localStorage.getItem('lhc-saved-scrollhint') === '1',
   )
   const actionBtnRefs = useRef(new Map<string, HTMLButtonElement>())
+  const mainRef = useRef<HTMLElement | null>(null)
   const { addToast } = useToast()
 
   const toggleActionMenu = (leadId: string) => {
@@ -144,6 +155,112 @@ export default function SavedLeadsPage() {
   }
 
   useEffect(() => () => clearHoverTimers(), [])
+
+  // --- Lead drawer: clicking a lead's name opens the same popup as the lead feed ---
+  const openLead = (id: string) => {
+    closeLeadHoverCard()
+    setSelectedLeadId(id)
+    setDrawerLeadDetail(savedLeads.find((l) => l.id === id) || null)
+    try {
+      const url = new URL(window.location.href)
+      url.searchParams.set('lead', id)
+      window.history.pushState({}, '', url.toString())
+    } catch {
+      // non-fatal
+    }
+  }
+
+  const closeLead = () => {
+    setSelectedLeadId(null)
+    setDrawerLeadDetail(null)
+    try {
+      const url = new URL(window.location.href)
+      url.searchParams.delete('lead')
+      window.history.pushState({}, '', url.toString())
+    } catch {
+      // non-fatal
+    }
+  }
+
+  // Deep-link: ?lead=<id> opens the drawer on load / share
+  useEffect(() => {
+    try {
+      const id = new URLSearchParams(window.location.search).get('lead')
+      if (id) setSelectedLeadId(id)
+    } catch {
+      // ignore malformed URL
+    }
+  }, [])
+
+  // Fresh detail on open: update drawer detail state without mutating or
+  // re-sorting the saved table.
+  useEffect(() => {
+    if (!selectedLeadId) {
+      setDrawerLeadDetail(null)
+      return
+    }
+    if (
+      selectedLeadId.startsWith('mock') ||
+      selectedLeadId.startsWith('hero') ||
+      selectedLeadId.startsWith('card')
+    )
+      return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const token = await getFirebaseToken()
+        const res = await fetch(`/api/leads/${selectedLeadId}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        })
+        const json = await res.json()
+        if (!cancelled && res.ok && json.data) {
+          const fresh = json.data as AppLead
+          setDrawerLeadDetail((prev) => {
+            if (!prev || prev.id !== fresh.id) return fresh
+            return {
+              ...prev,
+              ...fresh,
+              category:
+                fresh.category && fresh.category !== 'General'
+                  ? fresh.category
+                  : prev.category || fresh.category,
+              niche:
+                fresh.niche && fresh.niche !== 'General'
+                  ? fresh.niche
+                  : prev.niche || fresh.niche,
+              niches: fresh.niches && fresh.niches.length > 0 ? fresh.niches : prev.niches,
+              nicheTags:
+                fresh.nicheTags && fresh.nicheTags.length > 0 ? fresh.nicheTags : prev.nicheTags,
+            }
+          })
+        }
+      } catch {
+        // keep existing drawer data
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [selectedLeadId])
+
+  // Esc closes the drawer + lock background scroll (body + scrolling <main>) while open
+  useEffect(() => {
+    if (!selectedLeadId) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeLead()
+    }
+    window.addEventListener('keydown', onKey)
+    const prevBody = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const mainEl = mainRef.current
+    const prevMain = mainEl ? mainEl.style.overflow : ''
+    if (mainEl) mainEl.style.overflow = 'hidden'
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prevBody
+      if (mainEl) mainEl.style.overflow = prevMain
+    }
+  }, [selectedLeadId])
 
   // Close the hover card on scroll / resize / Escape
   useEffect(() => {
@@ -457,8 +574,17 @@ export default function SavedLeadsPage() {
     replied: { label: 'Mark as Replied', icon: ChatBubbleLeftRightIcon },
   }
 
+  const selectedLead =
+    (drawerLeadDetail && drawerLeadDetail.id === selectedLeadId ? drawerLeadDetail : null) ??
+    savedLeads.find((l) => l.id === selectedLeadId) ??
+    null
+
   return (
-    <main data-lenis-prevent className="flex-1 h-full min-h-0 overflow-y-auto px-4 sm:px-6 lg:px-8 pt-8 pb-28 md:py-10 relative scrollbar-hide">
+    <main
+      ref={mainRef}
+      data-lenis-prevent
+      className="flex-1 h-full min-h-0 overflow-y-auto px-4 sm:px-6 lg:px-8 pt-8 pb-28 md:py-10 relative scrollbar-hide"
+    >
       <div className="max-w-[1400px] mx-auto relative z-10">
         {/* Summary Cards Row */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
@@ -652,14 +778,20 @@ export default function SavedLeadsPage() {
                               : <LockClosedIcon className="w-3.5 h-3.5" />}
                           </div>
                           <div
-                            className="min-w-0 rounded-md -m-1 p-1 outline-none focus-visible:ring-1 focus-visible:ring-accent-purple/50"
+                            className="min-w-0 rounded-md -m-1 p-1 outline-none cursor-pointer focus-visible:ring-1 focus-visible:ring-accent-purple/50"
                             tabIndex={0}
+                            role="button"
+                            onClick={() => openLead(lead.id)}
                             onMouseEnter={(e) => openLeadHoverCard(lead, e.currentTarget)}
                             onMouseLeave={scheduleCloseLeadHoverCard}
                             onFocus={(e) => openLeadHoverCard(lead, e.currentTarget, true)}
                             onBlur={closeLeadHoverCard}
                             onKeyDown={(e) => {
                               if (e.key === 'Escape') closeLeadHoverCard()
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault()
+                                openLead(lead.id)
+                              }
                             }}
                           >
                             <div className="text-sm font-bold text-text-primary truncate flex items-center gap-1.5">
@@ -1046,6 +1178,62 @@ export default function SavedLeadsPage() {
             document.body,
           )
         })()}
+
+      {/* Lead detail drawer — same popup as the lead feed, opened by clicking a lead name */}
+      <AnimatePresence>
+        {selectedLead && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-6"
+          >
+            <div
+              onClick={closeLead}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              aria-hidden="true"
+            />
+            <motion.div
+              initial={{ opacity: 0, y: 36, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 24, scale: 0.97 }}
+              transition={{ type: 'spring', damping: 32, stiffness: 300 }}
+              role="dialog"
+              aria-modal="true"
+              aria-label={`Lead details: ${selectedLead.title}`}
+              className="relative h-[88dvh] w-full max-h-[88dvh] overflow-hidden rounded-t-3xl sm:h-[min(86vh,820px)] sm:max-h-[min(86vh,820px)] sm:w-[min(720px,100%)] sm:max-w-[720px] sm:rounded-[22px]"
+            >
+              <LeadDrawer
+                lead={selectedLead}
+                onClose={closeLead}
+                onReveal={(name, email, phone, fullLead) => {
+                  // Mirror the server: reveal sets isSaved + status 'saved'
+                  // (see /api/leads/reveal), so the row keeps its stage accurate.
+                  const revealed = {
+                    isRevealed: true,
+                    name,
+                    email,
+                    status: 'saved' as const,
+                    isSaved: true,
+                    ...(fullLead?.creditCost !== undefined ? { creditCost: fullLead.creditCost } : {}),
+                  }
+                  setSavedLeads((prev) =>
+                    prev.map((l) =>
+                      l.id === selectedLead.id ? { ...l, ...revealed, phone: phone ?? l.phone } : l,
+                    ),
+                  )
+                  setDrawerLeadDetail((prev) =>
+                    prev && prev.id === selectedLead.id
+                      ? { ...prev, ...revealed, phone: phone ?? prev.phone }
+                      : prev,
+                  )
+                }}
+              />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </main>
   )
 }

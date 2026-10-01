@@ -407,7 +407,7 @@ export async function renderRenewalReminder(data: RenewalReminderData) {
 
 This is a quick reminder that your {{plan}} subscription is scheduled to renew in {{daysRemaining}} days (on {{renewalDate}}).
 
-Your unused monthly credits will automatically roll over according to your plan rules so you never lose what you've earned.
+Your unused monthly credits roll over for 15 days after renewal, giving you time to put them to work.
 
 Manage your account & billing:
 {{appUrl}}/settings
@@ -563,7 +563,7 @@ The Lead Hunter Club Team`
 
 This email confirms that your subscription has been downgraded to the {{newPlan}} plan.
 
-Your monthly credit allowance is now {{credits}} credits. Any eligible rollover credits remain available in your account.
+Your monthly credit allowance is now {{credits}} credits. Any eligible rollover credits remain available in your account for 15 days.
 
 If you ever wish to restore your full credit limits or upgrade again, you can do so anytime:
 • Manage subscription & billing: {{appUrl}}/settings
@@ -575,7 +575,7 @@ The Lead Hunter Club Team`
 
 This email confirms that your Lead Hunter subscription has been changed to the {{newPlan}} plan.
 
-Your monthly credit allowance is now {{credits}} credits. Any eligible unused credits will roll over according to your plan rules.
+Your monthly credit allowance is now {{credits}} credits. Any eligible unused credits will roll over for 15 days.
 
 • Go to dashboard: {{appUrl}}/dashboard
 • Manage subscription: {{appUrl}}/settings

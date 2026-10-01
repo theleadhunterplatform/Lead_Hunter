@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { getFirebaseToken } from '@/lib/firebase'
 import Link from 'next/link'
 import {
@@ -14,6 +14,7 @@ import {
   BriefcaseIcon,
   MusicalNoteIcon,
 } from '@heroicons/react/24/solid'
+import { PortalMenu } from '@/components/ui/PortalMenu'
 
 interface ReviewUser {
   id: string
@@ -259,12 +260,16 @@ function ReviewActions({
   onAction: (userId: string, action: string, plan?: string) => void
 }) {
   const [showPlans, setShowPlans] = useState(false)
+  const btnRef = useRef<HTMLButtonElement | null>(null)
 
   return (
     <>
       <div className="relative">
         <button
-          onClick={() => setShowPlans(!showPlans)}
+          onClick={(e) => {
+            btnRef.current = e.currentTarget
+            setShowPlans(!showPlans)
+          }}
           disabled={actionLoading === `${userId}-APPROVE` || actionLoading === `${userId}-REJECT`}
           className="inline-flex items-center gap-1 px-4 py-2 rounded-lg bg-green-500/10 border border-green-500/20 text-green-400 text-sm font-medium hover:bg-green-500/20 transition-all disabled:opacity-50"
         >
@@ -272,23 +277,28 @@ function ReviewActions({
           Approve
           <ChevronDownIcon className="w-3.5 h-3.5" />
         </button>
-        {showPlans && (
-          <div className="absolute top-full left-0 mt-1 z-50 w-48 bg-surface-elevated border border-white/[0.08] rounded-xl shadow-xl overflow-hidden">
-            {PLANS.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => {
-                  setShowPlans(false)
-                  onAction(userId, 'APPROVE', p.id)
-                }}
-                className="w-full text-left px-4 py-2.5 text-sm text-text-primary hover:bg-white/[0.06] transition-colors"
-              >
-                <span className="font-medium">{p.label}</span>
-                <span className="text-text-secondary ml-2">({p.credits} credits)</span>
-              </button>
-            ))}
-          </div>
-        )}
+        <PortalMenu
+          open={showPlans}
+          onClose={() => setShowPlans(false)}
+          anchorRef={btnRef}
+          align="left"
+          width={192}
+          estimatedHeight={PLANS.length * 40 + 8}
+        >
+          {PLANS.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => {
+                setShowPlans(false)
+                onAction(userId, 'APPROVE', p.id)
+              }}
+              className="w-full text-left px-4 py-2.5 text-sm text-text-primary hover:bg-white/[0.06] transition-colors"
+            >
+              <span className="font-medium">{p.label}</span>
+              <span className="text-text-secondary ml-2">({p.credits} credits)</span>
+            </button>
+          ))}
+        </PortalMenu>
       </div>
       <button
         onClick={() => onAction(userId, 'REJECT')}

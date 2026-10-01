@@ -11,3 +11,13 @@ export function normalizePhone(input: string, defaultCountryCode: string = '91')
 
   return cleaned.length > 0 ? `+${cleaned}` : cleaned
 }
+
+/**
+ * Real-time phone format check for live form feedback.
+ * Accepts any formatting characters but requires 7–15 digits
+ * (E.164 allows at most 15; the shortest real national numbers are 7 digits).
+ */
+export function isValidPhoneNumber(input: string): boolean {
+  const digits = input.replace(/\D/g, '')
+  return digits.length >= 7 && digits.length <= 15
+}

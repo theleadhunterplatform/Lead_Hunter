@@ -2048,7 +2048,7 @@ function SettingsContent() {
               />
             </div>
             <div className="flex items-center justify-between mt-3 text-xs text-text-secondary">
-              <span>Renews monthly · Unused credits roll over up to 30 days</span>
+              <span>Renews monthly · Unused credits roll over for 15 days</span>
               <button
                 onClick={() => addToast({ type: 'info', message: 'Refills open at checkout (demo)' })}
                 className="text-primary font-bold hover:underline"
@@ -2273,7 +2273,7 @@ export default function HeroSection() {
           >
             Stop looking for clients.
             <br />
-            <span className="italic font-normal font-serif text-white/90">
+            <span className="font-light text-white/90">
               Start intercepting them.
             </span>
           </motion.h1>

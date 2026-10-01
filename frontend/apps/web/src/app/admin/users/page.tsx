@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { getFirebaseToken } from '@/lib/firebase'
@@ -12,6 +12,7 @@ import {
   ChevronDownIcon,
 } from '@heroicons/react/24/solid'
 import { CustomLoader } from '@/components/ui/CustomLoader'
+import { PortalMenu } from '@/components/ui/PortalMenu'
 
 
 interface CreditAccountInfo {
@@ -146,6 +147,7 @@ export default function AdminUsersPage() {
   }
 
   const [approveDropdown, setApproveDropdown] = useState<string | null>(null)
+  const approveBtnRef = useRef<HTMLButtonElement | null>(null)
 
   return (
     <div>
@@ -407,9 +409,12 @@ export default function AdminUsersPage() {
                         {u.status === 'PENDING' ? (
                           <div className="flex items-center justify-end gap-2 relative">
                             <button
-                              onClick={() =>
-                                setApproveDropdown(approveDropdown === u.id ? null : u.id)
-                              }
+                              onClick={(e) => {
+                                approveBtnRef.current = e.currentTarget
+                                setApproveDropdown(
+                                  approveDropdown === u.id ? null : u.id,
+                                )
+                              }}
                               disabled={
                                 actionLoading === `${u.id}-APPROVE` ||
                                 actionLoading === `${u.id}-REJECT`
@@ -420,25 +425,30 @@ export default function AdminUsersPage() {
                               Approve
                               <ChevronDownIcon className="w-3 h-3" />
                             </button>
-                            {approveDropdown === u.id && (
-                              <div className="absolute top-full right-0 mt-1 z-50 w-44 bg-surface-elevated border border-white/[0.08] rounded-xl shadow-xl overflow-hidden">
-                                {PLANS.map((p) => (
-                                  <button
-                                    key={p.id}
-                                    onClick={() => {
-                                      setApproveDropdown(null)
-                                      handleAction(u.id, 'APPROVE', p.id)
-                                    }}
-                                    className="w-full text-left px-4 py-2.5 text-sm text-text-primary hover:bg-white/[0.06] transition-colors"
-                                  >
-                                    <span className="font-medium">{p.label}</span>
-                                    <span className="text-text-secondary ml-2">
-                                      ({p.credits} credits)
-                                    </span>
-                                  </button>
-                                ))}
-                              </div>
-                            )}
+                            <PortalMenu
+                              open={approveDropdown === u.id}
+                              onClose={() => setApproveDropdown(null)}
+                              anchorRef={approveBtnRef}
+                              align="right"
+                              width={176}
+                              estimatedHeight={PLANS.length * 40 + 8}
+                            >
+                              {PLANS.map((p) => (
+                                <button
+                                  key={p.id}
+                                  onClick={() => {
+                                    setApproveDropdown(null)
+                                    handleAction(u.id, 'APPROVE', p.id)
+                                  }}
+                                  className="w-full text-left px-4 py-2.5 text-sm text-text-primary hover:bg-white/[0.06] transition-colors"
+                                >
+                                  <span className="font-medium">{p.label}</span>
+                                  <span className="text-text-secondary ml-2">
+                                    ({p.credits} credits)
+                                  </span>
+                                </button>
+                              ))}
+                            </PortalMenu>
                             <button
                               onClick={() => handleAction(u.id, 'REJECT')}
                               disabled={actionLoading === `${u.id}-REJECT`}

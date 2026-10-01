@@ -143,7 +143,7 @@ export default function LandingPage() {
             className="group relative p-6 md:p-8 metallic-card transition-all duration-500 min-h-[280px] md:min-h-[300px] flex flex-col justify-between shadow-[0_0_15px_rgba(var(--rgb-white),0.15)]"
           >
             {/* AI Filter Funnel Visual */}
-            <div className="relative h-[140px] mb-4">
+            <div className="relative min-h-[140px] mb-4">
               {/* Incoming signals (top - raw/unfiltered) */}
               <div className="space-y-2 mb-3">
                 {[
@@ -185,7 +185,7 @@ export default function LandingPage() {
             </div>
 
             <div>
-              <span className="text-sm font-mono text-text-secondary mb-2 block">
+              <span className="text-sm font-semibold text-accent-orange block mb-2">
                 Step 02
               </span>
               <h3 className="font-display text-lg md:text-xl font-semibold mb-2.5 tracking-tight">
@@ -252,7 +252,7 @@ export default function LandingPage() {
             </div>
 
             <div>
-              <span className="text-sm font-mono text-accent-purple mb-2 block">
+              <span className="text-sm font-semibold text-accent-orange block mb-2">
                 Step 03
               </span>
               <h3 className="font-display text-lg md:text-xl font-semibold mb-2.5 tracking-tight">
@@ -471,52 +471,38 @@ export default function LandingPage() {
         </div>
 
         {/* Cards */}
-        <div className="grid md:grid-cols-3 gap-6 relative z-10">
+        <div className="grid md:grid-cols-2 gap-6 max-w-[760px] mx-auto relative z-10">
           {[
             {
               name: 'Free',
               tokens: '50',
               price: 'Free',
+              priceNote: 'no credit card required',
               desc: 'Experience the platform and start closing your first high-value client.',
               accent: 'purple',
               featured: false,
               features: [
                 '50 Intelligence Credits',
-                '~16 Lead Reveals',
+                '~5–10 Lead Reveals',
                 'Basic Lead Intelligence',
+                'No credit card required',
               ],
             },
             {
               name: 'Freelancer',
-              tokens: '500',
-              price: 'Free',
+              tokens: '1,000',
+              price: '₹999',
+              priceNote: 'per month',
               desc: 'For serious operators building a consistent, high-quality client pipeline.',
               accent: 'purple',
               featured: true,
               features: [
-                '500 Intelligence Credits',
-                '~166 Lead Reveals',
-                'Full Lead Intelligence',
-                'CSV/Excel Exports',
-                'Priority Signal Access',
-                'Credit Rollover',
-              ],
-            },
-            {
-              name: 'Agency',
-              tokens: '1,000',
-              price: 'Free',
-              desc: 'Scale teams requiring massive deal flow and deep market intelligence.',
-              accent: 'purple',
-              featured: false,
-              features: [
                 '1,000 Intelligence Credits',
-                '~333 Lead Reveals',
+                '~100+ Lead Reveals',
                 'Full Lead Intelligence',
                 'CSV/Excel Exports',
                 'Priority Signal Access',
-                'Credit Rollover',
-                'Team Seats (up to 5)',
+                '15-Day Credit Rollover',
               ],
             },
           ].map((p, i) => (
@@ -560,7 +546,7 @@ export default function LandingPage() {
                     <span className="font-display text-4xl md:text-[44px] font-semibold leading-none tracking-tight text-text-primary">
                       {p.price}
                     </span>
-                    <span className="text-text-secondary/60 mb-2 text-[10px] font-bold uppercase tracking-widest">during early access</span>
+                    <span className="text-text-secondary/60 mb-2 text-[10px] font-bold uppercase tracking-widest">{p.priceNote}</span>
                   </div>
 
                   {/* Token meter bar */}
@@ -623,7 +609,7 @@ export default function LandingPage() {
           className="text-center mt-16 relative z-10"
         >
           <p className="text-xs text-text-secondary/40 font-mono uppercase tracking-super">
-            Free during early access · Credits roll over each month
+            Start free — no credit card required · Unused credits roll over for 15 days
           </p>
         </motion.div>
       </section>
@@ -647,7 +633,11 @@ export default function LandingPage() {
         <div className="border-t border-white/[0.03]">
           <FAQItem
             q="How do credits work?"
-            a="You receive 1,000 Wolf Coins monthly with your ₹999 plan. Use coins to unlock lead details (Email = 10 coins, Phone = 12 coins, Both = 15 coins). If you run out, buy top-ups starting at ₹199. Top-up coins never expire."
+            a="You receive 1,000 Wolf Coins monthly with your ₹999 plan. Use coins to unlock lead details (Email = 5 coins, Phone = 8 coins, Both = 10 coins). If you run out, buy top-ups starting at ₹99. Top-up coins never expire."
+          />
+          <FAQItem
+            q="What is the source of these leads?"
+            a="We track live hiring posts, founder requests, and project briefs across LinkedIn, Twitter/X, Reddit, and private networks."
           />
           <FAQItem
             q="How many leads can we get in a month?"
@@ -656,10 +646,6 @@ export default function LandingPage() {
           <FAQItem
             q="Do you close clients for us?"
             a="No. We provide verified client contacts and project details. You pitch and close them directly, keeping 100% of what you earn—we take 0% commission."
-          />
-          <FAQItem
-            q="What is the source of these leads?"
-            a="We track live hiring posts, founder requests, and project briefs across LinkedIn, Twitter/X, Reddit, and private networks."
           />
         </div>
       </section>
@@ -754,11 +740,14 @@ export default function LandingPage() {
                 Premium client acquisition intelligence for freelancers, agencies, and growth
                 consultants who refuse to chase cold leads.
               </p>
-              {/* Social icons */}
+              {/* Social icons — config-driven: an icon only renders once its real
+                  profile URL is filled in below (no more dead href="#" links). */}
               <div className="flex items-center gap-3">
                 {[
                   {
                     label: 'X',
+                    // TODO(#7): set to the real X profile, e.g. 'https://x.com/<handle>'
+                    href: '',
                     icon: (
                       <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
                         <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
@@ -767,6 +756,8 @@ export default function LandingPage() {
                   },
                   {
                     label: 'LinkedIn',
+                    // TODO(#7): set to the real LinkedIn page, e.g. 'https://www.linkedin.com/company/<slug>'
+                    href: '',
                     icon: (
                       <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
                         <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0z" />
@@ -775,22 +766,28 @@ export default function LandingPage() {
                   },
                   {
                     label: 'Instagram',
+                    // TODO(#7): set to the real Instagram profile, e.g. 'https://www.instagram.com/<handle>'
+                    href: '',
                     icon: (
                       <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
                         <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z" />
                       </svg>
                     ),
                   },
-                ].map((s) => (
-                  <a
-                    key={s.label}
-                    href="#"
-                    aria-label={s.label}
-                    className="w-9 h-9 rounded-xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center text-text-secondary/50 hover:text-text-primary hover:border-white/15 hover:bg-white/[0.06] transition-all duration-300"
-                  >
-                    {s.icon}
-                  </a>
-                ))}
+                ]
+                  .filter((s) => s.href)
+                  .map((s) => (
+                    <a
+                      key={s.label}
+                      href={s.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={s.label}
+                      className="w-9 h-9 rounded-xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center text-text-secondary/50 hover:text-text-primary hover:border-white/15 hover:bg-white/[0.06] transition-all duration-300"
+                    >
+                      {s.icon}
+                    </a>
+                  ))}
               </div>
             </div>
 
@@ -800,33 +797,43 @@ export default function LandingPage() {
                 Product
               </h3>
               <ul className="space-y-3">
-                {['Features', 'How It Works', 'Pricing', 'Token System'].map((item) => (
-                  <li key={item}>
+                {[
+                  { label: 'How It Works', href: '#funnel' },
+                  { label: 'Features', href: '#features' },
+                  { label: 'Pricing', href: '#pricing' },
+                  { label: 'Token System', href: '#tokens' },
+                  { label: 'FAQ', href: '#faq' },
+                ].map((item) => (
+                  <li key={item.label}>
                     <a
-                      href={`#${item.toLowerCase().replace(/\s+/g, '-')}`}
+                      href={item.href}
                       className="inline-flex items-center min-h-[24px] text-sm text-text-secondary/70 hover:text-text-primary transition-colors duration-300 font-light"
                     >
-                      {item}
+                      {item.label}
                     </a>
                   </li>
                 ))}
               </ul>
             </div>
 
-            {/* Company Column */}
+            {/* Resources Column */}
             <div className="md:col-span-2">
               <h3 className="text-11 font-bold text-text-secondary/70 uppercase tracking-[0.15em] mb-5">
-                Company
+                Resources
               </h3>
               <ul className="space-y-3">
-                {['About', 'Blog', 'Careers', 'Contact'].map((item) => (
-                  <li key={item}>
-                    <a
-                      href="#"
+                {[
+                  { label: 'Wall of Love', href: '/wall-of-love' },
+                  { label: 'Community', href: '/community' },
+                  { label: 'Refer & Earn', href: '/referrals' },
+                ].map((item) => (
+                  <li key={item.label}>
+                    <Link
+                      href={item.href}
                       className="inline-flex items-center min-h-[24px] text-sm text-text-secondary/70 hover:text-text-primary transition-colors duration-300 font-light"
                     >
-                      {item}
-                    </a>
+                      {item.label}
+                    </Link>
                   </li>
                 ))}
               </ul>

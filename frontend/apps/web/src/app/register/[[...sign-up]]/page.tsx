@@ -17,7 +17,9 @@ import {
   type ConfirmationResult,
   auth,
 } from '@/lib/firebase'
-import { normalizePhone } from '@/lib/phone'
+import { normalizePhone, isValidPhoneNumber } from '@/lib/phone'
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 const FIREBASE_ERRORS: Record<string, string> = {
   'auth/email-already-in-use': 'An account with this email already exists.',
@@ -42,6 +44,9 @@ export default function RegisterPage() {
   const [error, setError] = useState('')
   const [phoneStep, setPhoneStep] = useState<'hidden' | 'send' | 'verify'>('hidden')
   const [phoneNumber, setPhoneNumber] = useState('')
+  const [phoneTouched, setPhoneTouched] = useState(false)
+  const [emailValue, setEmailValue] = useState('')
+  const [emailTouched, setEmailTouched] = useState(false)
   const [verificationCode, setVerificationCode] = useState('')
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null)
   const [phoneError, setPhoneError] = useState('')
@@ -138,7 +143,11 @@ export default function RegisterPage() {
 
 
   const handleSendOtp = async () => {
-    if (!phoneNumber.trim()) return
+    if (!isValidPhoneNumber(phoneNumber)) {
+      setPhoneTouched(true)
+      setPhoneError('Enter a valid phone number (7–15 digits)')
+      return
+    }
     setPhoneLoading(true)
     setPhoneError('')
     try {
@@ -192,6 +201,15 @@ export default function RegisterPage() {
     }
   }
 
+  // ── Real-time validation (email + phone) ──
+  const emailTrimmed = emailValue.trim()
+  const emailValid = EMAIL_REGEX.test(emailTrimmed)
+  const showEmailError = emailTouched && emailTrimmed.length > 0 && !emailValid
+
+  const phoneTrimmed = phoneNumber.trim()
+  const phoneValid = isValidPhoneNumber(phoneTrimmed)
+  const showPhoneError = phoneTouched && phoneTrimmed.length > 0 && !phoneValid
+
   const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError('')
@@ -213,6 +231,13 @@ export default function RegisterPage() {
     if (!city) {
       setError('Please enter your city')
       setIsLoading(false)
+      return
+    }
+
+    if (!emailValid) {
+      setError('Please enter a valid email address')
+      setIsLoading(false)
+      setEmailTouched(true)
       return
     }
 
@@ -414,10 +439,27 @@ export default function RegisterPage() {
                     <input
                       value={phoneNumber}
                       onChange={(e) => setPhoneNumber(e.target.value)}
+                      onBlur={() => setPhoneTouched(true)}
                       type="tel"
+                      inputMode="tel"
                       placeholder="+1 (555) 123-4567"
-                      className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3"
+                      aria-invalid={showPhoneError || undefined}
+                      className={`bg-surface-elevated border text-white rounded-xl outline-none transition-all px-4 py-3 ${
+                        showPhoneError
+                          ? 'border-red-500/50 focus:ring-1 focus:ring-red-500/50'
+                          : 'border-white/5 focus:ring-1 focus:ring-primary/50 focus:border-primary/50'
+                      }`}
                     />
+                    {phoneValid && (
+                      <p className="text-xs text-emerald-400 flex items-center gap-1">
+                        <span aria-hidden>✓</span> Valid phone number
+                      </p>
+                    )}
+                    {showPhoneError && (
+                      <p className="text-xs text-red-400">
+                        Enter a valid phone number (7–15 digits)
+                      </p>
+                    )}
                   </div>
 
                   {phoneError && (
@@ -429,7 +471,7 @@ export default function RegisterPage() {
                   <button
                     type="button"
                     onClick={handleSendOtp}
-                    disabled={phoneLoading || !phoneNumber.trim()}
+                    disabled={phoneLoading || !phoneValid}
                     className="mt-2 bg-primary hover:bg-primary/90 text-black font-semibold rounded-xl active:scale-98 transition-all shadow-[0_4px_20px_rgba(var(--rgb-primary),0.25)] px-4 py-3 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {phoneLoading ? (
@@ -547,9 +589,27 @@ export default function RegisterPage() {
                   name="email"
                   type="email"
                   placeholder="you@example.com"
-                  className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3"
+                  value={emailValue}
+                  onChange={(e) => setEmailValue(e.target.value)}
+                  onBlur={() => setEmailTouched(true)}
+                  aria-invalid={showEmailError || undefined}
+                  className={`bg-surface-elevated border text-white rounded-xl outline-none transition-all px-4 py-3 ${
+                    showEmailError
+                      ? 'border-red-500/50 focus:ring-1 focus:ring-red-500/50'
+                      : 'border-white/5 focus:ring-1 focus:ring-primary/50 focus:border-primary/50'
+                  }`}
                   required
                 />
+                {emailValid && (
+                  <p className="text-xs text-emerald-400 flex items-center gap-1">
+                    <span aria-hidden>✓</span> Valid email address
+                  </p>
+                )}
+                {showEmailError && (
+                  <p className="text-xs text-red-400">
+                    Enter a valid email address (e.g. you@example.com)
+                  </p>
+                )}
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">

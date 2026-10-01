@@ -6,20 +6,7 @@ import { motion } from 'framer-motion'
 import { CustomLoader } from '@/components/ui/CustomLoader'
 import { getFirebaseToken } from '@/lib/firebase'
 import { useAuth } from '@/hooks/useAuth'
-import {
-  ViewfinderCircleIcon,
-  ChatBubbleLeftRightIcon,
-  BoltIcon,
-  BanknotesIcon,
-  ArrowPathIcon,
-} from '@heroicons/react/24/solid'
-
-const iconMap: Record<string, typeof ViewfinderCircleIcon> = {
-  'Signals Intercepted': ViewfinderCircleIcon,
-  'Active Conversations': ChatBubbleLeftRightIcon,
-  'Response Rate': BoltIcon,
-  'Credits Remaining': BanknotesIcon,
-}
+import { ArrowPathIcon } from '@heroicons/react/24/solid'
 
 interface Stat {
   label: string
@@ -120,39 +107,55 @@ export default function AnalyticsPage() {
             </div>
           ) : (
             <>
-              {/* Stat summary */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-                {stats.map((stat, i) => {
-                  const Icon = iconMap[stat.label] || ViewfinderCircleIcon
-                  return (
-                    <motion.div
-                      key={stat.label}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.1 }}
-                      className="metallic-card p-6"
-                    >
-                      <div className="flex justify-between items-start mb-4">
-                        <div
-                          className={`p-3 rounded-xl bg-accent-${stat.accent}/10 text-accent-${stat.accent}`}
-                        >
-                          <Icon className="w-5 h-5" />
+              {/* Stat summary ledger */}
+              <div className="metallic-card overflow-hidden mb-12">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+                  {stats.map((stat, i) => {
+                    const isLast = i === stats.length - 1
+                    const classes = [
+                      'p-6',
+                      !isLast && 'border-b border-white/[0.06]',
+                      i % 2 === 0 && 'sm:border-r sm:border-white/[0.06]',
+                      i >= 2 && 'sm:border-b-0',
+                      'lg:border-b-0',
+                      !isLast && 'lg:border-r lg:border-white/[0.06]',
+                    ]
+                      .filter(Boolean)
+                      .join(' ')
+
+                    return (
+                      <motion.div
+                        key={stat.label}
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.08 }}
+                        className={classes}
+                      >
+                        <div className="font-mono text-[11px] font-semibold uppercase tracking-widest text-text-secondary">
+                          {stat.label}
                         </div>
-                        {stat.trend && (
+                        <div className="mt-2 flex items-baseline gap-2">
                           <span
-                            className={`text-11 font-bold ${stat.trendUp ? 'text-accent-mint' : 'text-text-secondary'} bg-white/5 px-2 py-1 rounded-md`}
+                            className={`text-3xl font-extrabold tabular-nums tracking-tight ${
+                              stat.label === 'Credits Remaining' ? 'text-primary' : 'text-white'
+                            }`}
                           >
-                            {stat.trend}
+                            {stat.value}
                           </span>
-                        )}
-                      </div>
-                      <h3 className="text-3xl font-bold text-text-primary mb-1">{stat.value}</h3>
-                      <p className="text-xs font-medium text-text-secondary uppercase tracking-wider">
-                        {stat.label}
-                      </p>
-                    </motion.div>
-                  )
-                })}
+                          {stat.trend && (
+                            <span
+                              className={`text-[11px] font-bold ${
+                                stat.trendUp ? 'text-secondary' : 'text-text-secondary'
+                              }`}
+                            >
+                              {stat.trend}
+                            </span>
+                          )}
+                        </div>
+                      </motion.div>
+                    )
+                  })}
+                </div>
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

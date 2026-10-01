@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import {
   XMarkIcon,
   LockClosedIcon,
@@ -18,7 +18,7 @@ import { Modal, Button } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
 import { getFirebaseToken } from '@/lib/firebase'
 
-import { sanitizePublicText } from '@/lib/claim-reveal'
+import { sanitizePublicText, parseIntelSections, type IntelSection } from '@/lib/claim-reveal'
 import { triggerUnlockConfetti } from '@/lib/confetti'
 import { NicheBadge } from '@/components/ui/NicheBadge'
 
@@ -38,6 +38,34 @@ export default function LeadDrawer({
   const copyMenuRef = useRef<HTMLDivElement | null>(null)
   const { addToast } = useToast()
   const tokenCost = lead.revealCost ?? null
+
+  // The full AI intel blob lives in buyerType — parse it into labeled sections
+  // so Deep Intel shows every section (Verdict, Context, etc.), not just 5 hard-coded ones.
+  const parsedIntel = useMemo(() => parseIntelSections(lead.buyerType || ''), [lead.buyerType])
+
+  // Sections already shown in the left column (Lead summary / card copy) — don't repeat them.
+  const deepIntelSections = useMemo(
+    () =>
+      parsedIntel.filter(
+        (s) =>
+          !/^(?:lead intelligence|one[\s-]?liner|2[\s-]?line|two[\s-]?line|4[\s-]?line|four[\s-]?line|post summary|summary|badges)$/i.test(
+            s.label,
+          ),
+      ),
+    [parsedIntel],
+  )
+
+  const fallbackIntel = useMemo(
+    () =>
+      [
+        { label: 'Target buyer', value: lead.buyerType },
+        { label: 'Ideal candidate', value: lead.role },
+        { label: 'Core scope', value: lead.taskScope },
+        { label: 'Requirements', value: lead.mustHave },
+        { label: 'Bonus points', value: lead.nicheBonus },
+      ].filter((s) => s.value && s.value.trim() !== ''),
+    [lead],
+  )
 
   useEffect(() => {
     if (!copyMenuOpen) return
@@ -104,20 +132,27 @@ export default function LeadDrawer({
       ]
       return lines.filter(Boolean).join('\n')
     }
+    const sectionLines: string[] =
+      parsedIntel.length > 0
+        ? parsedIntel.map((s) => `${s.label}: ${s.body}`)
+        : [
+            `Buyer: ${lead.buyerType || lead.role || '—'}`,
+            `Scope: ${lead.taskScope || lead.category || '—'}`,
+            `Requirements: ${lead.mustHave || '—'}`,
+            lead.nicheBonus ? `Bonus: ${lead.nicheBonus}` : '',
+          ].filter(Boolean)
+
     const lines = [
       `${displayTitle}`,
       detailsSummaryDisplay ? `Summary: ${detailsSummaryDisplay}` : '',
-      `Buyer: ${lead.buyerType || lead.role || '—'}`,
-      `Scope: ${lead.taskScope || lead.category || '—'}`,
-      `Requirements: ${lead.mustHave || '—'}`,
-      lead.nicheBonus ? `Bonus: ${lead.nicheBonus}` : '',
+      ...sectionLines,
       `Tags: ${(lead.nicheTags || []).join(', ') || '—'}`,
       lead.replyProbability > 0 ? `Reply probability: ${lead.replyProbability}%` : '',
       `Contact: ${lead.name}${lead.email ? ` <${lead.email}>` : ''}${lead.phone ? ` · ${lead.phone}` : ''}`,
       `via Lead Hunter Club${lead.timestamp ? ` · ${lead.timestamp}` : ''}`,
     ]
     return lines.filter(Boolean).join('\n')
-  }, [displayTitle, detailsSummaryDisplay, lead])
+  }, [displayTitle, detailsSummaryDisplay, lead, parsedIntel])
 
   const handleCopyIntel = async () => {
     if (!lead.isRevealed) {
@@ -451,11 +486,15 @@ export default function LeadDrawer({
               >
                 {lead.isRevealed ? (
                   <div className="grid grid-cols-1 gap-4">
-                    <IntelBlock label="Target buyer" value={lead.buyerType} />
-                    <IntelBlock label="Ideal candidate" value={lead.role} />
-                    <IntelBlock label="Core scope" value={lead.taskScope} />
-                    <IntelBlock label="Requirements" value={lead.mustHave} />
-                    <IntelBlock label="Bonus points" value={lead.nicheBonus} />
+                    {deepIntelSections.length > 0 ? (
+                      deepIntelSections.map((s: IntelSection) => (
+                        <IntelBlock key={s.label} label={s.label} value={s.body} />
+                      ))
+                    ) : (
+                      fallbackIntel.map((s) => (
+                        <IntelBlock key={s.label} label={s.label} value={s.value} />
+                      ))
+                    )}
                   </div>
                 ) : (
                   <div

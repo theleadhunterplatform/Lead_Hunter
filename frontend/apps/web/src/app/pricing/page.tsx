@@ -47,6 +47,7 @@ const DEFAULT_PLANS: PlanConfig[] = [
       '50 credits renewed monthly',
       'Full verified contact data reveal',
       'AI Strategic Intelligence breakdown',
+      'No credit card required',
       'Community Support',
     ],
   },
@@ -58,24 +59,10 @@ const DEFAULT_PLANS: PlanConfig[] = [
     description: 'Consistent lead pipeline for active independent contractors',
     features: [
       '1000 credits renewed monthly',
-      'Unused credits rollover (up to 30 days)',
+      'Unused credits roll over for 15 days',
       'Priority lead delivery & email reveals',
       'Deep AI strategic intelligence report',
       'Google Sheets export integration',
-    ],
-  },
-  {
-    id: 'AGENCY',
-    name: 'Agency Scale',
-    credits: 1000,
-    price: 2499,
-    description: 'Maximum velocity for high-growth agencies and teams',
-    features: [
-      '1,000 credits renewed monthly',
-      'Full 30-day rollover support',
-      'Automated CRM sync',
-      'VIP priority support channel',
-      'Multi-seat ready',
     ],
   },
 ]
@@ -388,9 +375,9 @@ function PricingContent() {
 
         {/* TAB 1: Subscription Plans Grid */}
         {activeTab === 'plans' && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-2 max-w-4xl mx-auto">
             {plans.map((plan) => {
-              const isCurrent = currentPlanId === plan.id.toUpperCase()
+              const isCurrent = !!user && currentPlanId === plan.id.toUpperCase()
               const isPopular = plan.id.toUpperCase() === 'FREELANCER'
 
               return (
@@ -451,7 +438,9 @@ function PricingContent() {
 
                   <div className="pt-8 mt-8 border-t border-white/5">
                     <button
-                      onClick={() => handleSelectPlan(plan)}
+                      onClick={() =>
+                        !user ? router.push('/register') : handleSelectPlan(plan)
+                      }
                       disabled={isCurrent || subscribingPlan === plan.id}
                       className={`w-full min-h-[44px] py-3.5 rounded-2xl font-bold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-lg disabled:opacity-50 ${
                         isCurrent
@@ -465,9 +454,13 @@ function PricingContent() {
                         ? 'Active Plan'
                         : subscribingPlan === plan.id
                           ? 'Processing...'
-                          : plan.price === 0
-                            ? 'Downgrade to Free'
-                            : `Upgrade to ${plan.name}`}
+                          : !user
+                            ? plan.price === 0
+                              ? 'Start Free — No Card'
+                              : `Get Started with ${plan.name}`
+                            : plan.price === 0
+                              ? 'Downgrade to Free'
+                              : `Upgrade to ${plan.name}`}
                     </button>
                   </div>
                 </div>
@@ -488,7 +481,7 @@ function PricingContent() {
                   <div>
                     <h4 className="text-sm font-bold text-white">Active Subscription Required</h4>
                     <p className="text-xs text-text-secondary mt-0.5 leading-relaxed">
-                      Instant credit top-ups are available exclusively for active plan members. Subscribe to Freelancer Pro or Agency Scale to unlock credit refills.
+                      Instant credit top-ups are available exclusively for active plan members. Subscribe to Freelancer Pro to unlock credit refills.
                     </p>
                   </div>
                 </div>
@@ -590,7 +583,7 @@ function PricingContent() {
                   <ShieldCheckIcon className="w-6 h-6" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold text-white">Instant Credit Rollover Guarantee</h4>
+                  <h4 className="text-sm font-bold text-white">Purchased Credits Never Expire</h4>
                   <p className="text-xs text-text-secondary mt-0.5">
                     Purchased credits stack on top of your monthly allowance and never expire while your membership is active.
                   </p>

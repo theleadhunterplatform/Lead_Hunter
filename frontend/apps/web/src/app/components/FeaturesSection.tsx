@@ -165,9 +165,9 @@ function CreditEconomicsInteractiveVisual() {
   const [selectedTier, setSelectedTier] = useState<'solo' | 'growth' | 'agency'>('growth')
 
   const tiers = {
-    solo: { credits: '250', cost: '3 / reveal', label: 'Solo Operator', rollover: '100% Rollover' },
-    growth: { credits: '750', cost: '3 / reveal', label: 'Growth Agency', rollover: '100% Rollover' },
-    agency: { credits: '2,000', cost: '3 / reveal', label: 'Scale Operations', rollover: '100% Rollover' },
+    solo: { credits: '250', cost: '3 / reveal', label: 'Solo Operator', rollover: '15-Day Rollover' },
+    growth: { credits: '750', cost: '3 / reveal', label: 'Growth Agency', rollover: '15-Day Rollover' },
+    agency: { credits: '2,000', cost: '3 / reveal', label: 'Scale Operations', rollover: '15-Day Rollover' },
   }
 
   const current = tiers[selectedTier]
@@ -215,7 +215,7 @@ function CreditEconomicsInteractiveVisual() {
             <div className="text-[10px] font-mono text-accent-mint font-bold px-2 py-0.5 rounded bg-accent-mint/10 border border-accent-mint/20">
               {current.rollover}
             </div>
-            <div className="text-[9px] font-mono text-text-secondary/60 mt-1">NO EXPIRATION DATE</div>
+            <div className="text-[9px] font-mono text-text-secondary/60 mt-1">FULL LEFTOVER CARRIES OVER</div>
           </div>
         </div>
       </div>

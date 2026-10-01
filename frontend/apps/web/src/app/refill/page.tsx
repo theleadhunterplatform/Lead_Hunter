@@ -65,7 +65,7 @@ export default function RefillPage() {
     if (!hasActivePlan) {
       addToast({
         type: 'info',
-        message: 'An active paid subscription (Freelancer or Agency) is required to purchase credit refills. Please choose a plan first.',
+        message: 'An active paid subscription (Freelancer Pro) is required to purchase credit refills. Please choose a plan first.',
       })
       router.push('/pricing')
       return
@@ -216,7 +216,7 @@ export default function RefillPage() {
                 <h3 className="text-sm font-bold text-white">Active Subscription Required</h3>
                 <p className="text-xs text-text-secondary mt-0.5 leading-relaxed">
                   Credit top-ups are exclusive add-ons for active subscribers. You are currently on the{' '}
-                  <strong className="text-amber-400">Free Starter</strong> plan. Subscribe to Freelancer Pro or Agency Scale to unlock credit refills.
+                  <strong className="text-amber-400">Free Starter</strong> plan. Subscribe to Freelancer Pro to unlock credit refills.
                 </p>
               </div>
             </div>

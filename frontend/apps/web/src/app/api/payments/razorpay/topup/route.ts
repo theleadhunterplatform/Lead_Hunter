@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
           success: false,
           code: 'ACTIVE_PLAN_REQUIRED',
           message:
-            'An active subscription plan (Freelancer or Agency) is required to purchase credit top-ups. Please subscribe to a plan first.',
+            'An active subscription plan (Freelancer Pro) is required to purchase credit top-ups. Please subscribe to a plan first.',
         },
         { status: 403 },
       )
