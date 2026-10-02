@@ -344,7 +344,7 @@ function LeadCard({
             {lead.isClaimedByOther ? (
               <div className="h-[30px] px-2.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-[10.5px] font-bold flex items-center gap-1.5 select-none shadow-sm shrink-0 whitespace-nowrap">
                 <Lock size={12} className="shrink-0" />
-                <span>Claimed by a member</span>
+                <span>Claimed (25/25)</span>
               </div>
             ) : (
               <button

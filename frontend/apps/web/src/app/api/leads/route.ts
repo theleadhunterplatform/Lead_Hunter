@@ -166,11 +166,11 @@ function externalPostToAppLead(
     claimedCount: post.claimed_count || 0,
     isSaved: userState?.isSaved || false,
     isRevealed,
-    isClaimable: (isClaimedByOther || (!isRevealed && ((post.claimed_count || 0) > 0 || post.is_claimed))) ? false : isLeadClaimable(post),
-    isClaimedByOther: isClaimedByOther || (!isRevealed && ((post.claimed_count || 0) > 0 || post.is_claimed)),
-    hasPhone: !(isClaimedByOther || (!isRevealed && ((post.claimed_count || 0) > 0 || post.is_claimed))) && !!phone,
+    isClaimable: (isClaimedByOther || (!isRevealed && ((post.claimed_count || 0) >= 25 || post.is_claimed))) ? false : isLeadClaimable(post),
+    isClaimedByOther: isClaimedByOther || (!isRevealed && ((post.claimed_count || 0) >= 25 || post.is_claimed)),
+    hasPhone: !(isClaimedByOther || (!isRevealed && ((post.claimed_count || 0) >= 25 || post.is_claimed))) && !!phone,
     creditCost: (post as any).credit_cost ?? null,
-    revealCost: (isClaimedByOther || (!isRevealed && ((post.claimed_count || 0) > 0 || post.is_claimed))) ? null : getLeadRevealCost(post),
+    revealCost: (isClaimedByOther || (!isRevealed && ((post.claimed_count || 0) >= 25 || post.is_claimed))) ? null : getLeadRevealCost(post),
     phone: isRevealed ? phone : null,
   }
 }
@@ -368,12 +368,22 @@ export async function GET(request: NextRequest) {
             : [],
         ])
         const stateMap = new Map(userStates.map((s) => [s.leadId, s]))
-        const otherRevealedSet = new Set(otherRevealedStates.map((s) => s.leadId))
+        const otherRevealCounts = new Map<string, number>()
+        for (const s of otherRevealedStates) {
+          otherRevealCounts.set(s.leadId, (otherRevealCounts.get(s.leadId) || 0) + 1)
+        }
 
         const data = externalLeads
-          .map((lead) =>
-            externalPostToAppLead(lead, stateMap.get(lead.id), otherRevealedSet.has(lead.id)),
-          )
+          .map((lead) => {
+            const otherCount = otherRevealCounts.get(lead.id) || 0
+            const totalClaims = Math.max(lead.claimed_count || 0, otherCount)
+            const isLimitReached = totalClaims >= 25 || lead.is_claimed
+            return externalPostToAppLead(
+              { ...lead, claimed_count: totalClaims },
+              stateMap.get(lead.id),
+              isLimitReached,
+            )
+          })
           .filter((l) => l.status === 'new')
           .sort((a, b) => {
             // 1. Unclaimed leads always come before claimed leads

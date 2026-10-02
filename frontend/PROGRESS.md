@@ -254,6 +254,19 @@ must be implemented first. `tsc` flags these as 2 of the ~49 pre-existing errors
 
 ## 4. Deploy state & risks
 
+- **Push/pipeline check (2026-10-02):** all git pushes succeed (`0 0` after rebase).
+  The repo is connected to **two Vercel projects**: `leadhunterclub` (the locally-linked
+  one, ✅ builds every commit incl. our `7ac61e7`) and **`leadhunterclubfull` — ❌ fails on
+  EVERY commit** (verified against `7ac61e7`, `2127f5d`, `c18d8c5`, `f61a0e6`) → chronic,
+  predates our work, red herring for the launch. Fix: disconnect `leadhunterclubfull` from
+  the repo in the Vercel dashboard (or correct its Root Directory — app lives in
+  `apps/web`). To read its logs: `npx vercel login` then
+  `npx vercel inspect dpl_AYiyp7sA8r72GXSFGWQJ4duq9Hjq --logs`.
+- 🚨 **LAUNCH BLOCKER: `leadhunterclub.com` does not resolve in DNS at all** (apex, www
+  and NS lookups all NXDOMAIN — not a propagation delay). Site can't be reached on the
+  domain until DNS is pointed at Vercel: add the domain in Vercel → project
+  `leadhunterclub` → Settings → Domains, then follow the registrar instructions.
+  Ask user: where is the domain registered / has it been added to Vercel yet?
 - `next build` ✔ · `next lint` ✔ (warnings only, pre-existing) · tests: **18 pre-existing failures**
   (stale expectations, e.g. `plans.test.ts` wants FREELANCER=500 but config=1000). Proven
   pre-existing via `git stash` / `git stash pop`.

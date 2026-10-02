@@ -45,7 +45,6 @@ export default function SavedLeadsPage() {
   const [loading, setLoading] = useState(true)
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null)
   const [drawerLeadDetail, setDrawerLeadDetail] = useState<AppLead | null>(null)
-  const [syncing, setSyncing] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
   const [exporting, setExporting] = useState<'csv' | 'tsv' | 'sheet' | null>(null)
   const [openActionDropdownId, setOpenActionDropdownId] = useState<string | null>(null)
@@ -493,35 +492,6 @@ export default function SavedLeadsPage() {
     }
   }, [exportOpen, openActionDropdownId])
 
-  const handleSync = async () => {
-    setSyncing(true)
-    try {
-      const token = await getFirebaseToken()
-      const authHeaders: Record<string, string> = {}
-      if (token) authHeaders['Authorization'] = `Bearer ${token}`
-      const res = await fetch('/api/sheets/sync', {
-        method: 'POST',
-        headers: authHeaders,
-      })
-      const json = await res.json()
-      if (res.ok && json.success) {
-        addToast({
-          type: 'success',
-          message: `✓ Synced ${json.data.updatedCount} status updates from sheet`,
-        })
-        const fetchRes = await fetch('/api/leads?saved=true', { headers: authHeaders })
-        const fetchJson = await fetchRes.json()
-        if (fetchJson.data) setSavedLeads(fetchJson.data)
-      } else {
-        addToast({ type: 'error', message: json.message || 'Sync failed' })
-      }
-    } catch {
-      addToast({ type: 'error', message: 'Network error during sync' })
-    } finally {
-      setSyncing(false)
-    }
-  }
-
   useEffect(() => {
     const fetchSavedLeads = async () => {
       try {
@@ -649,11 +619,6 @@ export default function SavedLeadsPage() {
                 className="bg-surface-secondary/50 border border-white/10 rounded-xl py-2.5 min-h-[44px] pl-10 pr-4 text-xs focus:outline-none focus:border-border-subtle transition-all w-48 sm:w-60 focus:w-64"
               />
             </div>
-
-            <Button variant="outline" color="mint" size="sm" className="min-h-[44px]" onClick={handleSync} loading={syncing}>
-              <ArrowPathIcon className="w-3 h-3" />
-              Sync from Sheet
-            </Button>
 
             <div className="relative" onClick={(e) => e.stopPropagation()}>
               <Button

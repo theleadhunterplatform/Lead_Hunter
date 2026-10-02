@@ -159,9 +159,9 @@ You receive 1,000 Wolf Coins monthly with your ₹999 plan. Use coins to unlock 
   }
 
   if (q.includes('exclusive') || q.includes('claim') || q.includes('other member') || q.includes('lock') || q.includes('spam')) {
-    return `**Lead Exclusivity Guarantee:**
-• **1-to-1 Protection**: Once you reveal and claim a lead, **no other member can unlock or claim it**.
-• **Zero Fatigue**: This ensures the client isn't spammed by dozens of other people, giving you maximum response rates on your pitch.`
+    return `**Lead Claim Policy & Exclusivity:**
+• **25-Member Maximum**: Each qualified lead can be claimed by up to **25 members** before being locked.
+• **Anti-Fatigue Cap**: Once 25 claims are reached, the lead is marked as **Claimed (25/25)** and locked to prevent prospect fatigue.`
   }
 
   if (q.includes('refund') || q.includes('bounce') || q.includes('invalid') || q.includes('fake') || q.includes('bad email')) {

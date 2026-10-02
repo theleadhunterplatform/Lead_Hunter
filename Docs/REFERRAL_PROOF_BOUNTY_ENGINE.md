@@ -123,8 +123,8 @@ Phase 5 encompasses the entire user retention, viral growth, lifecycle communica
   * Automatically clean up or archive unclaimed/general leads older than 10 days from the main discovery feed.
   * **Guaranteed User Access**: Any lead claimed, unlocked, or saved into a user's pipeline remains **permanently saved in their account**, independent of the general feed purge.
 * **Claimed Lead Transparency & Contact Lockdown**:
-  * When 1 user unlocks/claims a lead, the lead card displays a visible **"Claimed by a member"** badge.
-  * **Strict Contact Lockdown**: The client contact details (email, phone, direct profile) are hidden and locked from all other users, preventing duplicate pitches.
+  * Each qualified lead can be claimed by up to 25 members. Once 25 claims are reached, the lead card displays a visible **"Claimed (25/25)"** badge.
+  * **Strict Contact Lockdown**: The client contact details (email, phone, direct profile) are hidden and locked from other users once the 25-claim limit is reached, preventing duplicate pitches.
 * **Subscription Renewal Queuing**:
   * If a subscriber pays for next month with 7 days remaining on their current cycle, the new 30 days are stacked in the queue (`new_expiry = current_expiry + 30 days`), preserving their remaining 7 days.
 * **Automated Expiration Downgrade**:

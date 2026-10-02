@@ -148,7 +148,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       externalLead = await getPost(params.id)
     }
 
-    const [userState, otherRevealed] = await Promise.all([
+    const [userState, otherRevealedCount] = await Promise.all([
       db.userLeadState.findUnique({
         where: {
           userId_leadId: {
@@ -157,18 +157,18 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
           },
         },
       }),
-      db.userLeadState.findFirst({
+      db.userLeadState.count({
         where: {
           leadId: params.id,
           isRevealed: true,
           userId: { not: userId },
         },
-        select: { id: true },
       }),
     ])
 
     const isRevealed = userState?.isRevealed || false
-    const isClaimedByOther = !!otherRevealed
+    const totalClaims = Math.max(externalLead.claimed_count || 0, otherRevealedCount)
+    const isClaimedByOther = totalClaims >= 25 || externalLead.is_claimed
     const phone = externalLead.contact_info?.phone_numbers?.[0]?.number || null
     const email = externalLead.email || externalLead.contact_info?.emails?.[0]?.email || ''
     const isClaimable = isClaimedByOther

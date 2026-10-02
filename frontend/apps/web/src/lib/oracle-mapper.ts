@@ -103,7 +103,7 @@ export function mapLeadPostToExternal(p: RawLeadPost | LeadPost): ExternalPost {
     reviewed_at: p.reviewed_at?.toISOString() || null,
     reviewed_by_id: p.reviewed_by_id || null,
     reviewed_by_name: null,
-    is_claimed: p.claimed_count > 0,
+    is_claimed: p.claimed_count >= 25,
     claimed_count: p.claimed_count,
     created_at: p.created_at.toISOString(),
     updated_at: p.updated_at.toISOString(),

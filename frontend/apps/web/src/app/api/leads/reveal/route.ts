@@ -110,8 +110,8 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Exclusive claim enforcement: verify if another user has already unlocked this lead
-    const otherRevealed = await db.userLeadState.findFirst({
+    // Exclusive claim enforcement: verify if 25 other users have already unlocked this lead
+    const otherRevealedCount = await db.userLeadState.count({
       where: {
         leadId,
         isRevealed: true,
@@ -119,12 +119,12 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    if (otherRevealed) {
+    if (otherRevealedCount >= 25 || (externalLead.claimed_count || 0) >= 25) {
       return NextResponse.json(
         {
           code: 'LEAD_ALREADY_CLAIMED',
           message:
-            'This lead has already been claimed by another member to prevent client outreach fatigue.',
+            'This lead has reached its maximum claim limit (25 members).',
         },
         { status: 400 },
       )
@@ -145,7 +145,18 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const claimedLead = await claimPost(leadId)
+    let claimedLead: ExternalPost
+    try {
+      claimedLead = await claimPost(leadId)
+    } catch {
+      claimedLead = await getPost(leadId)
+      await db.leadPost
+        .update({
+          where: { id: leadId },
+          data: { claimed_count: { increment: 1 } },
+        })
+        .catch((err: any) => console.warn('[Reveal] Could not increment claimed_count in db:', err))
+    }
 
     const txResult = await db.$transaction(
       async (tx) => {
