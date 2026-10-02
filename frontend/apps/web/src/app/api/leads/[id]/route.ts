@@ -236,6 +236,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       creditCost: (externalLead as any).credit_cost ?? null,
       revealCost: isClaimedByOther ? null : getLeadRevealCost(externalLead),
       phone: isRevealed ? phone : null,
+      claimedCount: totalClaims,
     }
 
     return NextResponse.json({ data: lead })

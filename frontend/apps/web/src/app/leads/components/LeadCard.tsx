@@ -287,6 +287,12 @@ function LeadCard({
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0 ml-2">
+            <span
+              className="px-1.5 py-0.5 rounded-[5px] text-[10px] font-semibold border border-white/10 bg-white/5 text-text-secondary flex items-center gap-1 select-none"
+              title={`${lead.claimedCount ?? 0} out of 25 members have claimed this lead`}
+            >
+              <span className="text-white font-bold">{lead.claimedCount ?? 0}</span>/25
+            </span>
             {lead.timestamp && (
               <span
                 className={`text-[10px] font-medium tracking-tight opacity-80 ${theme.textMuted}`}
@@ -327,16 +333,20 @@ function LeadCard({
       <div className="w-full min-h-[44px] sm:h-[34px] flex items-center justify-between gap-2 shrink-0 mt-auto pt-2 sm:pt-1 border-t border-border-subtle">
         {!isRevealed ? (
           <>
-            {/* Cute Micro Locked Placeholder */}
+            {/* Cute Micro Locked Placeholder with Claim Count */}
             <div className="flex items-center gap-2 select-none shrink-0">
               <div
                 className={`w-7 h-7 rounded-full flex items-center justify-center overflow-hidden shrink-0 ${theme.blurBg}`}
               >
                 <Lock size={12} className={theme.textMuted} />
               </div>
-              <div className="flex flex-col gap-1 pointer-events-none shrink-0">
-                <div className={`h-2 w-14 rounded-[3px] blur-[1.5px] ${theme.blurLine}`} />
-                <div className={`h-1.5 w-20 rounded-[3px] blur-[1.5px] ${theme.blurBg}`} />
+              <div className="flex flex-col select-none shrink-0 leading-tight">
+                <span className="text-[10.5px] font-semibold tracking-tight text-text-secondary">
+                  <span className="text-white font-bold">{lead.claimedCount ?? 0}</span>/25 claimed
+                </span>
+                <span className="text-[9.5px] text-text-secondary/60">
+                  {Math.max(0, 25 - (lead.claimedCount ?? 0))} left
+                </span>
               </div>
             </div>
 

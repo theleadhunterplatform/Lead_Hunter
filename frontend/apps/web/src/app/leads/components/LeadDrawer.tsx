@@ -355,6 +355,12 @@ export default function LeadDrawer({
             </span>
             <span className="h-px w-8 bg-gradient-to-r from-primary/40 to-transparent" aria-hidden />
             <NicheBadge niche={lead.niche} keyword={lead.category} content={lead.signalContext} />
+            <span
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-white/[0.06] border border-white/[0.1] text-text-secondary select-none"
+              title={`${lead.claimedCount ?? 0} out of 25 members have claimed this lead`}
+            >
+              <span className="text-white font-bold">{lead.claimedCount ?? 0}</span>/25 claimed
+            </span>
           </div>
 
           <h2 className="text-lg sm:text-[22px] font-bold tracking-[-0.01em] text-white leading-[1.25]">
@@ -555,9 +561,13 @@ export default function LeadDrawer({
                 <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/[0.08] bg-white/[0.04]">
                   <LockClosedIcon className="w-4 h-4 text-text-secondary" />
                 </div>
-                <div className="flex flex-col gap-1.5 pointer-events-none">
-                  <div className="h-2 w-32 rounded-full bg-white/10 blur-[1px]" />
-                  <div className="h-2 w-24 rounded-full bg-white/5 blur-[1px]" />
+                <div className="flex flex-col select-none leading-tight">
+                  <span className="text-xs font-semibold text-text-primary">
+                    <span className="text-white font-bold">{lead.claimedCount ?? 0}</span>/25 claimed
+                  </span>
+                  <span className="text-[11px] text-text-secondary">
+                    {Math.max(0, 25 - (lead.claimedCount ?? 0))} claims remaining
+                  </span>
                 </div>
               </div>
             )}
