@@ -38,6 +38,7 @@ export interface RawLeadPost {
   reviewed_at?: Date | null
   reviewed_by_id?: string | null
   claimed_count: number
+  credit_cost?: number | null
   created_at: Date
   updated_at: Date
 }
@@ -105,6 +106,7 @@ export function mapLeadPostToExternal(p: RawLeadPost | LeadPost): ExternalPost {
     reviewed_by_name: null,
     is_claimed: p.claimed_count >= 25,
     claimed_count: p.claimed_count,
+    credit_cost: (p as any).credit_cost ?? null,
     created_at: p.created_at.toISOString(),
     updated_at: p.updated_at.toISOString(),
   }

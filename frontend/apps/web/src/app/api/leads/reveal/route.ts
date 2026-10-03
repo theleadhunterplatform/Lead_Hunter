@@ -14,6 +14,8 @@ import { creditService, InsufficientCreditsError } from '@/lib/services/credits'
 import { getLeadRevealCost, leadContactBundle } from '@/lib/config/coins'
 import { extractNiches, extractCleanNicheTags } from '@/lib/claim-reveal'
 import { emailService } from '@/lib/services/email'
+import { oracleDb } from '@/lib/oracle-db'
+import { mapLeadPostToExternal } from '@/lib/oracle-mapper'
 
 export const dynamic = 'force-dynamic'
 
@@ -44,7 +46,21 @@ export async function POST(request: NextRequest) {
 
     const { leadId } = parsed.data
 
-    const externalLead = await getPost(leadId)
+    let externalLead: ExternalPost | null = null
+    try {
+      const rawPost = await oracleDb.leadPost.findUnique({
+        where: { id: leadId },
+      })
+      if (rawPost) {
+        externalLead = mapLeadPostToExternal(rawPost as any)
+      }
+    } catch (e) {
+      console.warn('[Reveal POST] Failed to fetch from oracleDb, falling back to getPost:', e)
+    }
+
+    if (!externalLead) {
+      externalLead = await getPost(leadId)
+    }
 
     const contactBundle = leadContactBundle(externalLead)
     const CREDIT_COST = getLeadRevealCost(externalLead)

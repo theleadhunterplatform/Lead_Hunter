@@ -14,6 +14,8 @@ import {
   claimPost,
   type ExternalPost,
 } from '@/lib/external-api/client'
+import { oracleDb } from '@/lib/oracle-db'
+import { clearFeedCache } from '@/lib/feed-cache'
 
 export const dynamic = 'force-dynamic'
 
@@ -135,8 +137,51 @@ export async function PUT(
     await requireAdmin(_request)
     const { id } = await params
     const body = await _request.json()
-    const updated = await updatePost(id, body)
-    return NextResponse.json({ success: true, data: updated, message: 'Lead updated' })
+
+    // 1. Directly persist changes to Postgres DB
+    let dbUpdated: any = null
+    try {
+      const updateData: any = {}
+      if (body.credit_cost !== undefined) {
+        updateData.credit_cost = typeof body.credit_cost === 'number' ? body.credit_cost : null
+      } else if (body.creditCost !== undefined) {
+        updateData.credit_cost = typeof body.creditCost === 'number' ? body.creditCost : null
+      }
+      if (body.content !== undefined) updateData.content = body.content
+      if (body.keyword !== undefined) updateData.keyword = body.keyword
+      if (body.author !== undefined) updateData.author = body.author
+      if (body.status !== undefined) updateData.status = body.status
+      if (body.title !== undefined) updateData.title = body.title
+      if (body.niche !== undefined) updateData.niche = body.niche
+
+      if (Object.keys(updateData).length > 0) {
+        dbUpdated = await oracleDb.leadPost.update({
+          where: { id },
+          data: updateData,
+        })
+      }
+    } catch (dbErr) {
+      console.error('[Admin Lead PUT] Direct DB update error:', dbErr)
+    }
+
+    // 2. Synchronize with external backend API
+    let externalUpdated: any = null
+    try {
+      externalUpdated = await updatePost(id, body)
+    } catch (extErr) {
+      console.warn('[Admin Lead PUT] External API update error:', extErr)
+      // If direct DB update also failed, surface the error
+      if (!dbUpdated) throw extErr
+    }
+
+    // 3. Clear active discovery feed cache so changes appear immediately
+    clearFeedCache()
+
+    return NextResponse.json({
+      success: true,
+      data: externalUpdated || dbUpdated,
+      message: 'Lead updated',
+    })
   } catch (error: unknown) {
     if (error instanceof ExternalApiError) {
       return NextResponse.json({ success: false, message: error.externalMessage }, { status: error.status })

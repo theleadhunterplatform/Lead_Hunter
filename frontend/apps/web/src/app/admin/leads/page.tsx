@@ -305,9 +305,10 @@ export default function AdminLeadsPage() {
 
   const openCreditModal = (lead: ExternalPost) => {
     setCreditModalLead(lead)
+    const cost = lead.credit_cost ?? (lead as any).creditCost
     setCustomCostInput(
-      lead.credit_cost !== null && lead.credit_cost !== undefined
-        ? String(lead.credit_cost)
+      cost !== null && cost !== undefined
+        ? String(cost)
         : '',
     )
   }
@@ -325,16 +326,21 @@ export default function AdminLeadsPage() {
     try {
       const token = await getFirebaseToken()
       if (!token) throw new Error('Not authenticated')
-      const res = await fetch(`/api/admin/leads/${creditModalLead.id}`, {
+      const targetId = creditModalLead.id || (creditModalLead as any)._id
+      const res = await fetch(`/api/admin/leads/${targetId}`, {
         method: 'PUT',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ credit_cost: newCost }),
+        body: JSON.stringify({ credit_cost: newCost, creditCost: newCost }),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json?.message || 'Failed to update credit cost')
 
       setLeads((prev) =>
-        prev.map((l) => (l.id === creditModalLead.id ? { ...l, credit_cost: newCost } : l)),
+        prev.map((l) =>
+          l.id === targetId || (l as any)._id === targetId
+            ? { ...l, credit_cost: newCost, creditCost: newCost }
+            : l,
+        ),
       )
       addToast({
         type: 'success',
@@ -1580,24 +1586,30 @@ export default function AdminLeadsPage() {
                         )}
 
                         {/* Credit Cost Button in line with approve/reject buttons */}
-                        <button
-                          type="button"
-                          onClick={() => openCreditModal(lead)}
-                          title="Click to set or adjust credit cost for this lead"
-                          className={`h-7 px-3 text-[8px] uppercase font-black rounded-lg flex items-center gap-1.5 border transition-all ${
-                            lead.credit_cost !== null && lead.credit_cost !== undefined
-                              ? 'bg-amber-500/15 text-amber-400 border-amber-500/40 hover:bg-amber-500/25 shadow-sm'
-                              : 'bg-surface-elevated text-zinc-300 border-white/10 hover:border-accent-mint/50 hover:text-white'
-                          }`}
-                        >
-                          <Coins size={12} className={lead.credit_cost !== null && lead.credit_cost !== undefined ? 'text-amber-400' : 'text-zinc-400'} />
-                          <span>
-                            {lead.credit_cost !== null && lead.credit_cost !== undefined
-                              ? `⚡ Custom: ${lead.credit_cost} Cr`
-                              : `Cost: ${getLeadRevealCost(lead) ?? '—'} Cr`}
-                          </span>
-                          <Edit3 size={10} className="opacity-60 hover:opacity-100" />
-                        </button>
+                        {(() => {
+                          const effectiveCustomCost = lead.credit_cost ?? (lead as any).creditCost
+                          const hasCustomCost = effectiveCustomCost !== null && effectiveCustomCost !== undefined
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => openCreditModal(lead)}
+                              title="Click to set or adjust credit cost for this lead"
+                              className={`h-7 px-3 text-[8px] uppercase font-black rounded-lg flex items-center gap-1.5 border transition-all ${
+                                hasCustomCost
+                                  ? 'bg-amber-500/15 text-amber-400 border-amber-500/40 hover:bg-amber-500/25 shadow-sm'
+                                  : 'bg-surface-elevated text-zinc-300 border-white/10 hover:border-accent-mint/50 hover:text-white'
+                              }`}
+                            >
+                              <Coins size={12} className={hasCustomCost ? 'text-amber-400' : 'text-zinc-400'} />
+                              <span>
+                                {hasCustomCost
+                                  ? `⚡ Custom: ${effectiveCustomCost} Cr`
+                                  : `Cost: ${getLeadRevealCost(lead) ?? '—'} Cr`}
+                              </span>
+                              <Edit3 size={10} className="opacity-60 hover:opacity-100" />
+                            </button>
+                          )
+                        })()}
                       </div>
 
                       <div className="flex items-center gap-3 flex-wrap justify-end">
@@ -1783,14 +1795,17 @@ export default function AdminLeadsPage() {
                   <div className="flex justify-between text-zinc-400 text-[11px]">
                     <span>Default Contact-Bundle Cost:</span>
                     <span className="font-bold text-white">
-                      {getLeadRevealCost({ ...creditModalLead, credit_cost: null }) ?? 'None'} credits
+                      {getLeadRevealCost({ ...creditModalLead, credit_cost: null, creditCost: null }) ?? 'None'} credits
                     </span>
                   </div>
                   <div className="flex justify-between text-zinc-400 text-[11px]">
                     <span>Current Active Cost:</span>
                     <span className="font-bold text-accent-mint">
                       {getLeadRevealCost(creditModalLead) ?? 'None'} credits
-                      {creditModalLead.credit_cost !== null && creditModalLead.credit_cost !== undefined ? ' (Custom)' : ' (Default)'}
+                      {(creditModalLead.credit_cost ?? (creditModalLead as any).creditCost) !== null &&
+                       (creditModalLead.credit_cost ?? (creditModalLead as any).creditCost) !== undefined
+                        ? ' (Custom)'
+                        : ' (Default)'}
                     </span>
                   </div>
                 </div>
@@ -1814,7 +1829,8 @@ export default function AdminLeadsPage() {
               </div>
 
               <div className="p-5 bg-black/40 border-t border-white/10 flex items-center gap-3">
-                {creditModalLead.credit_cost !== null && creditModalLead.credit_cost !== undefined && (
+                {(creditModalLead.credit_cost ?? (creditModalLead as any).creditCost) !== null &&
+                 (creditModalLead.credit_cost ?? (creditModalLead as any).creditCost) !== undefined && (
                   <button
                     type="button"
                     onClick={() => handleSaveCreditCost(true)}
