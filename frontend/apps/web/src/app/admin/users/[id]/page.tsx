@@ -6,13 +6,16 @@ import { getFirebaseToken } from '@/lib/firebase'
 import Link from 'next/link'
 import {
   ArrowLeftIcon,
+  BanknotesIcon,
   CalendarIcon,
   ChatBubbleLeftIcon,
   ClockIcon,
   CreditCardIcon,
+  DocumentDuplicateIcon,
   UserIcon,
 } from '@heroicons/react/24/solid'
 import { CustomLoader } from '@/components/ui/CustomLoader'
+import type { PaymentRecord } from '@/lib/payments-format'
 
 
 const PLANS = [
@@ -89,6 +92,7 @@ const STATUS_BADGES: Record<string, string> = {
 const TABS = [
   { id: 'overview', label: 'Overview', icon: UserIcon },
   { id: 'credits', label: 'Credits & Plan', icon: CreditCardIcon },
+  { id: 'payments', label: 'Payments & Billing', icon: BanknotesIcon },
   { id: 'history', label: 'Status History', icon: ClockIcon },
   { id: 'notes', label: 'Internal Notes', icon: ChatBubbleLeftIcon },
 ]
@@ -121,6 +125,10 @@ export default function AdminUserDetailPage() {
   const [notesLoading, setNotesLoading] = useState(false)
   const [noteInput, setNoteInput] = useState('')
   const [noteSending, setNoteSending] = useState(false)
+
+  const [payments, setPayments] = useState<PaymentRecord[]>([])
+  const [paymentsLoading, setPaymentsLoading] = useState(false)
+  const [copiedId, setCopiedId] = useState<string | null>(null)
 
   const fetchUser = useCallback(async () => {
     const token = await getFirebaseToken()
@@ -179,6 +187,23 @@ export default function AdminUserDetailPage() {
     }
   }, [params.id])
 
+  const fetchPayments = useCallback(async () => {
+    const token = await getFirebaseToken()
+    if (!token) return
+    setPaymentsLoading(true)
+    try {
+      const res = await fetch(`/api/admin/users/${params.id}/payments`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const json = await res.json()
+      setPayments(json.data || [])
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setPaymentsLoading(false)
+    }
+  }, [params.id])
+
   useEffect(() => {
     fetchUser()
   }, [fetchUser])
@@ -190,6 +215,10 @@ export default function AdminUserDetailPage() {
   useEffect(() => {
     if (activeTab === 'notes') fetchNotes()
   }, [activeTab, fetchNotes])
+
+  useEffect(() => {
+    if (activeTab === 'payments') fetchPayments()
+  }, [activeTab, fetchPayments])
 
   const handleAction = async (
     action: string,
@@ -796,6 +825,181 @@ export default function AdminUserDetailPage() {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'payments' && (
+        <div className="space-y-6">
+          {/* Quick Payment Stats */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="bg-surface/40 backdrop-blur-xl border border-white/[0.06] rounded-2xl p-5">
+              <span className="text-xxs text-text-secondary uppercase tracking-wider block font-semibold">
+                Total Revenue from User
+              </span>
+              <div className="text-2xl font-bold text-white mt-1">
+                ₹{payments.reduce((acc, p) => acc + (p.amount || 0), 0).toLocaleString('en-IN')}
+              </div>
+              <span className="text-xs text-text-muted mt-0.5 block">Lifetime successful charges</span>
+            </div>
+
+            <div className="bg-surface/40 backdrop-blur-xl border border-white/[0.06] rounded-2xl p-5">
+              <span className="text-xxs text-text-secondary uppercase tracking-wider block font-semibold">
+                Total Transactions
+              </span>
+              <div className="text-2xl font-bold text-accent-mint mt-1">
+                {payments.length}
+              </div>
+              <span className="text-xs text-text-muted mt-0.5 block">Subscriptions & Credit Refills</span>
+            </div>
+
+            <div className="bg-surface/40 backdrop-blur-xl border border-white/[0.06] rounded-2xl p-5">
+              <span className="text-xxs text-text-secondary uppercase tracking-wider block font-semibold">
+                Latest Transaction
+              </span>
+              <div className="text-base font-semibold text-white mt-1">
+                {payments.length > 0
+                  ? new Date(payments[0].createdAt).toLocaleDateString('en-IN', {
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric',
+                    })
+                  : '—'}
+              </div>
+              <span className="text-xs text-text-muted mt-0.5 block truncate">
+                {payments.length > 0 ? payments[0].itemLabel : 'No transactions recorded'}
+              </span>
+            </div>
+          </div>
+
+          {/* Transactions Table Card */}
+          <div className="bg-surface/40 backdrop-blur-xl border border-white/[0.06] rounded-2xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
+                Payment Transactions ({payments.length})
+              </h3>
+              <button
+                onClick={fetchPayments}
+                disabled={paymentsLoading}
+                className="text-xs text-text-secondary hover:text-white transition-colors flex items-center gap-1.5"
+              >
+                <span>↻ Refresh</span>
+              </button>
+            </div>
+
+            {paymentsLoading ? (
+              <CustomLoader page="admin" />
+            ) : payments.length === 0 ? (
+              <div className="text-center py-12">
+                <BanknotesIcon className="w-10 h-10 text-white/20 mx-auto mb-3" />
+                <p className="text-sm font-medium text-white">No payment transactions found</p>
+                <p className="text-xs text-text-secondary mt-1">
+                  Completed Razorpay payments and top-ups will automatically appear here.
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-white/[0.08] text-xxs uppercase tracking-wider text-text-secondary font-semibold">
+                      <th className="pb-3 pr-4">Date & Time</th>
+                      <th className="pb-3 px-4">Item / Description</th>
+                      <th className="pb-3 px-4">Amount</th>
+                      <th className="pb-3 px-4">Status</th>
+                      <th className="pb-3 px-4">Razorpay Payment ID</th>
+                      <th className="pb-3 pl-4">Order ID</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/[0.04]">
+                    {payments.map((p) => (
+                      <tr key={p.id} className="hover:bg-white/[0.02] transition-colors">
+                        <td className="py-3.5 pr-4 text-xs text-white/80 whitespace-nowrap">
+                          {new Date(p.createdAt).toLocaleString('en-IN', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </td>
+                        <td className="py-3.5 px-4 whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`text-xxs px-2 py-0.5 rounded-full font-medium ${
+                                p.itemType === 'topup'
+                                  ? 'bg-accent-mint/10 text-accent-mint border border-accent-mint/20'
+                                  : 'bg-accent-purple/10 text-accent-purple border border-accent-purple/20'
+                              }`}
+                            >
+                              {p.itemType === 'topup' ? 'Refill' : 'Plan'}
+                            </span>
+                            <span className="font-medium text-white">{p.itemLabel}</span>
+                          </div>
+                          {p.tokensAdded > 0 && (
+                            <span className="text-xxs text-accent-mint block mt-0.5">
+                              +{p.tokensAdded} Credits added
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3.5 px-4 font-semibold text-white whitespace-nowrap">
+                          ₹{p.amount.toLocaleString('en-IN')}
+                        </td>
+                        <td className="py-3.5 px-4 whitespace-nowrap">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xxs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                            Paid & Credited
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 whitespace-nowrap">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono text-xs text-white/70">{p.paymentId}</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard.writeText(p.paymentId)
+                                setCopiedId(p.paymentId)
+                                setTimeout(() => setCopiedId(null), 2000)
+                              }}
+                              className="p-1 rounded hover:bg-white/10 text-text-secondary hover:text-white transition-colors"
+                              title="Copy Payment ID"
+                            >
+                              {copiedId === p.paymentId ? (
+                                <span className="text-xxs text-accent-mint font-semibold">Copied!</span>
+                              ) : (
+                                <DocumentDuplicateIcon className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                          </div>
+                        </td>
+                        <td className="py-3.5 pl-4 whitespace-nowrap">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono text-xs text-white/50">{p.orderId}</span>
+                            {p.orderId !== '—' && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(p.orderId)
+                                  setCopiedId(p.orderId)
+                                  setTimeout(() => setCopiedId(null), 2000)
+                                }}
+                                className="p-1 rounded hover:bg-white/10 text-text-secondary hover:text-white transition-colors"
+                                title="Copy Order ID"
+                              >
+                                {copiedId === p.orderId ? (
+                                  <span className="text-xxs text-accent-mint font-semibold">Copied!</span>
+                                ) : (
+                                  <DocumentDuplicateIcon className="w-3.5 h-3.5" />
+                                )}
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       )}

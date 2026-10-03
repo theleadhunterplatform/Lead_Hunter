@@ -256,6 +256,17 @@ export async function POST(request: NextRequest) {
           packId: packId || null,
           addedTokens: tokensToCredit || 0,
           plan: planId || null,
+          amount: fetchedPayment?.amount
+            ? Math.round(fetchedPayment.amount / 100)
+            : planId === 'AGENCY'
+            ? 2499
+            : planId === 'FREELANCER'
+            ? 999
+            : typeof body.amount === 'number'
+            ? body.amount
+            : 0,
+          currency: 'INR',
+          status: 'SUCCESS',
         },
       },
     }).catch((err) => console.warn('[Payment Verify] Audit log creation failed:', err))
