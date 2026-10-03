@@ -93,6 +93,10 @@ export function PhoneInputWithCountry({
 
   const handleSelectCountry = (country: Country) => {
     onCountryCodeChange(country.dialCode)
+    const limits = getCountryDigitLimits(country)
+    if (phoneNumber.length > limits.max) {
+      onPhoneNumberChange(phoneNumber.slice(0, limits.max))
+    }
     setIsOpen(false)
     phoneInputRef.current?.focus()
   }
@@ -109,8 +113,19 @@ export function PhoneInputWithCountry({
       return
     }
 
-    // Strictly enforce numbers only (0-9) and cap at the maximum allowed digits for the selected country
-    const digitsOnly = val.replace(/\D/g, '')
+    // Strictly enforce numbers only (0-9)
+    let digitsOnly = val.replace(/\D/g, '')
+    const dialDigits = selectedCountry.dialCode.replace(/\D/g, '')
+    // If user pasted/typed country dial code directly into input (e.g. 919876543210 for India), strip the dial code
+    if (
+      dialDigits &&
+      digitsOnly.startsWith(dialDigits) &&
+      digitsOnly.length === digitLimits.max + dialDigits.length
+    ) {
+      digitsOnly = digitsOnly.slice(dialDigits.length)
+    }
+
+    // Strictly cap at the maximum allowed digits for the selected country (e.g. 10 for India)
     onPhoneNumberChange(digitsOnly.slice(0, digitLimits.max))
   }
 

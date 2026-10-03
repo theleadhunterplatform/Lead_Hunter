@@ -17,7 +17,13 @@ import {
   type ConfirmationResult,
   auth,
 } from '@/lib/firebase'
-import { normalizePhone, isValidPhoneNumber } from '@/lib/phone'
+import { normalizePhone } from '@/lib/phone'
+import { PhoneInputWithCountry } from '@/components/ui/PhoneInputWithCountry'
+import {
+  findCountryByDialCode,
+  validatePhoneNumberLength,
+  DEFAULT_COUNTRY,
+} from '@/lib/countries'
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -43,6 +49,7 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [phoneStep, setPhoneStep] = useState<'hidden' | 'send' | 'verify'>('hidden')
+  const [countryCode, setCountryCode] = useState('+91')
   const [phoneNumber, setPhoneNumber] = useState('')
   const [phoneTouched, setPhoneTouched] = useState(false)
   const [emailValue, setEmailValue] = useState('')
@@ -142,16 +149,21 @@ export default function RegisterPage() {
   }
 
 
+  // ── Country & Phone validation ──
+  const selectedCountry = findCountryByDialCode(countryCode) || DEFAULT_COUNTRY
+  const phoneValidation = validatePhoneNumberLength(selectedCountry, phoneNumber)
+
   const handleSendOtp = async () => {
-    if (!isValidPhoneNumber(phoneNumber)) {
+    if (!phoneValidation.valid) {
       setPhoneTouched(true)
-      setPhoneError('Enter a valid phone number (7–15 digits)')
+      setPhoneError(phoneValidation.message || 'Enter a valid phone number')
       return
     }
     setPhoneLoading(true)
     setPhoneError('')
     try {
-      const normalized = normalizePhone(phoneNumber.trim())
+      const fullPhone = `${countryCode}${phoneNumber.trim()}`
+      const normalized = normalizePhone(fullPhone)
       const verifier = verifierRef.current
       if (!verifier) {
         throw new Error('RecaptchaVerifier not initialized')
@@ -187,6 +199,40 @@ export default function RegisterPage() {
         verificationCode.trim(),
       )
       await linkWithCredential(auth.currentUser!, cred)
+
+      const fullPhone = `${countryCode}${phoneNumber.trim()}`
+      const normalized = normalizePhone(fullPhone)
+
+      // Save phone to DB immediately so it is captured for admin and profile
+      try {
+        const token = await auth.currentUser?.getIdToken().catch(() => null)
+        if (token) {
+          await fetch('/api/auth/me', {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ phone: normalized }),
+          }).catch(() => {})
+        }
+      } catch {}
+
+      // Cache in onboarding data so user doesn't have to retype it
+      try {
+        const existingRaw = localStorage.getItem('onboarding_data')
+        const existing = existingRaw ? JSON.parse(existingRaw) : {}
+        localStorage.setItem(
+          'onboarding_data',
+          JSON.stringify({
+            ...existing,
+            countryCode,
+            phoneNumber,
+            phone: `${countryCode} ${phoneNumber.trim()}`,
+          }),
+        )
+      } catch {}
+
       router.push('/onboarding')
     } catch (err) {
       console.error('[Register] verifyOtp failed:', err)
@@ -201,14 +247,10 @@ export default function RegisterPage() {
     }
   }
 
-  // ── Real-time validation (email + phone) ──
+  // ── Real-time validation (email) ──
   const emailTrimmed = emailValue.trim()
   const emailValid = EMAIL_REGEX.test(emailTrimmed)
   const showEmailError = emailTouched && emailTrimmed.length > 0 && !emailValid
-
-  const phoneTrimmed = phoneNumber.trim()
-  const phoneValid = isValidPhoneNumber(phoneTrimmed)
-  const showPhoneError = phoneTouched && phoneTrimmed.length > 0 && !phoneValid
 
   const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -433,31 +475,42 @@ export default function RegisterPage() {
                   <div id="recaptcha-container" />
 
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
-                      Phone number
-                    </label>
-                    <input
-                      value={phoneNumber}
-                      onChange={(e) => setPhoneNumber(e.target.value)}
-                      onBlur={() => setPhoneTouched(true)}
-                      type="tel"
-                      inputMode="tel"
-                      placeholder="+1 (555) 123-4567"
-                      aria-invalid={showPhoneError || undefined}
-                      className={`bg-surface-elevated border text-white rounded-xl outline-none transition-all px-4 py-3 ${
-                        showPhoneError
-                          ? 'border-red-500/50 focus:ring-1 focus:ring-red-500/50'
-                          : 'border-white/5 focus:ring-1 focus:ring-primary/50 focus:border-primary/50'
-                      }`}
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
+                        Phone number
+                      </label>
+                      <span className="text-[11px] text-text-secondary/70">
+                        {selectedCountry.name} ({selectedCountry.digits ? `${selectedCountry.digits} digits` : `${selectedCountry.minDigits}-${selectedCountry.maxDigits} digits`})
+                      </span>
+                    </div>
+
+                    <PhoneInputWithCountry
+                      countryCode={countryCode}
+                      onCountryCodeChange={(code) => {
+                        setCountryCode(code)
+                        setPhoneError('')
+                      }}
+                      phoneNumber={phoneNumber}
+                      onPhoneNumberChange={(num) => {
+                        setPhoneNumber(num)
+                        setPhoneError('')
+                      }}
+                      error={phoneError || (phoneTouched && !phoneValidation.valid ? phoneValidation.message : undefined)}
                     />
-                    {phoneValid && (
-                      <p className="text-xs text-emerald-400 flex items-center gap-1">
-                        <span aria-hidden>✓</span> Valid phone number
-                      </p>
-                    )}
-                    {showPhoneError && (
-                      <p className="text-xs text-red-400">
-                        Enter a valid phone number (7–15 digits)
+
+                    {phoneNumber.trim().length > 0 && (
+                      <p
+                        className={`text-xs mt-0.5 flex items-center gap-1 ${
+                          phoneValidation.valid ? 'text-accent-mint' : 'text-red-400'
+                        }`}
+                      >
+                        {phoneValidation.valid ? (
+                          <>
+                            <span aria-hidden>✓</span> Valid {selectedCountry.name} phone number
+                          </>
+                        ) : (
+                          phoneValidation.message
+                        )}
                       </p>
                     )}
                   </div>
@@ -471,7 +524,7 @@ export default function RegisterPage() {
                   <button
                     type="button"
                     onClick={handleSendOtp}
-                    disabled={phoneLoading || !phoneValid}
+                    disabled={phoneLoading || !phoneValidation.valid}
                     className="mt-2 bg-primary hover:bg-primary/90 text-black font-semibold rounded-xl active:scale-98 transition-all shadow-[0_4px_20px_rgba(var(--rgb-primary),0.25)] px-4 py-3 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {phoneLoading ? (

@@ -25,6 +25,7 @@ interface AdminUser {
   id: string
   email: string
   name: string
+  phone: string | null
   role: string
   creditAccount: CreditAccountInfo
   status: string
@@ -265,6 +266,11 @@ export default function AdminUsersPage() {
                           {u.name}
                         </Link>
                         <p className="text-xs text-text-secondary mt-0.5">{u.email}</p>
+                        {u.phone && (
+                          <p className="text-xxs font-mono text-accent-mint/90 mt-0.5">
+                            {u.phone}
+                          </p>
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         <span

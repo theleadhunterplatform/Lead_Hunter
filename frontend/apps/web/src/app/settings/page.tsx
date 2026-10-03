@@ -17,6 +17,12 @@ import {
   type ConfirmationResult,
 } from '@/lib/firebase'
 import { normalizePhone } from '@/lib/phone'
+import { PhoneInputWithCountry } from '@/components/ui/PhoneInputWithCountry'
+import {
+  findCountryByDialCode,
+  validatePhoneNumberLength,
+  DEFAULT_COUNTRY,
+} from '@/lib/countries'
 import { motion } from 'framer-motion'
 import { getFirebaseToken } from '@/lib/firebase'
 import { useToast } from '@/components/ui/Toast'
@@ -87,11 +93,21 @@ export default function SettingsPage() {
   const [phoneConfirmationResult, setPhoneConfirmationResult] = useState<ConfirmationResult | null>(
     null,
   )
+  const [phoneCountryCode, setPhoneCountryCode] = useState('+91')
   const [phoneFormPhone, setPhoneFormPhone] = useState('')
   const [phoneError, setPhoneError] = useState('')
   const [phoneLoading, setPhoneLoading] = useState(false)
   const [phoneStep, setPhoneStep] = useState<'idle' | 'send' | 'verify'>('idle')
   const [otpCountdown, setOtpCountdown] = useState(0)
+
+  const selectedPhoneCountry = useMemo(
+    () => findCountryByDialCode(phoneCountryCode) || DEFAULT_COUNTRY,
+    [phoneCountryCode],
+  )
+  const phoneValidation = useMemo(
+    () => validatePhoneNumberLength(selectedPhoneCountry, phoneFormPhone),
+    [selectedPhoneCountry, phoneFormPhone],
+  )
 
   const { addToast } = useToast()
   const [billingLoading, setBillingLoading] = useState(false)
@@ -208,7 +224,10 @@ export default function SettingsPage() {
   }, [phoneStep])
 
   const handlePhoneSendOtp = async () => {
-    if (!phoneFormPhone.trim()) return
+    if (!phoneValidation.valid) {
+      setPhoneError(phoneValidation.message || 'Please enter a valid phone number')
+      return
+    }
     setPhoneLoading(true)
     setPhoneError('')
     try {
@@ -217,7 +236,8 @@ export default function SettingsPage() {
         setPhoneError('Could not initialize verification. Please try again.')
         return
       }
-      const normalized = normalizePhone(phoneFormPhone.trim())
+      const fullPhone = `${phoneCountryCode}${phoneFormPhone.trim()}`
+      const normalized = normalizePhone(fullPhone)
       const result = await signInWithPhoneNumber(auth, normalized, verifier)
       setPhoneConfirmationResult(result)
       setPhoneStep('verify')
@@ -239,6 +259,22 @@ export default function SettingsPage() {
         phoneVerificationCode.trim(),
       )
       await linkWithCredential(auth.currentUser!, cred)
+
+      const fullPhone = `${phoneCountryCode}${phoneFormPhone.trim()}`
+      const normalized = normalizePhone(fullPhone)
+
+      const token = await auth.currentUser?.getIdToken().catch(() => null)
+      if (token) {
+        await fetch('/api/auth/me', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ phone: normalized }),
+        }).catch(() => {})
+      }
+
       setPhoneStep('idle')
       setPhoneFormPhone('')
       setPhoneVerificationCode('')
@@ -580,17 +616,45 @@ export default function SettingsPage() {
 
                 {phoneStep === 'send' && (
                   <>
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
-                        Phone number
-                      </label>
-                      <input
-                        value={phoneFormPhone}
-                        onChange={(e) => setPhoneFormPhone(e.target.value)}
-                        type="tel"
-                        placeholder="+1 (555) 123-4567"
-                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all px-4 py-3 max-w-xs"
+                    <div className="flex flex-col gap-1.5 max-w-sm">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
+                          Phone number
+                        </label>
+                        <span className="text-[11px] text-text-secondary/70">
+                          {selectedPhoneCountry.name} ({selectedPhoneCountry.digits ? `${selectedPhoneCountry.digits} digits` : `${selectedPhoneCountry.minDigits}-${selectedPhoneCountry.maxDigits} digits`})
+                        </span>
+                      </div>
+
+                      <PhoneInputWithCountry
+                        countryCode={phoneCountryCode}
+                        onCountryCodeChange={(code) => {
+                          setPhoneCountryCode(code)
+                          setPhoneError('')
+                        }}
+                        phoneNumber={phoneFormPhone}
+                        onPhoneNumberChange={(num) => {
+                          setPhoneFormPhone(num)
+                          setPhoneError('')
+                        }}
+                        error={phoneError}
                       />
+
+                      {phoneFormPhone.trim().length > 0 && (
+                        <p
+                          className={`text-xs mt-0.5 flex items-center gap-1 ${
+                            phoneValidation.valid ? 'text-accent-mint' : 'text-red-400'
+                          }`}
+                        >
+                          {phoneValidation.valid ? (
+                            <>
+                              <span aria-hidden>✓</span> Valid {selectedPhoneCountry.name} phone number
+                            </>
+                          ) : (
+                            phoneValidation.message
+                          )}
+                        </p>
+                      )}
                     </div>
 
                     {phoneError && (

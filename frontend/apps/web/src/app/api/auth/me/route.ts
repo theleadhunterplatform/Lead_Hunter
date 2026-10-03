@@ -211,7 +211,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json().catch(() => ({}))
-    const { name, city, referralCode } = body
+    const { name, city, referralCode, phone } = body
 
     const updateData: any = {}
     if (typeof name === 'string' && name.trim()) {
@@ -219,6 +219,9 @@ export async function PATCH(request: NextRequest) {
     }
     if (typeof city === 'string') {
       updateData.city = city.trim()
+    }
+    if (typeof phone === 'string' && phone.trim()) {
+      updateData.phone = phone.trim()
     }
 
     const user = await db.user.upsert({
@@ -228,7 +231,7 @@ export async function PATCH(request: NextRequest) {
         id: authUser.uid,
         email: authUser.email || '',
         name: typeof name === 'string' && name.trim() ? name.trim() : authUser.name || 'User',
-        phone: authUser.phone || null,
+        phone: typeof phone === 'string' && phone.trim() ? phone.trim() : authUser.phone || null,
         city: typeof city === 'string' ? city.trim() : null,
         role: 'user',
         status: 'PENDING',
