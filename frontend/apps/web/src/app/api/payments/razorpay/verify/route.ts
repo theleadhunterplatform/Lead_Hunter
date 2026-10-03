@@ -249,7 +249,7 @@ export async function POST(request: NextRequest) {
         adminId: authUser.uid,
         action: 'PAYMENT_CREDITED',
         targetType: 'RAZORPAY_PAYMENT',
-        targetId: paymentId,
+        targetId: razorpay_payment_id,
         details: {
           orderId: razorpay_order_id,
           paymentId: razorpay_payment_id,

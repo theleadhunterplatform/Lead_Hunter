@@ -19,28 +19,37 @@ async function getToken(): Promise<string> {
   const { BASE_URL, EMAIL, PASSWORD } = requireCredentials()
 
   for (let attempt = 0; attempt < 3; attempt++) {
-    const res = await fetch(`${BASE_URL}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: EMAIL, password: PASSWORD }),
-    })
+    try {
+      const res = await fetch(`${BASE_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: EMAIL, password: PASSWORD }),
+      })
 
-    if (res.ok) {
-      const json = await res.json()
-      cachedToken = json.data.access_token
-      tokenExpiry = Date.now() + 10 * 60 * 1000
-      return cachedToken!
-    }
+      if (res.ok) {
+        const json = await res.json()
+        cachedToken = json.data.access_token
+        tokenExpiry = Date.now() + 10 * 60 * 1000
+        return cachedToken!
+      }
 
-    if (res.status === 429 || res.status === 503 || res.status >= 500) {
+      if (res.status === 429 || res.status === 503 || res.status >= 500) {
+        if (attempt < 2) {
+          const backoff = Math.min(1000 * 2 ** attempt, 4000)
+          await sleep(backoff)
+          continue
+        }
+      }
+
+      throw new Error(`External API auth failed: ${res.status}`)
+    } catch (networkErr: any) {
       if (attempt < 2) {
         const backoff = Math.min(1000 * 2 ** attempt, 4000)
         await sleep(backoff)
         continue
       }
+      throw new Error(`External API auth unreachable: ${networkErr.message}`)
     }
-
-    throw new Error(`External API auth failed: ${res.status}`)
   }
 
   throw new Error('External API auth failed after retries')
@@ -74,14 +83,24 @@ export async function fetchApi<T>(path: string, options: RequestInit = {}, retri
   const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData
   for (let attempt = 0; attempt < retries; attempt++) {
     const token = await getToken()
-    const res = await fetch(`${BASE_URL}${path}`, {
-      ...options,
-      headers: {
-        ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
-        Authorization: `Bearer ${token}`,
-        ...options.headers,
-      },
-    })
+    let res: Response
+    try {
+      res = await fetch(`${BASE_URL}${path}`, {
+        ...options,
+        headers: {
+          ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+          Authorization: `Bearer ${token}`,
+          ...options.headers,
+        },
+      })
+    } catch (networkErr: any) {
+      if (attempt < retries - 1) {
+        const backoff = Math.min(1000 * 2 ** attempt, 4000)
+        await sleep(backoff)
+        continue
+      }
+      throw new ExternalApiError(503, `Network error communicating with backend: ${networkErr.message}`)
+    }
 
     if (res.status === 429 || res.status === 503 || res.status >= 500) {
       if (attempt < retries - 1) {
@@ -103,25 +122,30 @@ export async function fetchApi<T>(path: string, options: RequestInit = {}, retri
       cachedToken = null
       tokenExpiry = 0
       const newToken = await getToken()
-      const retryRes = await fetch(`${BASE_URL}${path}`, {
-        ...options,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${newToken}`,
-          ...options.headers,
-        },
-      })
-      if (!retryRes.ok) {
-        const errorText = await retryRes.text()
-        console.error(`[External API] 401 retry failed ${path}:`, errorText)
-        const externalMessage = parseExternalError(retryRes.status, errorText)
-        throw new ExternalApiError(
-          retryRes.status,
-          `External API error: ${externalMessage}`,
-          externalMessage,
-        )
+      try {
+        const retryRes = await fetch(`${BASE_URL}${path}`, {
+          ...options,
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${newToken}`,
+            ...options.headers,
+          },
+        })
+        if (!retryRes.ok) {
+          const errorText = await retryRes.text()
+          console.error(`[External API] 401 retry failed ${path}:`, errorText)
+          const externalMessage = parseExternalError(retryRes.status, errorText)
+          throw new ExternalApiError(
+            retryRes.status,
+            `External API error: ${externalMessage}`,
+            externalMessage,
+          )
+        }
+        return retryRes.json()
+      } catch (retryErr: any) {
+        if (retryErr instanceof ExternalApiError) throw retryErr
+        throw new ExternalApiError(503, `Network error on 401 retry: ${retryErr.message}`)
       }
-      return retryRes.json()
     }
 
     if (!res.ok) {

@@ -168,7 +168,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
     const isRevealed = userState?.isRevealed || false
     const totalClaims = Math.max(externalLead.claimed_count || 0, otherRevealedCount)
-    const isClaimedByOther = totalClaims >= 25 || externalLead.is_claimed
+    const isClaimedByOther = !isRevealed && (totalClaims >= 25 || externalLead.is_claimed)
     const phone = externalLead.contact_info?.phone_numbers?.[0]?.number || null
     const email = externalLead.email || externalLead.contact_info?.emails?.[0]?.email || ''
     const isClaimable = isClaimedByOther
