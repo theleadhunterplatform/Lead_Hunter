@@ -59,6 +59,8 @@ model User {
   milestoneProofs        MilestoneProof[]
 
   @@index([status])
+  @@index([status, createdAt])
+  @@index([phone])
   @@index([plan])
   @@index([role])
   @@index([createdAt])

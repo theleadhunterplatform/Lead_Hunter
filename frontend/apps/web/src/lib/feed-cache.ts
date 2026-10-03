@@ -29,3 +29,31 @@ export function setCachedFeed(key: string, data: { rawLeads: any[]; total: numbe
 export function clearFeedCache() {
   feedCache.clear()
 }
+
+// Reveal counts cache (sorted leadIds key -> count map) with 15s TTL
+interface RevealCountsCacheEntry {
+  counts: Map<string, number>
+  cachedAt: number
+}
+
+const revealCountsCache = new Map<string, RevealCountsCacheEntry>()
+const REVEAL_CACHE_TTL = 15_000 // 15 seconds
+
+export function getCachedRevealCounts(cacheKey: string): Map<string, number> | null {
+  const entry = revealCountsCache.get(cacheKey)
+  if (!entry) return null
+  if (Date.now() - entry.cachedAt > REVEAL_CACHE_TTL) {
+    revealCountsCache.delete(cacheKey)
+    return null
+  }
+  return entry.counts
+}
+
+export function setCachedRevealCounts(cacheKey: string, counts: Map<string, number>) {
+  if (revealCountsCache.size >= 100) {
+    const oldestKey = revealCountsCache.keys().next().value
+    if (oldestKey) revealCountsCache.delete(oldestKey)
+  }
+  revealCountsCache.set(cacheKey, { counts, cachedAt: Date.now() })
+}
+

@@ -23,7 +23,12 @@ import {
   sanitizeHeadline,
 } from '@/lib/claim-reveal'
 
-import { getCachedFeed, setCachedFeed } from '@/lib/feed-cache'
+import {
+  getCachedFeed,
+  setCachedFeed,
+  getCachedRevealCounts,
+  setCachedRevealCounts,
+} from '@/lib/feed-cache'
 export const dynamic = 'force-dynamic'
 
 function formatTimeAgo(dateStr: string): string {
@@ -327,29 +332,47 @@ export async function GET(request: NextRequest) {
         externalLeads = rawLeads.map(mapLeadPostToExternal)
         const leadIds = externalLeads.map((l) => l.id)
 
-        const [userStates, otherRevealedStates] = await Promise.all([
-          leadIds.length > 0
-            ? db.userLeadState.findMany({
+        let otherRevealCounts: Map<string, number>
+        const revealCacheKey = [...leadIds].sort().join(',')
+        const cachedReveals = getCachedRevealCounts(revealCacheKey)
+
+        let userStates: any[] = []
+        if (cachedReveals) {
+          otherRevealCounts = cachedReveals
+          userStates = leadIds.length > 0
+            ? await db.userLeadState.findMany({
                 where: { userId, leadId: { in: leadIds } },
               })
-            : [],
-          leadIds.length > 0
-            ? db.userLeadState.findMany({
-                where: { leadId: { in: leadIds }, isRevealed: true, userId: { not: userId } },
-                select: { leadId: true },
-              })
-            : [],
-        ])
-        const stateMap = new Map(userStates.map((s) => [s.leadId, s]))
-        const otherRevealCounts = new Map<string, number>()
-        for (const s of otherRevealedStates) {
-          otherRevealCounts.set(s.leadId, (otherRevealCounts.get(s.leadId) || 0) + 1)
+            : []
+        } else {
+          const [fetchedUserStates, otherRevealedStates] = await Promise.all([
+            leadIds.length > 0
+              ? db.userLeadState.findMany({
+                  where: { userId, leadId: { in: leadIds } },
+                })
+              : [],
+            leadIds.length > 0
+              ? db.userLeadState.findMany({
+                  where: { leadId: { in: leadIds }, isRevealed: true },
+                  select: { leadId: true, userId: true },
+                })
+              : [],
+          ])
+          userStates = fetchedUserStates
+          otherRevealCounts = new Map<string, number>()
+          for (const s of otherRevealedStates) {
+            otherRevealCounts.set(s.leadId, (otherRevealCounts.get(s.leadId) || 0) + 1)
+          }
+          setCachedRevealCounts(revealCacheKey, otherRevealCounts)
         }
+        const stateMap = new Map(userStates.map((s) => [s.leadId, s]))
 
         const data = externalLeads
           .map((lead) => {
-            const otherCount = otherRevealCounts.get(lead.id) || 0
-            const totalClaims = Math.max(lead.claimed_count || 0, otherCount)
+            const rawOtherCount = otherRevealCounts.get(lead.id) || 0
+            const userUnlocked = stateMap.get(lead.id)?.isRevealed ? 1 : 0
+            const otherCount = Math.max(0, rawOtherCount - userUnlocked)
+            const totalClaims = Math.max(lead.claimed_count || 0, rawOtherCount)
             const isLimitReached = totalClaims >= 25 || lead.is_claimed
             return externalPostToAppLead(
               { ...lead, claimed_count: totalClaims },
