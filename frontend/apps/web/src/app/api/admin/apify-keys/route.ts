@@ -37,6 +37,29 @@ export async function POST(request: NextRequest) {
 
     const label = body.label?.trim() || null
 
+    // 0. Live verification against Apify API before saving
+    try {
+      const apifyRes = await fetch('https://api.apify.com/v2/users/me', {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${rawKey}`,
+        },
+      })
+      if (!apifyRes.ok) {
+        const errJson = await apifyRes.json().catch(() => ({}))
+        const apifyMsg = errJson?.error?.message || errJson?.message || `HTTP ${apifyRes.status}`
+        return NextResponse.json(
+          {
+            code: 'INVALID_APIFY_KEY',
+            message: `Apify rejected this token (${apifyMsg}). Please verify the token on console.apify.com and ensure the account's email is confirmed.`,
+          },
+          { status: 400 },
+        )
+      }
+    } catch (networkErr: any) {
+      console.warn('[Admin Apify Keys] Apify live validation network error:', networkErr)
+    }
+
     // 1. Create on external API (VPS backend)
     const result = await createApifyKey({ key: rawKey, label })
 

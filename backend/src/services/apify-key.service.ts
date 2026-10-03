@@ -1,3 +1,4 @@
+import { ApifyClient } from 'apify-client';
 import prisma from '../lib/prisma';
 import ApifyKey from '../models/apify-key.model';
 import ErrorResponse from '../utils/error-response.utils';
@@ -54,8 +55,24 @@ export const getApifyKeyById = async (id: string) => {
 
 export const addApifyKey = async (data: { key: string; label?: string }) => {
     const { key, label } = data;
+    const trimmedKey = key.trim();
 
-    const existing = await ApifyKey.findOne({ key: key.trim() });
+    // Verify token validity with Apify before saving
+    try {
+        const apify = new ApifyClient({ token: trimmedKey });
+        const user = await apify.user().get();
+        if (!user) {
+            throw new Error('User not found on Apify');
+        }
+    } catch (err: any) {
+        const message = err.message || 'User was not found or authentication token is not valid';
+        throw new ErrorResponse(
+            `Apify rejected this token (${message}). Please verify the token on console.apify.com and ensure the account's email is confirmed.`,
+            400
+        );
+    }
+
+    const existing = await ApifyKey.findOne({ key: trimmedKey });
     if (existing) {
         if (existing.is_deleted) {
             existing.is_deleted = false;
@@ -69,7 +86,7 @@ export const addApifyKey = async (data: { key: string; label?: string }) => {
     }
 
     return await ApifyKey.create({
-        key: key.trim(),
+        key: trimmedKey,
         label,
         comments_limit: config.apify.monthlyCommentLimit,
         usage_month: currentUsageMonth(),
@@ -81,6 +98,24 @@ export const updateApifyKey = async (id: string, data: any) => {
 
     if (!key) {
         throw new ErrorResponse(`Apify key not found with id of ${id}`, 404);
+    }
+
+    // If activating the key, verify it works with Apify first
+    if (data.is_active === true) {
+        const tokenToTest = (data.key || key.key).trim();
+        try {
+            const apify = new ApifyClient({ token: tokenToTest });
+            const user = await apify.user().get();
+            if (!user) {
+                throw new Error('User not found on Apify');
+            }
+        } catch (err: any) {
+            const message = err.message || 'User was not found or authentication token is not valid';
+            throw new ErrorResponse(
+                `Cannot activate: Apify rejected this token (${message}).`,
+                400
+            );
+        }
     }
 
     const updatedKey = await prisma.apifyKey.update({
