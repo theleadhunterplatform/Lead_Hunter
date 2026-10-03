@@ -244,6 +244,7 @@ export async function verifyRazorpayPayment(
                     );
                     return sendEmail({ to: user.email, subject, html });
                 }
+                return null;
             })
             .catch((err) => console.warn('[Payment Service] Upgrade email failed:', err.message));
     }
@@ -466,6 +467,7 @@ export async function verifyTopupPayment(
                     );
                     return sendEmail({ to: user.email, subject, html });
                 }
+                return null;
             })
             .catch((err) => console.warn('[Payment Service] Topup email failed:', err.message));
     }

@@ -21,3 +21,19 @@ export function isValidPhoneNumber(input: string): boolean {
   const digits = input.replace(/\D/g, '')
   return digits.length >= 7 && digits.length <= 15
 }
+
+export function getPhoneDigits(phone: string): string {
+  return (phone || '').replace(/\D/g, '')
+}
+
+export function arePhonesMatching(a: string | null | undefined, b: string | null | undefined): boolean {
+  if (!a || !b) return false
+  const digitsA = getPhoneDigits(a)
+  const digitsB = getPhoneDigits(b)
+  if (!digitsA || !digitsB) return false
+  if (digitsA === digitsB) return true
+  if (digitsA.length >= 10 && digitsB.length >= 10) {
+    return digitsA.slice(-10) === digitsB.slice(-10)
+  }
+  return false
+}

@@ -394,17 +394,36 @@ export async function GET(request: NextRequest) {
             return bTime - aTime
           })
 
+        const responseHeaders = { 'Cache-Control': 'private, no-cache, stale-while-revalidate=15' }
+
         if (search) {
           const q = search.toLowerCase()
-          return NextResponse.json({
-            data: data.filter(
-              (l) =>
-                l.title.toLowerCase().includes(q) ||
-                l.signalContext.toLowerCase().includes(q) ||
-                l.company.toLowerCase().includes(q) ||
-                l.category.toLowerCase().includes(q) ||
-                l.nicheTags.some((tag) => tag.toLowerCase().includes(q)),
-            ),
+          return NextResponse.json(
+            {
+              data: data.filter(
+                (l) =>
+                  l.title.toLowerCase().includes(q) ||
+                  l.signalContext.toLowerCase().includes(q) ||
+                  l.company.toLowerCase().includes(q) ||
+                  l.category.toLowerCase().includes(q) ||
+                  l.nicheTags.some((tag) => tag.toLowerCase().includes(q)),
+              ),
+              pagination: {
+                page,
+                pageSize,
+                total,
+                totalPages: Math.ceil(total / pageSize),
+                hasNext: page < Math.ceil(total / pageSize),
+                hasPrev: page > 1,
+              },
+            },
+            { headers: responseHeaders },
+          )
+        }
+
+        return NextResponse.json(
+          {
+            data,
             pagination: {
               page,
               pageSize,
@@ -413,20 +432,9 @@ export async function GET(request: NextRequest) {
               hasNext: page < Math.ceil(total / pageSize),
               hasPrev: page > 1,
             },
-          })
-        }
-
-        return NextResponse.json({
-          data,
-          pagination: {
-            page,
-            pageSize,
-            total,
-            totalPages: Math.ceil(total / pageSize),
-            hasNext: page < Math.ceil(total / pageSize),
-            hasPrev: page > 1,
           },
-        })
+          { headers: responseHeaders },
+        )
       } catch (oracleErr: unknown) {
         const msg = oracleErr instanceof Error ? oracleErr.message : 'Oracle unreachable'
         console.error('[Leads API] Oracle DB connection failure:', msg)
@@ -460,17 +468,20 @@ export async function GET(request: NextRequest) {
     const totalPages = Math.ceil(total / pageSize)
     const paginatedData = data.slice((page - 1) * pageSize, page * pageSize)
 
-    return NextResponse.json({
-      data: paginatedData,
-      pagination: {
-        page,
-        pageSize,
-        total,
-        totalPages,
-        hasNext: page < totalPages,
-        hasPrev: page > 1,
+    return NextResponse.json(
+      {
+        data: paginatedData,
+        pagination: {
+          page,
+          pageSize,
+          total,
+          totalPages,
+          hasNext: page < totalPages,
+          hasPrev: page > 1,
+        },
       },
-    })
+      { headers: { 'Cache-Control': 'private, no-cache, stale-while-revalidate=15' } },
+    )
   } catch (error: unknown) {
     if (error instanceof AuthRequiredError) {
       return NextResponse.json(

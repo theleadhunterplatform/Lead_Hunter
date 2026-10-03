@@ -16,6 +16,7 @@ import { extractNiches, extractCleanNicheTags } from '@/lib/claim-reveal'
 import { emailService } from '@/lib/services/email'
 import { oracleDb } from '@/lib/oracle-db'
 import { mapLeadPostToExternal } from '@/lib/oracle-mapper'
+import { invalidateLeadRevealCount } from '@/lib/feed-cache'
 
 export const dynamic = 'force-dynamic'
 
@@ -176,6 +177,38 @@ export async function POST(request: NextRequest) {
 
     const txResult = await db.$transaction(
       async (tx) => {
+        // Concurrency Guard 1: Verify if the user already unlocked this lead in a concurrent request
+        const currentExisting = await tx.userLeadState.findUnique({
+          where: { userId_leadId: { userId, leadId } },
+        })
+        if (currentExisting?.isRevealed) {
+          return {
+            alreadyRevealed: true,
+            creditsRemaining: balance,
+            state: currentExisting,
+            name: claimedLead.author?.name || 'Unknown',
+            email: claimedLead.email || claimedLead.contact_info?.emails?.[0]?.email || '',
+            phone: claimedLead.contact_info?.phone_numbers?.[0]?.number || null,
+            coinsUsed: 0,
+            contactBundle,
+          }
+        }
+
+        // Concurrency Guard 2: Atomically verify claim count inside database transaction
+        // Ensures no burst of concurrent requests can exceed the strict 25-claim limit
+        const currentOtherClaims = await tx.userLeadState.count({
+          where: {
+            leadId,
+            isRevealed: true,
+            userId: { not: userId },
+          },
+        })
+        if (currentOtherClaims >= 25) {
+          const err = new Error('LEAD_ALREADY_CLAIMED')
+          ;(err as any).code = 'LEAD_ALREADY_CLAIMED'
+          throw err
+        }
+
         const result = await creditService.deductInTx(tx, userId, CREDIT_COST, 'lead_reveal', {
           leadId,
           coinsUsed: CREDIT_COST,
@@ -240,6 +273,7 @@ export async function POST(request: NextRequest) {
         const revealedPhone = claimedLead.contact_info?.phone_numbers?.[0]?.number || null
 
         return {
+          alreadyRevealed: false,
           creditsRemaining: result.subscriptionBalance + result.bonusBalance + result.rolloverBalance,
           state: updatedState,
           name: claimedLead.author?.name || 'Unknown',
@@ -251,6 +285,21 @@ export async function POST(request: NextRequest) {
       },
       { timeout: 15000 },
     )
+
+    // Invalidate lead reveal count cache immediately so all concurrent users see the new count
+    invalidateLeadRevealCount(leadId)
+
+    if (txResult.alreadyRevealed) {
+      return NextResponse.json({
+        success: true,
+        isRevealed: true,
+        coinsUsed: 0,
+        contactBundle: txResult.contactBundle,
+        name: txResult.name,
+        email: txResult.email,
+        phone: txResult.phone,
+      })
+    }
 
     // Flow 3: Low credits alert if member has <= 2 credits remaining
     if (txResult.creditsRemaining <= 2) {
@@ -327,6 +376,19 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       )
     }
+    if (
+      error instanceof Error &&
+      (error.message === 'LEAD_ALREADY_CLAIMED' || (error as any).code === 'LEAD_ALREADY_CLAIMED')
+    ) {
+      return NextResponse.json(
+        {
+          code: 'LEAD_ALREADY_CLAIMED',
+          message: 'This lead has reached its maximum claim limit (25 members).',
+        },
+        { status: 400 },
+      )
+    }
+
     console.error('[Lead Reveal API] Full error:', error)
     if (error instanceof Error && error.message.includes('Only admin-approved leads')) {
       return NextResponse.json(

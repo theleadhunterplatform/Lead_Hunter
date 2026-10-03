@@ -57,3 +57,19 @@ export function setCachedRevealCounts(cacheKey: string, counts: Map<string, numb
   revealCountsCache.set(cacheKey, { counts, cachedAt: Date.now() })
 }
 
+export function invalidateLeadRevealCount(leadId: string) {
+  // Clear feed caches to ensure fresh card counts
+  feedCache.clear()
+
+  // Invalidate any reveal count caches containing this lead
+  for (const [key, entry] of revealCountsCache.entries()) {
+    if (key.includes(leadId)) {
+      revealCountsCache.delete(key)
+    }
+  }
+}
+
+export function clearRevealCountsCache() {
+  revealCountsCache.clear()
+}
+

@@ -115,6 +115,7 @@ model CreditAccount {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
+  @@index([renewalDate])
   @@map("credit_accounts")
 }
 
@@ -129,6 +130,10 @@ model AuditLog {
   createdAt  DateTime @default(now())
 
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, action])
+  @@index([userId, action, targetType])
+  @@index([action, createdAt])
 }
 
 model Lead {
@@ -197,6 +202,7 @@ model EmailLog {
   status    String   @default("SENT") // SENT | FAILED | SKIPPED
   error     String?
 
+  @@index([sentAt(sort: Desc)])
   @@map("email_logs")
 }
 
