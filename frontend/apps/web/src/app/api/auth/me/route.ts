@@ -145,13 +145,11 @@ export async function GET(request: NextRequest) {
     }
 
     const hasCompletedOnboarding = !!(
-      user.portfolio ||
-      user.website ||
-      user.linkedin ||
-      user.instagram ||
-      (user.servicesOffered?.length ?? 0) > 0 ||
-      (user.preferredLeadCategories?.length ?? 0) > 0 ||
-      user.outreachExperience ||
+      user.phone &&
+      user.linkedin &&
+      (user.servicesOffered?.length ?? 0) > 0 &&
+      (user.preferredLeadCategories?.length ?? 0) > 0 &&
+      user.outreachExperience &&
       user.discoverySource
     )
 

@@ -40,9 +40,10 @@ function makeRequest(): Request {
 function makeOnboardedUser() {
   return {
     status: 'ACTIVE',
+    phone: '+911234567890',
     portfolio: 'https://portfolio.dev',
     website: null,
-    linkedin: null,
+    linkedin: 'https://linkedin.com/in/janedoe',
     instagram: null,
     servicesOffered: ['Web Development'],
     preferredLeadCategories: ['SaaS'],
@@ -183,6 +184,15 @@ describe('requireFullyAuthorized', () => {
 })
 
 describe('hasCompletedOnboarding', () => {
+  const complete = {
+    phone: '+911234567890',
+    linkedin: 'https://linkedin.com/in/janedoe',
+    servicesOffered: ['SEO'],
+    preferredLeadCategories: ['SaaS'],
+    outreachExperience: 'beginner',
+    discoverySource: 'Twitter',
+  }
+
   it('returns false when nothing is filled', () => {
     expect(
       hasCompletedOnboarding({
@@ -198,19 +208,35 @@ describe('hasCompletedOnboarding', () => {
     ).toBe(false)
   })
 
-  it('returns true when portfolio is set', () => {
-    expect(hasCompletedOnboarding({ portfolio: 'https://x.dev' })).toBe(true)
+  it('returns true when all required fields are filled', () => {
+    expect(hasCompletedOnboarding(complete)).toBe(true)
   })
 
-  it('returns true when servicesOffered is non-empty', () => {
-    expect(hasCompletedOnboarding({ servicesOffered: ['SEO'] })).toBe(true)
+  it('returns false when phone is missing', () => {
+    expect(hasCompletedOnboarding({ ...complete, phone: null })).toBe(false)
   })
 
-  it('returns true when outreachExperience is set', () => {
-    expect(hasCompletedOnboarding({ outreachExperience: 'beginner' })).toBe(true)
+  it('returns false when linkedin is missing', () => {
+    expect(hasCompletedOnboarding({ ...complete, linkedin: null })).toBe(false)
   })
 
-  it('returns true when discoverySource is set', () => {
-    expect(hasCompletedOnboarding({ discoverySource: 'Twitter' })).toBe(true)
+  it('returns false when servicesOffered is empty', () => {
+    expect(hasCompletedOnboarding({ ...complete, servicesOffered: [] })).toBe(false)
+  })
+
+  it('returns false when preferredLeadCategories is empty', () => {
+    expect(hasCompletedOnboarding({ ...complete, preferredLeadCategories: [] })).toBe(false)
+  })
+
+  it('returns false when outreachExperience is missing', () => {
+    expect(hasCompletedOnboarding({ ...complete, outreachExperience: null })).toBe(false)
+  })
+
+  it('returns false when discoverySource is missing', () => {
+    expect(hasCompletedOnboarding({ ...complete, discoverySource: null })).toBe(false)
+  })
+
+  it('returns false when only portfolio is set', () => {
+    expect(hasCompletedOnboarding({ portfolio: 'https://x.dev' })).toBe(false)
   })
 })

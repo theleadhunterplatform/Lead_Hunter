@@ -230,6 +230,7 @@ export async function requireActiveUser(request: Request): Promise<AuthUser> {
 }
 
 export interface OnboardingFields {
+  phone?: string | null
   portfolio?: string | null
   website?: string | null
   linkedin?: string | null
@@ -242,13 +243,11 @@ export interface OnboardingFields {
 
 export function hasCompletedOnboarding(user: OnboardingFields): boolean {
   return !!(
-    user.portfolio ||
-    user.website ||
-    user.linkedin ||
-    user.instagram ||
-    (user.servicesOffered?.length ?? 0) > 0 ||
-    (user.preferredLeadCategories?.length ?? 0) > 0 ||
-    user.outreachExperience ||
+    user.phone &&
+    user.linkedin &&
+    (user.servicesOffered?.length ?? 0) > 0 &&
+    (user.preferredLeadCategories?.length ?? 0) > 0 &&
+    user.outreachExperience &&
     user.discoverySource
   )
 }
@@ -272,6 +271,7 @@ export async function requireFullyAuthorized(request: Request): Promise<AuthUser
     select: {
       role: true,
       status: true,
+      phone: true,
       portfolio: true,
       website: true,
       linkedin: true,
