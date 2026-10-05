@@ -7,8 +7,23 @@ import {
     dispatchLeadDropAlert,
     initWhatsAppClient,
     setTargetWhatsAppGroup,
+    clearTargetWhatsAppGroup,
     unlinkWhatsAppDevice,
 } from '../services/whatsapp.service';
+
+/**
+ * DELETE /api/whatsapp/target-group
+ * POST /api/whatsapp/clear-target-group
+ * Clears the selected target WhatsApp group in-memory and in DB setting.
+ */
+export const clearTargetWhatsAppGroupHandler = asyncHandler(async (_req: Request, res: Response) => {
+    const result = await clearTargetWhatsAppGroup();
+    return res.status(200).json({
+        success: true,
+        message: result.message,
+        data: getWhatsAppStatus(),
+    });
+});
 
 /**
  * POST /api/whatsapp/target-group

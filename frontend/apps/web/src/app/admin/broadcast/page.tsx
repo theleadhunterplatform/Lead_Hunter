@@ -273,6 +273,37 @@ export default function AdminBroadcastPage() {
   }
 
   const [isUnlinkingWa, setIsUnlinkingWa] = useState(false)
+  const [isClearingTarget, setIsClearingTarget] = useState(false)
+
+  const handleClearTargetGroup = async () => {
+    if (!confirm('Are you sure you want to remove the target WhatsApp group? Automated lead drop alerts will be paused until a new group is selected.')) {
+      return
+    }
+    setIsClearingTarget(true)
+    try {
+      const token = await getFirebaseToken()
+      const res = await fetch('/api/admin/whatsapp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ action: 'clear_target' }),
+      })
+      const json = await res.json()
+      if (res.ok && json.success) {
+        addToast({ type: 'success', message: 'Target WhatsApp group removed successfully.' })
+        setWaData((prev) => (prev ? { ...prev, configuredGroupId: '', configuredGroupName: null } : null))
+        fetchWhatsAppStatus(true)
+      } else {
+        addToast({ type: 'error', message: json.message || 'Failed to remove target group' })
+      }
+    } catch {
+      addToast({ type: 'error', message: 'Network error removing target group' })
+    } finally {
+      setIsClearingTarget(false)
+    }
+  }
 
   const handleUnlinkWa = async () => {
     if (!confirm('Are you sure you want to remove and unlink this WhatsApp device? You will need to scan the QR code again to reconnect.')) {
@@ -292,7 +323,7 @@ export default function AdminBroadcastPage() {
       const json = await res.json()
       if (res.ok && json.success) {
         addToast({ type: 'success', message: 'WhatsApp device unlinked successfully.' })
-        setWaData((prev) => (prev ? { ...prev, status: 'disconnected', botNumber: null } : null))
+        setWaData((prev) => (prev ? { ...prev, status: 'disconnected', botNumber: null, configuredGroupId: '', configuredGroupName: null } : null))
         setShowQrModal(false)
         setTimeout(() => fetchWhatsAppStatus(true), 1500)
       } else {
@@ -1111,7 +1142,7 @@ export default function AdminBroadcastPage() {
             </button>
 
             {/* Remove / Unlink Device Button */}
-            {waData?.status === 'connected' && (
+            {(waData?.status === 'connected' || waData?.botNumber) && (
               <button
                 onClick={handleUnlinkWa}
                 disabled={isUnlinkingWa}
@@ -1143,9 +1174,20 @@ export default function AdminBroadcastPage() {
               <div className="flex items-center justify-between text-xs font-semibold text-white mb-1.5">
                 <span>Target Community WhatsApp Group</span>
                 {waData?.configuredGroupId ? (
-                  <span className="flex items-center gap-1 text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                    <CheckCircleIcon className="w-3 h-3" /> Active & Saved
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="flex items-center gap-1 text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                      <CheckCircleIcon className="w-3 h-3" /> Active & Saved
+                    </span>
+                    <button
+                      onClick={handleClearTargetGroup}
+                      disabled={isClearingTarget}
+                      title="Clear / remove this target group"
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 transition-all cursor-pointer disabled:opacity-40"
+                    >
+                      <TrashIcon className="w-2.5 h-2.5" />
+                      <span>{isClearingTarget ? 'Clearing...' : 'Clear'}</span>
+                    </button>
+                  </div>
                 ) : (
                   <span className="text-[10px] text-amber-400 font-bold bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
                     No Target Selected

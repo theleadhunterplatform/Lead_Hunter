@@ -101,6 +101,26 @@ export async function setTargetWhatsAppGroup(
 }
 
 /**
+ * Clears the selected target WhatsApp group in-memory and in the database.
+ */
+export async function clearTargetWhatsAppGroup(): Promise<{ success: boolean; message: string }> {
+    dynamicGroupId = null;
+    dynamicGroupName = null;
+    try {
+        await prisma.setting.deleteMany({
+            where: { key: 'whatsapp_community_group' },
+        });
+        console.log('ℹ️  [WhatsApp] Target community group cleared from DB setting.');
+    } catch (err: any) {
+        console.warn('⚠️  [WhatsApp] Failed to clear target group from DB setting:', err?.message);
+    }
+    return {
+        success: true,
+        message: 'Target WhatsApp group cleared successfully',
+    };
+}
+
+/**
  * Initializes the Baileys WhatsApp client using MultiFileAuthState.
  */
 export async function initWhatsAppClient(): Promise<void> {
@@ -329,6 +349,18 @@ export async function unlinkWhatsAppDevice(): Promise<{ success: boolean; messag
         latestQrDataUrl = null;
         botJid = null;
         cachedGroups = [];
+        dynamicGroupId = null;
+        dynamicGroupName = null;
+
+        // Clear target group from DB setting
+        try {
+            await prisma.setting.deleteMany({
+                where: { key: 'whatsapp_community_group' },
+            });
+            console.log('ℹ️  [WhatsApp] Cleared saved target community group from DB setting.');
+        } catch (dbErr: any) {
+            console.warn('⚠️  [WhatsApp] Failed to delete target group setting on unlink:', dbErr?.message);
+        }
 
         // Clear session directory files
         const sessionDir = config.whatsapp.sessionPath;

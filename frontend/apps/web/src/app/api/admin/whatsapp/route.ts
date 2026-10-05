@@ -155,6 +155,43 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // Handle Clearing the target group
+    if (body.action === 'clear_target') {
+      try {
+        await db.setting.deleteMany({
+          where: { key: 'whatsapp_community_group' },
+        })
+      } catch (dbErr) {
+        console.warn('[Admin WhatsApp] Failed to clear db.setting target group:', dbErr)
+      }
+
+      try {
+        await fetch(`${BASE_URL}/whatsapp/target-group`, {
+          method: 'DELETE',
+          headers,
+        })
+      } catch (beErr) {
+        console.warn('[Admin WhatsApp] Backend clear target error:', beErr)
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: 'Target WhatsApp group cleared',
+        data: { configuredGroupId: '', configuredGroupName: null },
+      })
+    }
+
+    // If unlinking device, also wipe the saved target group
+    if (body.action === 'unlink') {
+      try {
+        await db.setting.deleteMany({
+          where: { key: 'whatsapp_community_group' },
+        })
+      } catch (dbErr) {
+        console.warn('[Admin WhatsApp] Failed to clear db.setting on unlink:', dbErr)
+      }
+    }
+
     const endpoint = body.action === 'alert'
       ? `${BASE_URL}/whatsapp/alert`
       : body.action === 'reconnect'

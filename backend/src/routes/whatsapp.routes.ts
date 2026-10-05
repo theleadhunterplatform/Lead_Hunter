@@ -8,6 +8,7 @@ import {
     triggerLeadDropAlertHandler,
     reconnectWhatsAppHandler,
     setTargetWhatsAppGroupHandler,
+    clearTargetWhatsAppGroupHandler,
     unlinkWhatsAppDeviceHandler,
 } from '../controllers/whatsapp.controller';
 
@@ -19,6 +20,8 @@ router.use(protect, requirePlatformAdmin);
 router.get('/status', getWhatsAppStatusHandler);
 router.get('/groups', getWhatsAppGroupsHandler);
 router.post('/target-group', setTargetWhatsAppGroupHandler);
+router.delete('/target-group', clearTargetWhatsAppGroupHandler);
+router.post('/clear-target-group', clearTargetWhatsAppGroupHandler);
 router.post('/test', sendWhatsAppTestMessageHandler);
 router.post('/alert', triggerLeadDropAlertHandler);
 router.post('/reconnect', reconnectWhatsAppHandler);
