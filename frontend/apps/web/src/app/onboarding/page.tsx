@@ -14,6 +14,7 @@ import {
   validatePhoneNumberLength,
   DEFAULT_COUNTRY,
 } from '@/lib/countries'
+import { isValidSocialProfile } from '@/lib/social'
 import {
   auth,
   signInWithPhoneNumber,
@@ -303,8 +304,12 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     const saved = localStorage.getItem('onboarding_step')
-    if (saved) setStep(parseInt(saved))
     const savedData = localStorage.getItem('onboarding_data')
+    let restoredStep = 1
+    if (saved) {
+      const parsed = parseInt(saved)
+      if (!Number.isNaN(parsed) && parsed >= 1 && parsed <= 3) restoredStep = parsed
+    }
     if (savedData) {
       try {
         const data = JSON.parse(savedData)
@@ -336,8 +341,22 @@ export default function OnboardingPage() {
           setCountryCode(parsed.dialCode)
           setPhoneNumber(parsed.localNumber)
         }
+
+        // Clamp restored step so a hand-edited onboarding_step cannot skip
+        // steps whose required data was never filled in.
+        const phone = (data.phoneNumber || '').trim() || (data.phone || '').trim()
+        if (restoredStep > 1 && (!data.linkedin?.trim() || !phone)) restoredStep = 1
+        if (
+          restoredStep > 2 &&
+          (!(data.servicesOffered?.length > 0) ||
+            !(data.preferredLeadCategories?.length > 0) ||
+            !data.outreachExperience)
+        ) {
+          restoredStep = 2
+        }
       } catch {}
     }
+    setStep(restoredStep)
   }, [])
 
   useEffect(() => {
@@ -581,18 +600,31 @@ export default function OnboardingPage() {
 
   const handleSubmit = async () => {
     if (!discoverySource) return
-    if (!linkedin.trim()) { setError('LinkedIn profile link is required'); return }
-    if (!phoneNumber.trim()) { setError('Phone number is required'); return }
+    if (!linkedin.trim()) {
+      setError('LinkedIn profile link is required')
+      setStep1Error('LinkedIn profile link is required')
+      setStep(1)
+      return
+    }
+    if (!isValidSocialProfile(linkedin)) {
+      const msg = 'Please provide a valid direct link to your personal or company LinkedIn profile (e.g. linkedin.com/in/yourname)'
+      setError(msg)
+      setStep1Error(msg)
+      setStep(1)
+      return
+    }
+    if (!phoneNumber.trim()) { setError('Phone number is required'); setStep(1); return }
     const selectedCountry = findCountryByDialCode(countryCode) || DEFAULT_COUNTRY
     const phoneValidation = validatePhoneNumberLength(selectedCountry, phoneNumber)
     if (!phoneValidation.valid) {
       setError(phoneValidation.message || 'Invalid phone number length')
+      setStep1Error(phoneValidation.message || 'Invalid phone number length')
       setStep(1)
       return
     }
-    if (servicesOffered.length === 0) { setError('Select at least one service'); return }
-    if (preferredLeadCategories.length === 0) { setError('Select at least one lead category'); return }
-    if (!outreachExperience) { setError('Select your outreach experience'); return }
+    if (servicesOffered.length === 0) { setError('Select at least one service'); setStep(2); return }
+    if (preferredLeadCategories.length === 0) { setError('Select at least one lead category'); setStep(2); return }
+    if (!outreachExperience) { setError('Select your outreach experience'); setStep(2); return }
 
     setIsSubmitting(true)
     setError('')
@@ -622,8 +654,13 @@ export default function OnboardingPage() {
       localStorage.removeItem('onboarding_data')
       router.push('/pending-approval')
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to submit onboarding')
+      const msg = err instanceof Error ? err.message : 'Failed to submit onboarding'
+      setError(msg)
       setSubmitRetry(true)
+      if (msg.toLowerCase().includes('linkedin') || msg.toLowerCase().includes('phone')) {
+        setStep1Error(msg)
+        setStep(1)
+      }
     } finally {
       setIsSubmitting(false)
     }
@@ -861,6 +898,10 @@ export default function OnboardingPage() {
                         setStep1Error('LinkedIn profile link is required')
                         return
                       }
+                      if (!isValidSocialProfile(linkedin)) {
+                        setStep1Error('Please provide a valid direct link to your personal or company LinkedIn profile (e.g. linkedin.com/in/yourname)')
+                        return
+                      }
                       if (!phoneNumber.trim()) {
                         setStep1Error('Phone number is required')
                         return
@@ -914,7 +955,9 @@ export default function OnboardingPage() {
                     <div className="flex flex-col gap-2.5">
                       <div className="flex items-center justify-between">
                         <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider flex items-center gap-1.5">
-                          <span>Services you offer</span>
+                          <span>
+                            Services you offer <span className="text-primary">*</span>
+                          </span>
                           {servicesOffered.length > 0 && (
                             <span className="text-[11px] text-primary font-bold normal-case">
                               ({servicesOffered.length} selected)
@@ -1018,7 +1061,9 @@ export default function OnboardingPage() {
                     <div className="flex flex-col gap-2.5">
                       <div className="flex items-center justify-between">
                         <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider flex items-center gap-1.5">
-                          <span>Target Client Niches</span>
+                          <span>
+                            Target Client Niches <span className="text-primary">*</span>
+                          </span>
                           {preferredLeadCategories.length > 0 && (
                             <span className="text-[11px] text-primary font-bold normal-case">
                               ({preferredLeadCategories.length} selected)
@@ -1122,7 +1167,7 @@ export default function OnboardingPage() {
 
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
-                        Outreach experience
+                        Outreach experience <span className="text-primary">*</span>
                       </label>
                       <select
                         value={outreachExperience}
@@ -1179,7 +1224,8 @@ export default function OnboardingPage() {
                       Almost there!
                     </h1>
                     <p className="text-sm text-text-secondary mt-2">
-                      One last thing: how did you find us?
+                      One last thing: how did you find us?{' '}
+                      <span className="text-primary font-medium">(required)</span>
                     </p>
                   </div>
 
