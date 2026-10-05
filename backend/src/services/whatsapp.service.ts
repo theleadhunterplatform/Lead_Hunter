@@ -365,7 +365,13 @@ export async function dispatchLeadDropAlert(
     leadsCount: number,
     categories: string[] = []
 ): Promise<{ success: boolean; error?: string }> {
-    const appUrl = (process.env.FRONTEND_URL || 'https://www.theleadhunterclub.com').replace(/\/$/, '');
+    let appUrl = (process.env.FRONTEND_URL || 'https://www.theleadhunterclub.com').trim();
+    // Guarantee canonical production link even if server environment variable has stale vercel.app or old URL
+    if (appUrl.includes('vercel.app') || (!appUrl.includes('localhost') && !appUrl.includes('127.0.0.1'))) {
+        appUrl = 'https://www.theleadhunterclub.com';
+    }
+    appUrl = appUrl.replace(/\/+$/, '');
+
     const cleanCategories = categories.filter(Boolean);
     const categoryText = cleanCategories.length > 0
         ? cleanCategories.slice(0, 4).join(', ')
