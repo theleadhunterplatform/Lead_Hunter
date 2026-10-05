@@ -440,61 +440,68 @@ export function LeadOutreachFlowchart() {
             </span>
           </div>
 
-          {/* Authentic Lead Hunter Club Lead Card */}
-          <div className="relative p-3.5 rounded-[18px] bg-[#B8F36B] text-[#11150C] shadow-[0_12px_36px_rgba(184,243,107,0.18)] transition-all duration-300">
-            {/* Top Category Header */}
-            <div className="flex items-center justify-between mb-1">
-              <div className="flex items-center gap-1.5">
-                <div className="w-1.5 h-1.5 rounded-full bg-[#11150C]" />
-                <span className="text-[9px] font-extrabold tracking-[0.15em] uppercase text-[#11150C]/75">
-                  SHOPIFY PLUS · DTC JEWELRY
+          {/* Authentic Lead Hunter Club Lead Card (styled 1:1 with feed LeadCard.tsx, revealed state) */}
+          <div className="relative p-4 rounded-[22px] bg-surface-container-low border border-border-subtle shadow-elevation-3 text-text-primary transition-all duration-300">
+            {/* Header: niche category + claimed count + timestamp */}
+            <div className="flex items-center justify-between mb-2 h-[18px] select-none">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                <span className="text-[10px] font-bold tracking-[0.16em] uppercase text-primary truncate">
+                  DTC JEWELRY
                 </span>
               </div>
-              <span className="text-[9px] font-medium text-[#11150C]/60">2h ago</span>
+              <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                <span className="px-1.5 py-0.5 rounded-[5px] text-[10px] font-semibold border border-white/10 bg-white/5 text-text-secondary select-none">
+                  <span className="text-white font-bold">3</span>/25
+                </span>
+                <span className="text-[10px] font-medium text-text-secondary opacity-80 select-none">
+                  2h ago
+                </span>
+              </div>
             </div>
 
             {/* Headline */}
-            <p className="text-[10.5px] font-extrabold tracking-wide uppercase mb-1 text-[#11150C]">
+            <p className="text-[10.5px] font-bold tracking-[0.12em] uppercase line-clamp-1 opacity-90 mb-1.5 text-text-primary select-none">
               LUXURY JEWELRY 3D VISUALIZER
             </p>
 
             {/* Quote */}
-            <p className="text-[11.5px] font-bold tracking-tight leading-[1.3] text-[#11150C] mb-2.5">
+            <p className="text-[13.5px] font-semibold tracking-tight leading-[1.35] line-clamp-2 text-text-primary mb-2.5 select-none">
               &quot;Starting a brand for luxury jewelry. Need a web designer who can build custom 3D visuals on Shopify Plus.&quot;
             </p>
 
-            {/* Tags Row */}
-            <div className="flex items-center gap-1.5 mb-2.5 flex-wrap">
-              {['Shopify Plus', '3D / WebGL', 'Draco GLTF'].map((tag) => (
-                <span
-                  key={tag}
-                  className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-[#11150C]/10 border border-[#11150C]/10 text-[#11150C]"
-                >
-                  {tag}
-                </span>
-              ))}
+            {/* Tags: first = accent pill, rest = neutral (matches feed theme) */}
+            <div className="flex items-center gap-1.5 mb-2.5 flex-wrap select-none">
+              <span className="px-2 py-0.5 text-[10px] font-semibold rounded-md border bg-primary/15 border-primary/30 text-primary">
+                Shopify Plus
+              </span>
+              <span className="px-2 py-0.5 text-[10px] font-semibold rounded-md border bg-surface-container-high border-border-subtle text-text-secondary">
+                3D / WebGL
+              </span>
+              <span className="px-2 py-0.5 text-[10px] font-semibold rounded-md border bg-surface-container-high border-border-subtle text-text-secondary">
+                Draco GLTF
+              </span>
             </div>
 
-            {/* Unlocked Contact Footer */}
-            <div className="pt-2 border-t border-[#11150C]/15 flex items-center justify-between">
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="w-6 h-6 rounded-full bg-[#11150C] text-[#B8F36B] flex items-center justify-center font-bold text-[9px] uppercase shrink-0">
+            {/* Footer: unlocked contact + Save button (revealed state) */}
+            <div className="min-h-[44px] pt-2 border-t border-border-subtle flex items-center justify-between gap-2 select-none">
+              <div className="flex items-center gap-2 min-w-0 flex-1 mr-1.5">
+                <div className="w-7 h-7 rounded-full bg-primary text-on-primary flex items-center justify-center font-bold text-[10px] uppercase shrink-0">
                   MV
                 </div>
-                <div className="min-w-0">
-                  <div className="text-[10.5px] font-extrabold text-[#11150C] leading-tight truncate">
-                    Marcus Vance (Founder)
+                <div className="min-w-0 flex-1">
+                  <div className="text-[11px] font-bold truncate leading-tight text-text-primary">
+                    Marcus Vance
                   </div>
-                  <div className="text-[9px] text-[#11150C]/75 font-medium flex items-center gap-1 truncate">
-                    <Mail size={10} className="shrink-0" />
+                  <div className="text-[9.5px] text-text-secondary truncate flex items-center gap-1 mt-0.5">
+                    <Mail size={9.5} className="shrink-0" />
                     <span className="truncate">marcus@vesperjewelry.co</span>
                   </div>
                 </div>
               </div>
-
-              <div className="px-2 py-0.5 rounded-md bg-[#11150C] text-white text-[9px] font-extrabold tracking-wider uppercase shrink-0 shadow-sm">
-                ✓ Claimed
-              </div>
+              <span className="w-[72px] h-9 rounded-lg text-[9.5px] font-extrabold tracking-wider uppercase bg-primary text-on-primary border border-transparent flex items-center justify-center shrink-0">
+                Save
+              </span>
             </div>
           </div>
         </div>
@@ -1042,7 +1049,7 @@ export function LeadOutreachFlowchart() {
           </div>
         </li>
 
-        {/* Step 3: Authentic LeadCard in Feed */}
+        {/* Step 3: Authentic LeadCard in Feed (matches feed LeadCard.tsx, revealed state) */}
         <li className="relative pl-11">
           <span
             className="absolute left-0 top-3 w-9 h-9 rounded-full bg-[#B8F36B] border border-[#B8F36B] flex items-center justify-center text-[11px] font-mono font-bold text-[#11150C] z-10"
@@ -1050,22 +1057,73 @@ export function LeadOutreachFlowchart() {
           >
             3
           </span>
-          <div className="p-4 rounded-[20px] bg-[#B8F36B] text-[#11150C] shadow-lg">
-            <div className="flex items-center justify-between flex-wrap gap-1 text-[11px] font-extrabold uppercase mb-1">
-              <span>03 // DELIVERED TO YOUR FEED</span>
-              <span>2h ago</span>
+          {/* Stage Annotation (outside the card, like desktop) */}
+          <div className="flex items-center gap-1 mb-1.5">
+            <CheckBadgeIcon className="w-3.5 h-3.5 text-[#B8F36B]" />
+            <span className="text-[10px] font-mono uppercase tracking-wider text-[#B8F36B] font-bold">
+              03 // DELIVERED TO YOUR FEED
+            </span>
+          </div>
+          <div className="p-4 rounded-[22px] bg-surface-container-low border border-border-subtle shadow-elevation-3 text-text-primary">
+            {/* Header: niche category + claimed count + timestamp */}
+            <div className="flex items-center justify-between mb-2 h-[18px] select-none">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                <span className="text-[10px] font-bold tracking-[0.16em] uppercase text-primary truncate">
+                  DTC JEWELRY
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                <span className="px-1.5 py-0.5 rounded-[5px] text-[10px] font-semibold border border-white/10 bg-white/5 text-text-secondary select-none">
+                  <span className="text-white font-bold">3</span>/25
+                </span>
+                <span className="text-[10px] font-medium text-text-secondary opacity-80 select-none">
+                  2h ago
+                </span>
+              </div>
             </div>
-            <p className="text-[12px] font-extrabold uppercase mb-1">LUXURY JEWELRY 3D VISUALIZER</p>
-            <p className="text-[12px] font-bold leading-snug mb-2.5">
+
+            {/* Headline */}
+            <p className="text-[10.5px] font-bold tracking-[0.12em] uppercase line-clamp-1 opacity-90 mb-1.5 text-text-primary select-none">
+              LUXURY JEWELRY 3D VISUALIZER
+            </p>
+
+            {/* Quote (mobile scale of real card: 15px / clamp-3) */}
+            <p className="text-[15px] font-semibold tracking-tight leading-[1.4] line-clamp-3 text-text-primary mb-2.5 select-none">
               &quot;Starting a brand for luxury jewelry. Need a web designer who can build custom 3D visuals on Shopify Plus.&quot;
             </p>
-            <div className="pt-2 border-t border-[#11150C]/15 flex items-center justify-between flex-wrap gap-1.5 text-[11px]">
-              <div>
-                <div className="font-extrabold">Marcus Vance (Founder)</div>
-                <div className="text-[#11150C]/75 font-mono text-[11px] break-all">marcus@vesperjewelry.co</div>
+
+            {/* Tags: first = accent pill, rest = neutral */}
+            <div className="flex items-center gap-1.5 mb-2.5 flex-wrap select-none">
+              <span className="px-2 py-0.5 text-[10px] font-semibold rounded-md border bg-primary/15 border-primary/30 text-primary">
+                Shopify Plus
+              </span>
+              <span className="px-2 py-0.5 text-[10px] font-semibold rounded-md border bg-surface-container-high border-border-subtle text-text-secondary">
+                3D / WebGL
+              </span>
+              <span className="px-2 py-0.5 text-[10px] font-semibold rounded-md border bg-surface-container-high border-border-subtle text-text-secondary">
+                Draco GLTF
+              </span>
+            </div>
+
+            {/* Footer: unlocked contact + Save button */}
+            <div className="min-h-[44px] pt-2 border-t border-border-subtle flex items-center justify-between gap-2 select-none">
+              <div className="flex items-center gap-2 min-w-0 flex-1 mr-1.5">
+                <div className="w-7 h-7 rounded-full bg-primary text-on-primary flex items-center justify-center font-bold text-[10px] uppercase shrink-0">
+                  MV
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[11px] font-bold truncate leading-tight text-text-primary">
+                    Marcus Vance
+                  </div>
+                  <div className="text-[9.5px] text-text-secondary truncate flex items-center gap-1 mt-0.5">
+                    <Mail size={9.5} className="shrink-0" />
+                    <span className="truncate">marcus@vesperjewelry.co</span>
+                  </div>
+                </div>
               </div>
-              <span className="px-2 py-0.5 rounded bg-[#11150C] text-white font-extrabold uppercase text-[11px]">
-                ✓ Claimed
+              <span className="w-[72px] h-11 rounded-lg text-[9.5px] font-extrabold tracking-wider uppercase bg-primary text-on-primary border border-transparent flex items-center justify-center shrink-0">
+                Save
               </span>
             </div>
           </div>

@@ -1,9 +1,10 @@
 'use client'
 
 import React, { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowRightIcon } from '@heroicons/react/24/solid'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
+import { ArrowRightIcon, ArrowPathIcon, KeyIcon } from '@heroicons/react/24/solid'
 import { Card } from '@/components/ui/Card'
+import { LEAD_REVEAL_COSTS } from '@/lib/config/coins'
 
 const springTransition = { type: 'spring', stiffness: 320, damping: 32 } as const
 
@@ -160,70 +161,224 @@ function TrackEveryTouchVideoVisual() {
   )
 }
 
-// ─── Visual 4: Credits Based, Not Seat Based (Credit Economics) ────────────────
-function CreditEconomicsInteractiveVisual() {
-  const [selectedTier, setSelectedTier] = useState<'solo' | 'growth' | 'agency'>('growth')
+// ─── Visual 4: Credits Based, Not Seat Based (Live Credit Ledger) ─────────────
+// Interactive demo of real reveal pricing (lib/config/coins.ts):
+// email 5 · phone 8 · both 10 · profile 2. Start balance = Free plan (50).
+// 8 demo leads total 53 credits so the low-balance + top-up loop is reachable.
+type DemoBundle = 'email' | 'phone' | 'both' | 'profile'
 
-  const tiers = {
-    solo: { credits: '250', cost: '3 / reveal', label: 'Solo Operator', rollover: '15-Day Rollover' },
-    growth: { credits: '750', cost: '3 / reveal', label: 'Growth Agency', rollover: '15-Day Rollover' },
-    agency: { credits: '2,000', cost: '3 / reveal', label: 'Scale Operations', rollover: '15-Day Rollover' },
+const BUNDLE_META: Record<DemoBundle, { label: string; short: string; cost: number }> = {
+  email: { label: 'Email revealed', short: 'EMAIL', cost: LEAD_REVEAL_COSTS.email_only },
+  phone: { label: 'Phone revealed', short: 'PHONE', cost: LEAD_REVEAL_COSTS.phone_only },
+  both: { label: 'Email + Phone revealed', short: 'BOTH', cost: LEAD_REVEAL_COSTS.phone_email },
+  profile: { label: 'Profile revealed', short: 'PROFILE', cost: LEAD_REVEAL_COSTS.profile_only },
+}
+
+const DEMO_LEADS: { id: string; source: string; title: string; bundle: DemoBundle }[] = [
+  { id: 'l1', source: 'REDDIT · r/devops', title: '"CRM sync keeps failing on OAuth"', bundle: 'email' },
+  { id: 'l2', source: 'LINKEDIN · FOUNDER', title: '"Seeking a fractional growth lead"', bundle: 'profile' },
+  { id: 'l3', source: 'REDDIT · r/SaaS', title: '"How do you qualify inbound?"', bundle: 'phone' },
+  { id: 'l4', source: 'X · BUILD IN PUBLIC', title: '"DM me if you do cold email at scale"', bundle: 'both' },
+  { id: 'l5', source: 'REDDIT · r/marketing', title: '"Agency vs in-house for paid social?"', bundle: 'email' },
+  { id: 'l6', source: 'LINKEDIN · OPS LEAD', title: '"Our lead router is a mess"', bundle: 'both' },
+  { id: 'l7', source: 'X · INDIE HACKER', title: '"Anyone using clay tables for enrichment?"', bundle: 'phone' },
+  { id: 'l8', source: 'REDDIT · r/startups', title: '"Need 50 B2B leads by Friday"', bundle: 'email' },
+]
+
+const FREE_START_BALANCE = 50
+const TOP_UP_AMOUNT = 50
+
+let ledgerSeq = 0 // keys minted only in event handlers, never during render
+const nextLedgerKey = () => `e${++ledgerSeq}`
+
+interface LedgerEntry {
+  key: string
+  delta: number
+  label: string
+  after: number
+}
+
+function CreditEconomicsInteractiveVisual() {
+  const reduce = useReducedMotion()
+  const [balance, setBalance] = useState(FREE_START_BALANCE)
+  const [revealedCount, setRevealedCount] = useState(0)
+  const [ledger, setLedger] = useState<LedgerEntry[]>([])
+
+  const currentLead = DEMO_LEADS[revealedCount]
+  const done = !currentLead
+  const currentCost = currentLead ? BUNDLE_META[currentLead.bundle].cost : 0
+  const insufficient = !!currentLead && balance < currentCost
+  const meterPct = Math.min(100, (balance / FREE_START_BALANCE) * 100)
+
+  const pushEntry = (delta: number, label: string, after: number) =>
+    setLedger((l) => [{ key: nextLedgerKey(), delta, label, after }, ...l].slice(0, 5))
+
+  const handleReveal = () => {
+    if (!currentLead || insufficient) return
+    const after = balance - currentCost
+    setBalance(after)
+    pushEntry(-currentCost, `${BUNDLE_META[currentLead.bundle].label} · ${currentLead.source}`, after)
+    setRevealedCount((c) => c + 1)
   }
 
-  const current = tiers[selectedTier]
+  const handleTopUp = () => {
+    const after = balance + TOP_UP_AMOUNT
+    setBalance(after)
+    pushEntry(TOP_UP_AMOUNT, 'Top-up added', after)
+  }
+
+  const handleReset = () => {
+    setBalance(FREE_START_BALANCE)
+    setRevealedCount(0)
+    setLedger([])
+  }
 
   return (
-    <div className="w-full h-full p-4 flex flex-col justify-between bg-[#0B0D14] rounded-xl border border-white/[0.08] shadow-inner relative overflow-hidden">
-      {/* Top Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-white/[0.06]">
+    <div className="w-full h-full p-4 flex flex-col bg-[#0B0D14] rounded-xl border border-white/[0.08] shadow-inner relative overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between pb-2.5 border-b border-white/[0.06]">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-accent-mint animate-pulse" />
           <span className="text-[10px] font-mono font-bold tracking-wider text-accent-mint uppercase">
-            CREDIT BALANCE ENGINE
+            Live Credit Ledger
           </span>
         </div>
-        <span className="text-[10px] font-mono text-text-secondary/60">0 SEAT LOCK-INS</span>
+        <span className="text-[10px] font-mono text-text-secondary/60">NO SEATS</span>
       </div>
 
-      {/* Tier Selector Buttons */}
-      <div className="my-auto space-y-3">
-        <div className="grid grid-cols-3 gap-2">
-          {(['solo', 'growth', 'agency'] as const).map((tierKey) => (
-            <button
-              key={tierKey}
-              onClick={() => setSelectedTier(tierKey)}
-              className={`min-h-[44px] py-2.5 px-3 rounded-lg text-xs font-semibold capitalize transition-all border ${
-                selectedTier === tierKey
-                  ? 'bg-accent-orange text-black border-accent-orange font-bold shadow-md'
-                  : 'bg-white/5 text-text-secondary border-white/10 hover:border-white/20'
-              }`}
+      {/* Cost strip (real reveal pricing, active bundle highlighted) */}
+      <div className="py-1.5 border-b border-white/[0.06] text-[9px] font-mono uppercase tracking-wider text-text-secondary/50">
+        <span className="text-text-secondary/70">Costs:</span>{' '}
+        {(['email', 'phone', 'both', 'profile'] as const).map((b, i) => (
+          <span
+            key={b}
+            className={
+              currentLead?.bundle === b ? 'text-accent-orange font-bold' : undefined
+            }
+          >
+            {i > 0 && <span className="text-text-secondary/30"> · </span>}
+            {BUNDLE_META[b].short} {BUNDLE_META[b].cost}
+          </span>
+        ))}
+      </div>
+
+      {/* Current lead + reveal action */}
+      <div className="flex items-center gap-3 py-2.5 border-b border-white/[0.06]">
+        <div className="min-w-0 flex-1">
+          <div className="text-[9px] font-mono text-accent-orange/80 uppercase tracking-wider truncate">
+            {done ? 'DEMO COMPLETE' : currentLead.source}
+          </div>
+          <div className="text-xs text-white/90 truncate mt-0.5">
+            {done ? 'Reset and replay the ledger' : currentLead.title}
+          </div>
+        </div>
+        {done ? (
+          <button
+            onClick={handleReset}
+            className="flex items-center gap-1.5 min-h-[40px] px-3 rounded-lg text-xs font-semibold bg-white/5 text-text-secondary border border-white/10 hover:border-white/20 hover:text-white transition-all active:scale-[0.97]"
+          >
+            <ArrowPathIcon className="w-3.5 h-3.5" />
+            Reset
+          </button>
+        ) : (
+          <button
+            onClick={handleReveal}
+            disabled={insufficient}
+            aria-label={insufficient ? `Not enough credits, ${currentCost} needed` : `Reveal lead for ${currentCost} credits`}
+            className={`flex items-center gap-1.5 min-h-[40px] px-3 rounded-lg text-xs font-bold border transition-all active:scale-[0.97] ${
+              insufficient
+                ? 'bg-red-400/10 text-red-400 border-red-400/30 cursor-not-allowed'
+                : 'bg-accent-orange text-black border-accent-orange hover:shadow-md'
+            }`}
+          >
+            <KeyIcon className="w-3.5 h-3.5" />
+            {insufficient ? `Need ${currentCost}` : `Reveal · ${currentCost}`}
+          </button>
+        )}
+      </div>
+
+      {/* Ledger stream (real-time deduction log) */}
+      <div
+        className="flex-1 min-h-0 overflow-hidden py-1.5 space-y-1"
+        aria-live="polite"
+        aria-label="Credit ledger"
+      >
+        <AnimatePresence initial={false}>
+          {ledger.length === 0 && (
+            <motion.div
+              key="hint"
+              initial={reduce ? false : { opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="text-[10px] font-mono text-text-secondary/50 leading-relaxed pt-1"
             >
-              {tierKey}
-            </button>
+              Reveal a lead. Every deduction lands here, instantly.
+            </motion.div>
+          )}
+          {ledger.map((entry) => (
+            <motion.div
+              key={entry.key}
+              initial={reduce ? false : { opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+              className="flex items-center gap-2 text-[10px] font-mono"
+            >
+              <span
+                className={`w-9 shrink-0 font-bold tabular-nums ${
+                  entry.delta < 0 ? 'text-accent-orange' : 'text-accent-mint'
+                }`}
+              >
+                {entry.delta > 0 ? `+${entry.delta}` : entry.delta}
+              </span>
+              <span className="flex-1 truncate text-text-secondary/80">{entry.label}</span>
+              <span className="shrink-0 text-text-secondary/45 tabular-nums">
+                BAL {entry.after}
+              </span>
+            </motion.div>
           ))}
-        </div>
-
-        {/* Big Credit Meter Card */}
-        <div className="p-3.5 rounded-xl bg-gradient-to-r from-surface-secondary/80 to-[#121520] border border-white/[0.08] flex items-center justify-between">
-          <div>
-            <div className="text-[10px] font-mono text-text-secondary/70 uppercase">MONTHLY REVEAL CREDITS</div>
-            <div className="text-2xl font-display font-bold text-white tracking-tight mt-0.5">
-              {current.credits} <span className="text-xs font-mono font-normal text-accent-orange">Credits</span>
-            </div>
-          </div>
-          <div className="text-right">
-            <div className="text-[10px] font-mono text-accent-mint font-bold px-2 py-0.5 rounded bg-accent-mint/10 border border-accent-mint/20">
-              {current.rollover}
-            </div>
-            <div className="text-[9px] font-mono text-text-secondary/60 mt-1">FULL LEFTOVER CARRIES OVER</div>
-          </div>
-        </div>
+        </AnimatePresence>
       </div>
 
-      {/* Bottom Features */}
-      <div className="flex items-center justify-between pt-2 border-t border-white/[0.06] text-[10px] font-mono text-text-secondary/60">
-        <span>PAY PER VALUE</span>
-        <span className="text-white/80">SCALE SEATLESSLY</span>
+      {/* Balance meter + top-up */}
+      <div className="pt-2.5 border-t border-white/[0.06] flex items-end gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-baseline justify-between mb-1">
+            <span className="text-[9px] font-mono text-text-secondary/60 uppercase tracking-wider">
+              Balance
+            </span>
+            <span className="text-[10px] font-mono text-text-secondary/70 tabular-nums">
+              <motion.span
+                key={balance}
+                initial={reduce ? false : { scale: 1.25 }}
+                animate={{ scale: 1 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 24 }}
+                className="inline-block font-bold text-white"
+              >
+                {balance}
+              </motion.span>{' '}
+              credits
+            </span>
+          </div>
+          <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+            <div
+              className={`h-full w-full origin-left bg-gradient-to-r from-accent-mint to-accent-orange ${
+                reduce ? '' : 'transition-transform duration-500 ease-out'
+              }`}
+              style={{ transform: `scaleX(${meterPct / 100})` }}
+            />
+          </div>
+        </div>
+        <button
+          onClick={handleTopUp}
+          className={`shrink-0 min-h-[36px] px-3 rounded-lg text-[10px] font-bold font-mono uppercase tracking-wider border transition-all active:scale-[0.97] ${
+            insufficient
+              ? 'bg-accent-mint/10 text-accent-mint border-accent-mint/50 animate-pulse'
+              : 'bg-white/5 text-accent-mint border-accent-mint/30 hover:border-accent-mint/60'
+          }`}
+        >
+          +{TOP_UP_AMOUNT} top-up
+        </button>
       </div>
     </div>
   )

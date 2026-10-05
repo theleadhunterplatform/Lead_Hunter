@@ -16,7 +16,7 @@
 | 1 | Hero image — replace `/images/hero image 2.png` in `HeroSection.tsx:2243` | ⛔ blocked (needs asset from user) |
 | 2 | Hero font mismatch — headline line 2 used undefined `font-serif` | ✅ done |
 | 3 | Bento grid — Step 02 overlap on hover + unify Step 01–04 labels | ✅ done |
-| 4 | Capabilities card 4 — replace `CreditEconomicsInteractiveVisual` with video | ⛔ blocked (needs asset from user) |
+| 4 | Capabilities card 4 — interactive credit-ledger UI (superseded the original "replace with video" ask) | ✅ done + browser-verified (16/16 checks desktop+mobile) |
 | 5 | Rollover copy → 15 days everywhere | ✅ done + visually verified |
 | 6 | Pricing → 2 plans only: Free (no card) + ₹999 — landing + `/pricing` | ✅ done + browser-verified |
 | 7 | Footer — rework nav columns + real social links | 🟡 nav columns ✅ done + browser-verified; social/legal URLs pending from user |
@@ -53,10 +53,36 @@ Note: user's original list had duplicate "5" (rollover + pricing); renumbered as
   close-clients. Verified via DOM query + full screenshot (all 4 expanded, order correct).
 - Note: this is the **landing** FAQ. HeroSection has a separate support/FAQ area — untouched.
 
+### Out-of-band fixes (not on the original 12)
+
+- **#4 Credit-ledger widget** (`FeaturesSection.tsx`): replaced stale tier selector
+  (250/750/2000 credits, "3/reveal" — all wrong vs product) with a live ledger demo:
+  8 demo leads, real costs from `coins.ts` (email 5 / phone 8 / both 10 / profile 2),
+  start 50 (Free plan), reveal → balance animates + ledger row slides in (`−N … BAL N`),
+  low-balance → disabled "Need N" + pulsing top-up, `+50 top-up` mint row, Reset.
+  Fits the 260px card slot exactly (258/258 desktop, 238/238 mobile). Copy uses **"credits"**
+  (product term; user said "tokens" but site never says tokens — flagged to user).
+  Verified: lint/tsc clean, 16/16 browser checks, 0 console errors.
+- **Flowchart lead card** (`LeadOutreachFlowchart.tsx`, Why-section): desktop Stage 03 +
+  mobile Step 3 mock were bright-green `#B8F36B` cards with "✓ Claimed" footer — restyled
+  1:1 with feed `LeadCard.tsx`: `bg-surface-container-low rounded-[22px] border
+  border-border-subtle shadow-elevation-3`, category dot + `3/25` badge + timestamp,
+  real type scale (headline 10.5px/0.12em, quote 13.5px clamp-2 / 15px clamp-3 mobile),
+  accent-pill-first tags, footer = avatar + name + email + SAVE button. Verified: dark bg
+  `rgb(27,28,29)`, radius 22, no green, fits, 0 console errors, screenshots OK.
+
 ### Dev-server incident (resolved)
 - Mid-session `/pricing` started returning `500 Cannot find module './4522.js'` (stale webpack
   cache after hot reloads of route files). Fix: kill :3000, `Remove-Item .next -Recurse -Force`,
   restart `npm run dev`. If clicks mysteriously do nothing after heavy editing → do this first.
+- **OOM recurrence (2026-10-02 night):** machine hit 0.3 GB free RAM → `next dev` died twice
+  (`Zone Allocation failed`). Fixes: start with `NODE_OPTIONS=--max-old-space-size=3072`,
+  clear `.next`, and launch the server in a **short-lived shell command** (a command that hits
+  the shell timeout gets its whole process tree killed — the dev server dies with it).
+- **Playwright quirk on this site:** `:text-matches()` selectors returned 0 matches; desktop +
+  mobile twins both exist in DOM (only one visible per viewport) → always add `:visible` and
+  prefer `evaluate()` for text reads/clicks. `waitUntil: 'load'` times out (hanging video
+  subresource) → use `domcontentloaded`.
 
 ## 2. Completed work (don't redo)
 
