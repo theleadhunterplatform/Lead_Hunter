@@ -18,36 +18,43 @@ Platform: ${post.platform}
 Keyword/Context: ${post.keyword}
 Engagement: ${post.engagement?.likes || 0} likes, ${post.engagement?.comments || 0} comments
 
+CRITICAL INSTRUCTIONS:
+- Keep all sections concise, punchy, and direct. Avoid verbose conversational filler, repetitive paragraphs, or long multi-sentence explanations.
+- Never include personal phone numbers, WhatsApp, personal emails, or private candidate info.
+- Keep each bullet point to a single short, punchy sentence (under 15 words).
+
 Format the output exactly like this example structure, using professional and high-level strategic language:
 
-# 🔥 Lead Intelligence: [Brief Catchy Title - e.g. "Luxury Website Rebuild"]
+# 🔥 Lead Intelligence: [Brief Catchy Title under 7 words - e.g. "Shopify Theme Store Rebuild"]
 
 ### 🧠 One-Liner
-[Single sentence summary of the lead and their core need]
+[Single concise sentence (max 18 words) identifying the exact target role/specialist and core deliverable without filler]
 
 ### 📋 2-Line Summary
-[The first 2 sentences of the executive summary. Introduce who is looking, what they need built, and key context.]
+[Two concise sentences: who is looking, what they need built, and key technical context.]
 
 ### 📝 4-Line Summary
-[The complete 4-sentence executive summary: MUST start with the exact same 2 sentences from the 2-Line Summary above word-for-word, and then seamlessly continue with 2 more sentences detailing specific technology stacks, deliverables, timeline/budget, and engagement model.]
+[Four concise sentences: starts with the exact 2 sentences above, followed by 2 sentences detailing specific stack, timeline/budget, and engagement model.]
 
 ### 🏷️ Badges
-[Comma-separated list of 3-5 concise, specific technology tools, platforms, or skills required (1-3 words max per badge, e.g.: Next.js, React, TypeScript, MongoDB for dev; Meta Ads, Google Ads, Performance Marketing, ROI for marketing; Figma, UI/UX, Webflow for design; Cold Email, Lead Gen, HubSpot for sales).]
+[Comma-separated list of 3-5 concise, specific technology tools, platforms, or skills required (1-3 words max per badge, e.g.: Next.js, React, TypeScript, Supabase for dev; Meta Ads, Performance Marketing for marketing; Figma, UI/UX for design).]
 
 ---
 
 ## 🧩 Context You Might Miss
-* [Bullet points about the company/person if identifiable, or industry context/nuance]
+* [Concise bullet point identifying the buyer persona, company stage, or strategic context]
+* [Concise bullet point noting unique project nuance or timeline]
 
 ---
 
 ## 🔥 The Real X-Factor
-* [What makes this lead unique, high value, or particularly worth chasing]
+* [Concise bullet point on what makes this lead high-value or worth chasing]
 
 ---
 
 ## 🎯 What They Actually Want
-* [The underlying strategic need behind the surface-level request]
+* [Concise bullet point (1 short sentence, max 15 words) specifying primary technical or business deliverable]
+* [Concise bullet point (1 short sentence, max 15 words) specifying key requirement or skill]
 
 ---
 
@@ -60,17 +67,17 @@ Format the output exactly like this example structure, using professional and hi
 ---
 
 ## ⚠️ Red Flags
-* [Possible friction points, budget concerns, or technical hurdles]
+* [Concise bullet point on potential hurdle or budget constraint]
 
 ---
 
 ## ✅ How to Win
-* [Strategic advice on the exact positioning to use in outreach]
+* [Concise bullet point on exact strategic positioning to close this deal]
 
 ---
 
 ## 🧠 Angle
-> [The best psychological/strategic headline or core message to use]
+> [One punchy headline or core hook message to use]
 
 ---
 
