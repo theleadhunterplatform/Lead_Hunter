@@ -301,6 +301,9 @@ export async function sendGroupMessage(
 /**
  * Immediate dispatch for new leads drop announcement.
  */
+/**
+ * Immediate dispatch for new leads drop announcement.
+ */
 export async function dispatchLeadDropAlert(
     leadsCount: number,
     categories: string[] = []
@@ -311,10 +314,14 @@ export async function dispatchLeadDropAlert(
         ? cleanCategories.slice(0, 4).join(', ')
         : 'Web Dev, Design, Marketing & AI';
 
+    const opportunityText = leadsCount === 1
+        ? '🔥 *1 new verified client opportunity* has just been approved and added to the platform!'
+        : `🔥 *${leadsCount} new verified client opportunities* have just been approved and added to the platform!`;
+
     const message = [
         '🚀 *Fresh Leads Dropped — Lead Hunter Club*',
         '',
-        `🔥 *${leadsCount} new high-intent client opportunities* have just been verified and added to the platform!`,
+        opportunityText,
         '',
         `📌 *Niches:* ${categoryText}`,
         '',
@@ -326,14 +333,22 @@ export async function dispatchLeadDropAlert(
 }
 
 /**
- * Batches incoming scraped leads so multiple individual leads don't spam the group.
- * Consolidates notifications over a 30-second quiet window into a single announcement.
+ * Batches newly approved leads so multiple consecutive approvals don't spam the group.
+ * Consolidates notifications over a 5-second window into a single announcement.
  */
-export function queueLeadDropNotification(leadsCount: number = 1, category?: string): void {
+export function queueLeadDropNotification(
+    leadsCount: number = 1,
+    category?: string | string[],
+    delayMs: number = 5_000
+): void {
     if (!config.whatsapp.enabled) return;
 
     pendingLeadsCount += leadsCount;
-    if (category?.trim()) {
+    if (Array.isArray(category)) {
+        category.forEach((c) => {
+            if (c && typeof c === 'string' && c.trim()) pendingNiches.add(c.trim());
+        });
+    } else if (category && typeof category === 'string' && category.trim()) {
         pendingNiches.add(category.trim());
     }
 
@@ -350,10 +365,10 @@ export function queueLeadDropNotification(leadsCount: number = 1, category?: str
         batchNotificationTimer = null;
 
         if (count > 0) {
-            console.log(`🔔 [WhatsApp] Firing batched lead drop alert for ${count} leads...`);
+            console.log(`🔔 [WhatsApp] Firing batched lead drop alert for ${count} approved leads...`);
             await dispatchLeadDropAlert(count, niches);
         }
-    }, 30_000); // 30-second consolidation window
+    }, delayMs);
 }
 
 /**

@@ -21,6 +21,7 @@ import {
     leadHasContactDetails,
 } from '../utils/lead-enrichment.utils';
 import { assertCanClaimLead } from './plan.service';
+import { queueLeadDropNotification } from './whatsapp.service';
 import { currentPlanMonth } from '../utils/plan.utils';
 import Organization from '../models/organization.model';
 import { Prisma } from '@prisma/client';
@@ -282,6 +283,10 @@ export const approveLeadReview = async (
         },
     });
 
+    // Trigger automated WhatsApp lead drop alert to the community group
+    const nicheOrKeyword = (post as any).niche || (post as any).keyword;
+    queueLeadDropNotification(1, nicheOrKeyword);
+
     return updated;
 };
 
@@ -407,6 +412,14 @@ export const bulkApproveLeadReviews = async (
         details: { count: approved, skipped, filters: query },
     });
 
+    // Trigger automated WhatsApp lead drop alert to the community group
+    if (approved > 0) {
+        const niches = withContact
+            .map((p) => (p as any).niche || (p as any).keyword)
+            .filter(Boolean);
+        queueLeadDropNotification(approved, niches);
+    }
+
     const skipNote = skipped > 0 ? ` ${skipped} skipped (no contact details).` : '';
 
     return {
@@ -474,6 +487,14 @@ export const bulkApproveLeadReviewsByIds = async (
         ipAddress: audit?.ipAddress,
         details: { count: withContact.length, skipped, ids: approveIds },
     });
+
+    // Trigger automated WhatsApp lead drop alert to the community group
+    if (withContact.length > 0) {
+        const niches = withContact
+            .map((p) => (p as any).niche || (p as any).keyword)
+            .filter(Boolean);
+        queueLeadDropNotification(withContact.length, niches);
+    }
 
     const skipNote = skipped > 0 ? ` ${skipped} skipped (not awaiting approval or missing contact).` : '';
 
