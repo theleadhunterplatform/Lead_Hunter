@@ -249,6 +249,46 @@ export default function OnboardingPage() {
   const [resending, setResending] = useState(false)
   const [checkingVerification, setCheckingVerification] = useState(true)
 
+  const getErrorButtonLabel = (errText: string) => {
+    const lower = errText.toLowerCase()
+    if (lower.includes('linkedin') || lower.includes('social') || lower.includes('portfolio') || lower.includes('website')) {
+      return 'Fix on Step 1'
+    }
+    if (lower.includes('phone') || lower.includes('mobile')) {
+      return 'Fix on Step 1'
+    }
+    if (lower.includes('service') || lower.includes('category') || lower.includes('experience')) {
+      return 'Fix on Step 2'
+    }
+    return 'Retry'
+  }
+
+  const handleErrorAction = (errText: string) => {
+    const lower = errText.toLowerCase()
+    if (
+      lower.includes('linkedin') ||
+      lower.includes('social') ||
+      lower.includes('phone') ||
+      lower.includes('mobile') ||
+      lower.includes('portfolio') ||
+      lower.includes('website')
+    ) {
+      setStep1Error(errText)
+      setStep(1)
+      return
+    }
+    if (
+      lower.includes('service') ||
+      lower.includes('category') ||
+      lower.includes('categories') ||
+      lower.includes('experience')
+    ) {
+      setStep(2)
+      return
+    }
+    handleSubmit()
+  }
+
   const [countryCode, setCountryCode] = useState('+91')
   const [phoneNumber, setPhoneNumber] = useState('')
   const [verificationCode, setVerificationCode] = useState('')
@@ -1247,15 +1287,17 @@ export default function OnboardingPage() {
                     </div>
 
                     {error && (
-                      <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-400 flex items-center gap-2">
-                        <ShieldExclamationIcon className="w-4 h-4 shrink-0" />
-                        <span>{error}</span>
+                      <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-400 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <ShieldExclamationIcon className="w-4 h-4 shrink-0" />
+                          <span className="break-words">{error}</span>
+                        </div>
                         {submitRetry && (
                           <button
-                            onClick={handleSubmit}
-                            className="ml-auto shrink-0 px-3 py-1 rounded-lg bg-red-500/20 text-red-300 hover:bg-red-500/30 text-[11px] font-medium transition-colors"
+                            onClick={() => handleErrorAction(error)}
+                            className="shrink-0 px-3 py-1.5 rounded-lg bg-red-500/25 text-red-200 hover:bg-red-500/35 hover:text-white text-[11px] font-semibold transition-all whitespace-nowrap active:scale-95 ml-2"
                           >
-                            Retry
+                            {getErrorButtonLabel(error)} &rarr;
                           </button>
                         )}
                       </div>
