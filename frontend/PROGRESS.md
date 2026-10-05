@@ -73,8 +73,16 @@ Note: user's original list had duplicate "5" (rollover + pricing); renumbered as
   (If that backend commit is ever reverted, the shim pattern + mock-id bypass must return —
   see git history for `display-costs.ts`.) Copilot prompts already say 10/12/15 ✓; HunterCopilot
   hint "10-15 per lead" ✓. Verified: lint clean, 0 tsc errors in touched files, vitest 18/185 =
-  baseline, browser 30/32 (2 = collapsed-FAQ probe artifact; expanded-FAQ probe = all true,
+  baseline, browser   30/32 (2 = collapsed-FAQ probe artifact; expanded-FAQ probe = all true,
   who-grid pills -10/-15/-10 correct, ledger loop exact, 0 console errors).
+  **Copy-sync sweep (same day):** Hunter Copilot FAQ (`api/copilot/route.ts`) was the
+  stale outlier — still said "top-ups starting at ₹199" (5×; actual ₹99 in pricing/
+  refill/admin-plans) and "Between 65 to 100+" (4×) — synced to landing-FAQ truth and
+  added "Profile link = 5 coins"; `sneak-peek/page.tsx` "3 Tokens to Reveal" →
+  "10–15 Credits to Reveal" + "Get Tokens"/"have tokens" → "credits" (terminology =
+  credits). Re-verified: lint clean, 0 tsc, vitest 18/185 = baseline, /sneak-peek 200
+  with stale strings gone. Pushed as `4cdc4ef` (rebased over backend's `1b399f5`;
+  pill/tokenCost lines survived intact).
 
 - **Mass user wipe (2026-10-05, user-requested):** user asked to remove every account's
   sign-in access, keeping only dualspark / yash* / admin@leadhunter. Executed via temp script

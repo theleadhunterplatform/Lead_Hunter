@@ -113,7 +113,7 @@ export default function SneakPeekPage() {
                 <span className="text-sm font-bold text-text-primary">Sneak Peek Mode</span>
                 <span className="text-xs text-text-secondary/60 ml-2">
                   · You&apos;re previewing the lead feed. Lead details are locked until you have
-                  tokens.
+                  credits.
                 </span>
               </div>
             </div>
@@ -121,7 +121,7 @@ export default function SneakPeekPage() {
               href="/#pricing"
               className="shrink-0 px-5 py-2 rounded-xl bg-accent-purple text-text-on-accent text-xs font-bold hover:bg-accent-purple/90 transition-all duration-300 flex items-center gap-2"
             >
-              Get Tokens <BanknotesIcon className="w-[14px] h-[14px]" />
+              Get Credits <BanknotesIcon className="w-[14px] h-[14px]" />
             </Link>
           </motion.div>
 
@@ -242,7 +242,7 @@ export default function SneakPeekPage() {
                       <LockClosedIcon className="w-[14px] h-[14px] text-text-secondary/50" />
                     </div>
                     <span className="text-xxs font-bold text-text-secondary/60 uppercase tracking-widest">
-                      3 Tokens to Reveal
+                      10–15 Credits to Reveal
                     </span>
                   </div>
                 </div>
@@ -264,7 +264,7 @@ export default function SneakPeekPage() {
                 Like What You See?
               </h3>
               <p className="text-sm text-text-secondary/70 font-light max-w-md mx-auto mb-6 leading-relaxed">
-                These are real signals captured in the last 24 hours. Get tokens to reveal
+                These are real signals captured in the last 24 hours. Get credits to reveal
                 identities, save them to your pipeline, and start closing.
               </p>
               <Link
