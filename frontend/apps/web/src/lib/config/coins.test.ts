@@ -47,23 +47,23 @@ function makePost(overrides: Partial<ExternalPost>): ExternalPost {
 }
 
 describe('getRevealCost', () => {
-  it('charges 10 for phone + email (highest value wins)', () => {
+  it('charges 15 for phone + email (highest value wins)', () => {
     expect(getRevealCost({ hasPhone: true, hasEmail: true, hasProfileLink: true })).toBe(
       LEAD_REVEAL_COSTS.phone_email,
     )
-    expect(getRevealCost({ hasPhone: true, hasEmail: true, hasProfileLink: false })).toBe(10)
+    expect(getRevealCost({ hasPhone: true, hasEmail: true, hasProfileLink: false })).toBe(15)
   })
 
-  it('charges 8 for phone only', () => {
-    expect(getRevealCost({ hasPhone: true, hasEmail: false, hasProfileLink: false })).toBe(8)
+  it('charges 12 for phone only', () => {
+    expect(getRevealCost({ hasPhone: true, hasEmail: false, hasProfileLink: false })).toBe(12)
   })
 
-  it('charges 5 for email only', () => {
-    expect(getRevealCost({ hasPhone: false, hasEmail: true, hasProfileLink: true })).toBe(5)
+  it('charges 10 for email only', () => {
+    expect(getRevealCost({ hasPhone: false, hasEmail: true, hasProfileLink: true })).toBe(10)
   })
 
-  it('charges 2 for profile link only', () => {
-    expect(getRevealCost({ hasPhone: false, hasEmail: false, hasProfileLink: true })).toBe(2)
+  it('charges 5 for profile link only', () => {
+    expect(getRevealCost({ hasPhone: false, hasEmail: false, hasProfileLink: true })).toBe(5)
   })
 
   it('returns null when no contact data at all', () => {
@@ -71,11 +71,11 @@ describe('getRevealCost', () => {
   })
 
   it('resolves phone-only rule over profile link', () => {
-    expect(getRevealCost({ hasPhone: true, hasEmail: false, hasProfileLink: true })).toBe(8)
+    expect(getRevealCost({ hasPhone: true, hasEmail: false, hasProfileLink: true })).toBe(12)
   })
 
   it('resolves email-only rule over profile link', () => {
-    expect(getRevealCost({ hasPhone: false, hasEmail: true, hasProfileLink: false })).toBe(5)
+    expect(getRevealCost({ hasPhone: false, hasEmail: true, hasProfileLink: false })).toBe(10)
   })
 })
 
@@ -120,14 +120,14 @@ describe('leadContactBundle', () => {
 })
 
 describe('getLeadRevealCost', () => {
-  it('returns 10 for a phone+email lead', () => {
+  it('returns 15 for a phone+email lead', () => {
     const cost = getLeadRevealCost(
       makePost({
         email: 'jane@example.com',
         contact_info: { name: 'Jane', emails: [], phone_numbers: [{ number: '+1' }] },
       }),
     )
-    expect(cost).toBe(10)
+    expect(cost).toBe(15)
   })
 
   it('returns null for a lead with no contact data', () => {
@@ -140,9 +140,9 @@ describe('getLeadRevealCost', () => {
         email: 'jane@example.com',
         contact_info: { name: 'Jane', emails: [], phone_numbers: [{ number: '+1' }] },
       }),
-      credit_cost: 15,
+      credit_cost: 30,
     })
-    expect(cost).toBe(15)
+    expect(cost).toBe(30)
   })
 
   it('overrides default pricing when creditCost camelCase is set', () => {
@@ -162,6 +162,6 @@ describe('getLeadRevealCost', () => {
       }),
       credit_cost: null,
     })
-    expect(cost).toBe(5)
+    expect(cost).toBe(10)
   })
 })

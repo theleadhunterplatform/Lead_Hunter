@@ -6,10 +6,10 @@ import type { ExternalPost } from '@/lib/external-api/client'
  * highest-value rule when multiple are present.
  */
 export const LEAD_REVEAL_COSTS = {
-  phone_only: 8,
-  email_only: 5,
-  phone_email: 10,
-  profile_only: 2,
+  phone_only: 12,
+  email_only: 10,
+  phone_email: 15,
+  profile_only: 5,
 } as const
 
 export interface ContactBundle {
@@ -40,7 +40,7 @@ export function leadContactBundle(
  * lead has no contact data (reveal must be blocked).
  *
  * Resolution order (highest-value rule wins):
- * (phone & email → 10) > (phone only → 8) > (email only → 5) > (profile only → 2).
+ * (phone & email → 15) > (phone only → 12) > (email only → 10) > (profile only → 5).
  */
 export function getRevealCost(bundle: ContactBundle): number | null {
   const { hasPhone, hasEmail, hasProfileLink } = bundle
