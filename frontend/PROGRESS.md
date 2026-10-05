@@ -56,6 +56,39 @@ Note: user's original list had duplicate "5" (rollover + pricing); renumbered as
 
 ### Out-of-band fixes (not on the original 12)
 
+- **Reveal-price display refresh (2026-10-05, user-spec):** user set new reveal prices —
+  **email 10 · phone 12 · both 15 · profile 5** — asked to change every *displayed* credit
+  value site-wide (frontend scope; charging logic = backend guy). Frontend surfaces updated:
+  LeadCard + PipelineLeadCard unlock pills (fallback 3 → 10), LeadDrawer (tokenCost null-guard
+  kept), admin/leads cost chips + credit modal, ManualLeadModal/RefineLeadModal hints
+  (2–10 → 5–15), landing pricing cards (`~3–5` / `66–100` reveals), FAQ (10/12/15 + profile 5,
+  "66 to 100+"), TokenSystemSection copy ("costs 15 credits" — was "3 tokens"), FeaturesSection
+  ledger widget (reads `LEAD_REVEAL_COSTS`, demo loop recomputed: 50→40→35→23→8, Need 10,
+  top-up →58→48→33→21→11, total 89), 20 mock leads (hero/token/giftwrap =15, who-grid side
+  cards =10, personas =15 per its "phone + profile included" copy). **Backend synced same
+  session:** `768f819` set `lib/config/coins.ts` to the same 12/10/15/5 + updated `coins.test.ts`
+  and the `revealCost: 1` placeholder in `api/leads/route.ts:197` — so the temporary
+  legacy-map shim (`display-costs.ts`, built while the server still sent 5/8/10/2) was
+  **deleted** the same day; all call sites now read `LEAD_REVEAL_COSTS`/`revealCost` raw.
+  (If that backend commit is ever reverted, the shim pattern + mock-id bypass must return —
+  see git history for `display-costs.ts`.) Copilot prompts already say 10/12/15 ✓; HunterCopilot
+  hint "10-15 per lead" ✓. Verified: lint clean, 0 tsc errors in touched files, vitest 18/185 =
+  baseline, browser 30/32 (2 = collapsed-FAQ probe artifact; expanded-FAQ probe = all true,
+  who-grid pills -10/-15/-10 correct, ledger loop exact, 0 console errors).
+
+- **Mass user wipe (2026-10-05, user-requested):** user asked to remove every account's
+  sign-in access, keeping only dualspark / yash* / admin@leadhunter. Executed via temp script
+  (service account + Prisma): **Firebase Auth 37 → 9 accounts** (28 deleted), **DB 22 → 5 rows**
+  (17 hard-deleted; `RoleAssignment` cleaned manually — it's the only user-ref without
+  `onDelete: Cascade`). Kept: Firebase = dualsparkstudio, admin@leadhunter, 7× yash accounts
+  (yashkaranjule08/19/230, karanjuleyash51, yashnandanshrivastava, yashvilas368, instaviral15);
+  DB = system@internal.leadhunter (automation, no Firebase login) + dualsparkstudio +
+  admin@leadhunter + yashkaranjule230 + yashnandanshrivastava. Note: 5 of the 7 kept yash
+  Firebase accounts have **no DB row** (were signups that never completed onboarding) — they'll
+  get a fresh row on next login. "aman" was in the user's keep-list but no such account exists
+  anywhere (confirmed with user → skipped). Verified post-state: FB total 9, DB total 5,
+  all ACTIVE. No failures.
+
 - **Coming-soon landing (2026-10-05):** `/` now serves `app/components/ComingSoon.tsx` —
   full-bleed looping bg video (`public/videos/1003.mp4`, 436 KB H.264, converted from user's
   `D:\Downloads\1003.mov`; .mov is not Firefox-playable) + wolf poster fallback, **asymmetric

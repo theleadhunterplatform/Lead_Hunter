@@ -367,7 +367,7 @@ export default function ManualLeadModal({ isOpen, onClose, onSuccess }: ManualLe
                       <label className="text-[10px] font-bold uppercase tracking-widest text-amber-400 flex items-center gap-1.5">
                         <span>⚡ Credit Cost Override (Coins)</span>
                       </label>
-                      <span className="text-[9px] text-zinc-500 font-medium">Leave blank for default (2–10 coins)</span>
+                      <span className="text-[9px] text-zinc-500 font-medium">Leave blank for default (5–15 coins)</span>
                     </div>
                     <input
                       type="number"

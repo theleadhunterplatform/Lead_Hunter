@@ -70,7 +70,7 @@ const allLeads: AppLead[] = [
     timestamp: '2h ago',
     niches: ['Web Design', 'Web Dev', 'Design'],
     isClaimable: true,
-    revealCost: 3,
+    revealCost: 15,
     isRevealed: false,
   },
   {
@@ -97,7 +97,7 @@ const allLeads: AppLead[] = [
     timestamp: '5h ago',
     niches: ['Marketing'],
     isClaimable: true,
-    revealCost: 3,
+    revealCost: 15,
     isRevealed: false,
   },
   {
@@ -124,7 +124,7 @@ const allLeads: AppLead[] = [
     timestamp: '1d ago',
     niches: ['Design'],
     isClaimable: true,
-    revealCost: 3,
+    revealCost: 15,
     isRevealed: true,
   },
   {
@@ -151,7 +151,7 @@ const allLeads: AppLead[] = [
     timestamp: '3d ago',
     niches: ['Sales & RevOps', 'AI & Automation'],
     isClaimable: true,
-    revealCost: 3,
+    revealCost: 15,
     isRevealed: false,
   },
   {
@@ -180,7 +180,7 @@ const allLeads: AppLead[] = [
     timestamp: '1h ago',
     niches: ['Web Dev', 'Development'],
     isClaimable: true,
-    revealCost: 3,
+    revealCost: 15,
     isRevealed: false,
   },
   {
@@ -209,7 +209,7 @@ const allLeads: AppLead[] = [
     timestamp: '3h ago',
     niches: ['SEO', 'Marketing'],
     isClaimable: true,
-    revealCost: 3,
+    revealCost: 15,
     isRevealed: false,
   },
 ]
@@ -240,7 +240,7 @@ const extraPipelineLeads: AppLead[] = [
     timestamp: '6h ago',
     niches: ['Copywriting', 'Marketing'],
     isClaimable: true,
-    revealCost: 3,
+    revealCost: 15,
     isRevealed: true,
   },
   {
@@ -267,7 +267,7 @@ const extraPipelineLeads: AppLead[] = [
     timestamp: '8h ago',
     niches: ['Design', 'Development'],
     isClaimable: true,
-    revealCost: 3,
+    revealCost: 15,
     isRevealed: true,
   },
   {
@@ -294,7 +294,7 @@ const extraPipelineLeads: AppLead[] = [
     timestamp: '12h ago',
     niches: ['Marketing', 'Design'],
     isClaimable: true,
-    revealCost: 3,
+    revealCost: 15,
     isRevealed: false,
   },
 ]

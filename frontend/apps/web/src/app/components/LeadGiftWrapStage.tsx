@@ -31,7 +31,7 @@ const INITIAL_GIFT_LEADS: AppLead[] = [
     status: 'new',
     timestamp: 'Just now',
     isClaimable: true,
-    revealCost: 3,
+    revealCost: 15,
     isRevealed: false,
   },
   {
@@ -59,7 +59,7 @@ const INITIAL_GIFT_LEADS: AppLead[] = [
     status: 'new',
     timestamp: '12m ago',
     isClaimable: true,
-    revealCost: 3,
+    revealCost: 15,
     isRevealed: false,
   },
   {
@@ -87,7 +87,7 @@ const INITIAL_GIFT_LEADS: AppLead[] = [
     status: 'new',
     timestamp: '28m ago',
     isClaimable: true,
-    revealCost: 3,
+    revealCost: 15,
     isRevealed: false,
   },
 ]

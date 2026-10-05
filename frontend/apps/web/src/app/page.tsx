@@ -517,7 +517,7 @@ export default function LandingPage() {
               features: [
                 '50 credits every month',
                 'Basic lead intelligence',
-                '~5–10 lead reveals',
+                '~3–5 lead reveals',
                 'No credit card required',
               ],
             },
@@ -533,7 +533,7 @@ export default function LandingPage() {
               features: [
                 '1,000 credits every month',
                 'Full lead intelligence',
-                '100+ potential lead reveals',
+                '66–100 potential lead reveals',
                 'CSV / Excel export',
                 'Priority signal access',
                 '15-day credit rollover',
@@ -667,7 +667,7 @@ export default function LandingPage() {
         <div className="border-t border-white/[0.03]">
           <FAQItem
             q="How do credits work?"
-            a="You receive 1,000 Wolf Coins monthly with your ₹999 plan. Use coins to unlock lead details (Email = 5 coins, Phone = 8 coins, Both = 10 coins). If you run out, buy top-ups starting at ₹99. Top-up coins never expire."
+            a="You receive 1,000 Wolf Coins monthly with your ₹999 plan. Use coins to unlock lead details (Email = 10 coins, Phone = 12 coins, Both = 15 coins, Profile link = 5 coins). If you run out, buy top-ups starting at ₹99. Top-up coins never expire."
           />
           <FAQItem
             q="What is the source of these leads?"
@@ -675,7 +675,7 @@ export default function LandingPage() {
           />
           <FAQItem
             q="How many leads can we get in a month?"
-            a="Between 65 to 100+ leads per month using your base monthly credits. The exact number depends on whether you unlock email-only or full phone contacts. Top up anytime if you need more."
+            a="Between 66 to 100+ leads per month using your base monthly credits. The exact number depends on whether you unlock email-only or full phone contacts. Top up anytime if you need more."
           />
           <FAQItem
             q="Do you close clients for us?"

@@ -442,7 +442,7 @@ function PipelineLeadCard({
                     <span className="whitespace-nowrap">Unlock & Save</span>
                     <span className="flex items-center gap-0.5 opacity-90 text-[10px] font-semibold tabular-nums shrink-0 whitespace-nowrap">
                       <Coins size={11} className="shrink-0" />
-                      <span>-{lead.revealCost ?? 3}</span>
+                      <span>-{lead.revealCost ?? 10}</span>
                     </span>
                   </span>
                 )}

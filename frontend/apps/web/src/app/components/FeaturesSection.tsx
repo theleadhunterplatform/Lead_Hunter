@@ -163,8 +163,8 @@ function TrackEveryTouchVideoVisual() {
 
 // ─── Visual 4: Credits Based, Not Seat Based (Live Credit Ledger) ─────────────
 // Interactive demo of real reveal pricing (lib/config/coins.ts):
-// email 5 · phone 8 · both 10 · profile 2. Start balance = Free plan (50).
-// 8 demo leads total 53 credits so the low-balance + top-up loop is reachable.
+// email 10 · phone 12 · both 15 · profile 5. Start balance = Free plan (50).
+// 8 demo leads total 89 credits so the low-balance + top-up loop is reachable.
 type DemoBundle = 'email' | 'phone' | 'both' | 'profile'
 
 const BUNDLE_META: Record<DemoBundle, { label: string; short: string; cost: number }> = {

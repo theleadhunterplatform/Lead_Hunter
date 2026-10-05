@@ -73,7 +73,7 @@ const mockLead1: AppLead = {
   status: 'new',
   timestamp: '4h ago',
   isClaimable: true,
-  revealCost: 3,
+  revealCost: 10,
   isRevealed: false,
 }
 
@@ -102,7 +102,7 @@ const mockLead2: AppLead = {
   status: 'new',
   timestamp: '3d ago',
   isClaimable: true,
-  revealCost: 3,
+  revealCost: 10,
   isRevealed: false,
 }
 
@@ -317,7 +317,7 @@ export default function WhoItsForGrid() {
     status: revealed[activePersona.id] ? 'saved' : 'new',
     timestamp: '2h ago',
     isClaimable: true,
-    revealCost: 3,
+    revealCost: 15, // personas reveal email + phone + profile per copy below
     isRevealed: !!revealed[activePersona.id],
   }
 

@@ -49,7 +49,7 @@ export default function TokenSystemSection() {
       timestamp: '2h ago',
       niches: ['Web Dev'],
       isClaimable: true,
-      revealCost: 3,
+      revealCost: 15,
       isRevealed: false,
     },
     {
@@ -76,7 +76,7 @@ export default function TokenSystemSection() {
       timestamp: '4h ago',
       niches: ['Design'],
       isClaimable: true,
-      revealCost: 3,
+      revealCost: 15,
       isRevealed: false,
     },
     {
@@ -103,7 +103,7 @@ export default function TokenSystemSection() {
       timestamp: '6h ago',
       niches: ['Marketing'],
       isClaimable: true,
-      revealCost: 3,
+      revealCost: 15,
       isRevealed: false,
     },
     {
@@ -131,7 +131,7 @@ export default function TokenSystemSection() {
       timestamp: '1d ago',
       niches: ['Web Dev'],
       isClaimable: true,
-      revealCost: 3,
+      revealCost: 15,
       isRevealed: false,
     },
     {
@@ -159,7 +159,7 @@ export default function TokenSystemSection() {
       timestamp: '2d ago',
       niches: ['Sales & RevOps'],
       isClaimable: true,
-      revealCost: 3,
+      revealCost: 15,
       isRevealed: false,
     },
   ])
@@ -250,7 +250,7 @@ export default function TokenSystemSection() {
                 >
                   <p className="leading-relaxed">
                     This stack simulates a live lead feed. Selecting a card focuses on the
-                    prospect&apos;s real pain point. Clicking &apos;Reveal&apos; costs 3 tokens,
+                    prospect&apos;s real pain point. Clicking &apos;Reveal&apos; costs 15 credits,
                     decrypting the verified email address and contact name instantly.
                   </p>
 

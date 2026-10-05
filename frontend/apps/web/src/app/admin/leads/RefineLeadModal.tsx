@@ -177,7 +177,7 @@ export default function RefineLeadModal({ isOpen, onClose, onSuccess, lead }: Re
                   <input
                     type="number"
                     min="0"
-                    placeholder="e.g. 15 (Overrides default 2-10 coins)"
+                    placeholder="e.g. 20 (Overrides default 5-15 coins)"
                     value={creditCost}
                     onChange={e => setCreditCost(e.target.value)}
                     className="w-full bg-white/5 border border-white/10 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all px-3.5 py-2.5 text-sm"
