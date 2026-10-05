@@ -213,8 +213,8 @@ function formatUrl(url: string): string {
 function OnboardingSkeleton() {
   return (
     <main className="min-h-screen bg-bg-main flex items-center justify-center px-4">
-      <div className="w-full max-w-lg">
-        <div className="flex items-center justify-center gap-2 mb-10">
+<div className="w-full max-w-md">
+<div className="flex items-center justify-center gap-2 mb-6">
           {[1, 2, 3].map((s) => (
             <div key={s} className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-full bg-white/5 animate-pulse" />
@@ -222,7 +222,7 @@ function OnboardingSkeleton() {
             </div>
           ))}
         </div>
-        <div className="metallic-card p-8 md:p-10">
+        <div className="metallic-card p-5 md:p-6">
           <div className="space-y-4">
             <div className="h-6 w-48 bg-white/5 rounded animate-pulse mx-auto" />
             <div className="h-4 w-64 bg-white/5 rounded animate-pulse mx-auto" />
@@ -455,10 +455,10 @@ export default function OnboardingPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          className="metallic-card p-4 sm:p-6 md:p-8 text-center"
+          className="metallic-card p-4 sm:p-5 md:p-6 text-center"
         >
           <ShieldExclamationIcon className="w-10 h-10 text-accent-mint mx-auto mb-4" />
-          <h1 className="text-xl font-bold text-text-primary tracking-tight">Verify your email</h1>
+          <h1 className="text-lg font-bold text-text-primary tracking-tight">Verify your email</h1>
           <p className="text-sm text-text-secondary mt-2 leading-relaxed">
             We sent a verification link to{' '}
             <strong className="text-text-primary">{auth.currentUser?.email}</strong>. Please verify
@@ -648,14 +648,14 @@ export default function OnboardingPage() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative z-10 w-full max-w-lg"
+        className="relative z-10 w-full max-w-md"
       >
         {/* Progress indicator */}
-        <div className="flex items-center justify-center gap-2 mb-8">
+        <div className="flex items-center justify-center gap-2 mb-6">
           {[1, 2, 3].map((s) => (
             <div key={s} className="flex items-center gap-2">
               <div
-                className={`w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
+                className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[11px] font-bold transition-all duration-300 ${
                   s < step
                     ? 'bg-accent-mint text-black'
                     : s === step
@@ -663,11 +663,11 @@ export default function OnboardingPage() {
                       : 'bg-white/5 text-text-secondary/40'
                 }`}
               >
-                {s < step ? <CheckCircleIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-black" /> : s}
+                {s < step ? <CheckCircleIcon className="w-3.5 h-3.5 text-black" /> : s}
               </div>
               {s < 3 && (
                 <div
-                  className={`w-8 sm:w-10 md:w-12 h-px transition-all duration-300 ${
+                  className={`w-6 sm:w-8 h-px transition-all duration-300 ${
                     s < step ? 'bg-accent-mint' : 'bg-white/5'
                   }`}
                 />
@@ -676,7 +676,7 @@ export default function OnboardingPage() {
           ))}
         </div>
 
-        <div className="metallic-card w-full p-4 sm:p-6 md:p-8 lg:p-10">
+        <div className="metallic-card w-full p-4 sm:p-5 md:p-6">
             <AnimatePresence mode="wait">
               {step === 1 && (
                 <motion.div
@@ -686,9 +686,9 @@ export default function OnboardingPage() {
                   exit={{ opacity: 0, x: -20 }}
                   transition={{ duration: 0.3 }}
                 >
-                  <div className="text-center mb-6 sm:mb-8">
-                    <SparklesIcon className="w-7 h-7 sm:w-8 sm:h-8 text-primary mx-auto mb-3" />
-                    <h1 className="text-xl sm:text-2xl font-bold text-text-primary tracking-tight">
+                  <div className="text-center mb-5">
+                    <SparklesIcon className="w-6 h-6 text-primary mx-auto mb-2.5" />
+                    <h1 className="text-lg font-bold text-text-primary tracking-tight">
                       Let&apos;s set up your profile
                     </h1>
                     <p className="text-sm text-text-secondary mt-2">
@@ -701,7 +701,7 @@ export default function OnboardingPage() {
 
                   <div className="flex flex-col gap-3 sm:gap-4">
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-sm font-semibold text-text-secondary uppercase tracking-wider flex items-center justify-between">
+                      <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider flex items-center justify-between">
                         <span>
                           LinkedIn Profile <span className="text-primary">*</span>
                         </span>
@@ -713,97 +713,97 @@ export default function OnboardingPage() {
                         value={linkedin}
                         onChange={(e) => { setLinkedin(e.target.value); setStep1Error('') }}
                         placeholder="https://linkedin.com/in/your-profile"
-                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3.5"
+                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-3.5 py-2.5"
                       />
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-sm font-semibold text-text-secondary uppercase tracking-wider">
+                      <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
                         Portfolio URL
                       </label>
                       <input
                         value={portfolio}
                         onChange={(e) => { setPortfolio(e.target.value); setStep1Error('') }}
                         placeholder="https://your-portfolio.com"
-                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3.5"
+                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-3.5 py-2.5"
                       />
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-sm font-semibold text-text-secondary uppercase tracking-wider">
+                      <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
                         Website
                       </label>
                       <input
                         value={website}
                         onChange={(e) => { setWebsite(e.target.value); setStep1Error('') }}
                         placeholder="https://your-company.com"
-                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3.5"
+                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-3.5 py-2.5"
                       />
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-sm font-semibold text-text-secondary uppercase tracking-wider">
+                      <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
                         Instagram
                       </label>
                       <input
                         value={instagram}
                         onChange={(e) => { setInstagram(e.target.value); setStep1Error('') }}
                         placeholder="https://instagram.com/your-handle"
-                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3.5"
+                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-3.5 py-2.5"
                       />
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-sm font-semibold text-text-secondary uppercase tracking-wider">
+                      <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
                         Dribbble
                       </label>
                       <input
                         value={dribbble}
                         onChange={(e) => { setDribbble(e.target.value); setStep1Error('') }}
                         placeholder="https://dribbble.com/your-handle"
-                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3.5"
+                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-3.5 py-2.5"
                       />
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-sm font-semibold text-text-secondary uppercase tracking-wider">
+                      <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
                         Behance
                       </label>
                       <input
                         value={behance}
                         onChange={(e) => { setBehance(e.target.value); setStep1Error('') }}
                         placeholder="https://behance.net/your-profile"
-                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3.5"
+                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-3.5 py-2.5"
                       />
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-sm font-semibold text-text-secondary uppercase tracking-wider">
+                      <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
                         GitHub
                       </label>
                       <input
                         value={github}
                         onChange={(e) => { setGithub(e.target.value); setStep1Error('') }}
                         placeholder="https://github.com/your-handle"
-                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3.5"
+                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-3.5 py-2.5"
                       />
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-sm font-semibold text-text-secondary uppercase tracking-wider">
+                      <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
                         Twitter / X
                       </label>
                       <input
                         value={twitter}
                         onChange={(e) => { setTwitter(e.target.value); setStep1Error('') }}
                         placeholder="https://twitter.com/your-handle"
-                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3.5"
+                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-3.5 py-2.5"
                       />
                     </div>
 
                     <div className="border-t border-white/[0.06] pt-4">
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-sm font-semibold text-text-secondary uppercase tracking-wider flex items-center justify-between">
+                        <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider flex items-center justify-between">
                           <span>
                             Phone number <span className="text-primary">*</span>
                           </span>
@@ -874,7 +874,7 @@ export default function OnboardingPage() {
                       setStep1Error('')
                       setStep(2)
                     }}
-                    className="mt-6 w-full bg-primary hover:bg-primary/90 text-black font-semibold rounded-xl active:scale-98 transition-all shadow-[0_4px_20px_rgba(var(--rgb-primary),0.25)] px-4 py-3"
+                    className="mt-6 w-full bg-primary hover:bg-primary/90 text-black font-semibold rounded-xl active:scale-98 transition-all shadow-[0_4px_20px_rgba(var(--rgb-primary),0.25)] px-4 py-2.5"
                   >
                     Continue
                   </button>
@@ -899,9 +899,9 @@ export default function OnboardingPage() {
                   exit={{ opacity: 0, x: -20 }}
                   transition={{ duration: 0.3 }}
                 >
-                  <div className="text-center mb-8">
-                    <SparklesIcon className="w-8 h-8 text-primary mx-auto mb-3" />
-                    <h1 className="text-2xl font-bold text-text-primary tracking-tight">
+                  <div className="text-center mb-5">
+                    <SparklesIcon className="w-6 h-6 text-primary mx-auto mb-2.5" />
+                    <h1 className="text-lg font-bold text-text-primary tracking-tight">
                       What do you offer?
                     </h1>
                     <p className="text-sm text-text-secondary mt-2">
@@ -909,7 +909,7 @@ export default function OnboardingPage() {
                     </p>
                   </div>
 
-                  <div className="flex flex-col gap-6">
+                  <div className="flex flex-col gap-4">
                     {/* Services Section */}
                     <div className="flex flex-col gap-2.5">
                       <div className="flex items-center justify-between">
@@ -951,7 +951,7 @@ export default function OnboardingPage() {
                               <button
                                 type="button"
                                 onClick={() => toggleOpenService(cat.id)}
-                                className="w-full px-4 py-3 flex items-center justify-between text-left transition-colors"
+                                className="w-full px-3.5 py-2.5 flex items-center justify-between text-left transition-colors"
                               >
                                 <div className="flex items-center gap-2.5 min-w-0">
                                   <span className="text-base leading-none">{cat.icon}</span>
@@ -1055,7 +1055,7 @@ export default function OnboardingPage() {
                               <button
                                 type="button"
                                 onClick={() => toggleOpenNiche(cat.id)}
-                                className="w-full px-4 py-3 flex items-center justify-between text-left transition-colors"
+                                className="w-full px-3.5 py-2.5 flex items-center justify-between text-left transition-colors"
                               >
                                 <div className="flex items-center gap-2.5 min-w-0">
                                   <span className="text-base leading-none">{cat.icon}</span>
@@ -1121,13 +1121,13 @@ export default function OnboardingPage() {
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-sm font-semibold text-text-secondary uppercase tracking-wider">
+                      <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
                         Outreach experience
                       </label>
                       <select
                         value={outreachExperience}
                         onChange={(e) => setOutreachExperience(e.target.value)}
-                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3.5"
+                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-3.5 py-2.5"
                       >
                         <option value="" disabled>
                           Select your experience level
@@ -1144,7 +1144,7 @@ export default function OnboardingPage() {
 <button
                       onClick={() => setStep(3)}
                       disabled={!canProceedFromStep2}
-                      className={`mt-8 w-full rounded-xl active:scale-98 transition-all px-4 py-3 font-semibold ${
+                      className={`mt-6 w-full rounded-xl active:scale-98 transition-all px-4 py-2.5 font-semibold ${
                         canProceedFromStep2
                           ? 'bg-primary hover:bg-primary/90 text-black shadow-[0_4px_20px_rgba(var(--rgb-primary),0.25)]'
                           : 'bg-white/5 text-text-secondary/40 cursor-not-allowed'
@@ -1173,9 +1173,9 @@ export default function OnboardingPage() {
                   exit={{ opacity: 0, x: -20 }}
                   transition={{ duration: 0.3 }}
                 >
-                  <div className="text-center mb-6 sm:mb-8">
-                    <SparklesIcon className="w-7 h-7 sm:w-8 sm:h-8 text-accent-mint mx-auto mb-3" />
-                    <h1 className="text-xl sm:text-2xl font-bold text-text-primary tracking-tight">
+                  <div className="text-center mb-5">
+                    <SparklesIcon className="w-6 h-6 text-accent-mint mx-auto mb-2.5" />
+                    <h1 className="text-lg font-bold text-text-primary tracking-tight">
                       Almost there!
                     </h1>
                     <p className="text-sm text-text-secondary mt-2">
@@ -1189,7 +1189,7 @@ export default function OnboardingPage() {
                         <button
                           key={s}
                           onClick={() => setDiscoverySource(s)}
-                          className={`px-4 py-3.5 sm:px-5 sm:py-3 rounded-xl text-sm sm:text-base font-medium border transition-all duration-200 min-h-[48px] flex items-center justify-center ${
+                          className={`px-4 py-2.5 rounded-xl text-sm font-medium border transition-all duration-200 min-h-[44px] flex items-center justify-center ${
                             discoverySource === s
                               ? 'bg-accent-mint/15 border-accent-mint/40 text-accent-mint font-semibold shadow-[0_0_12px_rgba(var(--rgb-accent-mint),0.12)]'
                               : 'bg-white/[0.02] border-white/[0.06] text-text-secondary hover:text-text-primary hover:bg-white/5 hover:border-white/10'
@@ -1219,7 +1219,7 @@ export default function OnboardingPage() {
                   <button
                     onClick={handleSubmit}
                     disabled={!discoverySource || isSubmitting}
-                    className={`mt-8 w-full rounded-xl active:scale-98 transition-all px-4 py-3 font-semibold flex items-center justify-center gap-2 ${
+                    className={`mt-6 w-full rounded-xl active:scale-98 transition-all px-4 py-2.5 font-semibold flex items-center justify-center gap-2 ${
                       discoverySource && !isSubmitting
                         ? 'bg-primary hover:bg-primary/90 text-black shadow-[0_4px_20px_rgba(var(--rgb-primary),0.25)]'
                         : 'bg-white/5 text-text-secondary/40 cursor-not-allowed'

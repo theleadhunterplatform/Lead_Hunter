@@ -171,11 +171,11 @@ function LoginForm() {
         animate={{ opacity: 1, scale: 1 }}
         className="w-full max-w-md"
       >
-        <div className="flex flex-col items-center mb-8 sm:mb-10">
-          <div className="p-3 bg-hunter-orange neo-border rounded-sm mb-4">
-            <LogIn className="text-black w-8 h-8" />
+        <div className="flex flex-col items-center mb-6">
+          <div className="p-2.5 bg-hunter-orange neo-border rounded-sm mb-3">
+            <LogIn className="text-black w-7 h-7" />
           </div>
-          <h1 className="font-display font-black text-3xl sm:text-4xl uppercase tracking-tighter text-center">
+          <h1 className="font-display font-black text-2xl sm:text-3xl uppercase tracking-tighter text-center">
             Sign <span className="text-hunter-orange">In</span>
           </h1>
           <p className="text-zinc-500 font-bold uppercase tracking-widest text-[10px] mt-2">
@@ -233,7 +233,7 @@ function LoginForm() {
           </div>
         )}
 
-        <div className="space-y-6 bg-hunter-grey p-4 sm:p-6 md:p-8 neo-border border-zinc-800">
+        <div className="space-y-4 bg-hunter-grey p-4 sm:p-5 neo-border border-zinc-800">
           {pendingBanner && (
             <div className="bg-emerald-500/10 border-2 border-emerald-500 p-4 text-emerald-400 text-xs font-black uppercase tracking-wider">
               {pendingBanner}
@@ -249,7 +249,7 @@ function LoginForm() {
           {mode === "phone" && phoneAuthEnabled ? (
             <form
               onSubmit={otpSent ? handleVerifyOtp : handleSendOtp}
-              className="space-y-6"
+              className="space-y-4"
             >
               <Input
                 label="Phone Number"
@@ -273,7 +273,7 @@ function LoginForm() {
                 />
               )}
 
-              <Button type="submit" className="w-full text-xl py-4" disabled={loading}>
+              <Button type="submit" className="w-full text-base py-2.5" disabled={loading}>
                 {loading ? (
                   <span className="flex items-center gap-2 justify-center">
                     <Loader2 className="animate-spin" />
@@ -301,7 +301,7 @@ function LoginForm() {
               )}
             </form>
           ) : (
-            <form onSubmit={handleEmailSubmit} className="space-y-6">
+            <form onSubmit={handleEmailSubmit} className="space-y-4">
               {!phoneAuthEnabled && (
                 <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">
                   Phone OTP needs Supabase env keys. Using email login for now.
@@ -335,7 +335,7 @@ function LoginForm() {
                 </Link>
               </p>
 
-              <Button type="submit" className="w-full text-xl py-4" disabled={loading}>
+              <Button type="submit" className="w-full text-base py-2.5" disabled={loading}>
                 {loading ? (
                   <span className="flex items-center gap-2 justify-center">
                     <Loader2 className="animate-spin" /> Signing in...

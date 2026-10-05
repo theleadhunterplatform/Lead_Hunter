@@ -366,7 +366,7 @@ export default function RegisterPage() {
         transition={{ duration: 0.4 }}
         className="relative z-10 w-full max-w-md sm:max-w-lg flex flex-col items-center"
       >
-        <div className="text-center mb-8">
+        <div className="text-center mb-6">
           <Link href="/">
             <Image
               src="/logo.svg"
@@ -376,13 +376,13 @@ export default function RegisterPage() {
               className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl mx-auto mb-4 shadow-[0_0_20px_rgba(var(--rgb-primary),0.15)] hover:scale-105 transition-transform duration-300"
             />
           </Link>
-          <h1 className="text-xl sm:text-2xl font-bold text-text-primary tracking-tight">
+          <h1 className="text-lg sm:text-xl font-bold text-text-primary tracking-tight">
             Create your account
           </h1>
           <p className="text-sm text-text-secondary mt-2">Join LeadHunterClub and start closing more deals</p>
         </div>
 
-        <div className="bg-surface/40 backdrop-blur-xl border border-white/[0.06] rounded-3xl shadow-elevation-4 w-full p-4 sm:p-6 md:p-8">
+        <div className="bg-surface/40 backdrop-blur-xl border border-white/[0.06] rounded-3xl shadow-elevation-4 w-full p-4 sm:p-5 md:p-6">
           {referralCode && !auth.currentUser && (
             <motion.div
               initial={{ opacity: 0, scale: 0.96 }}
