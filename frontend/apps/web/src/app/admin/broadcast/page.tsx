@@ -17,6 +17,7 @@ import {
   MagnifyingGlassIcon,
   XMarkIcon,
   ArrowPathIcon,
+  ArrowRightOnRectangleIcon,
   CheckCircleIcon,
   XCircleIcon,
   ClockIcon,
@@ -268,6 +269,39 @@ export default function AdminBroadcastPage() {
       addToast({ type: 'error', message: 'Network error reconnecting WhatsApp' })
     } finally {
       setIsReconnectingWa(false)
+    }
+  }
+
+  const [isUnlinkingWa, setIsUnlinkingWa] = useState(false)
+
+  const handleUnlinkWa = async () => {
+    if (!confirm('Are you sure you want to remove and unlink this WhatsApp device? You will need to scan the QR code again to reconnect.')) {
+      return
+    }
+    setIsUnlinkingWa(true)
+    try {
+      const token = await getFirebaseToken()
+      const res = await fetch('/api/admin/whatsapp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ action: 'unlink' }),
+      })
+      const json = await res.json()
+      if (res.ok && json.success) {
+        addToast({ type: 'success', message: 'WhatsApp device unlinked successfully.' })
+        setWaData((prev) => (prev ? { ...prev, status: 'disconnected', botNumber: null } : null))
+        setShowQrModal(false)
+        setTimeout(() => fetchWhatsAppStatus(true), 1500)
+      } else {
+        addToast({ type: 'error', message: json.message || 'Failed to unlink WhatsApp device' })
+      }
+    } catch {
+      addToast({ type: 'error', message: 'Network error unlinking WhatsApp device' })
+    } finally {
+      setIsUnlinkingWa(false)
     }
   }
 
@@ -678,10 +712,10 @@ export default function AdminBroadcastPage() {
     if (!message.trim()) return ''
     return message
       .replace(/\{\{\s*name\s*\}\}/gi, 'there')
-      .replace(/\{\{\s*appUrl\s*\}\}/gi, 'https://leadhunterclub.com')
-      .replace(/\{\{\s*refillUrl\s*\}\}/gi, 'https://leadhunterclub.com/refill')
-      .replace(/\{\{\s*dashboardUrl\s*\}\}/gi, 'https://leadhunterclub.com/dashboard')
-      .replace(/\{\{\s*pricingUrl\s*\}\}/gi, 'https://leadhunterclub.com/pricing')
+      .replace(/\{\{\s*appUrl\s*\}\}/gi, 'https://www.theleadhunterclub.com')
+      .replace(/\{\{\s*refillUrl\s*\}\}/gi, 'https://www.theleadhunterclub.com/refill')
+      .replace(/\{\{\s*dashboardUrl\s*\}\}/gi, 'https://www.theleadhunterclub.com/dashboard')
+      .replace(/\{\{\s*pricingUrl\s*\}\}/gi, 'https://www.theleadhunterclub.com/pricing')
   }, [message])
 
   if (loading) {
@@ -1075,6 +1109,19 @@ export default function AdminBroadcastPage() {
               <PaperAirplaneIcon className={`w-3.5 h-3.5 ${isSendingWaTest ? 'animate-pulse' : ''}`} />
               <span>{isSendingWaTest ? 'Sending Alert...' : 'Send Test Alert'}</span>
             </button>
+
+            {/* Remove / Unlink Device Button */}
+            {waData?.status === 'connected' && (
+              <button
+                onClick={handleUnlinkWa}
+                disabled={isUnlinkingWa}
+                title="Disconnect and remove this linked WhatsApp bot number"
+                className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-red-500/15 hover:bg-red-500/25 text-red-300 border border-red-500/30 flex items-center gap-1.5 transition-all disabled:opacity-40 cursor-pointer shadow-sm"
+              >
+                <ArrowRightOnRectangleIcon className={`w-3.5 h-3.5 ${isUnlinkingWa ? 'animate-spin' : ''}`} />
+                <span>{isUnlinkingWa ? 'Removing...' : 'Remove Device'}</span>
+              </button>
+            )}
 
             {/* Reconnect Button */}
             <button
@@ -2185,6 +2232,15 @@ export default function AdminBroadcastPage() {
                       <p className="text-[11px] text-text-secondary">
                         The bot session is saved. You can now add the bot to your community group.
                       </p>
+
+                      <button
+                        onClick={handleUnlinkWa}
+                        disabled={isUnlinkingWa}
+                        className="mt-2 px-4 py-2 rounded-xl text-xs font-semibold bg-red-500/15 hover:bg-red-500/25 text-red-300 border border-red-500/30 inline-flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+                      >
+                        <ArrowRightOnRectangleIcon className={`w-3.5 h-3.5 ${isUnlinkingWa ? 'animate-spin' : ''}`} />
+                        <span>{isUnlinkingWa ? 'Removing...' : 'Remove / Unlink Device'}</span>
+                      </button>
                     </div>
                   </div>
                 ) : waData?.qrDataUrl ? (

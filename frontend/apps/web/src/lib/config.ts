@@ -15,7 +15,7 @@ export const config = {
     retries: 2,
   },
   app: {
-    url: process.env.NEXT_PUBLIC_APP_URL || 'https://leadhunterclub.com',
+    url: process.env.NEXT_PUBLIC_APP_URL || 'https://www.theleadhunterclub.com',
     name: 'Lead Hunter Club',
   },
   pagination: {

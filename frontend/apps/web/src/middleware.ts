@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { verifySession } from '@/lib/verify-session'
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://leadhunterclub.com'
-const ALLOWED_ORIGINS = [APP_URL, 'http://localhost:3000']
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://www.theleadhunterclub.com'
+const ALLOWED_ORIGINS = [APP_URL, 'https://www.theleadhunterclub.com', 'https://theleadhunterclub.com', 'http://localhost:3000']
 
 const publicPrefixes = ['/api']
 

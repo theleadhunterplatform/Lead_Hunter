@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
 
     const existing = await db.newsletterSubscriber.findUnique({ where: { email } })
     const unsubscribeToken = randomUUID()
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://leadhunterclub.com'
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.theleadhunterclub.com'
 
     let subscriber
     if (existing) {

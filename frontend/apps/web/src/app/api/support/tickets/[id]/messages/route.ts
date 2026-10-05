@@ -139,6 +139,6 @@ export async function POST(
 }
 
 function ticketUrl(id: string): string {
-  const base = process.env.NEXT_PUBLIC_APP_URL || 'https://leadhunterclub.com'
+  const base = process.env.NEXT_PUBLIC_APP_URL || 'https://www.theleadhunterclub.com'
   return `${base}/support/${id}`
 }

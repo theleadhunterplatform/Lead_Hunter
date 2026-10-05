@@ -104,7 +104,7 @@ export function buildPlanChangeEmail(
     planName: string,
     actionType: 'upgrade' | 'downgrade' | 'change',
     tokens: number,
-    appUrl: string = 'https://leadhunterclub.com'
+    appUrl: string = 'https://www.theleadhunterclub.com'
 ) {
     const isUpgrade = actionType === 'upgrade';
     const isDowngrade = actionType === 'downgrade';
@@ -134,7 +134,7 @@ export function buildTopupEmail(
     name: string,
     tokensAdded: number,
     totalTokens?: number,
-    appUrl: string = 'https://leadhunterclub.com'
+    appUrl: string = 'https://www.theleadhunterclub.com'
 ) {
     return {
         subject: `Credits added: ${tokensAdded} credits topped up to your account!`,

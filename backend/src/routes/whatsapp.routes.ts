@@ -8,6 +8,7 @@ import {
     triggerLeadDropAlertHandler,
     reconnectWhatsAppHandler,
     setTargetWhatsAppGroupHandler,
+    unlinkWhatsAppDeviceHandler,
 } from '../controllers/whatsapp.controller';
 
 const router = express.Router();
@@ -21,5 +22,6 @@ router.post('/target-group', setTargetWhatsAppGroupHandler);
 router.post('/test', sendWhatsAppTestMessageHandler);
 router.post('/alert', triggerLeadDropAlertHandler);
 router.post('/reconnect', reconnectWhatsAppHandler);
+router.post('/unlink', unlinkWhatsAppDeviceHandler);
 
 export default router;

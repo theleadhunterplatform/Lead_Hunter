@@ -35,9 +35,9 @@ const SMTP_PASS = process.env.SMTP_PASS?.trim()
 const SMTP_SECURE = process.env.SMTP_SECURE?.trim() === 'true' || SMTP_PORT === 465
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY?.trim()
-const EMAIL_FROM = process.env.EMAIL_FROM?.trim() || (SMTP_USER ? `Lead Hunter Club <${SMTP_USER}>` : 'Lead Hunter Club <noreply@leadhunterclub.com>')
+const EMAIL_FROM = process.env.EMAIL_FROM?.trim() || (SMTP_USER ? `Lead Hunter Club <${SMTP_USER}>` : 'Lead Hunter Club <noreply@theleadhunterclub.com>')
 const ADMIN_NOTIFICATION_EMAIL = process.env.ADMIN_NOTIFICATION_EMAIL?.trim() || ''
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL?.trim() || 'https://leadhunterclub.com'
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL?.trim() || 'https://www.theleadhunterclub.com'
 const IS_PRODUCTION = process.env.NODE_ENV === 'production' || !!process.env.VERCEL
 
 function logDev(...args: unknown[]) {

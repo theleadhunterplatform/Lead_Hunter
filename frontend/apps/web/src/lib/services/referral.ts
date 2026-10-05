@@ -185,7 +185,7 @@ export const referralService = {
    */
   async getReferralStats(userId: string, appUrl?: string) {
     const referralCode = await this.getOrCreateReferralCode(userId)
-    const baseUrl = appUrl || process.env.NEXT_PUBLIC_APP_URL || 'https://leadhunterclub.vercel.app'
+    const baseUrl = appUrl || process.env.NEXT_PUBLIC_APP_URL || 'https://www.theleadhunterclub.com'
     const referralUrl = `${baseUrl.replace(/\/+$/, '')}/register?ref=${referralCode}`
 
     const [userAccount, totalInvited, sumResult, history] = await Promise.all([

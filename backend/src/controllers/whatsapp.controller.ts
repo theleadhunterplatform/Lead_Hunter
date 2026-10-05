@@ -7,6 +7,7 @@ import {
     dispatchLeadDropAlert,
     initWhatsAppClient,
     setTargetWhatsAppGroup,
+    unlinkWhatsAppDevice,
 } from '../services/whatsapp.service';
 
 /**
@@ -114,3 +115,24 @@ export const reconnectWhatsAppHandler = asyncHandler(async (_req: Request, res: 
         data: getWhatsAppStatus(),
     });
 });
+
+/**
+ * POST /api/whatsapp/unlink
+ * Unlinks the connected WhatsApp bot device and clears the session.
+ */
+export const unlinkWhatsAppDeviceHandler = asyncHandler(async (_req: Request, res: Response) => {
+    const result = await unlinkWhatsAppDevice();
+    if (!result.success) {
+        return res.status(400).json({
+            success: false,
+            message: result.message,
+        });
+    }
+
+    return res.status(200).json({
+        success: true,
+        message: result.message,
+        data: getWhatsAppStatus(),
+    });
+});
+

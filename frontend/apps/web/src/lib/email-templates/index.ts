@@ -14,7 +14,7 @@ function wrapHtml(body: string): string {
           <hr style="border:none;border-top:1px solid rgba(255,255,255,0.06);margin:24px 0" />
           <p style="margin:0;font-size:12px;color:#888;line-height:1.5">
             Lead Hunter Club &mdash; Find & close your ideal clients<br>
-            <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://leadhunterclub.com'}" style="color:#FFB800;font-weight:600;text-decoration:none">Visit dashboard</a>
+            <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://www.theleadhunterclub.com'}" style="color:#FFB800;font-weight:600;text-decoration:none">Visit dashboard</a>
           </p>
         </td></tr>
       </table>
@@ -35,7 +35,7 @@ function escapeHtml(str: string): string {
 
 export function interpolateVariables(content: string, vars: Record<string, string | number>): string {
   let result = content
-  const appUrl = (vars.appUrl ? String(vars.appUrl) : (process.env.NEXT_PUBLIC_APP_URL || 'https://leadhunterclub.com')).replace(/\/$/, '')
+  const appUrl = (vars.appUrl ? String(vars.appUrl) : (process.env.NEXT_PUBLIC_APP_URL || 'https://www.theleadhunterclub.com')).replace(/\/$/, '')
   const mergedVars: Record<string, string | number> = {
     appUrl,
     dashboardUrl: `${appUrl}/dashboard`,

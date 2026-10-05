@@ -44,7 +44,7 @@ export const env = {
   // Email (Resend for transactional, Brevo for marketing/newsletter)
   resendApiKey: requireEnv('RESEND_API_KEY'),
   brevoApiKey: optionalEnv('BREVO_API_KEY', ''),
-  emailFrom: optionalEnv('EMAIL_FROM', 'noreply@leadhunterclub.com'),
+  emailFrom: optionalEnv('EMAIL_FROM', 'noreply@theleadhunterclub.com'),
   brevoSenderName: optionalEnv('BREVO_SENDER_NAME', 'Lead Hunter Club'),
   adminNotificationEmail: optionalEnv('ADMIN_NOTIFICATION_EMAIL', ''),
 
@@ -52,7 +52,7 @@ export const env = {
   adminRegistrationKey: optionalEnv('ADMIN_REGISTRATION_KEY', ''),
 
   // App
-  appUrl: optionalEnv('NEXT_PUBLIC_APP_URL', 'https://leadhunterclub.com'),
+  appUrl: optionalEnv('NEXT_PUBLIC_APP_URL', 'https://www.theleadhunterclub.com'),
   nodeEnv: optionalEnv('NODE_ENV', 'development'),
 
   // External AI APIs (optional — fallback to simulated responses)

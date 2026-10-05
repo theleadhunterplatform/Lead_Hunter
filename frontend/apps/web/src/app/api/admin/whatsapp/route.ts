@@ -159,6 +159,8 @@ export async function POST(request: NextRequest) {
       ? `${BASE_URL}/whatsapp/alert`
       : body.action === 'reconnect'
       ? `${BASE_URL}/whatsapp/reconnect`
+      : body.action === 'unlink'
+      ? `${BASE_URL}/whatsapp/unlink`
       : `${BASE_URL}/whatsapp/test`
 
     const res = await fetch(endpoint, {

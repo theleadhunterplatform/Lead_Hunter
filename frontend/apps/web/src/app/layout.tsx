@@ -17,7 +17,7 @@ const inter = Inter({
   weight: ['400', '500', '600'],
 })
 
-const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://leadhunterclub.com'
+const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.theleadhunterclub.com'
 
 export const viewport: Viewport = {
   width: 'device-width',

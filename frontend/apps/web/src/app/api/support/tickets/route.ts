@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
         category: category || 'general',
         from: user?.name || authUser.name || userId,
         email: user?.email || authUser.email || '',
-        ticketUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://leadhunterclub.com'}/admin/support/${ticket.id}`,
+        ticketUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://www.theleadhunterclub.com'}/admin/support/${ticket.id}`,
       })
       .catch((e) => console.error('[Support] notifyAdmin failed:', e))
 

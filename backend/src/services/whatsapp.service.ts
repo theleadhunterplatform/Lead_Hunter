@@ -302,13 +302,70 @@ export async function sendGroupMessage(
  * Immediate dispatch for new leads drop announcement.
  */
 /**
+ * Unlinks the connected WhatsApp device, terminates socket session, deletes stored session credentials,
+ * and resets connection state so a fresh device can be linked via QR code.
+ */
+export async function unlinkWhatsAppDevice(): Promise<{ success: boolean; message: string }> {
+    try {
+        if (reconnectTimer) {
+            clearTimeout(reconnectTimer);
+            reconnectTimer = null;
+        }
+
+        if (sock) {
+            try {
+                await sock.logout();
+            } catch (err: any) {
+                console.warn('⚠️  [WhatsApp] Error during sock.logout():', err?.message);
+            }
+            try {
+                sock.end();
+            } catch {}
+            sock = null;
+        }
+
+        connectionStatus = 'disconnected';
+        latestQr = null;
+        latestQrDataUrl = null;
+        botJid = null;
+        cachedGroups = [];
+
+        // Clear session directory files
+        const sessionDir = config.whatsapp.sessionPath;
+        if (fs.existsSync(sessionDir)) {
+            try {
+                fs.rmSync(sessionDir, { recursive: true, force: true });
+                console.log('ℹ️  [WhatsApp] Session files removed for unlinking.');
+            } catch (e: any) {
+                console.warn('⚠️  [WhatsApp] Failed to delete session dir:', e.message);
+            }
+        }
+
+        // Trigger fresh client initialization to immediately generate a new QR code for pairing
+        setTimeout(() => {
+            initWhatsAppClient().catch((err) => console.error('❌ [WhatsApp] Re-init after unlink failed:', err?.message));
+        }, 1500);
+
+        return {
+            success: true,
+            message: 'WhatsApp device unlinked successfully. You can now link a new device.',
+        };
+    } catch (err: any) {
+        return {
+            success: false,
+            message: err?.message || 'Failed to unlink WhatsApp device',
+        };
+    }
+}
+
+/**
  * Immediate dispatch for new leads drop announcement.
  */
 export async function dispatchLeadDropAlert(
     leadsCount: number,
     categories: string[] = []
 ): Promise<{ success: boolean; error?: string }> {
-    const appUrl = (process.env.FRONTEND_URL || 'https://leadhunterclub.com').replace(/\/$/, '');
+    const appUrl = (process.env.FRONTEND_URL || 'https://www.theleadhunterclub.com').replace(/\/$/, '');
     const cleanCategories = categories.filter(Boolean);
     const categoryText = cleanCategories.length > 0
         ? cleanCategories.slice(0, 4).join(', ')

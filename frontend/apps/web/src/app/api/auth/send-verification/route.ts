@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
       throw err
     }
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://leadhunterclub.com'
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.theleadhunterclub.com'
     const actionCodeSettings = {
       url: `${appUrl}/verify-email?verified=true`,
       handleCodeInApp: false,
