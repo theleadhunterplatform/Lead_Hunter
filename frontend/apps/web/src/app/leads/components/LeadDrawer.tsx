@@ -22,6 +22,8 @@ import {
   sanitizePublicText,
   parseIntelSections,
   getStructuredLeadDetails,
+  extractLeadSpecialty,
+  extractLeadOneLiner,
   type IntelSection,
 } from '@/lib/claim-reveal'
 import { triggerUnlockConfetti } from '@/lib/confetti'
@@ -48,6 +50,8 @@ export default function LeadDrawer({
   // so Deep Intel shows every section (Verdict, Context, etc.), not just 5 hard-coded ones.
   const parsedIntel = useMemo(() => parseIntelSections(lead.buyerType || ''), [lead.buyerType])
   const structuredDetails = useMemo(() => getStructuredLeadDetails(lead), [lead])
+  const leadSpecialty = useMemo(() => extractLeadSpecialty(lead), [lead])
+  const leadOneLiner = useMemo(() => extractLeadOneLiner(lead.buyerType || '', lead.summary), [lead.buyerType, lead.summary])
 
   // Deep Intel must start directly from "Context You Might Miss" (dropping summaries, one-liners, 2-line/4-line, badges)
   const deepIntelSections = useMemo(
@@ -358,7 +362,7 @@ export default function LeadDrawer({
       {/* Header */}
       <div className="relative z-10 flex items-start justify-between gap-3 border-b border-white/[0.08] bg-gradient-to-b from-surface-container-high/70 to-surface-elevated/25 px-4 pt-3 pb-3.5 sm:px-6 sm:pt-5 sm:pb-4 shrink-0">
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2 mb-2.5">
+          <div className="flex flex-wrap items-center gap-2 mb-2">
             <span className="font-mono text-[9px] uppercase tracking-[0.22em] text-primary">
               Lead intel
             </span>
@@ -372,9 +376,23 @@ export default function LeadDrawer({
             </span>
           </div>
 
-          <h2 className="text-lg sm:text-[22px] font-bold tracking-[-0.01em] text-white leading-[1.25]">
+          {/* 3 Header Lines (shown before Role) */}
+          {/* Line 1: Target Role / Specialty */}
+          <div className="text-[12px] sm:text-[13px] font-bold uppercase tracking-[0.14em] text-amber-400">
+            {leadSpecialty}
+          </div>
+
+          {/* Line 2: Opportunity Headline */}
+          <h2 className="text-lg sm:text-[21px] font-bold tracking-[-0.01em] text-white leading-[1.25] mt-0.5">
             {displayTitle}
           </h2>
+
+          {/* Line 3: One-Liner Subtitle */}
+          {leadOneLiner && (
+            <p className="mt-1 text-[12px] sm:text-[12.5px] text-text-secondary leading-snug">
+              {leadOneLiner}
+            </p>
+          )}
 
           <div className="mt-2.5 flex flex-wrap items-center gap-2 select-none text-[11px]">
             {lead.timestamp && (

@@ -700,3 +700,51 @@ export function getStructuredLeadDetails(lead: {
     buyer: buyer || 'Verified client looking for specialized service provider',
   }
 }
+
+/**
+ * Extracts a concise 2-4 word target specialty title (Line 1 before Role, e.g. "Ecommerce Platform Developer").
+ */
+export function extractLeadSpecialty(lead: {
+  role?: string | null
+  category?: string | null
+  niche?: string | null
+  keyword?: string | null
+  buyerType?: string | null
+}): string {
+  const intel = lead.buyerType || ''
+  const oneLiner = intel.match(/###\s*🧠\s*One-Liner\s*\n+([^#\n]+)/i)?.[1] || ''
+  const match = oneLiner.match(
+    /(?:seeking|looking\s+for|hiring|needs?)\s+(?:an?\s+)?([A-Za-z\s/-]{3,45}?(?:developer|engineer|specialist|agency|partner|expert|designer|freelancer|manager|firm|team))/i,
+  )
+  if (match) {
+    const raw = match[1].trim()
+    if (raw.length >= 3 && raw.length <= 40) {
+      return raw.replace(/\b\w/g, (c) => c.toUpperCase())
+    }
+  }
+
+  if (lead.role && lead.role.length >= 3 && lead.role.length <= 35 && !/^(general|--)$/i.test(lead.role)) {
+    return lead.role
+  }
+
+  if (lead.category && !/^(general|--)$/i.test(lead.category)) {
+    return lead.category
+  }
+
+  return lead.niche || 'Specialist Partner'
+}
+
+/**
+ * Extracts the clean executive 1-sentence summary hook (Line 3 before Role).
+ */
+export function extractLeadOneLiner(intel: string, summaryFallback?: string | null): string {
+  if (!intel && !summaryFallback) return ''
+  const sec = intel.match(/###\s*🧠\s*One-Liner\s*\n+([^#\n]+)/i)
+  if (sec && sec[1]) {
+    return cleanCompleteSentence(sec[1])
+  }
+  if (summaryFallback) {
+    return cleanCompleteSentence(summaryFallback)
+  }
+  return ''
+}
