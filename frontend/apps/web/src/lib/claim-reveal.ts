@@ -505,56 +505,81 @@ export function getStructuredLeadDetails(lead: {
   signalContext?: string | null
 }): StructuredLeadDetails {
   const intel = lead.buyerType || ''
+  const parsedSections = parseIntelSections(intel)
 
-  // 1. Role: Target role or ideal candidate
-  let role =
-    extractSection(intel, 'Ideal candidate') ||
-    extractSection(intel, 'One-Liner') ||
+  const findBody = (pattern: RegExp): string => {
+    const found = parsedSections.find((s) => pattern.test(s.label))
+    return found ? found.body : ''
+  }
+
+  // 1. Role: One-Liner or Ideal candidate or role
+  let rawRole =
+    findBody(/one[\s-]?liner/i) ||
+    findBody(/ideal candidate/i) ||
     lead.role ||
     ''
+  let role = cleanLeadSummary(rawRole)
+    .replace(/#{1,6}\s*.*$/gs, '')
+    .replace(/^target candidate:?/i, '')
+    .replace(/^one[\s-]?liner:?/i, '')
+    .trim()
   if (!role || role.toLowerCase() === 'general' || role.length < 5) {
-    role = extractSection(intel, 'One-Liner') || lead.summary || ''
+    role = cleanLeadSummary(lead.summary || '')
   }
-  role = cleanLeadSummary(role).replace(/^Target candidate:?/i, '').replace(/^One-Liner:?/i, '').trim()
 
-  // 2. Task: Platform development, setup, scope of work
-  let task =
-    extractSection(intel, 'Core scope') ||
+  // 2. Task: Core scope or 2-line summary or taskScope
+  let rawTask =
+    findBody(/core scope/i) ||
+    findBody(/2[\s-]?line/i) ||
+    findBody(/two[\s-]?line/i) ||
     lead.taskScope ||
     lead.summary ||
     ''
-  task = cleanLeadSummary(task).replace(/^Core scope:?/i, '').replace(/^Scope:?/i, '').trim()
+  let task = cleanLeadSummary(rawTask)
+    .replace(/#{1,6}\s*.*$/gs, '')
+    .replace(/^core scope:?/i, '')
+    .replace(/^scope:?/i, '')
+    .trim()
 
-  // 3. Must Have: Specific experience, tech stack, skills
-  let mustHave =
-    extractSection(intel, 'Requirements') ||
-    extractSection(intel, 'What They Actually Want') ||
+  // 3. Must Have: What They Actually Want or Requirements or mustHave
+  let rawMustHave =
+    findBody(/what they actually want/i) ||
+    findBody(/requirements/i) ||
     lead.mustHave ||
     ''
-  mustHave = cleanLeadSummary(mustHave).replace(/^\*+\s*/, '').replace(/^Requirements:?/i, '').trim()
+  let mustHave = cleanLeadSummary(rawMustHave)
+    .replace(/^\*+\s*/, '')
+    .replace(/#{1,6}\s*.*$/gs, '')
+    .replace(/^requirements:?/i, '')
+    .trim()
 
-  // 4. Niche: Niche tags, platforms, categories
+  // 4. Niche: Niches list or badges or category
+  let rawBadges = findBody(/badges/i)
   let niche =
     lead.niches && lead.niches.length > 0
       ? lead.niches.slice(0, 4).join(', ')
-      : lead.niche || lead.category || extractSection(intel, 'Badges') || 'General'
-  niche = cleanLeadSummary(niche).replace(/^Niche:?/i, '').trim()
+      : lead.niche || lead.category || rawBadges || 'General'
+  niche = cleanLeadSummary(niche).replace(/#{1,6}\s*.*$/gs, '').replace(/^niche:?/i, '').trim()
 
-  // 5. Buyer: Founder/client description
-  let buyer = extractSection(intel, 'Target buyer') || ''
-  if (!buyer) {
-    const context = extractSection(intel, 'Context You Might Miss')
+  // 5. Buyer: Target buyer or Context You Might Miss
+  let rawBuyer = findBody(/target buyer/i)
+  if (!rawBuyer) {
+    const context = findBody(/context you might miss/i)
     if (context) {
-      buyer = context.split('\n')[0].replace(/^\*+\s*/, '').trim()
+      rawBuyer = context.split('\n')[0].replace(/^\*+\s*/, '').trim()
     }
   }
-  if (!buyer && lead.buyerType && lead.buyerType.length < 200 && !lead.buyerType.includes('#')) {
-    buyer = lead.buyerType
+  if (!rawBuyer && lead.buyerType && lead.buyerType.length < 200 && !lead.buyerType.includes('#')) {
+    rawBuyer = lead.buyerType
   }
+  let buyer = cleanLeadSummary(rawBuyer)
+    .replace(/#{1,6}\s*.*$/gs, '')
+    .replace(/^target buyer:?/i, '')
+    .replace(/^buyer:?/i, '')
+    .trim()
   if (!buyer) {
-    buyer = 'Client looking for specialized expertise for immediate project requirements'
+    buyer = 'Client looking for specialized service provider'
   }
-  buyer = cleanLeadSummary(buyer).replace(/^Target buyer:?/i, '').replace(/^Buyer:?/i, '').trim()
 
   return {
     role: role || 'Freelancer / Agency for project execution',

@@ -407,20 +407,58 @@ export default function LeadDrawer({
         {/* Summary + skills layout */}
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.15fr_0.85fr]">
           <div className="min-w-0">
-            {detailsSummaryDisplay && detailsSummaryDisplay.trim() !== '' && (
-              <section className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-surface-elevated/55 p-4">
-                <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-secondary/50 via-secondary/10 to-transparent" aria-hidden />
-                <div className="mb-2 flex items-center gap-2">
-                  <span className="font-mono text-[9px] font-semibold uppercase tracking-[0.2em] text-secondary">
-                    Lead summary
+            {/* Structured Lead Details (Role, Task, Must Have, Niche, Buyer) */}
+            <section className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-surface-elevated/55 p-4 sm:p-5">
+              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-amber-500/60 via-amber-500/20 to-transparent" aria-hidden />
+              <div className="mb-3.5 flex items-center gap-2">
+                <span className="font-mono text-[9px] font-semibold uppercase tracking-[0.2em] text-amber-400">
+                  Lead details
+                </span>
+                <span className="h-px flex-1 bg-white/[0.06]" aria-hidden />
+              </div>
+              <div className="grid grid-cols-1 gap-3.5">
+                <div className="min-w-0">
+                  <span className="mb-1 block font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-amber-400">
+                    Role
                   </span>
-                  <span className="h-px flex-1 bg-white/[0.06]" aria-hidden />
+                  <span className="block break-words text-[13px] font-medium leading-relaxed text-text-primary">
+                    {structuredDetails.role}
+                  </span>
                 </div>
-                <p className="text-[13.5px] font-medium leading-relaxed text-text-primary whitespace-pre-line">
-                  {detailsSummaryDisplay}
-                </p>
-              </section>
-            )}
+                <div className="min-w-0">
+                  <span className="mb-1 block font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-amber-400">
+                    Task
+                  </span>
+                  <span className="block break-words text-[13px] font-medium leading-relaxed text-text-primary">
+                    {structuredDetails.task}
+                  </span>
+                </div>
+                <div className="min-w-0">
+                  <span className="mb-1 block font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-amber-400">
+                    Must Have
+                  </span>
+                  <span className="block break-words text-[13px] font-medium leading-relaxed text-text-primary">
+                    {structuredDetails.mustHave}
+                  </span>
+                </div>
+                <div className="min-w-0">
+                  <span className="mb-1 block font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-amber-400">
+                    Niche
+                  </span>
+                  <span className="block break-words text-[13px] font-medium leading-relaxed text-text-primary">
+                    {structuredDetails.niche}
+                  </span>
+                </div>
+                <div className="min-w-0">
+                  <span className="mb-1 block font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-amber-400">
+                    Buyer
+                  </span>
+                  <span className="block break-words text-[13px] font-medium leading-relaxed text-text-primary">
+                    {structuredDetails.buyer}
+                  </span>
+                </div>
+              </div>
+            </section>
 
             {lead.nicheTags && lead.nicheTags.length > 0 && (
               <section className="mt-5">
@@ -442,7 +480,6 @@ export default function LeadDrawer({
                 </div>
               </section>
             )}
-
 
             {lead.hashtags && lead.hashtags.length > 0 && (
               <section className="mt-5">
@@ -466,7 +503,7 @@ export default function LeadDrawer({
             )}
           </div>
 
-          {/* Deep intel — nested scroller so outer layout stays put */}
+          {/* Deep intel — locked until revealed */}
           <section className="relative flex min-w-0 flex-col">
             <div className="mb-2.5 flex items-center gap-2 shrink-0">
               <span className="font-mono text-[9px] font-semibold uppercase tracking-[0.2em] text-primary">
@@ -476,69 +513,34 @@ export default function LeadDrawer({
             </div>
 
             <div className="relative flex min-h-[240px] max-h-[min(58vh,520px)] flex-col overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.025] lg:sticky lg:top-0">
+              {!lead.isRevealed && (
+                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-2xl border border-white/[0.06] bg-surface-container-low/75 backdrop-blur-[7px]">
+                  <div className="grid h-11 w-11 place-items-center rounded-full border border-amber-500/30 bg-amber-500/10 mb-2.5">
+                    <LockClosedIcon className="w-5 h-5 text-amber-400" />
+                  </div>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-white">
+                    Intel locked
+                  </p>
+                  <p className="mt-1 max-w-[200px] text-center text-[11px] text-text-secondary">
+                    Reveal contact to unlock pitch strategy, angle &amp; dossier
+                  </p>
+                </div>
+              )}
+
               <div
-                className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 scrollbar-hide"
-                style={{ WebkitOverflowScrolling: 'touch' }}
+                className={`min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 scrollbar-hide ${
+                  !lead.isRevealed ? 'opacity-25 blur-[3px] select-none pointer-events-none' : ''
+                }`}
+                style={{ WebkitOverflowScrolling: 'touch', userSelect: !lead.isRevealed ? 'none' : 'auto' }}
               >
-                {lead.isRevealed ? (
-                  <div className="grid grid-cols-1 gap-4">
-                    {deepIntelSections.length > 0 ? (
-                      deepIntelSections.map((s: IntelSection) => (
-                        <IntelBlock key={s.label} label={s.label} value={s.body} />
-                      ))
-                    ) : (
-                      fallbackIntel.map((s) => (
-                        <IntelBlock key={s.label} label={s.label} value={s.value} />
-                      ))
-                    )}
-                  </div>
+                {deepIntelSections.length > 0 ? (
+                  deepIntelSections.map((s: IntelSection) => (
+                    <IntelBlock key={s.label} label={s.label} value={s.body} />
+                  ))
                 ) : (
-                  <div className="grid grid-cols-1 gap-4">
-                    <div className="min-w-0">
-                      <span className="mb-1 block font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-amber-400">
-                        Role
-                      </span>
-                      <span className="block break-words text-[13px] font-medium leading-relaxed text-text-primary">
-                        {structuredDetails.role}
-                      </span>
-                    </div>
-
-                    <div className="min-w-0">
-                      <span className="mb-1 block font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-amber-400">
-                        Task
-                      </span>
-                      <span className="block break-words text-[13px] font-medium leading-relaxed text-text-primary">
-                        {structuredDetails.task}
-                      </span>
-                    </div>
-
-                    <div className="min-w-0">
-                      <span className="mb-1 block font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-amber-400">
-                        Must Have
-                      </span>
-                      <span className="block break-words text-[13px] font-medium leading-relaxed text-text-primary">
-                        {structuredDetails.mustHave}
-                      </span>
-                    </div>
-
-                    <div className="min-w-0">
-                      <span className="mb-1 block font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-amber-400">
-                        Niche
-                      </span>
-                      <span className="block break-words text-[13px] font-medium leading-relaxed text-text-primary">
-                        {structuredDetails.niche}
-                      </span>
-                    </div>
-
-                    <div className="min-w-0">
-                      <span className="mb-1 block font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-amber-400">
-                        Buyer
-                      </span>
-                      <span className="block break-words text-[13px] font-medium leading-relaxed text-text-primary">
-                        {structuredDetails.buyer}
-                      </span>
-                    </div>
-                  </div>
+                  fallbackIntel.map((s) => (
+                    <IntelBlock key={s.label} label={s.label} value={s.value} />
+                  ))
                 )}
               </div>
 
