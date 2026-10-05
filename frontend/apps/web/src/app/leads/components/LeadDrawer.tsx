@@ -408,52 +408,52 @@ export default function LeadDrawer({
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.15fr_0.85fr]">
           <div className="min-w-0">
             {/* Structured Lead Details (Role, Task, Must Have, Niche, Buyer) */}
-            <section className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-surface-elevated/55 p-4 sm:p-5">
+            <section className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-surface-elevated/55 p-3.5 sm:p-4">
               <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-amber-500/60 via-amber-500/20 to-transparent" aria-hidden />
-              <div className="mb-3.5 flex items-center gap-2">
+              <div className="mb-2.5 flex items-center gap-2">
                 <span className="font-mono text-[9px] font-semibold uppercase tracking-[0.2em] text-amber-400">
                   Lead details
                 </span>
                 <span className="h-px flex-1 bg-white/[0.06]" aria-hidden />
               </div>
-              <div className="grid grid-cols-1 gap-3.5">
+              <div className="grid grid-cols-1 gap-2.5">
                 <div className="min-w-0">
-                  <span className="mb-1 block font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-amber-400">
+                  <span className="mb-0.5 block font-mono text-[9.5px] font-bold uppercase tracking-[0.16em] text-amber-400">
                     Role
                   </span>
-                  <span className="block break-words text-[13px] font-medium leading-relaxed text-text-primary">
+                  <span className="block break-words text-[12.5px] font-medium leading-snug text-text-primary line-clamp-2" title={structuredDetails.role}>
                     {structuredDetails.role}
                   </span>
                 </div>
                 <div className="min-w-0">
-                  <span className="mb-1 block font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-amber-400">
+                  <span className="mb-0.5 block font-mono text-[9.5px] font-bold uppercase tracking-[0.16em] text-amber-400">
                     Task
                   </span>
-                  <span className="block break-words text-[13px] font-medium leading-relaxed text-text-primary">
+                  <span className="block break-words text-[12.5px] font-medium leading-snug text-text-primary line-clamp-2" title={structuredDetails.task}>
                     {structuredDetails.task}
                   </span>
                 </div>
                 <div className="min-w-0">
-                  <span className="mb-1 block font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-amber-400">
+                  <span className="mb-0.5 block font-mono text-[9.5px] font-bold uppercase tracking-[0.16em] text-amber-400">
                     Must Have
                   </span>
-                  <span className="block break-words text-[13px] font-medium leading-relaxed text-text-primary">
+                  <span className="block break-words text-[12.5px] font-medium leading-snug text-text-primary line-clamp-2" title={structuredDetails.mustHave}>
                     {structuredDetails.mustHave}
                   </span>
                 </div>
                 <div className="min-w-0">
-                  <span className="mb-1 block font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-amber-400">
+                  <span className="mb-0.5 block font-mono text-[9.5px] font-bold uppercase tracking-[0.16em] text-amber-400">
                     Niche
                   </span>
-                  <span className="block break-words text-[13px] font-medium leading-relaxed text-text-primary">
+                  <span className="block break-words text-[12.5px] font-medium leading-snug text-text-primary line-clamp-2" title={structuredDetails.niche}>
                     {structuredDetails.niche}
                   </span>
                 </div>
                 <div className="min-w-0">
-                  <span className="mb-1 block font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-amber-400">
+                  <span className="mb-0.5 block font-mono text-[9.5px] font-bold uppercase tracking-[0.16em] text-amber-400">
                     Buyer
                   </span>
-                  <span className="block break-words text-[13px] font-medium leading-relaxed text-text-primary">
+                  <span className="block break-words text-[12.5px] font-medium leading-snug text-text-primary line-clamp-2" title={structuredDetails.buyer}>
                     {structuredDetails.buyer}
                   </span>
                 </div>
