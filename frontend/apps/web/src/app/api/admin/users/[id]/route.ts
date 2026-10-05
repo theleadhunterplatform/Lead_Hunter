@@ -6,6 +6,7 @@ import { auditService } from '@/lib/services/audit'
 import { creditService, InsufficientCreditsError } from '@/lib/services/credits'
 import { emailService } from '@/lib/services/email'
 import { getPlan } from '@/lib/config/plans'
+import { getAdminAuthInstance } from '@/lib/firebase-admin'
 
 export const dynamic = 'force-dynamic'
 
@@ -484,6 +485,92 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     console.error('[Admin User Update API] Error:', error)
     return NextResponse.json(
       { code: 'INTERNAL_SERVER_ERROR', message: 'An unexpected error occurred' },
+      { status: 500 },
+    )
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const authUser = await requireAdmin(request)
+    const { id: targetUserId } = await params
+
+    if (targetUserId === authUser.uid) {
+      return NextResponse.json(
+        { code: 'BAD_REQUEST', message: 'You cannot delete your own admin account' },
+        { status: 400 },
+      )
+    }
+
+    const user = await db.user.findUnique({
+      where: { id: targetUserId },
+      select: { id: true, email: true, name: true, role: true },
+    })
+
+    if (!user) {
+      return NextResponse.json({ code: 'NOT_FOUND', message: 'User not found' }, { status: 404 })
+    }
+
+    // 1. Delete user from Firebase Auth
+    let fbDeleted = false
+    try {
+      const authInstance = await getAdminAuthInstance()
+      await authInstance.deleteUser(targetUserId)
+      fbDeleted = true
+    } catch (fbErr: any) {
+      console.warn(`[Admin User Delete] Firebase delete warning for ${targetUserId}:`, fbErr?.message)
+    }
+
+    // 2. Cascade delete all related database records and the user record
+    await db.$transaction([
+      db.crmActivity.deleteMany({ where: { userId: targetUserId } }),
+      db.crmNote.deleteMany({ where: { userId: targetUserId } }),
+      db.adminNote.deleteMany({ where: { userId: targetUserId } }),
+      db.auditLog.deleteMany({ where: { userId: targetUserId } }),
+      db.userLeadState.deleteMany({ where: { userId: targetUserId } }),
+      db.creditAccount.deleteMany({ where: { userId: targetUserId } }),
+      db.milestoneProof.deleteMany({ where: { userId: targetUserId } }),
+      db.referral.deleteMany({
+        where: {
+          OR: [{ referrerId: targetUserId }, { referredUserId: targetUserId }],
+        },
+      }),
+      db.supportTicket.deleteMany({ where: { userId: targetUserId } }),
+      db.communityReaction.deleteMany({ where: { userId: targetUserId } }),
+      db.user.delete({ where: { id: targetUserId } }),
+    ])
+
+    await auditService.log({
+      userId: targetUserId,
+      adminId: authUser.uid,
+      action: 'USER_DELETE',
+      targetType: 'USER',
+      targetId: targetUserId,
+      details: {
+        deletedEmail: user.email,
+        deletedName: user.name,
+        firebaseDeleted: fbDeleted,
+      },
+    }).catch(() => {})
+
+    return NextResponse.json({
+      success: true,
+      message: `User ${user.name} (${user.email}) permanently deleted from database and Firebase Auth`,
+      data: { id: targetUserId, firebaseDeleted: fbDeleted },
+    })
+  } catch (error: unknown) {
+    if (error instanceof ForbiddenError) {
+      return NextResponse.json({ code: 'FORBIDDEN', message: 'Admin access required' }, { status: 403 })
+    }
+    if (error instanceof Error && error.name === 'AuthRequiredError') {
+      return NextResponse.json({ code: 'UNAUTHORIZED', message: 'Authentication required' }, { status: 401 })
+    }
+    console.error('[Admin User Delete API] Error:', error)
+    return NextResponse.json(
+      { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to delete user' },
       { status: 500 },
     )
   }

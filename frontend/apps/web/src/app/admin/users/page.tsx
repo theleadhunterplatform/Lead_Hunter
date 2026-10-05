@@ -10,6 +10,7 @@ import {
   XCircleIcon,
   ArrowTopRightOnSquareIcon,
   ChevronDownIcon,
+  TrashIcon,
 } from '@heroicons/react/24/solid'
 import { CustomLoader } from '@/components/ui/CustomLoader'
 import { PortalMenu } from '@/components/ui/PortalMenu'
@@ -145,6 +146,35 @@ export default function AdminUsersPage() {
       ),
     )
     setActionLoading(null)
+  }
+
+  const handleDeleteUser = async (userId: string, userName: string, userEmail: string) => {
+    const confirmed = confirm(
+      `⚠️ PERMANENT USER DELETION\n\nAre you sure you want to permanently delete "${userName}" (${userEmail})?\n\nThis will remove their account from Firebase Auth and delete all their records from the database.\n\nThis action CANNOT be undone.`
+    )
+    if (!confirmed) return
+
+    setActionLoading(`${userId}-DELETE`)
+    try {
+      const token = await getFirebaseToken()
+      const res = await fetch(`/api/admin/users/${userId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const json = await res.json().catch(() => ({}))
+      if (res.ok && json.success) {
+        setUsers((prev) => prev.filter((u) => u.id !== userId))
+        if (pagination) {
+          setPagination({ ...pagination, total: Math.max(0, pagination.total - 1) })
+        }
+      } else {
+        alert(json.message || 'Failed to delete user.')
+      }
+    } catch {
+      alert('Network error deleting user.')
+    } finally {
+      setActionLoading(null)
+    }
   }
 
   const [approveDropdown, setApproveDropdown] = useState<string | null>(null)
@@ -463,15 +493,33 @@ export default function AdminUsersPage() {
                               <XCircleIcon className="w-3.5 h-3.5" />
                               {actionLoading === `${u.id}-REJECT` ? '...' : 'Reject'}
                             </button>
+                            <button
+                              onClick={() => handleDeleteUser(u.id, u.name, u.email)}
+                              disabled={actionLoading === `${u.id}-DELETE`}
+                              title="Delete user from database and Firebase Auth"
+                              className="p-1.5 rounded-lg text-text-secondary/60 hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 transition-all cursor-pointer"
+                            >
+                              <TrashIcon className="w-3.5 h-3.5" />
+                            </button>
                           </div>
                         ) : (
-                          <span className="text-xs text-text-secondary/60">
-                            {u.status === 'ACTIVE'
-                              ? 'Approved'
-                              : u.status === 'REJECTED'
-                                ? 'Rejected'
-                                : u.status}
-                          </span>
+                          <div className="flex items-center justify-end gap-2">
+                            <span className="text-xs text-text-secondary/60">
+                              {u.status === 'ACTIVE'
+                                ? 'Approved'
+                                : u.status === 'REJECTED'
+                                  ? 'Rejected'
+                                  : u.status}
+                            </span>
+                            <button
+                              onClick={() => handleDeleteUser(u.id, u.name, u.email)}
+                              disabled={actionLoading === `${u.id}-DELETE`}
+                              title="Delete user from database and Firebase Auth"
+                              className="p-1.5 rounded-lg text-text-secondary/60 hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 transition-all cursor-pointer"
+                            >
+                              <TrashIcon className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         )}
                       </td>
                     </tr>

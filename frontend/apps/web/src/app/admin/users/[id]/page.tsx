@@ -13,6 +13,7 @@ import {
   CreditCardIcon,
   DocumentDuplicateIcon,
   UserIcon,
+  TrashIcon,
 } from '@heroicons/react/24/solid'
 import { CustomLoader } from '@/components/ui/CustomLoader'
 import type { PaymentRecord } from '@/lib/payments-format'
@@ -250,6 +251,36 @@ export default function AdminUserDetailPage() {
       )
     }
     setActionLoading(null)
+  }
+
+  const [isDeletingUser, setIsDeletingUser] = useState(false)
+
+  const handleDeleteUser = async () => {
+    if (!user) return
+    const confirmed = confirm(
+      `⚠️ PERMANENT USER DELETION\n\nAre you sure you want to permanently delete "${user.name}" (${user.email})?\n\nThis will:\n1. Delete their account completely from Firebase Authentication.\n2. Cascade delete all their credits, lead states, and records from the database.\n\nThis action CANNOT be undone. Proceed?`
+    )
+    if (!confirmed) return
+
+    setIsDeletingUser(true)
+    try {
+      const token = await getFirebaseToken()
+      const res = await fetch(`/api/admin/users/${params.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const json = await res.json().catch(() => ({}))
+      if (res.ok && json.success) {
+        alert(`User "${user.name}" has been permanently deleted from Firebase Auth and the database.`)
+        router.push('/admin/users')
+      } else {
+        alert(json.message || 'Failed to delete user.')
+        setIsDeletingUser(false)
+      }
+    } catch {
+      alert('Network error while deleting user.')
+      setIsDeletingUser(false)
+    }
   }
 
   const [renewalMessage, setRenewalMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
@@ -541,6 +572,21 @@ export default function AdminUserDetailPage() {
                   {actionLoading === 'REJECT' ? 'Rejecting...' : 'Reject User'}
                 </button>
               )}
+
+              {/* Permanent Delete Button */}
+              <div className="pt-3 border-t border-white/[0.06]">
+                <button
+                  onClick={handleDeleteUser}
+                  disabled={isDeletingUser || actionLoading !== null}
+                  className="w-full px-4 py-2.5 rounded-xl bg-red-600/15 hover:bg-red-600/25 border border-red-500/30 text-red-300 text-sm font-semibold transition-all disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2 shadow-sm"
+                >
+                  <TrashIcon className="w-4 h-4 text-red-400" />
+                  <span>{isDeletingUser ? 'Deleting from Firebase & DB...' : 'Delete User (Permanent)'}</span>
+                </button>
+                <p className="text-[10px] text-text-secondary/60 text-center mt-1.5">
+                  Permanently deletes from both Firebase Auth and the database.
+                </p>
+              </div>
             </div>
           </div>
 
