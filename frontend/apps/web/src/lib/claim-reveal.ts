@@ -483,3 +483,84 @@ export function sanitizeHeadline(rawTitle: string, primaryNiche?: string): strin
 
   return cleaned.toUpperCase()
 }
+
+export interface StructuredLeadDetails {
+  role: string
+  task: string
+  mustHave: string
+  niche: string
+  buyer: string
+}
+
+export function getStructuredLeadDetails(lead: {
+  role?: string | null
+  taskScope?: string | null
+  mustHave?: string | null
+  buyerType?: string | null
+  category?: string | null
+  niche?: string | null
+  niches?: string[] | null
+  summary?: string | null
+  detailsSummary?: string | null
+  signalContext?: string | null
+}): StructuredLeadDetails {
+  const intel = lead.buyerType || ''
+
+  // 1. Role: Target role or ideal candidate
+  let role =
+    extractSection(intel, 'Ideal candidate') ||
+    extractSection(intel, 'One-Liner') ||
+    lead.role ||
+    ''
+  if (!role || role.toLowerCase() === 'general' || role.length < 5) {
+    role = extractSection(intel, 'One-Liner') || lead.summary || ''
+  }
+  role = cleanLeadSummary(role).replace(/^Target candidate:?/i, '').replace(/^One-Liner:?/i, '').trim()
+
+  // 2. Task: Platform development, setup, scope of work
+  let task =
+    extractSection(intel, 'Core scope') ||
+    lead.taskScope ||
+    lead.summary ||
+    ''
+  task = cleanLeadSummary(task).replace(/^Core scope:?/i, '').replace(/^Scope:?/i, '').trim()
+
+  // 3. Must Have: Specific experience, tech stack, skills
+  let mustHave =
+    extractSection(intel, 'Requirements') ||
+    extractSection(intel, 'What They Actually Want') ||
+    lead.mustHave ||
+    ''
+  mustHave = cleanLeadSummary(mustHave).replace(/^\*+\s*/, '').replace(/^Requirements:?/i, '').trim()
+
+  // 4. Niche: Niche tags, platforms, categories
+  let niche =
+    lead.niches && lead.niches.length > 0
+      ? lead.niches.slice(0, 4).join(', ')
+      : lead.niche || lead.category || extractSection(intel, 'Badges') || 'General'
+  niche = cleanLeadSummary(niche).replace(/^Niche:?/i, '').trim()
+
+  // 5. Buyer: Founder/client description
+  let buyer = extractSection(intel, 'Target buyer') || ''
+  if (!buyer) {
+    const context = extractSection(intel, 'Context You Might Miss')
+    if (context) {
+      buyer = context.split('\n')[0].replace(/^\*+\s*/, '').trim()
+    }
+  }
+  if (!buyer && lead.buyerType && lead.buyerType.length < 200 && !lead.buyerType.includes('#')) {
+    buyer = lead.buyerType
+  }
+  if (!buyer) {
+    buyer = 'Client looking for specialized expertise for immediate project requirements'
+  }
+  buyer = cleanLeadSummary(buyer).replace(/^Target buyer:?/i, '').replace(/^Buyer:?/i, '').trim()
+
+  return {
+    role: role || 'Freelancer / Agency for project execution',
+    task: task || 'Project delivery, platform setup, and implementation',
+    mustHave: mustHave || 'Relevant industry experience, proven execution, portfolio',
+    niche: niche || 'General',
+    buyer: buyer || 'Verified client looking for specialized service provider',
+  }
+}

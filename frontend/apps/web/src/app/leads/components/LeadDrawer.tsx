@@ -18,7 +18,12 @@ import { Modal, Button } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
 import { getFirebaseToken } from '@/lib/firebase'
 
-import { sanitizePublicText, parseIntelSections, type IntelSection } from '@/lib/claim-reveal'
+import {
+  sanitizePublicText,
+  parseIntelSections,
+  getStructuredLeadDetails,
+  type IntelSection,
+} from '@/lib/claim-reveal'
 import { triggerUnlockConfetti } from '@/lib/confetti'
 import { NicheBadge } from '@/components/ui/NicheBadge'
 
@@ -42,6 +47,7 @@ export default function LeadDrawer({
   // The full AI intel blob lives in buyerType — parse it into labeled sections
   // so Deep Intel shows every section (Verdict, Context, etc.), not just 5 hard-coded ones.
   const parsedIntel = useMemo(() => parseIntelSections(lead.buyerType || ''), [lead.buyerType])
+  const structuredDetails = useMemo(() => getStructuredLeadDetails(lead), [lead])
 
   // Sections already shown in the left column (Lead summary / card copy) — don't repeat them.
   const deepIntelSections = useMemo(
@@ -470,25 +476,9 @@ export default function LeadDrawer({
             </div>
 
             <div className="relative flex min-h-[240px] max-h-[min(58vh,520px)] flex-col overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.025] lg:sticky lg:top-0">
-              {!lead.isRevealed && (
-                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-2xl border border-white/[0.06] bg-surface-container-low/70 backdrop-blur-[7px]">
-                  <div className="grid h-11 w-11 place-items-center rounded-full border border-primary/30 bg-primary/10 mb-2.5">
-                    <LockClosedIcon className="w-5 h-5 text-primary" />
-                  </div>
-                  <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-white">
-                    Intel locked
-                  </p>
-                  <p className="mt-1 max-w-[200px] text-center text-[11px] text-text-secondary">
-                    Reveal contact to unlock buyer, scope & requirements
-                  </p>
-                </div>
-              )}
-
               <div
-                className={`min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 scrollbar-hide ${
-                  !lead.isRevealed ? 'opacity-30 blur-[2.5px] select-none pointer-events-none' : ''
-                }`}
-                style={{ WebkitOverflowScrolling: 'touch', userSelect: !lead.isRevealed ? 'none' : 'auto' }}
+                className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 scrollbar-hide"
+                style={{ WebkitOverflowScrolling: 'touch' }}
               >
                 {lead.isRevealed ? (
                   <div className="grid grid-cols-1 gap-4">
@@ -503,16 +493,51 @@ export default function LeadDrawer({
                     )}
                   </div>
                 ) : (
-                  <div
-                    className="grid grid-cols-1 gap-4 select-none pointer-events-none"
-                    style={{ userSelect: 'none', WebkitUserSelect: 'none' }}
-                    aria-hidden="true"
-                  >
-                    <IntelBlock label="Target buyer" value="Enterprise decision maker actively looking for specialized services." />
-                    <IntelBlock label="Ideal candidate" value="Expert partner with proven track record in modern delivery." />
-                    <IntelBlock label="Core scope" value="Detailed project deliverables, technical execution scope, and timelines." />
-                    <IntelBlock label="Requirements" value="Specific technical criteria, deliverables, and turnaround requirements." />
-                    <IntelBlock label="Bonus points" value="Actionable strategic tips to win this client proposal." />
+                  <div className="grid grid-cols-1 gap-4">
+                    <div className="min-w-0">
+                      <span className="mb-1 block font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-amber-400">
+                        Role
+                      </span>
+                      <span className="block break-words text-[13px] font-medium leading-relaxed text-text-primary">
+                        {structuredDetails.role}
+                      </span>
+                    </div>
+
+                    <div className="min-w-0">
+                      <span className="mb-1 block font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-amber-400">
+                        Task
+                      </span>
+                      <span className="block break-words text-[13px] font-medium leading-relaxed text-text-primary">
+                        {structuredDetails.task}
+                      </span>
+                    </div>
+
+                    <div className="min-w-0">
+                      <span className="mb-1 block font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-amber-400">
+                        Must Have
+                      </span>
+                      <span className="block break-words text-[13px] font-medium leading-relaxed text-text-primary">
+                        {structuredDetails.mustHave}
+                      </span>
+                    </div>
+
+                    <div className="min-w-0">
+                      <span className="mb-1 block font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-amber-400">
+                        Niche
+                      </span>
+                      <span className="block break-words text-[13px] font-medium leading-relaxed text-text-primary">
+                        {structuredDetails.niche}
+                      </span>
+                    </div>
+
+                    <div className="min-w-0">
+                      <span className="mb-1 block font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-amber-400">
+                        Buyer
+                      </span>
+                      <span className="block break-words text-[13px] font-medium leading-relaxed text-text-primary">
+                        {structuredDetails.buyer}
+                      </span>
+                    </div>
                   </div>
                 )}
               </div>

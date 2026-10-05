@@ -6,7 +6,7 @@ import { Lock, Coins, Mail, Phone, Loader2 } from 'lucide-react'
 import { AppLead } from '@/types/lead'
 import { useToast } from '@/components/ui/Toast'
 import { getFirebaseToken } from '@/lib/firebase'
-import { sanitizePublicText, sanitizeHeadline } from '@/lib/claim-reveal'
+import { sanitizePublicText, sanitizeHeadline, getStructuredLeadDetails } from '@/lib/claim-reveal'
 import { triggerUnlockConfetti } from '@/lib/confetti'
 
 const themeMap = {
@@ -149,6 +149,7 @@ function PipelineLeadCard({
         : 'Verified service demand opportunity.'
 
   const quoteContent = sanitizePublicText(rawQuote)
+  const structuredDetails = getStructuredLeadDetails(lead)
 
   const handleSave = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -269,7 +270,7 @@ function PipelineLeadCard({
       onClick={onClick}
       whileHover={{ y: -3, scale: 1.01 }}
       transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-      className={`group relative text-left flex flex-col justify-between p-4 sm:p-5 rounded-[22px] overflow-hidden h-auto min-h-[240px] sm:h-[260px] sm:min-h-[260px] sm:max-h-[260px] w-full col-span-1 shadow-elevation-3 transition-all duration-300 cursor-pointer ${
+      className={`group relative text-left flex flex-col justify-between p-4 sm:p-5 rounded-[22px] overflow-hidden h-auto min-h-[260px] sm:h-[285px] sm:min-h-[285px] sm:max-h-[285px] w-full col-span-1 shadow-elevation-3 transition-all duration-300 cursor-pointer ${
         theme.cardBg
       } ${isSelected ? 'ring-1 ring-primary/60' : ''}`}
     >
@@ -307,12 +308,37 @@ function PipelineLeadCard({
           {displayHeadline}
         </p>
 
-        {/* Scaled-down Quote: fixed height container ensures 100% uniform card layout regardless of copy length */}
-        <div className="h-auto sm:h-[52px] mb-2.5 flex items-start select-none overflow-hidden shrink-0">
-          <p className={`text-[15px] sm:text-[13.5px] font-semibold tracking-tight leading-[1.4] sm:leading-[1.35] line-clamp-3 sm:line-clamp-2 ${theme.text}`}>
-            &quot;{quoteContent}&quot;
-          </p>
-        </div>
+        {/* Structured Details before unlock (Role, Task, Must Have, Niche, Buyer) */}
+        {!isRevealed ? (
+          <div className="flex flex-col gap-1 my-1.5 text-[11px] leading-tight select-none overflow-hidden">
+            <div className="grid grid-cols-[64px_1fr] gap-1.5 items-baseline">
+              <span className="font-bold text-amber-400 uppercase tracking-wider text-[9px] shrink-0">Role</span>
+              <span className={`truncate text-[10.5px] ${theme.text}`}>{structuredDetails.role}</span>
+            </div>
+            <div className="grid grid-cols-[64px_1fr] gap-1.5 items-baseline">
+              <span className="font-bold text-amber-400 uppercase tracking-wider text-[9px] shrink-0">Task</span>
+              <span className={`truncate text-[10.5px] ${theme.text}`}>{structuredDetails.task}</span>
+            </div>
+            <div className="grid grid-cols-[64px_1fr] gap-1.5 items-baseline">
+              <span className="font-bold text-amber-400 uppercase tracking-wider text-[9px] shrink-0">Must Have</span>
+              <span className={`truncate text-[10.5px] ${theme.text}`}>{structuredDetails.mustHave}</span>
+            </div>
+            <div className="grid grid-cols-[64px_1fr] gap-1.5 items-baseline">
+              <span className="font-bold text-amber-400 uppercase tracking-wider text-[9px] shrink-0">Niche</span>
+              <span className={`truncate text-[10.5px] ${theme.text}`}>{structuredDetails.niche}</span>
+            </div>
+            <div className="grid grid-cols-[64px_1fr] gap-1.5 items-baseline">
+              <span className="font-bold text-amber-400 uppercase tracking-wider text-[9px] shrink-0">Buyer</span>
+              <span className={`truncate text-[10.5px] ${theme.text}`}>{structuredDetails.buyer}</span>
+            </div>
+          </div>
+        ) : (
+          <div className="h-auto sm:h-[52px] mb-2.5 flex items-start select-none overflow-hidden shrink-0">
+            <p className={`text-[15px] sm:text-[13.5px] font-semibold tracking-tight leading-[1.4] sm:leading-[1.35] line-clamp-3 sm:line-clamp-2 ${theme.text}`}>
+              &quot;{quoteContent}&quot;
+            </p>
+          </div>
+        )}
 
         {/* Clean Tags Row without match score badge */}
         <div className="flex items-center gap-1.5 mb-2.5 shrink-0 select-none overflow-hidden flex-wrap sm:flex-nowrap h-auto sm:h-[22px]">
