@@ -49,15 +49,18 @@ export default function LeadDrawer({
   const parsedIntel = useMemo(() => parseIntelSections(lead.buyerType || ''), [lead.buyerType])
   const structuredDetails = useMemo(() => getStructuredLeadDetails(lead), [lead])
 
-  // Sections already shown in the left column (Lead summary / card copy) — don't repeat them.
+  // Deep Intel must start directly from "Context You Might Miss" (dropping summaries, one-liners, 2-line/4-line, badges)
   const deepIntelSections = useMemo(
-    () =>
-      parsedIntel.filter(
+    () => {
+      const contextIdx = parsedIntel.findIndex((s) => /context/i.test(s.label))
+      const sliceFrom = contextIdx !== -1 ? parsedIntel.slice(contextIdx) : parsedIntel
+      return sliceFrom.filter(
         (s) =>
           !/^(?:lead intelligence|one[\s-]?liner|2[\s-]?line|two[\s-]?line|4[\s-]?line|four[\s-]?line|post summary|summary|badges)$/i.test(
             s.label,
           ),
-      ),
+      )
+    },
     [parsedIntel],
   )
 
@@ -139,8 +142,8 @@ export default function LeadDrawer({
       return lines.filter(Boolean).join('\n')
     }
     const sectionLines: string[] =
-      parsedIntel.length > 0
-        ? parsedIntel.map((s) => `${s.label}: ${s.body}`)
+      deepIntelSections.length > 0
+        ? deepIntelSections.map((s) => `${s.label}: ${s.body}`)
         : [
             `Buyer: ${lead.buyerType || lead.role || '—'}`,
             `Scope: ${lead.taskScope || lead.category || '—'}`,
@@ -158,7 +161,7 @@ export default function LeadDrawer({
       `via Lead Hunter Club${lead.timestamp ? ` · ${lead.timestamp}` : ''}`,
     ]
     return lines.filter(Boolean).join('\n')
-  }, [displayTitle, detailsSummaryDisplay, lead, parsedIntel])
+  }, [displayTitle, detailsSummaryDisplay, lead, deepIntelSections])
 
   const handleCopyIntel = async () => {
     if (!lead.isRevealed) {
@@ -421,7 +424,7 @@ export default function LeadDrawer({
                   <span className="mb-0.5 block font-mono text-[9.5px] font-bold uppercase tracking-[0.16em] text-amber-400">
                     Role
                   </span>
-                  <span className="block break-words text-[12.5px] font-medium leading-snug text-text-primary line-clamp-2" title={structuredDetails.role}>
+                  <span className="block break-words text-[12px] sm:text-[12.5px] font-medium leading-snug text-text-primary" title={structuredDetails.role}>
                     {structuredDetails.role}
                   </span>
                 </div>
@@ -429,7 +432,7 @@ export default function LeadDrawer({
                   <span className="mb-0.5 block font-mono text-[9.5px] font-bold uppercase tracking-[0.16em] text-amber-400">
                     Task
                   </span>
-                  <span className="block break-words text-[12.5px] font-medium leading-snug text-text-primary line-clamp-2" title={structuredDetails.task}>
+                  <span className="block break-words text-[12px] sm:text-[12.5px] font-medium leading-snug text-text-primary" title={structuredDetails.task}>
                     {structuredDetails.task}
                   </span>
                 </div>
@@ -437,7 +440,7 @@ export default function LeadDrawer({
                   <span className="mb-0.5 block font-mono text-[9.5px] font-bold uppercase tracking-[0.16em] text-amber-400">
                     Must Have
                   </span>
-                  <span className="block break-words text-[12.5px] font-medium leading-snug text-text-primary line-clamp-2" title={structuredDetails.mustHave}>
+                  <span className="block break-words text-[12px] sm:text-[12.5px] font-medium leading-snug text-text-primary" title={structuredDetails.mustHave}>
                     {structuredDetails.mustHave}
                   </span>
                 </div>
@@ -445,7 +448,7 @@ export default function LeadDrawer({
                   <span className="mb-0.5 block font-mono text-[9.5px] font-bold uppercase tracking-[0.16em] text-amber-400">
                     Niche
                   </span>
-                  <span className="block break-words text-[12.5px] font-medium leading-snug text-text-primary line-clamp-2" title={structuredDetails.niche}>
+                  <span className="block break-words text-[12px] sm:text-[12.5px] font-medium leading-snug text-text-primary" title={structuredDetails.niche}>
                     {structuredDetails.niche}
                   </span>
                 </div>
@@ -453,7 +456,7 @@ export default function LeadDrawer({
                   <span className="mb-0.5 block font-mono text-[9.5px] font-bold uppercase tracking-[0.16em] text-amber-400">
                     Buyer
                   </span>
-                  <span className="block break-words text-[12.5px] font-medium leading-snug text-text-primary line-clamp-2" title={structuredDetails.buyer}>
+                  <span className="block break-words text-[12px] sm:text-[12.5px] font-medium leading-snug text-text-primary" title={structuredDetails.buyer}>
                     {structuredDetails.buyer}
                   </span>
                 </div>

@@ -495,14 +495,18 @@ export interface StructuredLeadDetails {
 export function stripPersonAndCompany(text: string): string {
   if (!text) return ''
   return text
+    // "Beyond/Beneath/On the surface-level request..."
+    .replace(/^(?:beyond|beneath|on)(?:\s+the|\s+a)?\s+surface(?:-level)?(?:\s+(?:request|need|ask|inquiry))?(?:,?\s*(?:for\s+[^,]+,?)?)?\s*/i, '')
+    // "John Doe, Esq. / MBA is actively seeking..."
+    .replace(/^[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2}(?:,\s*(?:Esq\.?|MBA|PhD|[A-Za-z\s]+))?\s+(?:is\s+)?(?:actively\s+)?(?:seeking|looking\s+for|hiring|needing)\s+(?:an?\s+)?/i, '')
+    // "John Doe from/at Acme is actively seeking..."
+    .replace(/^[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2}(?:\s+(?:from|at)\s+[A-Za-z0-9\s]+?)?\s+(?:is\s+)?(?:actively\s+)?(?:seeking|looking\s+for|hiring|needing)\s+(?:an?\s+)?/i, '')
     // "Company Name, a digital agency actively seeking..." -> "Seeking..."
     .replace(/^[A-Z][a-zA-Z0-9\s]+?,\s*(?:an?\s+)?[a-zA-Z0-9\s\-]+?\s+(?:actively\s+)?(?:seeking|looking\s+for|hiring|needing)\s+(?:an?\s+)?/i, '')
-    // "John Doe, an MBA, is actively seeking..."
-    .replace(/^[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2}(?:,\s*(?:an?\s+)?[A-Za-z0-9\s]+)?,\s*(?:is\s+)?(?:actively\s+)?(?:seeking|looking\s+for|hiring|needing)\s+(?:an?\s+)?/i, '')
-    // "John Doe is actively looking for..."
-    .replace(/^[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2}\s+(?:is\s+)?(?:actively\s+)?(?:seeking|looking\s+for|hiring|needing)\s+(?:an?\s+)?/i, '')
     // "Company Name is actively hiring..."
     .replace(/^[A-Z][a-zA-Z0-9\s]+?\s+is\s+(?:actively\s+)?(?:hiring|looking\s+for|seeking|needing)\s+(?:an?\s+)?/i, '')
+    // Possessive person names: "Guna Rajendran's company is likely in a growth phase..." -> "Company in a growth phase..."
+    .replace(/^[A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2}'s\s+(company|brand|startup|firm|team|business)\s+(?:is\s+)?(?:likely\s+)?(?:in\s+)?/i, 'Company in ')
     // "The client/founder/post is looking for..."
     .replace(/^(?:the\s+)?(?:client|author|user|agency|buyer|company|founder|post)\s+(?:is\s+)?(?:actively\s+)?(?:hiring|looking\s+for|seeking|needs|requires|wants)\s+(?:an?\s+)?/i, '')
     .replace(/^(?:looking\s+for|seeking|needs|requires|wants)\s+(?:an?\s+)?/i, '')
@@ -511,7 +515,11 @@ export function stripPersonAndCompany(text: string): string {
     .trim()
 }
 
-export function toConciseField(text: string, maxChars = 75): string {
+/**
+ * Returns a clean, grammatically complete sentence (no mid-sentence ellipsis truncation).
+ * Kept short and punchy so it fits comfortably in drawer/cards without vertical scroll.
+ */
+export function cleanCompleteSentence(text: string): string {
   if (!text) return ''
 
   const s = sanitizePublicText(text)
@@ -534,68 +542,76 @@ export function toConciseField(text: string, maxChars = 75): string {
     .replace(/^[-*•#\s]+/, '')
     .trim()
 
-  // Strip person and company names
+  // Strip preambles and person/company prefixes
   cleaned = stripPersonAndCompany(cleaned)
 
-  // Take first sentence
-  const sentence = cleaned.split(/(?<=[.?!])\s+/)[0] || cleaned
-  cleaned = sentence.trim()
+  // Extract first complete sentence ending in . ? or !
+  const match = cleaned.match(/^([^.?!]+[.?!])/)
+  let sentence = match ? match[1].trim() : cleaned.trim()
 
-  // Strip trailing meta / rationale clauses
-  cleaned = cleaned.replace(/,\s*(?:signaling|indicating|suggesting|which\s+(?:means|creates|allows)|creating)\s+.*$/i, '').trim()
+  // Remove meta commentary or trailing filler clauses
+  sentence = sentence
+    .replace(/,\s*(?:presenting\s+(?:an?\s+)?(?:opportunity|chance)|rather\s+than\s+just|which\s+(?:means|creates|allows)|signaling|indicating)\s+.*$/i, '.')
+    .replace(/[,;:\-\s]+$/, '')
+    .trim()
 
-  // Capitalize first letter
-  if (cleaned.length > 0) {
-    cleaned = cleaned.charAt(0).toUpperCase() + cleaned.slice(1)
+  // Ensure sentence ends cleanly with a period if not already punctuated
+  if (sentence && !/[.?!]$/.test(sentence)) {
+    sentence += '.'
   }
 
-  // Truncate cleanly at word boundary
-  if (cleaned.length > maxChars) {
-    const cut = cleaned.slice(0, maxChars)
-    const lastSpace = cut.lastIndexOf(' ')
-    cleaned = (lastSpace > 20 ? cut.slice(0, lastSpace) : cut).replace(/[,;:\-\s]+$/, '').trim() + '...'
+  // Capitalize first character
+  if (sentence.length > 0) {
+    sentence = sentence.charAt(0).toUpperCase() + sentence.slice(1)
   }
 
-  return cleaned.replace(/[,;:\-\s]+$/, '')
+  return sentence
+}
+
+export function toConciseField(text: string): string {
+  return cleanCompleteSentence(text)
 }
 
 export function extractIntelTitle(intel: string): string {
-  const match = intel.match(/#\s*(?:🔥\s*)?Lead\s+Intelligence:\s*(.+)$/m)
+  const match = intel.match(/#+\s*(?:🔥\s*)?Lead\s+Intelligence:\s*([^#\r\n]+)/i)
   return match ? match[1].trim() : ''
 }
 
 export function extractBuyerPersona(intel: string): string {
-  if (!intel) return 'Client seeking specialized execution partner'
+  if (!intel) return 'Client seeking specialized execution partner.'
 
-  // 1. Look for explicit Buyer in One-Liner ("A founder with a complex SaaS system...")
-  const oneLinerMatch = intel.match(/###\s*🧠\s*One-Liner\s*\n+([^#\n]+)/i)
-  if (oneLinerMatch) {
-    const text = oneLinerMatch[1].trim()
-    const founderMatch = text.match(/^(?:a\s+)?(founder|agency|business\s+owner|company|brand|startup)[^,.]*(?:with|seeking|looking|operating)[^,.]*/i)
-    if (founderMatch) {
-      return toConciseField(founderMatch[0], 65)
-    }
-    const agencyMatch = text.match(/([A-Za-z\s]+?(?:agency|firm|network|brand|startup))\s+is\s+(?:actively\s+)?hiring/i)
-    if (agencyMatch) {
-      return toConciseField(agencyMatch[1] + ' expanding operations', 65)
-    }
-  }
-
-  // 2. Scan Context bullets for persona
-  const contextMatch = intel.match(/##\s*🧩\s*Context You Might Miss\s*\n+([\s\S]*?)(?=\n##|$)/i)
+  // 1. Scan Context bullets for persona
+  const contextMatch = intel.match(/##\s*🧩\s*Context You Might Miss\s*\n+([\s\S]*?)(?=\n##|---|$)/i)
   if (contextMatch) {
     const lines = contextMatch[1].split('\n').map((l) => l.trim()).filter(Boolean)
     for (const line of lines) {
       const clean = line.replace(/^[-*•\s]+/, '').replace(/\*\*([^*]+)\*\*/g, '$1').trim()
-      if (/founder|agency|brand|company|startup|merchant|client/i.test(clean)) {
+      if (/founder|agency|brand|company|startup|merchant|client|business/i.test(clean)) {
         if (!/email\s+domain|geographic|location/i.test(clean)) {
-          return toConciseField(clean, 65)
+          const sentence = cleanCompleteSentence(clean)
+          if (sentence && sentence.length >= 15) {
+            return sentence
+          }
         }
       }
     }
   }
 
-  return 'Client seeking specialized execution partner'
+  // 2. Fallback to One-Liner buyer extraction
+  const oneLinerMatch = intel.match(/###\s*🧠\s*One-Liner\s*\n+([^#\n]+)/i)
+  if (oneLinerMatch) {
+    const text = oneLinerMatch[1].trim()
+    const founderMatch = text.match(/^(?:a\s+)?(founder|agency|business\s+owner|company|brand|startup)[^,.]*(?:with|seeking|looking|operating)[^,.]*/i)
+    if (founderMatch) {
+      return cleanCompleteSentence(founderMatch[0])
+    }
+    const agencyMatch = text.match(/([A-Za-z\s]+?(?:agency|firm|network|brand|startup))\s+is\s+(?:actively\s+)?hiring/i)
+    if (agencyMatch) {
+      return cleanCompleteSentence(agencyMatch[1] + ' expanding operations')
+    }
+  }
+
+  return 'Verified company in active growth phase seeking execution partner.'
 }
 
 export function getStructuredLeadDetails(lead: {
@@ -619,24 +635,24 @@ export function getStructuredLeadDetails(lead: {
     return found ? found.body : ''
   }
 
-  // 1. Role: Ideal candidate or one-liner or role (concise, max 65 chars)
+  // 1. Role: Ideal candidate or one-liner or role (clean complete sentence)
   let rawRole =
     findBody(/ideal candidate/i) ||
     findBody(/one[\s-]?liner/i) ||
     lead.role ||
     ''
-  let role = toConciseField(rawRole, 65)
+  let role = cleanCompleteSentence(rawRole)
   if (!role || role.toLowerCase() === 'general' || role.length < 5 || /^[\d\s]+followers$/i.test(role) || role === '--') {
     const fb = lead.category && lead.category.toLowerCase() !== 'general' ? lead.category : ''
-    role = fb ? `${fb} Specialist` : toConciseField(lead.summary || '', 65)
+    role = fb ? `${fb} Specialist` : cleanCompleteSentence(lead.summary || '')
   }
   if (!role) {
     role = 'Specialized Developer / Growth Partner'
   }
 
-  // 2. Task: Prefer AI intel title or Core Scope or taskScope (concise, max 70 chars)
+  // 2. Task: Prefer AI intel title or Core Scope or taskScope (clean title or complete sentence)
   let task = ''
-  if (intelTitle && intelTitle.length >= 6 && intelTitle.length <= 70) {
+  if (intelTitle && intelTitle.length >= 6 && intelTitle.length <= 80) {
     task = intelTitle
   } else {
     let rawTask =
@@ -645,24 +661,24 @@ export function getStructuredLeadDetails(lead: {
       findBody(/2[\s-]?line/i) ||
       lead.summary ||
       ''
-    task = toConciseField(rawTask, 70)
+    task = cleanCompleteSentence(rawTask)
   }
   if (!task) {
     task = 'Project delivery, system integration & execution'
   }
 
-  // 3. Must Have: What They Actually Want or Requirements (concise, max 70 chars)
+  // 3. Must Have: What They Actually Want or Requirements (clean complete sentence)
   let rawMustHave =
     findBody(/what they actually want/i) ||
     findBody(/requirements/i) ||
     lead.mustHave ||
     ''
-  let mustHave = toConciseField(rawMustHave, 70)
+  let mustHave = cleanCompleteSentence(rawMustHave)
   if (!mustHave) {
-    mustHave = 'Proven domain expertise, portfolio, and independent execution'
+    mustHave = 'Proven domain expertise, portfolio, and independent execution.'
   }
 
-  // 4. Niche: Clean badges / tags list (concise, max 45 chars)
+  // 4. Niche: Clean badges / tags list (comma-separated badges)
   const badges = extractLeadBadges(
     {
       keyword: lead.category,
@@ -673,7 +689,7 @@ export function getStructuredLeadDetails(lead: {
   )
   const niche = badges.length > 0 ? badges.slice(0, 3).join(', ') : 'Development, Growth'
 
-  // 5. Buyer: Target buyer profile (concise, max 65 chars)
+  // 5. Buyer: Target buyer profile (clean complete sentence)
   let buyer = extractBuyerPersona(intel)
 
   return {
