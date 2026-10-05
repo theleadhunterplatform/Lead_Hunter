@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin, AuthRequiredError, ForbiddenError } from '@/lib/auth'
+import { db } from '@/lib/db'
 
 export const dynamic = 'force-dynamic'
 
@@ -41,9 +42,10 @@ export async function GET(request: NextRequest) {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     }
 
-    const [statusRes, groupsRes] = await Promise.allSettled([
+    const [statusRes, groupsRes, dbSetting] = await Promise.allSettled([
       fetch(`${BASE_URL}/whatsapp/status`, { headers, cache: 'no-store' }),
       fetch(`${BASE_URL}/whatsapp/groups`, { headers, cache: 'no-store' }),
+      db.setting.findUnique({ where: { key: 'whatsapp_community_group' } }).catch(() => null),
     ])
 
     const statusJson = statusRes.status === 'fulfilled' && statusRes.value.ok
@@ -54,12 +56,20 @@ export async function GET(request: NextRequest) {
       ? await groupsRes.value.json().catch(() => null)
       : null
 
+    const dbVal = dbSetting.status === 'fulfilled' && dbSetting.value?.value
+      ? (dbSetting.value.value as { id?: string; name?: string })
+      : null
+
+    const configuredGroupId = statusJson?.data?.configuredGroupId || dbVal?.id || ''
+    const configuredGroupName = statusJson?.data?.configuredGroupName || dbVal?.name || null
+
     return NextResponse.json({
       success: true,
       data: {
         status: statusJson?.data?.status || 'disconnected',
         botNumber: statusJson?.data?.botNumber || null,
-        configuredGroupId: statusJson?.data?.configuredGroupId || '',
+        configuredGroupId,
+        configuredGroupName,
         qrDataUrl: statusJson?.data?.qrDataUrl || null,
         hasQr: !!statusJson?.data?.hasQr,
         groups: groupsJson?.data || [],
@@ -85,6 +95,64 @@ export async function POST(request: NextRequest) {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    }
+
+    // Handle Setting the target group
+    if (body.action === 'set_target') {
+      const { groupId, groupName } = body
+      if (!groupId?.trim()) {
+        return NextResponse.json({ success: false, message: 'groupId is required' }, { status: 400 })
+      }
+
+      // 1. Save in local Supabase database
+      try {
+        await db.setting.upsert({
+          where: { key: 'whatsapp_community_group' },
+          create: {
+            key: 'whatsapp_community_group',
+            value: {
+              id: groupId.trim(),
+              name: groupName?.trim() || null,
+              updatedAt: new Date().toISOString(),
+            },
+            description: 'Target WhatsApp community group for automated lead drop alerts',
+          },
+          update: {
+            value: {
+              id: groupId.trim(),
+              name: groupName?.trim() || null,
+              updatedAt: new Date().toISOString(),
+            },
+          },
+        })
+      } catch (dbErr) {
+        console.warn('[Admin WhatsApp] Failed to save target group to db.setting:', dbErr)
+      }
+
+      // 2. Notify backend server memory
+      try {
+        const beRes = await fetch(`${BASE_URL}/whatsapp/target-group`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ groupId: groupId.trim(), groupName: groupName?.trim() }),
+        })
+        const beJson = await beRes.json().catch(() => ({}))
+        if (beRes.ok) {
+          return NextResponse.json({
+            success: true,
+            message: beJson?.message || 'Target WhatsApp group updated successfully',
+            data: beJson?.data,
+          })
+        }
+      } catch (beErr) {
+        console.warn('[Admin WhatsApp] Backend notification error:', beErr)
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: `Target WhatsApp group set to "${groupName || groupId}"`,
+        data: { configuredGroupId: groupId, configuredGroupName: groupName },
+      })
     }
 
     const endpoint = body.action === 'alert'

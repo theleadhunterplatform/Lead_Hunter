@@ -6,7 +6,29 @@ import {
     sendGroupMessage,
     dispatchLeadDropAlert,
     initWhatsAppClient,
+    setTargetWhatsAppGroup,
 } from '../services/whatsapp.service';
+
+/**
+ * POST /api/whatsapp/target-group
+ * Sets and persists the target WhatsApp community group.
+ */
+export const setTargetWhatsAppGroupHandler = asyncHandler(async (req: Request, res: Response) => {
+    const { groupId, groupName } = req.body || {};
+    if (!groupId || typeof groupId !== 'string' || !groupId.trim()) {
+        return res.status(400).json({
+            success: false,
+            message: 'groupId is required',
+        });
+    }
+
+    const result = await setTargetWhatsAppGroup(groupId, groupName);
+    return res.status(200).json({
+        success: true,
+        message: `Target WhatsApp community group updated to "${result.configuredGroupName || result.configuredGroupId}"`,
+        data: result,
+    });
+});
 
 /**
  * GET /api/whatsapp/status

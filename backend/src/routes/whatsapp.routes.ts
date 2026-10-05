@@ -7,6 +7,7 @@ import {
     sendWhatsAppTestMessageHandler,
     triggerLeadDropAlertHandler,
     reconnectWhatsAppHandler,
+    setTargetWhatsAppGroupHandler,
 } from '../controllers/whatsapp.controller';
 
 const router = express.Router();
@@ -16,6 +17,7 @@ router.use(protect, requirePlatformAdmin);
 
 router.get('/status', getWhatsAppStatusHandler);
 router.get('/groups', getWhatsAppGroupsHandler);
+router.post('/target-group', setTargetWhatsAppGroupHandler);
 router.post('/test', sendWhatsAppTestMessageHandler);
 router.post('/alert', triggerLeadDropAlertHandler);
 router.post('/reconnect', reconnectWhatsAppHandler);

@@ -82,6 +82,7 @@ interface WhatsAppStatusData {
   status: 'connected' | 'connecting' | 'waiting_for_qr' | 'disconnected'
   botNumber: string | null
   configuredGroupId: string
+  configuredGroupName?: string | null
   qrDataUrl: string | null
   hasQr: boolean
   groups: Array<{ id: string; subject: string; participantsCount: number }>
@@ -158,7 +159,35 @@ export default function AdminBroadcastPage() {
   const [showQrModal, setShowQrModal] = useState(false)
   const [isSendingWaTest, setIsSendingWaTest] = useState(false)
   const [isReconnectingWa, setIsReconnectingWa] = useState(false)
+  const [isSettingTargetGroup, setIsSettingTargetGroup] = useState<string | null>(null)
   const [copiedJid, setCopiedJid] = useState<string | null>(null)
+
+  const handleSelectTargetGroup = async (groupId: string, groupName: string) => {
+    setIsSettingTargetGroup(groupId)
+    try {
+      const token = await getFirebaseToken()
+      const res = await fetch('/api/admin/whatsapp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ action: 'set_target', groupId, groupName }),
+      })
+      const json = await res.json()
+      if (res.ok && json.success) {
+        addToast({ type: 'success', message: `Target WhatsApp group set to "${groupName}"!` })
+        setWaData((prev) => (prev ? { ...prev, configuredGroupId: groupId, configuredGroupName: groupName } : null))
+        fetchWhatsAppStatus(true)
+      } else {
+        addToast({ type: 'error', message: json.message || 'Failed to update target group' })
+      }
+    } catch (err: any) {
+      addToast({ type: 'error', message: err?.message || 'Error updating target group' })
+    } finally {
+      setIsSettingTargetGroup(null)
+    }
+  }
 
   const fetchWhatsAppStatus = useCallback(async (quiet = false) => {
     if (!quiet) setWaLoading(true)
@@ -1064,19 +1093,38 @@ export default function AdminBroadcastPage() {
           {/* Configured Group Banner */}
           <div className="p-3.5 rounded-xl bg-surface-elevated/40 border border-white/[0.04] flex flex-col justify-between">
             <div>
-              <div className="flex items-center justify-between text-xs font-semibold text-white mb-1">
+              <div className="flex items-center justify-between text-xs font-semibold text-white mb-1.5">
                 <span>Target Community WhatsApp Group</span>
                 {waData?.configuredGroupId ? (
-                  <span className="flex items-center gap-1 text-[10px] text-emerald-400 font-bold">
-                    <CheckCircleIcon className="w-3 h-3" /> Configured
+                  <span className="flex items-center gap-1 text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                    <CheckCircleIcon className="w-3 h-3" /> Active & Saved
                   </span>
                 ) : (
-                  <span className="text-[10px] text-amber-400 font-bold">Not Set in .env</span>
+                  <span className="text-[10px] text-amber-400 font-bold bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                    No Target Selected
+                  </span>
                 )}
               </div>
-              <p className="text-[11px] font-mono text-text-secondary truncate">
-                {waData?.configuredGroupId || 'WHATSAPP_GROUP_ID is empty (set in backend .env)'}
-              </p>
+              {waData?.configuredGroupId ? (
+                <div className="p-2.5 rounded-lg bg-emerald-950/20 border border-emerald-500/20">
+                  <span className="text-xs font-bold text-white block truncate">
+                    {waData.configuredGroupName ||
+                      waData.groups?.find(
+                        (g) =>
+                          g.id === waData.configuredGroupId ||
+                          `${g.id}@g.us` === waData.configuredGroupId
+                      )?.subject ||
+                      'Community Group'}
+                  </span>
+                  <span className="text-[10px] font-mono text-emerald-400/80 block truncate mt-0.5">
+                    {waData.configuredGroupId}
+                  </span>
+                </div>
+              ) : (
+                <p className="text-[11px] text-text-secondary mt-1">
+                  👉 Click <strong className="text-emerald-400">"Set as Target"</strong> on any group from the list on the right to start receiving automated lead drop alerts.
+                </p>
+              )}
             </div>
             <p className="text-[10px] text-text-secondary mt-2">
               Leads qualified by the scraping engine are automatically batched and announced to this WhatsApp group.
@@ -1085,42 +1133,78 @@ export default function AdminBroadcastPage() {
 
           {/* Bot-Joined Groups */}
           <div className="p-3.5 rounded-xl bg-surface-elevated/40 border border-white/[0.04] flex flex-col justify-between">
-            <div className="flex items-center justify-between text-xs font-semibold text-white mb-1">
+            <div className="flex items-center justify-between text-xs font-semibold text-white mb-1.5">
               <span>Detected WhatsApp Groups</span>
               <span className="text-[10px] text-text-secondary">
                 {waData?.groups?.length || 0} group(s) found
               </span>
             </div>
             {waData?.groups && waData.groups.length > 0 ? (
-              <div className="space-y-1.5 max-h-24 overflow-y-auto pr-1">
-                {waData.groups.map((grp) => (
-                  <div
-                    key={grp.id}
-                    className="flex items-center justify-between p-1.5 rounded-lg bg-black/30 border border-white/[0.05] text-[11px]"
-                  >
-                    <div className="truncate pr-2">
-                      <span className="font-semibold text-white block truncate">{grp.subject}</span>
-                      <span className="font-mono text-[9px] text-text-secondary block truncate">{grp.id}</span>
-                    </div>
-                    <button
-                      onClick={() => handleCopyJid(grp.id)}
-                      title="Copy this group's JID to paste into WHATSAPP_GROUP_ID"
-                      className="px-2 py-1 rounded bg-white/10 hover:bg-white/20 text-white shrink-0 flex items-center gap-1 font-mono text-[10px] cursor-pointer"
+              <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                {waData.groups.map((grp) => {
+                  const isTarget =
+                    Boolean(waData.configuredGroupId) &&
+                    (waData.configuredGroupId === grp.id ||
+                      waData.configuredGroupId === `${grp.id}@g.us` ||
+                      grp.id.includes(waData.configuredGroupId.replace('@g.us', '')))
+                  return (
+                    <div
+                      key={grp.id}
+                      className={`flex items-center justify-between p-2 rounded-lg border text-[11px] transition-all ${
+                        isTarget
+                          ? 'bg-emerald-950/30 border-emerald-500/40 shadow-sm'
+                          : 'bg-black/30 border-white/[0.05]'
+                      }`}
                     >
-                      {copiedJid === grp.id ? (
-                        <>
-                          <ClipboardDocumentCheckIcon className="w-3 h-3 text-emerald-400" />
-                          <span className="text-emerald-400">Copied</span>
-                        </>
-                      ) : (
-                        <>
-                          <ClipboardDocumentIcon className="w-3 h-3" />
-                          <span>Copy JID</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                ))}
+                      <div className="truncate pr-2">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-semibold text-white block truncate">{grp.subject}</span>
+                          {isTarget && (
+                            <span className="px-1.5 py-0.2 rounded text-[8px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                              ACTIVE
+                            </span>
+                          )}
+                        </div>
+                        <span className="font-mono text-[9px] text-text-secondary block truncate">{grp.id}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {isTarget ? (
+                          <span className="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold flex items-center gap-1">
+                            <CheckCircleIcon className="w-3 h-3 text-emerald-400" />
+                            Target
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => handleSelectTargetGroup(grp.id, grp.subject)}
+                            disabled={isSettingTargetGroup === grp.id}
+                            title="Set this group as the destination for automated lead alerts"
+                            className="px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-[10px] flex items-center gap-1 cursor-pointer transition-all shadow-sm disabled:opacity-50"
+                          >
+                            {isSettingTargetGroup === grp.id ? (
+                              <>
+                                <ArrowPathIcon className="w-3 h-3 animate-spin" />
+                                <span>Saving...</span>
+                              </>
+                            ) : (
+                              <span>Set as Target</span>
+                            )}
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleCopyJid(grp.id)}
+                          title="Copy group ID"
+                          className="p-1 rounded bg-white/5 hover:bg-white/10 text-text-secondary hover:text-white transition-all cursor-pointer"
+                        >
+                          {copiedJid === grp.id ? (
+                            <ClipboardDocumentCheckIcon className="w-3.5 h-3.5 text-emerald-400" />
+                          ) : (
+                            <ClipboardDocumentIcon className="w-3.5 h-3.5" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             ) : (
               <p className="text-[11px] text-text-secondary mt-1">

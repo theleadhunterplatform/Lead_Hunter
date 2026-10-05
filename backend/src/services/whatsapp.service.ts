@@ -3,6 +3,7 @@ import pino from 'pino';
 import qrcodeTerminal from 'qrcode-terminal';
 import QRCode from 'qrcode';
 import config from '../config';
+import prisma from '../lib/prisma';
 
 export type WhatsAppConnectionStatus = 'disconnected' | 'waiting_qr' | 'connecting' | 'connected' | 'logged_out';
 
@@ -21,15 +22,91 @@ let cachedGroups: WhatsAppGroupItem[] = [];
 let isInitializing = false;
 let reconnectTimer: NodeJS.Timeout | null = null;
 
+// Dynamic target community group (persisted in DB, overrides .env)
+let dynamicGroupId: string | null = null;
+let dynamicGroupName: string | null = null;
+
 // Batch buffer for lead notifications
 let pendingLeadsCount = 0;
 let pendingNiches = new Set<string>();
 let batchNotificationTimer: NodeJS.Timeout | null = null;
 
 /**
+ * Loads the active target community group from the database settings table.
+ */
+export async function loadTargetWhatsAppGroupFromDb(): Promise<void> {
+    try {
+        const setting = await prisma.setting.findUnique({
+            where: { key: 'whatsapp_community_group' },
+        });
+        if (setting && setting.value && typeof setting.value === 'object') {
+            const val = setting.value as { id?: string; name?: string };
+            if (val.id) {
+                dynamicGroupId = val.id;
+                dynamicGroupName = val.name || null;
+                console.log(`ℹ️  [WhatsApp] Loaded target community group from DB: "${dynamicGroupName || dynamicGroupId}" (${dynamicGroupId})`);
+            }
+        }
+    } catch (err: any) {
+        console.warn('⚠️  [WhatsApp] Failed to load target group from DB setting:', err.message);
+    }
+}
+
+/**
+ * Sets and persists the target community group for automated lead drop alerts.
+ */
+export async function setTargetWhatsAppGroup(
+    groupId: string,
+    groupName?: string
+): Promise<{ success: boolean; configuredGroupId: string; configuredGroupName: string | null }> {
+    const cleanId = groupId.trim();
+    if (!cleanId) {
+        throw new Error('Group ID cannot be empty');
+    }
+
+    dynamicGroupId = cleanId;
+    dynamicGroupName = groupName?.trim() || null;
+
+    try {
+        await prisma.setting.upsert({
+            where: { key: 'whatsapp_community_group' },
+            create: {
+                key: 'whatsapp_community_group',
+                value: {
+                    id: cleanId,
+                    name: dynamicGroupName,
+                    updatedAt: new Date().toISOString(),
+                },
+                description: 'Target WhatsApp community group for automated lead drop alerts',
+            },
+            update: {
+                value: {
+                    id: cleanId,
+                    name: dynamicGroupName,
+                    updatedAt: new Date().toISOString(),
+                },
+                updated_at: new Date(),
+            },
+        });
+        console.log(`✅ [WhatsApp] Target community group saved to DB: "${dynamicGroupName || cleanId}" (${cleanId})`);
+    } catch (err: any) {
+        console.warn('⚠️  [WhatsApp] Failed to persist group to DB setting (active in memory):', err.message);
+    }
+
+    return {
+        success: true,
+        configuredGroupId: dynamicGroupId,
+        configuredGroupName: dynamicGroupName,
+    };
+}
+
+/**
  * Initializes the Baileys WhatsApp client using MultiFileAuthState.
  */
 export async function initWhatsAppClient(): Promise<void> {
+    if (!dynamicGroupId) {
+        await loadTargetWhatsAppGroupFromDb();
+    }
     if (!config.whatsapp.enabled) {
         console.log('ℹ️  [WhatsApp] Service is disabled via WHATSAPP_ENABLED=false');
         return;
@@ -196,11 +273,11 @@ export async function sendGroupMessage(
     text: string,
     targetGroupId?: string
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
-    const groupId = targetGroupId?.trim() || config.whatsapp.groupId?.trim();
+    const groupId = targetGroupId?.trim() || dynamicGroupId || config.whatsapp.groupId?.trim();
 
     if (!groupId) {
-        console.warn('⚠️  [WhatsApp] Cannot send message: No WHATSAPP_GROUP_ID configured.');
-        return { success: false, error: 'No WhatsApp Group ID configured' };
+        console.warn('⚠️  [WhatsApp] Cannot send message: No target group configured.');
+        return { success: false, error: 'No WhatsApp Group selected. Please select a group in Admin -> Broadcast.' };
     }
 
     if (!sock || connectionStatus !== 'connected') {
@@ -286,17 +363,24 @@ export function getWhatsAppStatus(): {
     status: WhatsAppConnectionStatus;
     enabled: boolean;
     configuredGroupId: string;
+    configuredGroupName: string | null;
     botNumber: string | null;
     hasQr: boolean;
     qrDataUrl: string | null;
     groupsCount: number;
 } {
     const cleanPhone = botJid ? botJid.split(':')[0] : null;
+    const activeGroupId = dynamicGroupId || config.whatsapp.groupId || '';
+    const matchedGroup = cachedGroups.find(
+        (g) => g.id === activeGroupId || `${g.id}@g.us` === activeGroupId
+    );
+    const activeGroupName = dynamicGroupName || matchedGroup?.subject || null;
 
     return {
         status: connectionStatus,
         enabled: config.whatsapp.enabled,
-        configuredGroupId: config.whatsapp.groupId,
+        configuredGroupId: activeGroupId,
+        configuredGroupName: activeGroupName,
         botNumber: cleanPhone,
         hasQr: !!latestQr,
         qrDataUrl: latestQrDataUrl,
