@@ -13,7 +13,7 @@ import type { ExternalPost } from '@/lib/external-api/client'
 import { oracleDb } from '@/lib/oracle-db'
 import { mapLeadPostToExternal } from '@/lib/oracle-mapper'
 import type { AppLead } from '@/types/lead'
-import { getLeadRevealCost } from '@/lib/config/coins'
+import { getLeadRevealCost, getRevealCost } from '@/lib/config/coins'
 import {
   extractNiches,
   sanitizePublicText,
@@ -194,7 +194,13 @@ function dbLeadToAppLead(
     isRevealed,
     isClaimable: true,
     hasPhone: !!phone,
-    revealCost: 1,
+    revealCost: isRevealed
+      ? null
+      : getRevealCost({
+          hasPhone: !!phone,
+          hasEmail: !!email,
+          hasProfileLink: false,
+        }),
     phone: isRevealed ? phone : null,
   }
 }
