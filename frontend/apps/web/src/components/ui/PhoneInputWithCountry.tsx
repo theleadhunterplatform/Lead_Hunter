@@ -134,18 +134,18 @@ export function PhoneInputWithCountry({
       <div className="flex items-center gap-2">
         {/* Country Picker Dropdown Button */}
         <div className="relative" ref={dropdownRef}>
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={() => setIsOpen((prev) => !prev)}
-            aria-haspopup="listbox"
-            aria-expanded={isOpen}
-            className={`h-[46px] px-3.5 flex items-center gap-2 rounded-xl bg-surface-elevated border transition-all text-sm select-none ${
-              isOpen
-                ? 'border-primary/50 ring-1 ring-primary/50 text-white'
-                : 'border-white/5 text-white/90 hover:border-white/10 hover:bg-white/[0.04]'
-            } disabled:opacity-50 disabled:cursor-not-allowed`}
-          >
+<button
+              type="button"
+              disabled={disabled}
+              onClick={() => setIsOpen((prev) => !prev)}
+              aria-haspopup="listbox"
+              aria-expanded={isOpen}
+              className={`h-11 sm:h-[46px] px-3.5 flex items-center gap-2 rounded-xl bg-surface-elevated border transition-all text-sm select-none ${
+                isOpen
+                  ? 'border-primary/50 ring-1 ring-primary/50 text-white'
+                  : 'border-white/5 text-white/90 hover:border-white/10 hover:bg-white/[0.04]'
+              } disabled:opacity-50 disabled:cursor-not-allowed`}
+            >
             <span className="text-base leading-none" role="img" aria-label={selectedCountry.name}>
               {selectedCountry.flag}
             </span>
@@ -161,7 +161,7 @@ export function PhoneInputWithCountry({
 
           {/* Dropdown Menu */}
           {isOpen && (
-            <div className="absolute top-full left-0 mt-1.5 w-72 max-w-[85vw] bg-[#161718] border border-white/10 rounded-2xl shadow-elevation-4 backdrop-blur-2xl z-50 overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150">
+            <div className="absolute top-full left-0 mt-1.5 w-full sm:w-72 max-w-[90vw] bg-[#161718] border border-white/10 rounded-2xl shadow-elevation-4 backdrop-blur-2xl z-50 overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150">
               {/* Search Box */}
               <div className="p-2 border-b border-white/[0.06] sticky top-0 bg-[#161718]/95 backdrop-blur-md z-10">
                 <div className="relative">
@@ -239,7 +239,7 @@ export function PhoneInputWithCountry({
             pattern="[0-9]*"
             maxLength={digitLimits.max}
             placeholder={selectedCountry.format || '98765 43210'}
-            className={`w-full h-[46px] bg-surface-elevated border text-white rounded-xl outline-none transition-all pl-4 pr-16 py-3 font-medium text-sm placeholder:text-text-secondary/40 ${
+            className={`w-full h-11 sm:h-[46px] bg-surface-elevated border text-white rounded-xl outline-none transition-all pl-4 pr-16 py-3 font-medium text-sm placeholder:text-text-secondary/40 ${
               error
                 ? 'border-red-500/50 focus:ring-1 focus:ring-red-500/50'
                 : 'border-white/5 focus:ring-1 focus:ring-primary/50 focus:border-primary/50'

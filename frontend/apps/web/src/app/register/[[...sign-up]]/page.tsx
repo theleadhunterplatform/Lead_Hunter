@@ -343,8 +343,8 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="min-h-screen bg-bg-main flex flex-col items-center justify-center px-4 relative overflow-hidden">
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[radial-gradient(circle_at_center,rgba(var(--rgb-primary),0.08)_0%,transparent_60%)] pointer-events-none" />
+<main className="min-h-screen bg-bg-main flex flex-col items-center justify-center px-4 relative overflow-hidden">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90vw] max-w-[400px] h-[90vw] max-h-[400px] bg-[radial-gradient(circle_at_center,rgba(var(--rgb-primary),0.08)_0%,transparent_60%)] pointer-events-none" />
 
       <motion.div
         initial={{ opacity: 0, x: -10 }}
@@ -364,7 +364,7 @@ export default function RegisterPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="relative z-10 w-full max-w-md flex flex-col items-center"
+        className="relative z-10 w-full max-w-md sm:max-w-lg flex flex-col items-center"
       >
         <div className="text-center mb-8">
           <Link href="/">
@@ -373,16 +373,16 @@ export default function RegisterPage() {
               alt="Lead Hunter Club"
               width={48}
               height={48}
-              className="w-12 h-12 rounded-xl mx-auto mb-4 shadow-[0_0_20px_rgba(var(--rgb-primary),0.15)] hover:scale-105 transition-transform duration-300"
+              className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl mx-auto mb-4 shadow-[0_0_20px_rgba(var(--rgb-primary),0.15)] hover:scale-105 transition-transform duration-300"
             />
           </Link>
-          <h1 className="text-2xl font-bold text-text-primary tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-bold text-text-primary tracking-tight">
             Create your account
           </h1>
           <p className="text-sm text-text-secondary mt-2">Join LeadHunterClub and start closing more deals</p>
         </div>
 
-        <div className="bg-surface/40 backdrop-blur-xl border border-white/[0.06] rounded-3xl shadow-elevation-4 w-full p-8">
+        <div className="bg-surface/40 backdrop-blur-xl border border-white/[0.06] rounded-3xl shadow-elevation-4 w-full p-4 sm:p-6 md:p-8">
           {referralCode && !auth.currentUser && (
             <motion.div
               initial={{ opacity: 0, scale: 0.96 }}
@@ -603,31 +603,31 @@ export default function RegisterPage() {
                 </div>
               )}
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
+                <label className="text-sm font-semibold text-text-secondary uppercase tracking-wider">
                   Full Name
                 </label>
                 <input
                   name="name"
                   type="text"
                   placeholder="Alex Morgan"
-                  className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3"
+                  className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3.5"
                   required
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
+                <label className="text-sm font-semibold text-text-secondary uppercase tracking-wider">
                   City
                 </label>
                 <input
                   name="city"
                   type="text"
                   placeholder="e.g. San Francisco or Mumbai"
-                  className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3"
+                  className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3.5"
                   required
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
+                <label className="text-sm font-semibold text-text-secondary uppercase tracking-wider">
                   Email address
                 </label>
                 <input
@@ -638,7 +638,7 @@ export default function RegisterPage() {
                   onChange={(e) => setEmailValue(e.target.value)}
                   onBlur={() => setEmailTouched(true)}
                   aria-invalid={showEmailError || undefined}
-                  className={`bg-surface-elevated border text-white rounded-xl outline-none transition-all px-4 py-3 ${
+                  className={`bg-surface-elevated border text-white rounded-xl outline-none transition-all px-4 py-3.5 ${
                     showEmailError
                       ? 'border-red-500/50 focus:ring-1 focus:ring-red-500/50'
                       : 'border-white/5 focus:ring-1 focus:ring-primary/50 focus:border-primary/50'
@@ -657,27 +657,27 @@ export default function RegisterPage() {
                 )}
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
+                <label className="text-sm font-semibold text-text-secondary uppercase tracking-wider">
                   Password
                 </label>
                 <input
                   name="password"
                   type="password"
                   placeholder="Create a password"
-                  className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3"
+                  className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3.5"
                   required
                   minLength={6}
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
+                <label className="text-sm font-semibold text-text-secondary uppercase tracking-wider">
                   Confirm Password
                 </label>
                 <input
                   name="confirm-password"
                   type="password"
                   placeholder="Confirm your password"
-                  className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3"
+                  className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3.5"
                   required
                   minLength={6}
                 />

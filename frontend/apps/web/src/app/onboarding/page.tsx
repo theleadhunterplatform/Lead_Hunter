@@ -449,13 +449,13 @@ export default function OnboardingPage() {
   if (!emailVerified) {
     return (
       <main className="min-h-dvh bg-bg-main flex items-center justify-center px-4 relative overflow-hidden">
-<div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[radial-gradient(circle_at_center,rgba(var(--rgb-accent-mint),0.08)_0%,transparent_60%)] pointer-events-none" />
+<div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90vw] max-w-[400px] h-[90vw] max-h-[400px] bg-[radial-gradient(circle_at_center,rgba(var(--rgb-accent-mint),0.08)_0%,transparent_60%)] pointer-events-none" />
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          className="metallic-card p-8 text-center"
+          className="metallic-card p-4 sm:p-6 md:p-8 text-center"
         >
           <ShieldExclamationIcon className="w-10 h-10 text-accent-mint mx-auto mb-4" />
           <h1 className="text-xl font-bold text-text-primary tracking-tight">Verify your email</h1>
@@ -630,15 +630,15 @@ export default function OnboardingPage() {
   }
 
   return (
-    <main className="min-h-dvh bg-bg-main flex flex-col items-center justify-start px-4 relative overflow-y-auto pt-12 pb-8 scrollbar-hide">
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[radial-gradient(circle_at_center,rgba(var(--rgb-primary),0.08)_0%,transparent_60%)] pointer-events-none" />
+    <main className="min-h-dvh bg-bg-main flex flex-col items-center justify-start px-4 relative overflow-y-auto pt-10 pb-6 scrollbar-hide">
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90vw] max-w-[400px] h-[90vw] max-h-[400px] bg-[radial-gradient(circle_at_center,rgba(var(--rgb-primary),0.08)_0%,transparent_60%)] pointer-events-none" />
 
       {step > 1 && (
         <motion.button
           initial={{ opacity: 0, x: -10 }}
           animate={{ opacity: 1, x: 0 }}
           onClick={() => setStep(step - 1)}
-          className="absolute top-8 left-8 z-20 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-text-secondary hover:text-white transition-colors group"
+          className="fixed top-4 left-4 sm:top-6 sm:left-6 z-20 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-text-secondary hover:text-white transition-colors group"
         >
           <ArrowLeftIcon className="w-[14px] h-[14px] group-hover:-translate-x-0.5 transition-transform" />
           Back
@@ -651,11 +651,11 @@ export default function OnboardingPage() {
         className="relative z-10 w-full max-w-lg"
       >
         {/* Progress indicator */}
-        <div className="flex items-center justify-center gap-2 mb-10">
+        <div className="flex items-center justify-center gap-2 mb-8">
           {[1, 2, 3].map((s) => (
             <div key={s} className="flex items-center gap-2">
               <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
+                className={`w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
                   s < step
                     ? 'bg-accent-mint text-black'
                     : s === step
@@ -663,11 +663,11 @@ export default function OnboardingPage() {
                       : 'bg-white/5 text-text-secondary/40'
                 }`}
               >
-                {s < step ? <CheckCircleIcon className="w-4 h-4 text-black" /> : s}
+                {s < step ? <CheckCircleIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-black" /> : s}
               </div>
               {s < 3 && (
                 <div
-                  className={`w-12 h-px transition-all duration-300 ${
+                  className={`w-8 sm:w-10 md:w-12 h-px transition-all duration-300 ${
                     s < step ? 'bg-accent-mint' : 'bg-white/5'
                   }`}
                 />
@@ -676,7 +676,7 @@ export default function OnboardingPage() {
           ))}
         </div>
 
-        <div className="metallic-card w-full p-8 md:p-10">
+        <div className="metallic-card w-full p-4 sm:p-6 md:p-8 lg:p-10">
             <AnimatePresence mode="wait">
               {step === 1 && (
                 <motion.div
@@ -686,9 +686,9 @@ export default function OnboardingPage() {
                   exit={{ opacity: 0, x: -20 }}
                   transition={{ duration: 0.3 }}
                 >
-                  <div className="text-center mb-8">
-                    <SparklesIcon className="w-8 h-8 text-primary mx-auto mb-3" />
-                    <h1 className="text-2xl font-bold text-text-primary tracking-tight">
+                  <div className="text-center mb-6 sm:mb-8">
+                    <SparklesIcon className="w-7 h-7 sm:w-8 sm:h-8 text-primary mx-auto mb-3" />
+                    <h1 className="text-xl sm:text-2xl font-bold text-text-primary tracking-tight">
                       Let&apos;s set up your profile
                     </h1>
                     <p className="text-sm text-text-secondary mt-2">
@@ -699,9 +699,9 @@ export default function OnboardingPage() {
                     </p>
                   </div>
 
-                  <div className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-3 sm:gap-4">
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider flex items-center justify-between">
+                      <label className="text-sm font-semibold text-text-secondary uppercase tracking-wider flex items-center justify-between">
                         <span>
                           LinkedIn Profile <span className="text-primary">*</span>
                         </span>
@@ -713,97 +713,97 @@ export default function OnboardingPage() {
                         value={linkedin}
                         onChange={(e) => { setLinkedin(e.target.value); setStep1Error('') }}
                         placeholder="https://linkedin.com/in/your-profile"
-                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3"
+                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3.5"
                       />
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
+                      <label className="text-sm font-semibold text-text-secondary uppercase tracking-wider">
                         Portfolio URL
                       </label>
                       <input
                         value={portfolio}
                         onChange={(e) => { setPortfolio(e.target.value); setStep1Error('') }}
                         placeholder="https://your-portfolio.com"
-                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3"
+                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3.5"
                       />
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
+                      <label className="text-sm font-semibold text-text-secondary uppercase tracking-wider">
                         Website
                       </label>
                       <input
                         value={website}
                         onChange={(e) => { setWebsite(e.target.value); setStep1Error('') }}
                         placeholder="https://your-company.com"
-                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3"
+                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3.5"
                       />
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
+                      <label className="text-sm font-semibold text-text-secondary uppercase tracking-wider">
                         Instagram
                       </label>
                       <input
                         value={instagram}
                         onChange={(e) => { setInstagram(e.target.value); setStep1Error('') }}
                         placeholder="https://instagram.com/your-handle"
-                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3"
+                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3.5"
                       />
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
+                      <label className="text-sm font-semibold text-text-secondary uppercase tracking-wider">
                         Dribbble
                       </label>
                       <input
                         value={dribbble}
                         onChange={(e) => { setDribbble(e.target.value); setStep1Error('') }}
                         placeholder="https://dribbble.com/your-handle"
-                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3"
+                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3.5"
                       />
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
+                      <label className="text-sm font-semibold text-text-secondary uppercase tracking-wider">
                         Behance
                       </label>
                       <input
                         value={behance}
                         onChange={(e) => { setBehance(e.target.value); setStep1Error('') }}
                         placeholder="https://behance.net/your-profile"
-                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3"
+                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3.5"
                       />
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
+                      <label className="text-sm font-semibold text-text-secondary uppercase tracking-wider">
                         GitHub
                       </label>
                       <input
                         value={github}
                         onChange={(e) => { setGithub(e.target.value); setStep1Error('') }}
                         placeholder="https://github.com/your-handle"
-                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3"
+                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3.5"
                       />
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
+                      <label className="text-sm font-semibold text-text-secondary uppercase tracking-wider">
                         Twitter / X
                       </label>
                       <input
                         value={twitter}
                         onChange={(e) => { setTwitter(e.target.value); setStep1Error('') }}
                         placeholder="https://twitter.com/your-handle"
-                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3"
+                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3.5"
                       />
                     </div>
 
                     <div className="border-t border-white/[0.06] pt-4">
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider flex items-center justify-between">
+                        <label className="text-sm font-semibold text-text-secondary uppercase tracking-wider flex items-center justify-between">
                           <span>
                             Phone number <span className="text-primary">*</span>
                           </span>
@@ -1121,13 +1121,13 @@ export default function OnboardingPage() {
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
+                      <label className="text-sm font-semibold text-text-secondary uppercase tracking-wider">
                         Outreach experience
                       </label>
                       <select
                         value={outreachExperience}
                         onChange={(e) => setOutreachExperience(e.target.value)}
-                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3"
+                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3.5"
                       >
                         <option value="" disabled>
                           Select your experience level
@@ -1173,9 +1173,9 @@ export default function OnboardingPage() {
                   exit={{ opacity: 0, x: -20 }}
                   transition={{ duration: 0.3 }}
                 >
-                  <div className="text-center mb-8">
-                    <SparklesIcon className="w-8 h-8 text-accent-mint mx-auto mb-3" />
-                    <h1 className="text-2xl font-bold text-text-primary tracking-tight">
+                  <div className="text-center mb-6 sm:mb-8">
+                    <SparklesIcon className="w-7 h-7 sm:w-8 sm:h-8 text-accent-mint mx-auto mb-3" />
+                    <h1 className="text-xl sm:text-2xl font-bold text-text-primary tracking-tight">
                       Almost there!
                     </h1>
                     <p className="text-sm text-text-secondary mt-2">
@@ -1189,7 +1189,7 @@ export default function OnboardingPage() {
                         <button
                           key={s}
                           onClick={() => setDiscoverySource(s)}
-                          className={`px-4 py-3 rounded-xl text-sm font-medium border transition-all duration-200 ${
+                          className={`px-4 py-3.5 sm:px-5 sm:py-3 rounded-xl text-sm sm:text-base font-medium border transition-all duration-200 min-h-[48px] flex items-center justify-center ${
                             discoverySource === s
                               ? 'bg-accent-mint/15 border-accent-mint/40 text-accent-mint font-semibold shadow-[0_0_12px_rgba(var(--rgb-accent-mint),0.12)]'
                               : 'bg-white/[0.02] border-white/[0.06] text-text-secondary hover:text-text-primary hover:bg-white/5 hover:border-white/10'
