@@ -18,20 +18,28 @@ function isPrismaMissingTable(error: unknown): boolean {
 
 export async function GET(request: NextRequest) {
   try {
-    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
-    const rl = await rateLimitByKey(`ip:${ip}`, 30, 60_000)
+    const authUser = await getAuthUser(request)
+    if (!authUser) {
+      const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+      const ipRl = await rateLimitByKey(`ip:unauth:${ip}`, 60, 60_000)
+      if (!ipRl.allowed) {
+        return NextResponse.json(
+          { code: 'RATE_LIMITED', message: 'Too many requests. Please try again later.' },
+          { status: 429 },
+        )
+      }
+      return NextResponse.json(
+        { code: 'UNAUTHORIZED', message: 'Authentication required' },
+        { status: 401 },
+      )
+    }
+
+    // Rate limit per authenticated user (120 req/min) so users sharing an IP or network never block each other
+    const rl = await rateLimitByKey(`user:${authUser.uid}:auth-me`, 120, 60_000)
     if (!rl.allowed) {
       return NextResponse.json(
         { code: 'RATE_LIMITED', message: 'Too many requests. Please try again later.' },
         { status: 429 },
-      )
-    }
-
-    const authUser = await getAuthUser(request)
-    if (!authUser) {
-      return NextResponse.json(
-        { code: 'UNAUTHORIZED', message: 'Authentication required' },
-        { status: 401 },
       )
     }
 

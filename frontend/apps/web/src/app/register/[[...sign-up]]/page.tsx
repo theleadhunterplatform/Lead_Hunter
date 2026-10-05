@@ -242,9 +242,7 @@ export default function RegisterPage() {
   }
 
   const handleSkipPhone = () => {
-    if (emailVerified) {
-      router.push('/onboarding')
-    }
+    router.push('/verify-email')
   }
 
   // ── Real-time validation (email) ──
@@ -334,7 +332,7 @@ export default function RegisterPage() {
       } catch {
         await sendEmailVerification(auth.currentUser!).catch(() => {})
       }
-      setPhoneStep('send')
+      router.push('/verify-email')
     } catch (err: unknown) {
       setError(
         err instanceof Error ? friendlyFirebaseError(err.message) : 'Failed to create account',
@@ -537,12 +535,9 @@ export default function RegisterPage() {
                   <button
                     type="button"
                     onClick={handleSkipPhone}
-                    disabled={!emailVerified}
-                    className="text-xs text-text-secondary/40 hover:text-text-secondary transition-colors text-center disabled:cursor-not-allowed disabled:opacity-50"
+                    className="text-xs text-text-secondary/60 hover:text-text-secondary transition-colors text-center"
                   >
-                    {emailVerified
-                      ? 'Skip · I’ll do this later'
-                      : 'Verify your email first to continue'}
+                    Skip · Continue to email verification
                   </button>
                 </>
               )}
@@ -580,7 +575,7 @@ export default function RegisterPage() {
                   <button
                     type="button"
                     onClick={handleVerifyOtp}
-                    disabled={phoneLoading || verificationCode.length < 6 || !emailVerified}
+                    disabled={phoneLoading || verificationCode.length < 6}
                     className="mt-2 bg-primary hover:bg-primary/90 text-black font-semibold rounded-xl active:scale-98 transition-all shadow-[0_4px_20px_rgba(var(--rgb-primary),0.25)] px-4 py-3 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {phoneLoading ? (
@@ -593,12 +588,9 @@ export default function RegisterPage() {
                   <button
                     type="button"
                     onClick={handleSkipPhone}
-                    disabled={!emailVerified}
-                    className="text-xs text-text-secondary/40 hover:text-text-secondary transition-colors text-center disabled:cursor-not-allowed disabled:opacity-50"
+                    className="text-xs text-text-secondary/60 hover:text-text-secondary transition-colors text-center"
                   >
-                    {emailVerified
-                      ? 'Skip · I’ll do this later'
-                      : 'Verify your email first to continue'}
+                    Skip · Continue to email verification
                   </button>
                 </>
               )}

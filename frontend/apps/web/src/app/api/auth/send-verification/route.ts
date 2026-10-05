@@ -10,8 +10,8 @@ export async function POST(request: NextRequest) {
   try {
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
 
-    // Rate limit by IP: max 10 requests per 10 minutes
-    const ipRl = await rateLimitByKey(`ip:send-verification:${ip}`, 10, 10 * 60_000)
+    // Rate limit by IP: max 60 requests per 10 minutes to accommodate batch onboarding / shared networks
+    const ipRl = await rateLimitByKey(`ip:send-verification:${ip}`, 60, 10 * 60_000)
     if (!ipRl.allowed) {
       return NextResponse.json(
         { code: 'RATE_LIMITED', message: 'Too many verification attempts. Please wait a few minutes.' },
