@@ -3,14 +3,14 @@
 import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
-import Link from 'next/link'
 import {
   EnvelopeIcon,
   ArrowPathIcon,
   CheckCircleIcon,
 } from '@heroicons/react/24/solid'
-import { auth, sendEmailVerification, applyActionCode } from '@/lib/firebase'
+import { auth, sendEmailVerification, applyActionCode, firebaseSignOut } from '@/lib/firebase'
 import { CustomLoader } from '@/components/ui/CustomLoader'
+import { RecoveryEmailPanel } from '@/components/auth/RecoveryEmailPanel'
 
 function VerifyEmailContent() {
   const router = useRouter()
@@ -212,16 +212,23 @@ function VerifyEmailContent() {
                   I&apos;ve verified &mdash; refresh
                 </button>
               </div>
+
+              <RecoveryEmailPanel />
             </>
           )}
 
           <div className="mt-8">
-            <Link
-              href="/login"
+            <button
+              type="button"
+              onClick={async () => {
+                await firebaseSignOut(auth).catch(() => {})
+                // Hard navigation: avoids a stale-user redirect race after sign-out.
+                window.location.assign('/login')
+              }}
               className="text-xs text-text-secondary/50 hover:text-text-secondary transition-colors"
             >
               Sign in with a different account
-            </Link>
+            </button>
           </div>
         </div>
       </motion.div>

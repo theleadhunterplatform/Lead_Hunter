@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { api } from '@/lib/api/client'
 import { normalizePhone, isValidPhoneNumber } from '@/lib/phone'
 import { PhoneInputWithCountry } from '@/components/ui/PhoneInputWithCountry'
+import { RecoveryEmailPanel } from '@/components/auth/RecoveryEmailPanel'
 import {
   extractCountryAndLocalNumber,
   findCountryByDialCode,
@@ -504,6 +505,8 @@ export default function OnboardingPage() {
               I&apos;ve verified &mdash; refresh
             </button>
           </div>
+
+          <RecoveryEmailPanel accentClass="bg-accent-mint hover:bg-accent-mint/90 text-black shadow-[0_4px_20px_rgba(var(--rgb-accent-mint),0.25)]" />
         </motion.div>
       </main>
     )

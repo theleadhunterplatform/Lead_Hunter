@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ChevronDownIcon,
@@ -11,6 +11,8 @@ import {
 } from '@heroicons/react/24/solid'
 import Link from 'next/link'
 import HeroSection from '@/app/components/HeroSection'
+import ComingSoon from '@/app/components/ComingSoon'
+import { COMING_SOON } from '@/lib/launch'
 import TokenSystemSection from '@/app/components/TokenSystemSection'
 import WhoItsForGrid from '@/app/components/WhoItsForGrid'
 import FeaturesSection from '@/app/components/FeaturesSection'
@@ -53,10 +55,29 @@ function FAQItem({ q, a }: { q: string; a: string }) {
   )
 }
 
+// Launch gate — flip COMING_SOON in src/lib/launch.ts to restore this landing page.
+// Dev-only preview: open /?preview=1 to see this landing while the gate is on.
 export default function LandingPage() {
+  const [preview, setPreview] = useState(false)
+
+  useEffect(() => {
+    if (
+      process.env.NODE_ENV === 'development' &&
+      new URLSearchParams(window.location.search).get('preview') === '1'
+    ) {
+      setPreview(true)
+    }
+  }, [])
+
+  if (COMING_SOON && !preview) return <ComingSoon />
+
   return (
-    <main className="min-h-screen bg-bg-main text-text-primary font-sans overflow-x-hidden max-w-[1280px] mx-auto px-4 sm:px-6">
+    <main className="min-h-screen bg-bg-main text-text-primary font-sans overflow-x-hidden">
       <HeroSection />
+
+      {/* Everything below the hero keeps the original 1280px frame —
+          the hero itself now bleeds full-width so its artwork snaps to the viewport edges. */}
+      <div className="mx-auto max-w-[1280px] px-4 sm:px-6">
 
       {/* Precision Beam Divider */}
       <div className="w-full h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
@@ -82,21 +103,11 @@ export default function LandingPage() {
             transition={{ duration: 0.8, delay: 0.1, ease }}
             className="font-display text-2xl sm:text-3xl md:text-[44px] font-semibold tracking-tight mb-3 leading-[1.15] max-w-2xl mx-auto"
           >
-            From Raw Signal
+            From buyer signal
             <br />
-            <span className="text-text-secondary/70">To Closed Client.</span>
+            <span className="text-text-secondary/70">to sales conversation.</span>
           </motion.h2>
 
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8, delay: 0.2, ease }}
-            className="text-base text-text-secondary font-light max-w-xl mx-auto leading-relaxed"
-          >
-            Here&apos;s exactly how Lead Hunter Club turns unindexed buyer signals into high-value
-            client conversations before competitors even know they exist.
-          </motion.p>
         </div>
 
         {/* Bento Grid */}
@@ -118,11 +129,16 @@ export default function LandingPage() {
                 </span>
 
                 <h3 className="font-display text-xl md:text-2xl font-semibold mb-3 tracking-tight text-white leading-snug">
-                  We Intercept Fresh Signals
+                  Find fresh demand
                 </h3>
 
                 <p className="text-text-secondary text-sm leading-relaxed">
-                  Our engine continuously scans niche communities, social feeds, and intent networks to capture the exact moment someone asks for help with a service you offer. These are real people, posting right now.
+                  LeadHunter continuously looks for new conversations where people are actively
+                  asking for services and solutions.
+                </p>
+
+                <p className="mt-3 text-xs text-text-secondary/60">
+                  Real people. Real needs. Happening now.
                 </p>
               </div>
 
@@ -189,12 +205,12 @@ export default function LandingPage() {
                 Step 02
               </span>
               <h3 className="font-display text-lg md:text-xl font-semibold mb-2.5 tracking-tight">
-                AI Filters Out the Noise
+                Filter the noise
               </h3>
               <p className="text-text-secondary text-sm leading-relaxed">
-                Not every signal is worth your time. Our AI automatically filters dead leads, spam,
-                low-intent posts, and irrelevant requests: only genuine, high-probability
-                opportunities make it through.
+                Not every post is worth your time. Our AI filters out irrelevant conversations,
+                spam, outdated opportunities, and low-intent signals so you can focus on prospects
+                worth pursuing.
               </p>
             </div>
           </motion.div>
@@ -256,17 +272,19 @@ export default function LandingPage() {
                 Step 03
               </span>
               <h3 className="font-display text-lg md:text-xl font-semibold mb-2.5 tracking-tight">
-                We Build Lead Intelligence
+                Understand the opportunity
               </h3>
               <p className="text-text-secondary text-sm leading-relaxed">
-                Every surviving lead gets deep-analyzed. We compile buyer context, company details,
-                urgency level, budget indicators, and the exact pain point they expressed, giving
-                you a complete intelligence brief before you even reach out.
+                Don&apos;t just see a post. See the story behind it. LeadHunter builds a concise
+                intelligence brief showing the buyer&apos;s:
+              </p>
+              <p className="mt-3 text-[11px] font-mono text-accent-purple/90 leading-relaxed">
+                Need · Pain point · Budget signals · Urgency · Context · Intent
               </p>
             </div>
           </motion.div>
 
-          {/* CARD 4: Released to the Hunters (2/3 width) */}
+          {/* CARD 4: Act while the opportunity is fresh (2/3 width) */}
           <motion.div
             initial={{ opacity: 0, x: 30 }}
             whileInView={{ opacity: 1, x: 0 }}
@@ -283,16 +301,17 @@ export default function LandingPage() {
                 </span>
 
                 <h3 className="font-display text-xl md:text-2xl font-semibold mb-3 tracking-tight text-white leading-snug">
-                  Released to the Hunters
+                  Act while the opportunity is fresh
                 </h3>
 
                 <p className="text-text-secondary text-sm leading-relaxed mb-4">
-                  Qualified, intelligence-loaded leads land directly in your dashboard, packaged and ready to act on. Reach warm buyers with complete context while the opportunity is fresh.
+                  Save the lead, reveal the available contact information, and use the buyer context
+                  to start a much more relevant conversation.
                 </p>
 
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/[0.03] border border-white/[0.06] text-[11px] text-zinc-400 font-mono w-fit">
                   <span className="w-1.5 h-1.5 rounded-full bg-orange-400" />
-                  <span>Click sleeve to unpack fresh leads</span>
+                  <span>Find the signal. Understand the buyer. Make your move.</span>
                 </div>
               </div>
 
@@ -320,7 +339,7 @@ export default function LandingPage() {
             transition={{ duration: 0.6, ease }}
           >
             <span className="text-sm font-semibold text-accent-orange mb-3 block">
-              Why Lead Hunter Club
+              Why LeadHunter
             </span>
           </motion.div>
 
@@ -331,9 +350,9 @@ export default function LandingPage() {
             transition={{ duration: 0.8, delay: 0.1, ease }}
             className="font-display text-2xl sm:text-3xl md:text-[44px] font-semibold tracking-tight mb-4 leading-[1.15] text-text-primary"
           >
-            Most lead tools chase volume.
+            Most lead tools give you contacts.
             <br />
-            <span className="text-text-secondary/70 font-light">We deliver intent.</span>
+            <span className="text-text-secondary/70 font-light">LeadHunter gives you context.</span>
           </motion.h2>
 
           <motion.p
@@ -343,8 +362,7 @@ export default function LandingPage() {
             transition={{ duration: 0.8, delay: 0.2, ease }}
             className="text-base text-text-secondary font-light leading-relaxed max-w-2xl mx-auto"
           >
-            Anyone can scrape thousands of raw contacts. But without buyer context, cold messages get ignored.
-            Lead Hunter Club turns fresh intent signals into rich dossiers that feed your choice of AI, crafting surgical outreach that lands in primary inboxes and drives real replies.
+            Thousands of contacts don&apos;t mean thousands of opportunities.
           </motion.p>
         </div>
 
@@ -357,26 +375,21 @@ export default function LandingPage() {
           className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-[900px] mx-auto mb-10"
         >
           {/* The Noise */}
-          <div className="p-4 sm:p-5 rounded-2xl bg-white/[0.02] border border-white/[0.05]">
+          <div className="p-4 sm:p-5 rounded-2xl bg-white/[0.02] border border-white/[0.05] flex flex-col">
             <div className="flex items-center justify-between mb-3">
               <span className="text-[10px] font-mono uppercase tracking-wider text-text-secondary/50 font-bold">
-                The Noise: Bulk Scraping
+                A database can tell you:
               </span>
               <span className="text-[10px] font-mono text-red-400/80 bg-red-500/10 px-2 py-0.5 rounded">
                 ~1.2% Reply Rate
               </span>
             </div>
-            <ul className="space-y-2">
-              {[
-                'Robotic, dry templates blast unverified contacts',
-                'Copy-pasted pitches lacking specific pain points',
-                'Aggressive follow-ups that land directly in spam',
-              ].map((item) => (
-                <li key={item} className="text-xs text-text-secondary/50 flex items-center gap-2.5">
-                  <span className="w-1 h-1 rounded-full bg-red-400/40 shrink-0" />
-                  <span>{item}</span>
-                </li>
-              ))}
+            {/* flex-1 centers the lone bullet against the taller sibling card */}
+            <ul className="space-y-2 flex-1 flex flex-col justify-center">
+              <li className="text-xs text-text-secondary/50 flex items-center gap-2.5">
+                <span className="w-1 h-1 rounded-full bg-red-400/40 shrink-0" />
+                <span>Who someone is.</span>
+              </li>
             </ul>
           </div>
 
@@ -384,7 +397,7 @@ export default function LandingPage() {
           <div className="p-4 sm:p-5 rounded-2xl bg-white/[0.03] border border-primary/25 shadow-[0_0_25px_rgba(255,184,0,0.08)]">
             <div className="flex items-center justify-between mb-3">
               <span className="text-[10px] font-mono uppercase tracking-wider text-primary font-bold">
-                The Signal: Lead Hunter Club
+                LeadHunter helps you understand:
               </span>
               <span className="text-[10px] font-mono text-secondary bg-secondary/10 px-2 py-0.5 rounded border border-secondary/20 font-medium">
                 ~38% Reply Rate
@@ -392,9 +405,11 @@ export default function LandingPage() {
             </div>
             <ul className="space-y-2">
               {[
-                'Intercepts verified buyers asking for help right now',
-                'Compiles deep tech stack, budget, and pain point dossier',
-                'Routes context to your AI to write surgical human outreach',
+                "Why they're looking.",
+                'What they need.',
+                'How urgent it is.',
+                'What you can offer.',
+                'What to say next.',
               ].map((item) => (
                 <li key={item} className="text-xs text-text-primary flex items-center gap-2.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
@@ -404,6 +419,19 @@ export default function LandingPage() {
             </ul>
           </div>
         </motion.div>
+
+        {/* Section closer */}
+        <motion.p
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.7, delay: 0.3, ease }}
+          className="text-center text-base sm:text-lg font-display font-medium text-text-primary mb-10 leading-relaxed"
+        >
+          Less cold outreach.
+          <br />
+          <span className="text-text-secondary/70 font-light">More relevant conversations.</span>
+        </motion.p>
 
         {/* Live Interactive Flowchart Canvas */}
         <motion.div
@@ -455,7 +483,11 @@ export default function LandingPage() {
             transition={{ duration: 0.8, delay: 0.1, ease }}
             className="font-display text-3xl sm:text-4xl md:text-[42px] font-semibold tracking-tight mb-4 leading-[1.15]"
           >
-            Acquisition Fuel.
+            Start hunting for free.
+            <br />
+            <span className="text-text-secondary/70 font-light">
+              Pay when you want to hunt harder.
+            </span>
           </motion.h2>
 
           <motion.p
@@ -465,8 +497,8 @@ export default function LandingPage() {
             transition={{ duration: 0.8, delay: 0.2, ease }}
             className="text-sm sm:text-base text-text-secondary font-light max-w-xl mx-auto leading-relaxed"
           >
-            Start free, upgrade when you&apos;re ready. Credits reveal lead identities so you can build
-            your pipeline.
+            It gives you a better starting point by helping you approach people who have already
+            shown a need.
           </motion.p>
         </div>
 
@@ -474,35 +506,37 @@ export default function LandingPage() {
         <div className="grid md:grid-cols-2 gap-6 max-w-[760px] mx-auto relative z-10">
           {[
             {
-              name: 'Free',
+              name: 'Scout Hunt',
               tokens: '50',
-              price: 'Free',
-              priceNote: 'no credit card required',
-              desc: 'Experience the platform and start closing your first high-value client.',
+              price: '₹0',
+              priceNote: '/ month',
+              desc: 'Hunt for your next opportunity, on us.',
               accent: 'purple',
               featured: false,
+              cta: 'Start Hunting Free',
               features: [
-                '50 Intelligence Credits',
-                '~5–10 Lead Reveals',
-                'Basic Lead Intelligence',
+                '50 credits every month',
+                'Basic lead intelligence',
+                '~5–10 lead reveals',
                 'No credit card required',
               ],
             },
             {
-              name: 'Freelancer',
+              name: 'Alpha Hunt',
               tokens: '1,000',
               price: '₹999',
               priceNote: 'per month',
-              desc: 'For serious operators building a consistent, high-quality client pipeline.',
+              desc: 'Everything you need to hunt at scale.',
               accent: 'purple',
               featured: true,
+              cta: 'Start Hunting',
               features: [
-                '1,000 Intelligence Credits',
-                '~100+ Lead Reveals',
-                'Full Lead Intelligence',
-                'CSV/Excel Exports',
-                'Priority Signal Access',
-                '15-Day Credit Rollover',
+                '1,000 credits every month',
+                'Full lead intelligence',
+                '100+ potential lead reveals',
+                'CSV / Excel export',
+                'Priority signal access',
+                '15-day credit rollover',
               ],
             },
           ].map((p, i) => (
@@ -593,7 +627,7 @@ export default function LandingPage() {
                       : 'bg-white/[0.04] shadow-[inset_0_1px_0_rgba(var(--rgb-white),0.06)] text-text-primary hover:bg-white/[0.07]'
                   }`}
                 >
-                  Get Started with {p.name}
+                  {p.cta}
                 </Link>
               </div>
             </motion.div>
@@ -667,13 +701,13 @@ export default function LandingPage() {
           </span>
 
           <h2 className="font-display text-2xl sm:text-3xl md:text-4xl font-semibold tracking-tight text-text-primary mb-4 leading-snug">
-            Stop Wasting Time <br />
-            Looking For Clients.
+            Stop searching for clients. <br />
+            Start finding demand.
           </h2>
 
           <p className="text-sm sm:text-base text-text-secondary font-light max-w-xl mx-auto mb-8 leading-relaxed">
-            Lead Hunter Club brings fresh opportunities directly to you, while intelligence helps you start
-            smarter conversations that actually get replies.
+            Fresh opportunities are already happening. LeadHunter helps you find them before they go
+            cold.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mb-10 font-mono text-xs text-text-secondary/70">
@@ -697,11 +731,15 @@ export default function LandingPage() {
                 href="/register"
                 className="inline-flex items-center gap-2.5 px-7 py-3 rounded-xl bg-accent-orange text-text-on-accent font-semibold text-xs sm:text-sm shadow-[0_4px_20px_rgba(var(--rgb-accent-orange),0.3)] hover:brightness-110 transition-all duration-300 group"
               >
-                Start Finding Leads
+                Start Hunting Free
                 <ArrowRightIcon className="w-4 h-4 text-current transition-transform duration-300 group-hover:translate-x-1" />
               </Link>
             </motion.div>
           </div>
+
+          <p className="mt-5 text-[11px] sm:text-xs font-mono text-text-secondary/60 tracking-wide">
+            50 free credits · No credit card required
+          </p>
 
           {/* Supporting Text from docs/PRODUCT.md */}
           <div className="mt-8 font-mono text-11 tracking-super uppercase text-text-secondary/50 flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
@@ -870,6 +908,7 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
+      </div>
     </main>
   )
 }

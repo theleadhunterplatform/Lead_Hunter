@@ -179,7 +179,7 @@ export default function TestimonialsSection() {
           transition={{ duration: 0.5, ease }}
         >
           <span className="text-sm font-semibold text-accent-orange mb-3 block">
-            What people say
+            Don&apos;t take our word for it.
           </span>
         </motion.div>
 
@@ -190,9 +190,7 @@ export default function TestimonialsSection() {
           transition={{ duration: 0.7, delay: 0.08, ease }}
           className="font-display text-2xl sm:text-3xl md:text-[38px] font-semibold tracking-tight text-text-primary leading-[1.15] mb-4 max-w-2xl mx-auto"
         >
-          Real results from real people.
-          <br />
-          <span className="text-text-secondary/60">No fluff, just outcomes.</span>
+          See what hunters are finding.
         </motion.h2>
 
         <motion.p
@@ -202,8 +200,8 @@ export default function TestimonialsSection() {
           transition={{ duration: 0.7, delay: 0.15, ease }}
           className="text-sm sm:text-base text-text-secondary/60 max-w-lg mx-auto leading-relaxed"
         >
-          Freelancers, designers, and agency owners share exactly what changed after switching to
-          LeadHunterClub.
+          Each screenshot answers one question: what did LeadHunter help this person find that
+          they couldn&apos;t find before?
         </motion.p>
       </div>
 

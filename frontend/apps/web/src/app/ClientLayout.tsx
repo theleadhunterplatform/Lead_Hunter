@@ -11,6 +11,7 @@ import { CustomLoader, type LoaderPageType } from '@/components/ui/CustomLoader'
 import { UpgradeNudgePopup, type UpgradeNudgeVariant, CommunityWinPopup, type CommunityPopupPost } from '@/components/ui'
 import { getFirebaseToken } from '@/lib/firebase'
 import { HunterCopilot } from '@/components/chat/HunterCopilot'
+import { COMING_SOON } from '@/lib/launch'
 
 
 
@@ -18,6 +19,16 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   const pathname = usePathname()
   const router = useRouter()
   const { user, loading, error, firebaseUser } = useAuth()
+
+  const [previewLanding, setPreviewLanding] = useState(false)
+  useEffect(() => {
+    if (
+      process.env.NODE_ENV === 'development' &&
+      new URLSearchParams(window.location.search).get('preview') === '1'
+    ) {
+      setPreviewLanding(true)
+    }
+  }, [])
 
   const appRoutes = ['/dashboard', '/leads', '/saved', '/analytics', '/settings', '/support', '/referrals', '/rewards', '/community']
   const adminRoutes = ['/admin']
@@ -356,7 +367,9 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
 
   return (
     <ToastProvider>
-      {(pathname === '/' || pathname === '/reviews' || pathname === '/wall-of-love') && <Navbar />}
+      {((pathname === '/' && (!COMING_SOON || previewLanding)) ||
+        pathname === '/reviews' ||
+        pathname === '/wall-of-love') && <Navbar />}
       {isAppRoute ? (
         <div className="flex h-screen bg-bg-main overflow-hidden font-sans">
           <div className="hidden md:block shrink-0">

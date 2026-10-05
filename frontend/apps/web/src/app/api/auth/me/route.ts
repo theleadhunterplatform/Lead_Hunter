@@ -4,6 +4,7 @@ import { getAuthUser } from '@/lib/auth'
 import { rateLimitByKey } from '@/lib/rate-limit'
 import { getPlanCredits } from '@/lib/config/plans'
 import { referralService } from '@/lib/services/referral'
+import { getAdminAuthInstance } from '@/lib/firebase-admin'
 
 export const dynamic = 'force-dynamic'
 
@@ -276,6 +277,71 @@ export async function PATCH(request: NextRequest) {
     console.error('[Auth Me PATCH] Error:', error)
     return NextResponse.json(
       { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to update profile' },
+      { status: 500 },
+    )
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+    const rl = await rateLimitByKey(`ip:${ip}:me-delete`, 5, 60_000)
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { code: 'RATE_LIMITED', message: 'Too many requests. Please try again later.' },
+        { status: 429 },
+      )
+    }
+
+    const authUser = await getAuthUser(request)
+    if (!authUser) {
+      return NextResponse.json(
+        { code: 'UNAUTHORIZED', message: 'Authentication required' },
+        { status: 401 },
+      )
+    }
+
+    const user = await db.user.findUnique({
+      where: { id: authUser.uid },
+      select: { id: true, emailVerified: true },
+    })
+
+    if (user?.emailVerified || (!user && authUser.emailVerified)) {
+      return NextResponse.json(
+        { code: 'FORBIDDEN', message: 'Verified accounts cannot be deleted here.' },
+        { status: 403 },
+      )
+    }
+
+    const referral = user
+      ? await db.referral.findUnique({
+          where: { referredUserId: authUser.uid },
+          select: { code: true },
+        })
+      : null
+
+    // Delete the Firebase account server-side first: the admin SDK has no
+    // "recent login" requirement (client-side delete() can hit
+    // requires-recent-login). Failure falls back to client-side delete().
+    try {
+      const adminAuth = await getAdminAuthInstance()
+      await adminAuth.deleteUser(authUser.uid)
+    } catch (delErr) {
+      console.warn('[Auth Me DELETE] Admin Firebase delete failed, client fallback:', delErr)
+    }
+
+    if (user) {
+      await db.user.delete({ where: { id: authUser.uid } })
+    }
+    return NextResponse.json({ data: { deleted: true, referralCode: referral?.code ?? null } })
+  } catch (error) {
+    const code = (error as { code?: string })?.code
+    if (code === 'P2025') {
+      return NextResponse.json({ data: { deleted: true } })
+    }
+    console.error('[Auth Me DELETE] Error:', error)
+    return NextResponse.json(
+      { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to delete account data' },
       { status: 500 },
     )
   }
