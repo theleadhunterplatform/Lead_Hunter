@@ -26,21 +26,30 @@ const DEFAULT_LIFECYCLE_TEMPLATES = [
   {
     id: 'tpl-auto-account-approved',
     name: '⚡ When User Account is Approved (Welcome Email)',
-    subject: 'Welcome to Lead Hunter Club! Your account is approved 🎉',
+    subject: 'Your application was approved. Read your initiation deck and enter the grounds.',
     category: 'automated',
     body: `Hi {{name}},
 
-Congratulations! Your Lead Hunter Club account has been officially approved. You now have full access to verified client leads with zero competition.
+Your request to join The Lead Hunter Club has officially been approved.
 
-We've credited your account with {{credits}} free credits so you can start pitching immediately.
+You didn't join to endlessly scroll, send cold pitches, or wait around wondering where the clients are. We deliberately changed the game so you can focus strictly on people who are already looking for what you sell.
 
-Log in to your member portal:
-{{appUrl}}/login
+Before you dive in, place your first bids, and start stacking up those coins, let's get you properly equipped.
 
-🔗 [Link: Join the Exclusive Community Here](https://chat.whatsapp.com/B548t8Pgb4m9QWQiAr8Xx2)
+Step 1: Learn the Ropes
+Read the Initiation Deck — Before you do anything else, flip through the attached guide. It breaks down our exact hunting approach, how we surface high-intent signals, and the framework to move from finding an opportunity to closing it.
+
 📄 [Link/Attachment: Hunters Onboarding Deck](https://drive.google.com/file/d/1jtPtUCKM5ER4nyRZ4WYO9XN9ZuCIxg80/view?usp=sharing)
 
-Welcome aboard,
+Step 2: Enter the Grounds
+This is where the action happens. Click below to bypass the velvet rope, claim your spot, and introduce yourself to the rest of the members.
+
+🔗 [Link: Join the Exclusive Community Here](https://chat.whatsapp.com/B548t8Pgb4m9QWQiAr8Xx2)
+
+Your next client is somewhere out there.
+
+Let the hunt begin,
+
 The Lead Hunter Club Team`,
   },
   {

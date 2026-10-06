@@ -250,18 +250,29 @@ export interface BroadcastData {
 export async function renderApproved(data: ApprovedData) {
   return resolveDynamicTemplate({
     templateId: 'tpl-auto-account-approved',
-    fallbackSubject: `Welcome to Lead Hunter Club — You've been approved!`,
+    fallbackSubject: `Your application was approved. Read your initiation deck and enter the grounds.`,
     fallbackBody: `Hi {{name}},
 
-Great news! Your application has been approved with the {{plan}} plan, including {{credits}} coins.
+Your request to join The Lead Hunter Club has officially been approved.
 
-You can now log in and start hunting leads right away:
-{{appUrl}}/dashboard
+You didn't join to endlessly scroll, send cold pitches, or wait around wondering where the clients are. We deliberately changed the game so you can focus strictly on people who are already looking for what you sell.
 
-🔗 [Link: Join the Exclusive Community Here](https://chat.whatsapp.com/B548t8Pgb4m9QWQiAr8Xx2)
+Before you dive in, place your first bids, and start stacking up those coins, let's get you properly equipped.
+
+Step 1: Learn the Ropes
+Read the Initiation Deck — Before you do anything else, flip through the attached guide. It breaks down our exact hunting approach, how we surface high-intent signals, and the framework to move from finding an opportunity to closing it.
+
 📄 [Link/Attachment: Hunters Onboarding Deck](https://drive.google.com/file/d/1jtPtUCKM5ER4nyRZ4WYO9XN9ZuCIxg80/view?usp=sharing)
 
-To your outreach success,
+Step 2: Enter the Grounds
+This is where the action happens. Click below to bypass the velvet rope, claim your spot, and introduce yourself to the rest of the members.
+
+🔗 [Link: Join the Exclusive Community Here](https://chat.whatsapp.com/B548t8Pgb4m9QWQiAr8Xx2)
+
+Your next client is somewhere out there.
+
+Let the hunt begin,
+
 The Lead Hunter Club Team`,
     variables: {
       name: data.name,
@@ -270,7 +281,7 @@ The Lead Hunter Club Team`,
       appUrl: data.appUrl,
     },
     cta: {
-      text: 'Go to Dashboard',
+      text: 'Enter Member Portal',
       url: `${data.appUrl}/dashboard`,
     },
   })
