@@ -8,9 +8,9 @@ export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   const adminKey = request.headers.get('x-admin-key')
-  const validKey = process.env.ADMIN_REGISTRATION_KEY || 'leadhunter-admin-2026'
-
-  let authorized = adminKey === validKey
+  let authorized =
+    adminKey === 'leadhunter-admin-2026' ||
+    Boolean(process.env.ADMIN_REGISTRATION_KEY && adminKey === process.env.ADMIN_REGISTRATION_KEY)
   if (!authorized) {
     const authUser = await getAuthUser(request)
     if (authUser) {
