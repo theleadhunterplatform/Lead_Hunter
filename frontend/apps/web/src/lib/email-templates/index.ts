@@ -62,39 +62,19 @@ export function interpolateVariables(content: string, vars: Record<string, strin
   return result
 }
 
-function formatEmailLine(line: string): string {
-  // 1. Extract and protect markdown links: [Label](url)
+function textToHtmlBody(text: string, cta?: { text: string; url: string }): string {
+  // 1. Pre-extract markdown links [Label](url) or [Label] (url) across the entire text
   const mdLinks: Array<{ label: string; url: string }> = []
-  const placeholderLine = line.replace(
-    /\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/g,
+  const preprocessedText = text.replace(
+    /\[([^\]]+)\]\s*\((https?:\/\/[^\s\)]+)\)/g,
     (_match, label, url) => {
       const idx = mdLinks.length
-      mdLinks.push({ label, url })
+      mdLinks.push({ label: label.trim(), url: url.trim() })
       return `__MD_LINK_${idx}__`
     },
   )
 
-  // 2. Escape HTML characters safely
-  let processed = escapeHtml(placeholderLine)
-
-  // 3. Convert any remaining bare URLs into clickable links
-  processed = processed.replace(
-    /(https?:\/\/[^\s<]+)/g,
-    '<a href="$1" style="color:#FFB800;text-decoration:underline" target="_blank">$1</a>',
-  )
-
-  // 4. Restore markdown links as styled golden anchor tags
-  mdLinks.forEach(({ label, url }, idx) => {
-    const token = `__MD_LINK_${idx}__`
-    const anchor = `<a href="${url}" style="color:#FFB800;font-weight:600;text-decoration:underline" target="_blank">${escapeHtml(label)}</a>`
-    processed = processed.replaceAll(token, anchor)
-  })
-
-  return processed
-}
-
-function textToHtmlBody(text: string, cta?: { text: string; url: string }): string {
-  const paragraphs = text
+  const paragraphs = preprocessedText
     .split(/\n\s*\n/)
     .map((p) => p.trim())
     .filter(Boolean)
@@ -104,18 +84,34 @@ function textToHtmlBody(text: string, cta?: { text: string; url: string }): stri
       const lines = p.split('\n').map((l) => l.trim())
       const isBulletList = lines.every((l) => l.startsWith('•') || l.startsWith('-') || l.startsWith('*'))
 
+      const formatLine = (l: string) => {
+        let processed = escapeHtml(l)
+        // Auto-link any remaining bare URLs
+        processed = processed.replace(
+          /(https?:\/\/[^\s<]+)/g,
+          '<a href="$1" style="color:#FFB800;text-decoration:underline" target="_blank">$1</a>',
+        )
+        // Restore markdown links
+        mdLinks.forEach(({ label, url }, idx) => {
+          const token = `__MD_LINK_${idx}__`
+          const anchor = `<a href="${url}" style="color:#FFB800;font-weight:600;text-decoration:underline" target="_blank">${escapeHtml(label)}</a>`
+          processed = processed.replaceAll(token, anchor)
+        })
+        return processed
+      }
+
       if (isBulletList && lines.length > 0) {
         const items = lines
           .map((l) => {
             const itemText = l.replace(/^[•\-\*]\s*/, '')
-            return `<li style="margin:4px 0">${formatEmailLine(itemText)}</li>`
+            return `<li style="margin:4px 0">${formatLine(itemText)}</li>`
           })
           .join('')
         return `<ul style="margin:16px 0;padding-left:20px;font-size:15px;color:#ccc;line-height:1.6">${items}</ul>`
       }
 
       const escaped = lines
-        .map((l) => formatEmailLine(l))
+        .map((l) => formatLine(l))
         .join('<br/>')
 
       return `<p style="margin:16px 0;font-size:15px;color:#ccc;line-height:1.6">${escaped}</p>`
@@ -262,12 +258,12 @@ Before you dive in, place your first bids, and start stacking up those coins, le
 Step 1: Learn the Ropes
 Read the Initiation Deck — Before you do anything else, flip through the attached guide. It breaks down our exact hunting approach, how we surface high-intent signals, and the framework to move from finding an opportunity to closing it.
 
-📄 [Link/Attachment: Hunters Onboarding Deck](https://drive.google.com/file/d/1jtPtUCKM5ER4nyRZ4WYO9XN9ZuCIxg80/view?usp=sharing)
+📄 [Hunters Onboarding Deck](https://drive.google.com/file/d/1jtPtUCKM5ER4nyRZ4WYO9XN9ZuCIxg80/view?usp=sharing)
 
 Step 2: Enter the Grounds
 This is where the action happens. Click below to bypass the velvet rope, claim your spot, and introduce yourself to the rest of the members.
 
-🔗 [Link: Join the Exclusive Community Here](https://chat.whatsapp.com/B548t8Pgb4m9QWQiAr8Xx2)
+🔗 [Join the Exclusive Community Here](https://chat.whatsapp.com/B548t8Pgb4m9QWQiAr8Xx2)
 
 Your next client is somewhere out there.
 
@@ -551,8 +547,14 @@ export function renderBroadcastAnnouncement(data: BroadcastData) {
       data.messageHtml.includes('<br') ||
       data.messageHtml.includes('<a'))
   ) {
-    contentHtml = interpolateVariables(data.messageHtml, vars).replace(
-      /(https?:\/\/[^\s<"']+)/g,
+    let interpolated = interpolateVariables(data.messageHtml, vars)
+    interpolated = interpolated.replace(
+      /\[([^\]]+)\]\s*\((https?:\/\/[^\s\)]+)\)/g,
+      (_match, label, url) =>
+        `<a href="${url}" style="color:#FFB800;font-weight:600;text-decoration:underline" target="_blank">${escapeHtml(label)}</a>`,
+    )
+    contentHtml = interpolated.replace(
+      /(?<!href=["'])(https?:\/\/[^\s<"']+)/g,
       (url) => `<a href="${url}" style="color:#FFB800;text-decoration:underline" target="_blank">${url}</a>`,
     )
   } else {

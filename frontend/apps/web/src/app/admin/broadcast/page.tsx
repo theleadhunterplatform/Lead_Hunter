@@ -1866,7 +1866,7 @@ export default function AdminBroadcastPage() {
                     <div className="text-xs sm:text-sm text-text-primary leading-relaxed whitespace-pre-line break-words">
                       {formattedPreviewMessage ? (
                         (() => {
-                          const mdRegex = /\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/g
+                          const mdRegex = /\[([^\]]+)\]\s*\((https?:\/\/[^\s\)]+)\)/g
                           const parts: React.ReactNode[] = []
                           let lastIndex = 0
                           let match: RegExpExecArray | null

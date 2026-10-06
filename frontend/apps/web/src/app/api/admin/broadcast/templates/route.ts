@@ -39,12 +39,12 @@ Before you dive in, place your first bids, and start stacking up those coins, le
 Step 1: Learn the Ropes
 Read the Initiation Deck — Before you do anything else, flip through the attached guide. It breaks down our exact hunting approach, how we surface high-intent signals, and the framework to move from finding an opportunity to closing it.
 
-📄 [Link/Attachment: Hunters Onboarding Deck](https://drive.google.com/file/d/1jtPtUCKM5ER4nyRZ4WYO9XN9ZuCIxg80/view?usp=sharing)
+📄 [Hunters Onboarding Deck](https://drive.google.com/file/d/1jtPtUCKM5ER4nyRZ4WYO9XN9ZuCIxg80/view?usp=sharing)
 
 Step 2: Enter the Grounds
 This is where the action happens. Click below to bypass the velvet rope, claim your spot, and introduce yourself to the rest of the members.
 
-🔗 [Link: Join the Exclusive Community Here](https://chat.whatsapp.com/B548t8Pgb4m9QWQiAr8Xx2)
+🔗 [Join the Exclusive Community Here](https://chat.whatsapp.com/B548t8Pgb4m9QWQiAr8Xx2)
 
 Your next client is somewhere out there.
 
