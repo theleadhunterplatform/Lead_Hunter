@@ -233,13 +233,22 @@ export default function AdminUsersPage() {
     setBatchResendResult(null)
     const token = await getFirebaseToken()
     try {
-      const res = await fetch('/api/admin/users/resend-all-failed', {
+      let res = await fetch('/api/admin/users/resend-all-failed', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
           'x-admin-key': 'leadhunter-admin-2026',
         },
       })
+      if (res.status === 404 || res.status === 405) {
+        res = await fetch('/api/admin/users', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'x-admin-key': 'leadhunter-admin-2026',
+          },
+        })
+      }
       const json = await res.json()
       if (json.success) {
         setBatchResendResult(`Successfully delivered to ${json.resentCount} members!`)
