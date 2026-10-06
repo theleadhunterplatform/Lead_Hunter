@@ -37,6 +37,9 @@ We've credited your account with {{credits}} free credits so you can start pitch
 Log in to your member portal:
 {{appUrl}}/login
 
+🔗 [Link: Join the Exclusive Community Here](https://chat.whatsapp.com/B548t8Pgb4m9QWQiAr8Xx2)
+📄 [Link/Attachment: Hunters Onboarding Deck](https://drive.google.com/file/d/1jtPtUCKM5ER4nyRZ4WYO9XN9ZuCIxg80/view?usp=sharing)
+
 Welcome aboard,
 The Lead Hunter Club Team`,
   },

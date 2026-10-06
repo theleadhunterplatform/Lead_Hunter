@@ -62,6 +62,37 @@ export function interpolateVariables(content: string, vars: Record<string, strin
   return result
 }
 
+function formatEmailLine(line: string): string {
+  // 1. Extract and protect markdown links: [Label](url)
+  const mdLinks: Array<{ label: string; url: string }> = []
+  const placeholderLine = line.replace(
+    /\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/g,
+    (_match, label, url) => {
+      const idx = mdLinks.length
+      mdLinks.push({ label, url })
+      return `__MD_LINK_${idx}__`
+    },
+  )
+
+  // 2. Escape HTML characters safely
+  let processed = escapeHtml(placeholderLine)
+
+  // 3. Convert any remaining bare URLs into clickable links
+  processed = processed.replace(
+    /(https?:\/\/[^\s<]+)/g,
+    '<a href="$1" style="color:#FFB800;text-decoration:underline" target="_blank">$1</a>',
+  )
+
+  // 4. Restore markdown links as styled golden anchor tags
+  mdLinks.forEach(({ label, url }, idx) => {
+    const token = `__MD_LINK_${idx}__`
+    const anchor = `<a href="${url}" style="color:#FFB800;font-weight:600;text-decoration:underline" target="_blank">${escapeHtml(label)}</a>`
+    processed = processed.replaceAll(token, anchor)
+  })
+
+  return processed
+}
+
 function textToHtmlBody(text: string, cta?: { text: string; url: string }): string {
   const paragraphs = text
     .split(/\n\s*\n/)
@@ -77,19 +108,14 @@ function textToHtmlBody(text: string, cta?: { text: string; url: string }): stri
         const items = lines
           .map((l) => {
             const itemText = l.replace(/^[•\-\*]\s*/, '')
-            return `<li style="margin:4px 0">${escapeHtml(itemText)}</li>`
+            return `<li style="margin:4px 0">${formatEmailLine(itemText)}</li>`
           })
           .join('')
         return `<ul style="margin:16px 0;padding-left:20px;font-size:15px;color:#ccc;line-height:1.6">${items}</ul>`
       }
 
       const escaped = lines
-        .map((l) => {
-          return escapeHtml(l).replace(
-            /(https?:\/\/[^\s<]+)/g,
-            '<a href="$1" style="color:#FFB800;text-decoration:underline" target="_blank">$1</a>',
-          )
-        })
+        .map((l) => formatEmailLine(l))
         .join('<br/>')
 
       return `<p style="margin:16px 0;font-size:15px;color:#ccc;line-height:1.6">${escaped}</p>`
@@ -231,6 +257,9 @@ Great news! Your application has been approved with the {{plan}} plan, including
 
 You can now log in and start hunting leads right away:
 {{appUrl}}/dashboard
+
+🔗 [Link: Join the Exclusive Community Here](https://chat.whatsapp.com/B548t8Pgb4m9QWQiAr8Xx2)
+📄 [Link/Attachment: Hunters Onboarding Deck](https://drive.google.com/file/d/1jtPtUCKM5ER4nyRZ4WYO9XN9ZuCIxg80/view?usp=sharing)
 
 To your outreach success,
 The Lead Hunter Club Team`,

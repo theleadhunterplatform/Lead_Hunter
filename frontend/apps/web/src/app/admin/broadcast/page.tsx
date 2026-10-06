@@ -1762,15 +1762,60 @@ export default function AdminBroadcastPage() {
                   <div className="p-5 rounded-2xl bg-surface-container border border-white/5 space-y-4">
                     <div className="text-xs sm:text-sm text-text-primary leading-relaxed whitespace-pre-line break-words">
                       {formattedPreviewMessage ? (
-                        formattedPreviewMessage.split(/(https?:\/\/[^\s<]+)/g).map((part, i) =>
-                          part.startsWith('http') ? (
-                            <span key={i} className="text-primary underline font-medium">
-                              {part}
-                            </span>
-                          ) : (
-                            part
-                          ),
-                        )
+                        (() => {
+                          const mdRegex = /\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/g
+                          const parts: React.ReactNode[] = []
+                          let lastIndex = 0
+                          let match: RegExpExecArray | null
+
+                          while ((match = mdRegex.exec(formattedPreviewMessage)) !== null) {
+                            if (match.index > lastIndex) {
+                              const textSegment = formattedPreviewMessage.substring(lastIndex, match.index)
+                              textSegment.split(/(https?:\/\/[^\s<]+)/g).forEach((subPart, subIdx) => {
+                                if (subPart.startsWith('http')) {
+                                  parts.push(
+                                    <a key={`bare-${lastIndex}-${subIdx}`} href={subPart} target="_blank" rel="noopener noreferrer" className="text-primary underline font-medium">
+                                      {subPart}
+                                    </a>
+                                  )
+                                } else if (subPart) {
+                                  parts.push(subPart)
+                                }
+                              })
+                            }
+
+                            const [, label, url] = match
+                            parts.push(
+                              <a
+                                key={`md-${match.index}`}
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-primary underline font-semibold"
+                              >
+                                {label}
+                              </a>
+                            )
+                            lastIndex = mdRegex.lastIndex
+                          }
+
+                          if (lastIndex < formattedPreviewMessage.length) {
+                            const textSegment = formattedPreviewMessage.substring(lastIndex)
+                            textSegment.split(/(https?:\/\/[^\s<]+)/g).forEach((subPart, subIdx) => {
+                              if (subPart.startsWith('http')) {
+                                parts.push(
+                                  <a key={`bare-end-${subIdx}`} href={subPart} target="_blank" rel="noopener noreferrer" className="text-primary underline font-medium">
+                                    {subPart}
+                                  </a>
+                                )
+                              } else if (subPart) {
+                                parts.push(subPart)
+                              }
+                            })
+                          }
+
+                          return parts
+                        })()
                       ) : (
                         <span className="text-text-secondary/50 italic">
                           Type your announcement in the composer. Your formatted text, links, and line breaks
