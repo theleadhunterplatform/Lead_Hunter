@@ -249,7 +249,8 @@ export default function AdminContactsPage() {
           <p className="text-sm text-text-secondary">Try adjusting your search or filters.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
           {filteredUsers.map((u) => {
             const tagColorIndex =
               u.tags.reduce((acc, t) => acc + t.charCodeAt(0), 0) % TAG_COLORS.length
