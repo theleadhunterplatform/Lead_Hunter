@@ -80,9 +80,9 @@ function getSmtpTransporter(): Transporter | null {
       user: SMTP_USER,
       pass: SMTP_PASS,
     },
-    connectionTimeout: 10000,
-    greetingTimeout: 5000,
-    socketTimeout: 15000,
+    connectionTimeout: 25000,
+    greetingTimeout: 15000,
+    socketTimeout: 30000,
     tls: {
       rejectUnauthorized: false,
     },
@@ -95,31 +95,45 @@ async function sendViaHybridTransport(
   body: string,
   opts?: SendOptions,
 ): Promise<EmailResult> {
-  const smtp = getSmtpTransporter()
   let lastError: string | null = null
 
-  // 1. Primary Transport: Custom Domain SMTP (Nodemailer)
+  // 1. Primary Transport: Custom Domain SMTP (Nodemailer) with auto-retry on transient timeout
+  const smtp = getSmtpTransporter()
   if (smtp) {
-    try {
-      const info = await smtp.sendMail({
-        from: EMAIL_FROM,
-        to,
-        subject,
-        text: body,
-        html: opts?.html || body,
-      })
-      logDev(`Sent email via Custom SMTP to ${to}: ${info.messageId}`)
-      return { id: info.messageId || 'sent-smtp', success: true, provider: 'smtp' }
-    } catch (smtpErr) {
-      lastError = smtpErr instanceof Error ? smtpErr.message : String(smtpErr)
-      console.error('[Email Service] Custom SMTP failed:', smtpErr)
-      if (!RESEND_API_KEY) {
-        return {
-          id: 'error',
-          success: false,
-          error: `SMTP error: ${lastError}`,
-          provider: 'smtp',
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const transport = attempt === 1 ? smtp : getSmtpTransporter()
+        if (!transport) break
+
+        const info = await transport.sendMail({
+          from: EMAIL_FROM,
+          to,
+          subject,
+          text: body,
+          html: opts?.html || body,
+        })
+        logDev(`Sent email via Custom SMTP to ${to} (attempt ${attempt}): ${info.messageId}`)
+        return { id: info.messageId || 'sent-smtp', success: true, provider: 'smtp' }
+      } catch (smtpErr) {
+        lastError = smtpErr instanceof Error ? smtpErr.message : String(smtpErr)
+        console.error(`[Email Service] Custom SMTP attempt ${attempt} failed for ${to}:`, lastError)
+
+        const isTransient = /timeout|greeting|econnreset|etimedout|socket/i.test(lastError)
+        if (attempt === 1 && isTransient) {
+          logDev(`Retrying SMTP dispatch for ${to} after transient error...`)
+          await new Promise((r) => setTimeout(r, 800))
+          continue
         }
+        break
+      }
+    }
+
+    if (!RESEND_API_KEY) {
+      return {
+        id: 'error',
+        success: false,
+        error: `SMTP error: ${lastError}`,
+        provider: 'smtp',
       }
     }
   }

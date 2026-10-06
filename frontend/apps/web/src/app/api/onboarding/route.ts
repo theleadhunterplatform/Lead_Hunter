@@ -183,12 +183,14 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    emailService.sendOnboardingComplete({ name: updatedUser.name, email: updatedUser.email })
-    emailService.notifyAdmin('New Application', {
-      name: updatedUser.name,
-      email: updatedUser.email,
-      id: updatedUser.id,
-    })
+    await Promise.allSettled([
+      emailService.sendOnboardingComplete({ name: updatedUser.name, email: updatedUser.email }),
+      emailService.notifyAdmin('New Application', {
+        name: updatedUser.name,
+        email: updatedUser.email,
+        id: updatedUser.id,
+      }),
+    ])
 
     return NextResponse.json({
       data: {

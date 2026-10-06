@@ -11,6 +11,7 @@ import {
   ArrowTopRightOnSquareIcon,
   ChevronDownIcon,
   TrashIcon,
+  PaperAirplaneIcon,
 } from '@heroicons/react/24/solid'
 import { CustomLoader } from '@/components/ui/CustomLoader'
 import { PortalMenu } from '@/components/ui/PortalMenu'
@@ -83,11 +84,32 @@ export default function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([])
   const [pagination, setPagination] = useState<Pagination | null>(null)
   const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useState(searchParams.get('search') || '')
   const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || 'PENDING')
-  const [serviceFilter, setServiceFilter] = useState('')
-  const [page, setPage] = useState(1)
+  const [serviceFilter, setServiceFilter] = useState(searchParams.get('service') || '')
+  const [page, setPage] = useState(() => Math.max(1, parseInt(searchParams.get('page') || '1', 10)))
   const [actionLoading, setActionLoading] = useState<string | null>(null)
+
+  // Sync state to URL without full reload so back button / refreshes stay on the exact page
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const url = new URL(window.location.href)
+    url.searchParams.set('page', page.toString())
+    if (statusFilter !== 'ALL') url.searchParams.set('status', statusFilter)
+    else url.searchParams.delete('status')
+    if (search.trim()) url.searchParams.set('search', search.trim())
+    else url.searchParams.delete('search')
+    if (serviceFilter) url.searchParams.set('service', serviceFilter)
+    else url.searchParams.delete('service')
+    window.history.replaceState({}, '', url.toString())
+  }, [page, statusFilter, search, serviceFilter])
+
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage)
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }
 
   const fetchUsers = useCallback(async () => {
     setLoading(true)
@@ -146,6 +168,28 @@ export default function AdminUsersPage() {
       ),
     )
     setActionLoading(null)
+  }
+
+  const handleResendEmail = async (userId: string, email: string) => {
+    setActionLoading(`${userId}-RESEND`)
+    const token = await getFirebaseToken()
+    try {
+      const res = await fetch(`/api/admin/users/${userId}`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'RESEND_APPROVAL_EMAIL' }),
+      })
+      const json = await res.json()
+      if (json.success) {
+        alert(`Welcome email successfully dispatched to ${email}!`)
+      } else {
+        alert(`Failed to send email to ${email}: ${json.emailError || json.message}`)
+      }
+    } catch {
+      alert(`Network error dispatching email to ${email}`)
+    } finally {
+      setActionLoading(null)
+    }
   }
 
   const handleDeleteUser = async (userId: string, userName: string, userEmail: string) => {
@@ -290,7 +334,7 @@ export default function AdminUsersPage() {
                     >
                       <td className="px-6 py-4">
                         <Link
-                          href={`/admin/users/${u.id}`}
+                          href={`/admin/users/${u.id}?fromPage=${page}&status=${statusFilter}`}
                           className="text-sm font-medium text-text-primary hover:text-accent-mint transition-colors"
                         >
                           {u.name}
@@ -511,6 +555,16 @@ export default function AdminUsersPage() {
                                   ? 'Rejected'
                                   : u.status}
                             </span>
+                            {u.status === 'ACTIVE' && (
+                              <button
+                                onClick={() => handleResendEmail(u.id, u.email)}
+                                disabled={actionLoading === `${u.id}-RESEND`}
+                                title="Resend Welcome Approval Email"
+                                className="p-1.5 rounded-lg text-text-secondary/60 hover:text-accent-mint hover:bg-accent-mint/10 border border-transparent hover:border-accent-mint/20 transition-all cursor-pointer"
+                              >
+                                <PaperAirplaneIcon className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                             <button
                               onClick={() => handleDeleteUser(u.id, u.name, u.email)}
                               disabled={actionLoading === `${u.id}-DELETE`}
@@ -530,24 +584,71 @@ export default function AdminUsersPage() {
           </div>
 
           {pagination && pagination.totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 mt-6">
-              <button
-                onClick={() => setPage(page - 1)}
-                disabled={!pagination.hasPrev}
-                className="px-4 py-2 rounded-xl text-sm font-medium bg-white/[0.04] border border-white/[0.06] text-text-secondary hover:text-text-primary disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-              >
-                Previous
-              </button>
-              <span className="text-sm text-text-secondary px-3">
-                {pagination.page} / {pagination.totalPages}
-              </span>
-              <button
-                onClick={() => setPage(page + 1)}
-                disabled={!pagination.hasNext}
-                className="px-4 py-2 rounded-xl text-sm font-medium bg-white/[0.04] border border-white/[0.06] text-text-secondary hover:text-text-primary disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-              >
-                Next
-              </button>
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 px-2">
+              <p className="text-xs text-text-secondary">
+                Showing{' '}
+                <span className="text-text-primary font-medium">
+                  {(pagination.page - 1) * pagination.pageSize + 1}
+                </span>{' '}
+                to{' '}
+                <span className="text-text-primary font-medium">
+                  {Math.min(pagination.page * pagination.pageSize, pagination.total)}
+                </span>{' '}
+                of{' '}
+                <span className="text-text-primary font-medium">{pagination.total}</span> members
+              </p>
+
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => handlePageChange(page - 1)}
+                  disabled={!pagination.hasPrev}
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-medium bg-white/[0.04] border border-white/[0.06] text-text-secondary hover:text-text-primary hover:bg-white/[0.08] disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                >
+                  Previous
+                </button>
+
+                {/* Page number pills */}
+                {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
+                  .filter((p) => {
+                    if (pagination.totalPages <= 7) return true
+                    if (p === 1 || p === pagination.totalPages) return true
+                    return Math.abs(p - pagination.page) <= 1
+                  })
+                  .reduce<(number | string)[]>((acc, p, idx, arr) => {
+                    if (idx > 0 && typeof arr[idx - 1] === 'number' && (p as number) - (arr[idx - 1] as number) > 1) {
+                      acc.push('...')
+                    }
+                    acc.push(p)
+                    return acc
+                  }, [])
+                  .map((item, idx) =>
+                    typeof item === 'string' ? (
+                      <span key={`dots-${idx}`} className="px-2 text-xs text-text-secondary/50">
+                        ...
+                      </span>
+                    ) : (
+                      <button
+                        key={item}
+                        onClick={() => handlePageChange(item)}
+                        className={`min-w-[32px] h-8 px-2 rounded-xl text-xs font-medium border transition-all ${
+                          item === pagination.page
+                            ? 'bg-accent-mint text-surface font-semibold border-accent-mint shadow-sm'
+                            : 'bg-white/[0.03] border-white/[0.06] text-text-secondary hover:text-white hover:bg-white/[0.06]'
+                        }`}
+                      >
+                        {item}
+                      </button>
+                    ),
+                  )}
+
+                <button
+                  onClick={() => handlePageChange(page + 1)}
+                  disabled={!pagination.hasNext}
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-medium bg-white/[0.04] border border-white/[0.06] text-text-secondary hover:text-text-primary hover:bg-white/[0.08] disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                >
+                  Next
+                </button>
+              </div>
             </div>
           )}
         </>

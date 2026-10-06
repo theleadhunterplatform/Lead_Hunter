@@ -81,7 +81,37 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
           },
     }
 
-    return NextResponse.json({ data: userWithCredit })
+    const { searchParams } = new URL(request.url)
+    const status = searchParams.get('status')
+    const adjacentWhere: Record<string, unknown> = {}
+    if (status && ['PENDING', 'ACTIVE', 'REJECTED', 'SUSPENDED'].includes(status)) {
+      adjacentWhere.status = status
+    }
+
+    const [prevUser, nextUser] = await Promise.all([
+      db.user.findFirst({
+        where: {
+          ...adjacentWhere,
+          createdAt: { gt: user.createdAt },
+        },
+        orderBy: { createdAt: 'asc' },
+        select: { id: true, name: true },
+      }),
+      db.user.findFirst({
+        where: {
+          ...adjacentWhere,
+          createdAt: { lt: user.createdAt },
+        },
+        orderBy: { createdAt: 'desc' },
+        select: { id: true, name: true },
+      }),
+    ])
+
+    return NextResponse.json({
+      data: userWithCredit,
+      prevUser: prevUser || null,
+      nextUser: nextUser || null,
+    })
   } catch (error: unknown) {
     if (error instanceof ForbiddenError) {
       return NextResponse.json(
@@ -192,20 +222,22 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         },
       })
 
+      let emailResult: { success: boolean; error?: string } | null = null
+
       if (body.action === 'APPROVE' || body.action === 'ACTIVATE') {
         const initialCredits =
           body.subscriptionCredits !== undefined
             ? body.subscriptionCredits
             : (getPlan(body.plan || 'FREE')?.credits ?? 0)
-        emailService.sendApproved(
+        emailResult = await emailService.sendApproved(
           { name: user.name, email: user.email },
           body.plan || 'FREE',
           initialCredits,
         )
       } else if (body.action === 'REJECT') {
-        emailService.sendRejected({ name: user.name, email: user.email })
+        emailResult = await emailService.sendRejected({ name: user.name, email: user.email })
       } else if (body.action === 'SUSPEND') {
-        emailService.sendSuspended({ name: user.name, email: user.email })
+        emailResult = await emailService.sendSuspended({ name: user.name, email: user.email })
       }
 
       const responseData = updated
@@ -235,7 +267,36 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
           }
         : null
 
-      return NextResponse.json({ data: responseData })
+      return NextResponse.json({
+        data: responseData,
+        emailSent: emailResult ? emailResult.success : undefined,
+        emailError: emailResult ? emailResult.error : undefined,
+      })
+    }
+
+    if (body.action === 'RESEND_APPROVAL_EMAIL') {
+      const user = await db.user.findUnique({
+        where: { id: targetUserId },
+        include: { creditAccount: true },
+      })
+      if (!user) {
+        return NextResponse.json({ code: 'NOT_FOUND', message: 'User not found' }, { status: 404 })
+      }
+      const initialCredits =
+        user.creditAccount?.subscriptionBalance ?? (getPlan(user.plan || 'FREE')?.credits ?? 0)
+      const emailResult = await emailService.sendApproved(
+        { name: user.name, email: user.email },
+        user.plan || 'FREE',
+        initialCredits,
+      )
+      return NextResponse.json({
+        success: emailResult.success,
+        emailSent: emailResult.success,
+        emailError: emailResult.error || null,
+        message: emailResult.success
+          ? `Welcome approval email delivered to ${user.email}.`
+          : `Email dispatch failed: ${emailResult.error || 'Unknown error'}`,
+      })
     }
 
     if (body.action === 'RENEW_NOW') {

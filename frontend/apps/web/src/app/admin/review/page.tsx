@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { getFirebaseToken } from '@/lib/firebase'
 import Link from 'next/link'
 import {
@@ -15,6 +16,15 @@ import {
   MusicalNoteIcon,
 } from '@heroicons/react/24/solid'
 import { PortalMenu } from '@/components/ui/PortalMenu'
+
+interface Pagination {
+  page: number
+  pageSize: number
+  total: number
+  totalPages: number
+  hasNext: boolean
+  hasPrev: boolean
+}
 
 interface ReviewUser {
   id: string
@@ -46,26 +56,45 @@ const PLANS = [
 ]
 
 export default function AdminReviewPage() {
+  const searchParams = useSearchParams()
   const [users, setUsers] = useState<ReviewUser[]>([])
+  const [pagination, setPagination] = useState<Pagination | null>(null)
+  const [page, setPage] = useState(() => Math.max(1, parseInt(searchParams.get('page') || '1', 10)))
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
+
+  // Sync page to URL
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const url = new URL(window.location.href)
+    url.searchParams.set('page', page.toString())
+    window.history.replaceState({}, '', url.toString())
+  }, [page])
+
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage)
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }
 
   const fetchPending = useCallback(async () => {
     const token = await getFirebaseToken()
     if (!token) return
     setLoading(true)
     try {
-      const res = await fetch('/api/admin/users?status=PENDING&pageSize=50', {
+      const res = await fetch(`/api/admin/users?status=PENDING&page=${page}&pageSize=12`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       const json = await res.json()
       setUsers(json.data || [])
+      setPagination(json.pagination || null)
     } catch (e) {
       console.error(e)
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [page])
 
   useEffect(() => {
     fetchPending()
@@ -142,7 +171,13 @@ export default function AdminReviewPage() {
                   <div>
                     <div className="flex items-center gap-2">
                       <UserIcon className="w-4 h-4 text-accent-mint" />
-                      <h3 className="text-base font-semibold text-text-primary">{u.name}</h3>
+                      <Link
+                        href={`/admin/users/${u.id}?from=review&page=${page}&status=PENDING`}
+                        className="text-base font-semibold text-text-primary hover:text-accent-mint transition-colors"
+                        title="Click to view full application details"
+                      >
+                        {u.name}
+                      </Link>
                     </div>
                     <p className="text-sm text-text-secondary mt-0.5 ml-6">{u.email}</p>
                   </div>
@@ -245,6 +280,75 @@ export default function AdminReviewPage() {
             </div>
           ))}
         </div>
+
+          {pagination && pagination.totalPages > 1 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-8 px-2">
+              <p className="text-xs text-text-secondary">
+                Showing{' '}
+                <span className="text-text-primary font-medium">
+                  {(pagination.page - 1) * pagination.pageSize + 1}
+                </span>{' '}
+                to{' '}
+                <span className="text-text-primary font-medium">
+                  {Math.min(pagination.page * pagination.pageSize, pagination.total)}
+                </span>{' '}
+                of{' '}
+                <span className="text-text-primary font-medium">{pagination.total}</span> pending applications
+              </p>
+
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => handlePageChange(page - 1)}
+                  disabled={!pagination.hasPrev}
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-medium bg-white/[0.04] border border-white/[0.06] text-text-secondary hover:text-text-primary hover:bg-white/[0.08] disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                >
+                  Previous
+                </button>
+
+                {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
+                  .filter((p) => {
+                    if (pagination.totalPages <= 7) return true
+                    if (p === 1 || p === pagination.totalPages) return true
+                    return Math.abs(p - pagination.page) <= 1
+                  })
+                  .reduce<(number | string)[]>((acc, p, idx, arr) => {
+                    if (idx > 0 && typeof arr[idx - 1] === 'number' && (p as number) - (arr[idx - 1] as number) > 1) {
+                      acc.push('...')
+                    }
+                    acc.push(p)
+                    return acc
+                  }, [])
+                  .map((item, idx) =>
+                    typeof item === 'string' ? (
+                      <span key={`dots-${idx}`} className="px-2 text-xs text-text-secondary/50">
+                        ...
+                      </span>
+                    ) : (
+                      <button
+                        key={item}
+                        onClick={() => handlePageChange(item)}
+                        className={`min-w-[32px] h-8 px-2 rounded-xl text-xs font-medium border transition-all ${
+                          item === pagination.page
+                            ? 'bg-accent-mint text-surface font-semibold border-accent-mint shadow-sm'
+                            : 'bg-white/[0.03] border-white/[0.06] text-text-secondary hover:text-white hover:bg-white/[0.06]'
+                        }`}
+                      >
+                        {item}
+                      </button>
+                    ),
+                  )}
+
+                <button
+                  onClick={() => handlePageChange(page + 1)}
+                  disabled={!pagination.hasNext}
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-medium bg-white/[0.04] border border-white/[0.06] text-text-secondary hover:text-text-primary hover:bg-white/[0.08] disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   )

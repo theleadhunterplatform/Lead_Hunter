@@ -1,11 +1,12 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { getFirebaseToken } from '@/lib/firebase'
 import Link from 'next/link'
 import {
   ArrowLeftIcon,
+  ArrowRightIcon,
   BanknotesIcon,
   CalendarIcon,
   ChatBubbleLeftIcon,
@@ -14,6 +15,7 @@ import {
   DocumentDuplicateIcon,
   UserIcon,
   TrashIcon,
+  PaperAirplaneIcon,
 } from '@heroicons/react/24/solid'
 import { CustomLoader } from '@/components/ui/CustomLoader'
 import type { PaymentRecord } from '@/lib/payments-format'
@@ -101,7 +103,14 @@ const TABS = [
 export default function AdminUserDetailPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const fromPage = searchParams.get('fromPage') || searchParams.get('page') || '1'
+  const statusParam = searchParams.get('status') || ''
+  const fromReview = searchParams.get('from') === 'review'
+
   const [user, setUser] = useState<UserDetail | null>(null)
+  const [prevUser, setPrevUser] = useState<{ id: string; name: string } | null>(null)
+  const [nextUser, setNextUser] = useState<{ id: string; name: string } | null>(null)
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [bonusCreditInput, setBonusCreditInput] = useState('')
@@ -135,11 +144,16 @@ export default function AdminUserDetailPage() {
     const token = await getFirebaseToken()
     if (!token) return
     try {
-      const res = await fetch(`/api/admin/users/${params.id}`, {
+      const url = statusParam
+        ? `/api/admin/users/${params.id}?status=${encodeURIComponent(statusParam)}`
+        : `/api/admin/users/${params.id}`
+      const res = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
       })
       const json = await res.json()
       setUser(json.data)
+      setPrevUser(json.prevUser || null)
+      setNextUser(json.nextUser || null)
       setBonusCreditInput('')
       if (json.data?.creditAccount?.renewalDate) {
         setEditRenewalDate(json.data.creditAccount.renewalDate.split('T')[0])
@@ -152,7 +166,7 @@ export default function AdminUserDetailPage() {
     } finally {
       setLoading(false)
     }
-  }, [params.id])
+  }, [params.id, statusParam])
 
   const fetchAuditLogs = useCallback(async () => {
     const token = await getFirebaseToken()
@@ -251,6 +265,32 @@ export default function AdminUserDetailPage() {
       )
     }
     setActionLoading(null)
+  }
+
+  const [resendStatus, setResendStatus] = useState<string | null>(null)
+
+  const handleResendApprovalEmail = async () => {
+    setActionLoading('RESEND_EMAIL')
+    setResendStatus(null)
+    const token = await getFirebaseToken()
+    try {
+      const res = await fetch(`/api/admin/users/${params.id}`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'RESEND_APPROVAL_EMAIL' }),
+      })
+      const json = await res.json()
+      if (json.success) {
+        setResendStatus('Email dispatched successfully!')
+      } else {
+        setResendStatus(`Failed: ${json.emailError || json.message}`)
+      }
+    } catch {
+      setResendStatus('Failed to send')
+    } finally {
+      setActionLoading(null)
+      setTimeout(() => setResendStatus(null), 5000)
+    }
   }
 
   const [isDeletingUser, setIsDeletingUser] = useState(false)
@@ -400,17 +440,47 @@ export default function AdminUserDetailPage() {
     }
   }
 
+  const backUrl = fromReview
+    ? '/admin/review'
+    : `/admin/users?page=${fromPage}${statusParam ? `&status=${statusParam}` : ''}`
+  const backLabel = fromReview ? 'Back to Applications' : `Back to Users (Page ${fromPage})`
+
   return (
     <div className="max-w-4xl">
-      <Link
-        href="/admin/users"
-        className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-text-secondary hover:text-white transition-colors mb-6 group"
-      >
-        <ArrowLeftIcon className="w-[14px] h-[14px] group-hover:-translate-x-0.5 transition-transform" />
-        Back to Users
-      </Link>
+      <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
+        <Link
+          href={backUrl}
+          className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-text-secondary hover:text-white transition-colors group"
+        >
+          <ArrowLeftIcon className="w-[14px] h-[14px] group-hover:-translate-x-0.5 transition-transform" />
+          {backLabel}
+        </Link>
 
-      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-2">
+          {prevUser && (
+            <Link
+              href={`/admin/users/${prevUser.id}?fromPage=${fromPage}${statusParam ? `&status=${statusParam}` : ''}${fromReview ? '&from=review' : ''}`}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-xs font-medium text-text-secondary hover:text-white transition-all shadow-sm"
+              title={`Previous: ${prevUser.name}`}
+            >
+              <ArrowLeftIcon className="w-3 h-3 text-accent-mint" />
+              <span>Prev: <span className="text-text-primary font-medium">{prevUser.name}</span></span>
+            </Link>
+          )}
+          {nextUser && (
+            <Link
+              href={`/admin/users/${nextUser.id}?fromPage=${fromPage}${statusParam ? `&status=${statusParam}` : ''}${fromReview ? '&from=review' : ''}`}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-xs font-medium text-text-secondary hover:text-white transition-all shadow-sm"
+              title={`Next: ${nextUser.name}`}
+            >
+              <span>Next: <span className="text-text-primary font-medium">{nextUser.name}</span></span>
+              <ArrowRightIcon className="w-3 h-3 text-accent-mint" />
+            </Link>
+          )}
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
         <div>
           <div className="flex items-center gap-3 mb-1">
             <h1 className="text-2xl font-bold text-text-primary tracking-tight">{user.name}</h1>
@@ -422,6 +492,25 @@ export default function AdminUserDetailPage() {
           </div>
           <p className="text-sm text-text-secondary">{user.email}</p>
         </div>
+
+        {user.status === 'ACTIVE' && (
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleResendApprovalEmail}
+              disabled={actionLoading === 'RESEND_EMAIL'}
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-accent-mint/10 hover:bg-accent-mint/20 border border-accent-mint/30 text-accent-mint text-xs font-semibold transition-all disabled:opacity-50 cursor-pointer shadow-sm"
+              title="Resend the approval welcome email with Onboarding Deck and WhatsApp link"
+            >
+              <PaperAirplaneIcon className="w-3.5 h-3.5" />
+              {actionLoading === 'RESEND_EMAIL' ? 'Sending...' : 'Resend Welcome Email'}
+            </button>
+            {resendStatus && (
+              <span className={`text-xs font-medium ${resendStatus.includes('success') ? 'text-green-400' : 'text-red-400'}`}>
+                {resendStatus}
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="flex gap-1 mb-6 border-b border-white/[0.06]">
