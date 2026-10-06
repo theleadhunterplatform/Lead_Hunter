@@ -224,49 +224,9 @@ export default function AdminUsersPage() {
   const [approveDropdown, setApproveDropdown] = useState<string | null>(null)
   const approveBtnRef = useRef<HTMLButtonElement | null>(null)
 
-  const [batchResending, setBatchResending] = useState(false)
-  const [batchResendResult, setBatchResendResult] = useState<string | null>(null)
-
-  const handleBatchResendFailed = async () => {
-    if (!confirm('This will find all approved members whose welcome emails timed out and dispatch them automatically. Proceed?')) return
-    setBatchResending(true)
-    setBatchResendResult(null)
-    const token = await getFirebaseToken()
-    try {
-      let res = await fetch('/api/admin/users/resend-all-failed', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'x-admin-key': 'leadhunter-admin-2026',
-        },
-      })
-      if (res.status === 404 || res.status === 405) {
-        res = await fetch('/api/admin/users', {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'x-admin-key': 'leadhunter-admin-2026',
-          },
-        })
-      }
-      const json = await res.json()
-      if (json.success) {
-        setBatchResendResult(`Successfully delivered to ${json.resentCount} members!`)
-        fetchUsers()
-      } else {
-        setBatchResendResult(`Error: ${json.error || 'Failed'}`)
-      }
-    } catch {
-      setBatchResendResult('Network error')
-    } finally {
-      setBatchResending(false)
-      setTimeout(() => setBatchResendResult(null), 6000)
-    }
-  }
-
   return (
     <div>
-      <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
+      <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-text-primary tracking-tight">Users</h1>
           <p className="text-sm text-text-secondary mt-1">
@@ -274,23 +234,6 @@ export default function AdminUsersPage() {
               ? `${pagination.total} user${pagination.total !== 1 ? 's' : ''}`
               : 'Loading...'}
           </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <button
-            onClick={handleBatchResendFailed}
-            disabled={batchResending}
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-accent-mint/10 hover:bg-accent-mint/20 border border-accent-mint/30 text-accent-mint text-xs font-semibold transition-all disabled:opacity-50 cursor-pointer shadow-sm"
-            title="Automatically dispatch welcome emails to all approved members who missed it"
-          >
-            <PaperAirplaneIcon className="w-3.5 h-3.5" />
-            {batchResending ? 'Delivering to all failed members...' : 'Resend All Failed Welcome Emails'}
-          </button>
-          {batchResendResult && (
-            <span className="text-xs font-medium text-accent-mint">
-              {batchResendResult}
-            </span>
-          )}
         </div>
       </div>
 
