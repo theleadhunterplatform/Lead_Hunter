@@ -15,7 +15,6 @@ import {
   DocumentDuplicateIcon,
   UserIcon,
   TrashIcon,
-  PaperAirplaneIcon,
 } from '@heroicons/react/24/solid'
 import { CustomLoader } from '@/components/ui/CustomLoader'
 import type { PaymentRecord } from '@/lib/payments-format'
@@ -267,32 +266,6 @@ export default function AdminUserDetailPage() {
     setActionLoading(null)
   }
 
-  const [resendStatus, setResendStatus] = useState<string | null>(null)
-
-  const handleResendApprovalEmail = async () => {
-    setActionLoading('RESEND_EMAIL')
-    setResendStatus(null)
-    const token = await getFirebaseToken()
-    try {
-      const res = await fetch(`/api/admin/users/${params.id}`, {
-        method: 'PATCH',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'RESEND_APPROVAL_EMAIL' }),
-      })
-      const json = await res.json()
-      if (json.success) {
-        setResendStatus('Email dispatched successfully!')
-      } else {
-        setResendStatus(`Failed: ${json.emailError || json.message}`)
-      }
-    } catch {
-      setResendStatus('Failed to send')
-    } finally {
-      setActionLoading(null)
-      setTimeout(() => setResendStatus(null), 5000)
-    }
-  }
-
   const [isDeletingUser, setIsDeletingUser] = useState(false)
 
   const handleDeleteUser = async () => {
@@ -480,7 +453,7 @@ export default function AdminUserDetailPage() {
         </div>
       </div>
 
-      <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
+      <div className="flex items-center justify-between mb-6">
         <div>
           <div className="flex items-center gap-3 mb-1">
             <h1 className="text-2xl font-bold text-text-primary tracking-tight">{user.name}</h1>
@@ -492,25 +465,6 @@ export default function AdminUserDetailPage() {
           </div>
           <p className="text-sm text-text-secondary">{user.email}</p>
         </div>
-
-        {user.status === 'ACTIVE' && (
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handleResendApprovalEmail}
-              disabled={actionLoading === 'RESEND_EMAIL'}
-              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-accent-mint/10 hover:bg-accent-mint/20 border border-accent-mint/30 text-accent-mint text-xs font-semibold transition-all disabled:opacity-50 cursor-pointer shadow-sm"
-              title="Resend the approval welcome email with Onboarding Deck and WhatsApp link"
-            >
-              <PaperAirplaneIcon className="w-3.5 h-3.5" />
-              {actionLoading === 'RESEND_EMAIL' ? 'Sending...' : 'Resend Welcome Email'}
-            </button>
-            {resendStatus && (
-              <span className={`text-xs font-medium ${resendStatus.includes('success') ? 'text-green-400' : 'text-red-400'}`}>
-                {resendStatus}
-              </span>
-            )}
-          </div>
-        )}
       </div>
 
       <div className="flex gap-1 mb-6 border-b border-white/[0.06]">
