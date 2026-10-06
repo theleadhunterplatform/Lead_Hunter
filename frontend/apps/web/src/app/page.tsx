@@ -47,7 +47,7 @@ function FAQItem({ q, a }: { q: string; a: string }) {
             transition={{ duration: 0.4, ease }}
             className="overflow-hidden"
           >
-            <p className="pt-5 text-text-secondary text-lg leading-relaxed max-w-3xl">{a}</p>
+            <p className="pt-5 text-text-secondary text-lg leading-relaxed max-w-3xl whitespace-pre-line">{a}</p>
           </motion.div>
         )}
       </AnimatePresence>
@@ -384,12 +384,18 @@ export default function LandingPage() {
                 ~1.2% Reply Rate
               </span>
             </div>
-            {/* flex-1 centers the lone bullet against the taller sibling card */}
-            <ul className="space-y-2 flex-1 flex flex-col justify-center">
-              <li className="text-xs text-text-secondary/50 flex items-center gap-2.5">
-                <span className="w-1 h-1 rounded-full bg-red-400/40 shrink-0" />
-                <span>Who someone is.</span>
-              </li>
+            <ul className="space-y-2">
+              {[
+                'Random internet-scraped noise.',
+                'No-intent leads.',
+                'A list of random businesses.',
+                'Outdated, duplicate rows.',
+              ].map((item) => (
+                <li key={item} className="text-xs text-text-secondary/50 flex items-center gap-2.5">
+                  <span className="w-1 h-1 rounded-full bg-red-400/40 shrink-0" />
+                  <span>{item}</span>
+                </li>
+              ))}
             </ul>
           </div>
 
@@ -667,7 +673,12 @@ export default function LandingPage() {
         <div className="border-t border-white/[0.03]">
           <FAQItem
             q="How do credits work?"
-            a="You receive 1,000 Wolf Coins monthly with your ₹999 plan. Use coins to unlock lead details (Email = 10 coins, Phone = 12 coins, Both = 15 coins, Profile link = 5 coins). If you run out, buy top-ups starting at ₹99. Top-up coins never expire."
+            a={`You receive 1,000 Wolf Coins monthly with your ₹999 plan. Every reveal costs coins based on what the lead holds:
+1) Lead with phone no.: 12 coins
+2) Lead with email: 10 coins
+3) Phone & email: 15 coins
+4) Profile link: 5 coins
+If you run out, buy top-ups starting at ₹199. Top-up coins never expire.`}
           />
           <FAQItem
             q="What is the source of these leads?"

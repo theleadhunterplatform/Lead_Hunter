@@ -68,9 +68,9 @@ const DEFAULT_PLANS: PlanConfig[] = [
 ]
 
 const DEFAULT_REFILL_PACKS: RefillPack[] = [
-  { id: 'topup_10', tokens: 10, price: 99, label: '10 Credits' },
-  { id: 'topup_50', tokens: 50, price: 399, label: '50 Credits (Popular)' },
-  { id: 'topup_100', tokens: 100, price: 699, label: '100 Credits (Best Value)' },
+  { id: 'topup_125', tokens: 125, price: 199, label: '125 Credits' },
+  { id: 'topup_275', tokens: 275, price: 399, label: '275 Credits (Popular)' },
+  { id: 'topup_450', tokens: 450, price: 599, label: '450 Credits (Best Value)' },
 ]
 
 function PricingContent() {
@@ -496,7 +496,7 @@ function PricingContent() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {refillPacks.map((pack) => {
-                const isPopular = pack.id === 'topup_50'
+                const isPopular = pack.id === 'topup_275'
 
                 return (
                   <div

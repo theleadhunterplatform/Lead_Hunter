@@ -148,6 +148,9 @@ export default function AdminBroadcastPage() {
   const [tSubject, setTSubject] = useState('')
   const [tBody, setTBody] = useState('')
   const [isSavingTemplate, setIsSavingTemplate] = useState(false)
+  const [templateTestEmail, setTemplateTestEmail] = useState('')
+  const [isSendingTemplateTest, setIsSendingTemplateTest] = useState(false)
+  const [cardTestingId, setCardTestingId] = useState<string | null>(null)
 
   // Delivery Logs Filter State
   const [logSearch, setLogSearch] = useState('')
@@ -573,6 +576,106 @@ export default function AdminBroadcastPage() {
       addToast({ type: 'error', message: 'Network error saving template' })
     } finally {
       setIsSavingTemplate(false)
+    }
+  }
+
+  // Send single test of the current template in the editor
+  const handleSendTemplateTest = async (overrideEmail?: string) => {
+    const targetEmail = (overrideEmail || templateTestEmail || testEmail).trim()
+    if (!targetEmail || !targetEmail.includes('@')) {
+      addToast({ type: 'error', message: 'Please enter a valid destination email address for testing' })
+      return
+    }
+
+    if (!tSubject.trim()) {
+      addToast({ type: 'error', message: 'Please enter a subject line to test' })
+      return
+    }
+
+    if (!tBody.trim()) {
+      addToast({ type: 'error', message: 'Please enter email content to test' })
+      return
+    }
+
+    setIsSendingTemplateTest(true)
+    try {
+      const token = await getFirebaseToken()
+      const res = await fetch('/api/admin/broadcast/test', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          flowType: 'custom',
+          toEmail: targetEmail,
+          testEmail: targetEmail,
+          subject: tSubject.trim(),
+          message: tBody.trim(),
+        }),
+      })
+      const json = await res.json()
+      if (res.ok && json.success) {
+        addToast({
+          type: 'success',
+          message: `Test email dispatched to ${targetEmail}! Check your inbox.`,
+        })
+        fetchData()
+      } else {
+        addToast({ type: 'error', message: json.message || 'Failed to dispatch test email' })
+      }
+    } catch {
+      addToast({ type: 'error', message: 'Network error dispatching test email' })
+    } finally {
+      setIsSendingTemplateTest(false)
+    }
+  }
+
+  // Send quick test of an individual template card in the library
+  const handleSendCardTemplateTest = async (tpl: BroadcastTemplateItem) => {
+    const defaultEmail = templateTestEmail || testEmail || ''
+    const targetEmail = (prompt('Enter destination email address to test this template:', defaultEmail) || '').trim()
+    if (!targetEmail || !targetEmail.includes('@')) {
+      if (targetEmail) {
+        addToast({ type: 'error', message: 'Please enter a valid email address' })
+      }
+      return
+    }
+
+    setTemplateTestEmail(targetEmail)
+    setTestEmail(targetEmail)
+    setCardTestingId(tpl.id)
+
+    try {
+      const token = await getFirebaseToken()
+      const res = await fetch('/api/admin/broadcast/test', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          flowType: 'custom',
+          toEmail: targetEmail,
+          testEmail: targetEmail,
+          subject: tpl.subject,
+          message: tpl.body,
+        }),
+      })
+      const json = await res.json()
+      if (res.ok && json.success) {
+        addToast({
+          type: 'success',
+          message: `Test email ("${tpl.name}") sent to ${targetEmail}!`,
+        })
+        fetchData()
+      } else {
+        addToast({ type: 'error', message: json.message || 'Failed to dispatch test email' })
+      }
+    } catch {
+      addToast({ type: 'error', message: 'Network error dispatching test email' })
+    } finally {
+      setCardTestingId(null)
     }
   }
 
@@ -2025,6 +2128,35 @@ export default function AdminBroadcastPage() {
                   )}
                 </div>
 
+                {/* Send Test of Current Template Draft */}
+                <div className="p-3.5 rounded-2xl bg-surface-container-lowest border border-white/10 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-white flex items-center gap-1.5">
+                      <EnvelopeIcon className="w-3.5 h-3.5 text-primary" />
+                      <span>Test This Email Template</span>
+                    </span>
+                    <span className="text-[10px] text-text-secondary">Send single sample to inbox</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="email"
+                      placeholder="Enter email to test (e.g. you@gmail.com)..."
+                      value={templateTestEmail}
+                      onChange={(e) => setTemplateTestEmail(e.target.value)}
+                      className="flex-1 px-3 py-2 rounded-xl bg-surface-container border border-white/10 text-xs text-white placeholder:text-text-secondary/50 focus:outline-none focus:border-primary"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleSendTemplateTest()}
+                      disabled={isSendingTemplateTest || !tSubject.trim() || !tBody.trim()}
+                      className="px-4 py-2 rounded-xl bg-primary/15 hover:bg-primary/25 text-primary border border-primary/30 text-xs font-bold transition-all disabled:opacity-40 cursor-pointer shrink-0 flex items-center gap-1.5 shadow-xs"
+                    >
+                      <PaperAirplaneIcon className="w-3.5 h-3.5" />
+                      <span>{isSendingTemplateTest ? 'Sending...' : 'Send Test'}</span>
+                    </button>
+                  </div>
+                </div>
+
                 {/* Buttons */}
                 <div className="flex items-center justify-end gap-2.5 pt-2">
                   {editingTemplateId && (
@@ -2143,6 +2275,17 @@ export default function AdminBroadcastPage() {
 
                     {/* Actions */}
                     <div className="flex items-center gap-2 shrink-0 self-end sm:self-start">
+                      <button
+                        type="button"
+                        onClick={() => handleSendCardTemplateTest(tpl)}
+                        disabled={cardTestingId === tpl.id}
+                        className="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-text-secondary hover:text-white border border-white/10 text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                        title="Send a quick test of this individual email"
+                      >
+                        <EnvelopeIcon className="w-3.5 h-3.5 text-primary" />
+                        <span>{cardTestingId === tpl.id ? 'Sending...' : 'Test'}</span>
+                      </button>
+
                       <button
                         type="button"
                         onClick={() => handleApplyTemplateToComposer(tpl)}

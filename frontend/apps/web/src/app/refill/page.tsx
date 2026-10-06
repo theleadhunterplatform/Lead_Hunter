@@ -26,9 +26,9 @@ interface RefillPack {
 }
 
 const DEFAULT_REFILL_PACKS: RefillPack[] = [
-  { id: 'topup_10', tokens: 10, price: 99, label: '10 Credits' },
-  { id: 'topup_50', tokens: 50, price: 399, label: '50 Credits (Popular)' },
-  { id: 'topup_100', tokens: 100, price: 699, label: '100 Credits (Best Value)' },
+  { id: 'topup_125', tokens: 125, price: 199, label: '125 Credits' },
+  { id: 'topup_275', tokens: 275, price: 399, label: '275 Credits (Popular)' },
+  { id: 'topup_450', tokens: 450, price: 599, label: '450 Credits (Best Value)' },
 ]
 
 export default function RefillPage() {
@@ -232,8 +232,8 @@ export default function RefillPage() {
         {/* Top-up Pack Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-4">
           {packs.map((pack) => {
-            const isPopular = pack.id === 'topup_50' || pack.tokens === 50
-            const isBestValue = pack.id === 'topup_100' || pack.tokens === 100
+  const isPopular = pack.id === 'topup_275' || pack.tokens === 275
+  const isBestValue = pack.id === 'topup_450' || pack.tokens === 450
 
             return (
               <div

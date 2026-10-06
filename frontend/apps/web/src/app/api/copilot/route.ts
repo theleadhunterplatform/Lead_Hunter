@@ -15,7 +15,12 @@ Format your responses with clean, concise markdown, bullet points, and an encour
 
 ### Core Official FAQ & Guidelines (STRICT ACCURACY):
 1. **How do credits work?**:
-   You receive 1,000 Wolf Coins monthly with your ₹999 plan. Use coins to unlock lead details (Email = 10 coins, Phone = 12 coins, Both = 15 coins, Profile link = 5 coins). If you run out, buy top-ups starting at ₹99. Top-up coins never expire.
+   You receive 1,000 Wolf Coins monthly with your ₹999 plan. Every reveal costs coins based on what the lead holds:
+1) Lead with phone no.: 12 coins
+2) Lead with email: 10 coins
+3) Phone & email: 15 coins
+4) Profile link: 5 coins
+If you run out, buy top-ups starting at ₹199. Top-up coins never expire.
 
 2. **How many leads can we get in a month?**:
    Between 66 to 100+ leads per month using your base monthly credits. The exact number depends on whether you unlock email-only or full phone contacts. Top up anytime if you need more.
@@ -51,7 +56,12 @@ function getDirectFaqAnswer(query: string): string | null {
     q === 'how do wolf coins work' ||
     q === 'how credits work'
   ) {
-    return `You receive 1,000 Wolf Coins monthly with your ₹999 plan. Use coins to unlock lead details (Email = 10 coins, Phone = 12 coins, Both = 15 coins, Profile link = 5 coins). If you run out, buy top-ups starting at ₹99. Top-up coins never expire.`
+    return `You receive 1,000 Wolf Coins monthly with your ₹999 plan. Every reveal costs coins based on what the lead holds:
+1) Lead with phone no.: 12 coins
+2) Lead with email: 10 coins
+3) Phone & email: 15 coins
+4) Profile link: 5 coins
+If you run out, buy top-ups starting at ₹199. Top-up coins never expire.`
   }
 
   // 2) How many leads can we get in a month?
@@ -155,7 +165,12 @@ Between 66 to 100+ leads per month using your base monthly credits. The exact nu
     q.includes('unlock')
   ) {
     return `**How Credits Work:**
-You receive 1,000 Wolf Coins monthly with your ₹999 plan. Use coins to unlock lead details (Email = 10 coins, Phone = 12 coins, Both = 15 coins, Profile link = 5 coins). If you run out, buy top-ups starting at ₹99. Top-up coins never expire.`
+You receive 1,000 Wolf Coins monthly with your ₹999 plan. Every reveal costs coins based on what the lead holds:
+1) Lead with phone no.: 12 coins
+2) Lead with email: 10 coins
+3) Phone & email: 15 coins
+4) Profile link: 5 coins
+If you run out, buy top-ups starting at ₹199. Top-up coins never expire.`
   }
 
   if (q.includes('exclusive') || q.includes('claim') || q.includes('other member') || q.includes('lock') || q.includes('spam')) {
@@ -173,7 +188,7 @@ You receive 1,000 Wolf Coins monthly with your ₹999 plan. Use coins to unlock 
   if (q.includes('renew') || q.includes('plan') || q.includes('subscription') || q.includes('cancel') || q.includes('upgrade') || q.includes('refill')) {
     return `**Plans, Renewals & Refills:**
 • **Monthly Plan**: ₹999/month comes with 1,000 Wolf Coins renewed each cycle.
-• **Top-ups**: If you run out of credits mid-month, you can buy instant credit packs starting at ₹99 (never expire).
+• **Top-ups**: If you run out of credits mid-month, you can buy instant credit packs starting at ₹199 (never expire).
 • **Upgrade / Downgrade**: You can switch plans at [/pricing](/pricing) or manage cancellation in [/settings](/settings).`
   }
 
@@ -194,7 +209,12 @@ You receive 1,000 Wolf Coins monthly with your ₹999 plan. Use coins to unlock 
 I'm here to help you navigate Lead Hunter Club smoothly! Here are the most common questions members ask:
 
 • **How do credits work?**
-  You receive 1,000 Wolf Coins monthly with your ₹999 plan. Use coins to unlock lead details (Email = 10 coins, Phone = 12 coins, Both = 15 coins, Profile link = 5 coins). If you run out, buy top-ups starting at ₹99. Top-up coins never expire.
+  You receive 1,000 Wolf Coins monthly with your ₹999 plan. Every reveal costs coins based on what the lead holds:
+1) Lead with phone no.: 12 coins
+2) Lead with email: 10 coins
+3) Phone & email: 15 coins
+4) Profile link: 5 coins
+If you run out, buy top-ups starting at ₹199. Top-up coins never expire.
 
 • **How many leads can we get in a month?**
   Between 66 to 100+ leads per month using your base monthly credits. The exact number depends on whether you unlock email-only or full phone contacts. Top up anytime if you need more.

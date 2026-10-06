@@ -83,6 +83,27 @@ Note: user's original list had duplicate "5" (rollover + pricing); renumbered as
   credits). Re-verified: lint clean, 0 tsc, vitest 18/185 = baseline, /sneak-peek 200
   with stale strings gone. Pushed as `4cdc4ef` (rebased over backend's `1b399f5`;
   pill/tokenCost lines survived intact).
+  **Follow-up 2 (same day, user-spec):** (a) "Why LeadHunter" left card rewritten from
+  identity facts to the user's framing — "Random internet-scraped noise. / No-intent
+  leads. / A list of random businesses. / Outdated, duplicate rows." (4 vs right card's
+  5, grid stretches equal heights); (b) landing FAQ "How do credits work?" + all 4
+  copilot copies now use the user's numbered breakdown (1) phone 12 2) email 10
+  3) phone & email 15 4) profile link 5) instead of the parenthetical — landing
+  FAQItem `<p>` gained `whitespace-pre-line` + answer converted to template literal
+  so newlines render (other single-line answers unaffected). Verified: lint clean,
+  0 tsc, screenshots of both.
+  **Follow-up 3 (same day, user-spec — TOP-UP REPRICE):** user's table = **199→125cr,
+  399→275cr, 599→450cr** (4th row ₹999/mo→1,000cr is the existing Freelancer plan,
+  unchanged). Updated in 6 spots: `DEFAULT_REFILL_PACKS` (api/admin/plans/route.ts —
+  the razorpay charge source, DB `refill_packs_config` = null so defaults ARE live),
+  pricing/page.tsx + refill/page.tsx arrays, `isPopular`/`isBestValue` id checks
+  (topup_275/topup_450 — old topup_50/topup_100 refs all gone), admin addPack default
+  (25@199 → 125@199), and **reverted my earlier ₹99 copy fix → ₹199** in landing FAQ
+  + all 5 copilot spots (code's 99/399/699 was stale; user is source of truth).
+  Verified: lint 0 errors, 0 tsc, vitest 18 failed = baseline (suite grew 185→189,
+  +4 upstream passing), browser: /pricing?tab=refills shows 125/275/450 at ₹199/399/599,
+  FAQ answers ₹199 + numbered list ✓. NOTE: FAQ answers + refills grid don't exist in
+  SSR HTML (AnimatePresence closed / default tab=plans) — verify via browser, not fetch.
 
 - **Mass user wipe (2026-10-05, user-requested):** user asked to remove every account's
   sign-in access, keeping only dualspark / yash* / admin@leadhunter. Executed via temp script

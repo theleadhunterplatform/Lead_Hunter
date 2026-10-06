@@ -40,9 +40,9 @@ export const DEFAULT_PLANS = [
 ]
 
 export const DEFAULT_REFILL_PACKS = [
-  { id: 'topup_10', tokens: 10, price: 99, label: '10 Credits', isActive: true },
-  { id: 'topup_50', tokens: 50, price: 399, label: '50 Credits (Popular)', isActive: true },
-  { id: 'topup_100', tokens: 100, price: 699, label: '100 Credits (Best Value)', isActive: true },
+  { id: 'topup_125', tokens: 125, price: 199, label: '125 Credits', isActive: true },
+  { id: 'topup_275', tokens: 275, price: 399, label: '275 Credits (Popular)', isActive: true },
+  { id: 'topup_450', tokens: 450, price: 599, label: '450 Credits (Best Value)', isActive: true },
 ]
 
 export async function GET(request: NextRequest) {

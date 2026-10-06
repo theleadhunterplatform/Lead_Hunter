@@ -175,7 +175,7 @@ export default function AdminPlansPage() {
   }
 
   const addNewRefillPack = () => {
-    const newTokens = 25
+    const newTokens = 125
     setRefillPacks((prev) => [
       ...prev,
       {

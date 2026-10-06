@@ -150,11 +150,10 @@ export async function POST(request: NextRequest) {
           select: { name: true },
         })
         const recipientName = recipientUser?.name?.trim() || 'Admin Tester'
-        const formattedHtml = `<p style="margin:0 0 16px;line-height:1.6">${customMessage.replace(/\n/g, '<br/>')}</p>`
         const res = await emailService.sendBroadcastToUsers(
           [{ name: recipientName, email: toEmail }],
           customSubject,
-          formattedHtml,
+          '',
           customMessage,
         )
         if (res.sent > 0) {
