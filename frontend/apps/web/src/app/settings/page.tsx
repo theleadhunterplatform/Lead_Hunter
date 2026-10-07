@@ -46,7 +46,15 @@ import {
   EyeIcon,
   EyeSlashIcon,
   CreditCardIcon,
+  LinkIcon,
+  ChevronDownIcon,
 } from '@heroicons/react/24/solid'
+import {
+  SERVICE_CATEGORIES,
+  CLIENT_NICHE_CATEGORIES,
+  EXPERIENCE_LEVELS,
+  DISCOVERY_SOURCES,
+} from '@/lib/onboarding-options'
 
 const PLAN_LABELS: Record<string, string> = {
   FREE: 'Free',
@@ -128,6 +136,61 @@ export default function SettingsPage() {
     tokensAdded: number
   }>>([])
   const [loadingPayments, setLoadingPayments] = useState(true)
+
+  // Profile & Socials State (settings editor for the onboarding data)
+  const [profileLoading, setProfileLoading] = useState(true)
+  const [profileSaving, setProfileSaving] = useState(false)
+  const [pfLinkedin, setPfLinkedin] = useState('')
+  const [pfPortfolio, setPfPortfolio] = useState('')
+  const [pfWebsite, setPfWebsite] = useState('')
+  const [pfTwitter, setPfTwitter] = useState('')
+  const [pfInstagram, setPfInstagram] = useState('')
+  const [pfGithub, setPfGithub] = useState('')
+  const [pfDribbble, setPfDribbble] = useState('')
+  const [pfBehance, setPfBehance] = useState('')
+  const [pfServices, setPfServices] = useState<string[]>([])
+  const [pfNiches, setPfNiches] = useState<string[]>([])
+  const [pfExperience, setPfExperience] = useState('')
+  const [pfDiscovery, setPfDiscovery] = useState('')
+  const [openServiceGroups, setOpenServiceGroups] = useState<string[]>(['dev'])
+  const [openNicheGroups, setOpenNicheGroups] = useState<string[]>(['tech'])
+
+  useEffect(() => {
+    let active = true
+    async function loadProfile() {
+      try {
+        const token = await getFirebaseToken()
+        if (!token) return
+        const res = await fetch('/api/auth/me', {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        const json = await res.json().catch(() => null)
+        const d = json?.data
+        if (active && d) {
+          setPfLinkedin(d.linkedin || '')
+          setPfPortfolio(d.portfolio || '')
+          setPfWebsite(d.website || '')
+          setPfTwitter(d.twitter || '')
+          setPfInstagram(d.instagram || '')
+          setPfGithub(d.github || '')
+          setPfDribbble(d.dribbble || '')
+          setPfBehance(d.behance || '')
+          setPfServices(Array.isArray(d.servicesOffered) ? d.servicesOffered : [])
+          setPfNiches(Array.isArray(d.preferredLeadCategories) ? d.preferredLeadCategories : [])
+          setPfExperience(d.outreachExperience || '')
+          setPfDiscovery(d.discoverySource || '')
+        }
+      } catch (err) {
+        console.error('Failed to load profile & socials:', err)
+      } finally {
+        if (active) setProfileLoading(false)
+      }
+    }
+    loadProfile()
+    return () => {
+      active = false
+    }
+  }, [])
 
   useEffect(() => {
     async function loadPayments() {
@@ -393,6 +456,97 @@ export default function SettingsPage() {
     setIsEditing(false)
   }
 
+  const toggleProfileItem = (arr: string[], item: string): string[] =>
+    arr.includes(item) ? arr.filter((i) => i !== item) : [...arr, item]
+
+  const toggleServiceGroup = (id: string) =>
+    setOpenServiceGroups((prev) =>
+      prev.includes(id) ? prev.filter((g) => g !== id) : [...prev, id],
+    )
+
+  const toggleNicheGroup = (id: string) =>
+    setOpenNicheGroups((prev) =>
+      prev.includes(id) ? prev.filter((g) => g !== id) : [...prev, id],
+    )
+
+  const toggleAllServiceGroups = () =>
+    setOpenServiceGroups((prev) =>
+      prev.length === SERVICE_CATEGORIES.length ? [] : SERVICE_CATEGORIES.map((c) => c.id),
+    )
+
+  const toggleAllNicheGroups = () =>
+    setOpenNicheGroups((prev) =>
+      prev.length === CLIENT_NICHE_CATEGORIES.length
+        ? []
+        : CLIENT_NICHE_CATEGORIES.map((c) => c.id),
+    )
+
+  const handleSaveSocials = async () => {
+    if (!pfLinkedin.trim()) {
+      addToast({ type: 'error', message: 'LinkedIn profile link is required.' })
+      return
+    }
+    if (pfServices.length === 0) {
+      addToast({ type: 'error', message: 'Select at least one service you offer.' })
+      return
+    }
+    if (pfNiches.length === 0) {
+      addToast({ type: 'error', message: 'Select at least one target client niche.' })
+      return
+    }
+    if (!pfExperience) {
+      addToast({ type: 'error', message: 'Select your outreach experience.' })
+      return
+    }
+    if (!pfDiscovery) {
+      addToast({ type: 'error', message: 'Select how you discovered us.' })
+      return
+    }
+
+    setProfileSaving(true)
+    try {
+      const token = await getFirebaseToken()
+      if (!token) {
+        addToast({ type: 'error', message: 'Authentication session not found. Please reload the page.' })
+        return
+      }
+      const res = await fetch('/api/auth/me', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          linkedin: pfLinkedin.trim(),
+          portfolio: pfPortfolio.trim(),
+          website: pfWebsite.trim(),
+          twitter: pfTwitter.trim(),
+          instagram: pfInstagram.trim(),
+          github: pfGithub.trim(),
+          dribbble: pfDribbble.trim(),
+          behance: pfBehance.trim(),
+          servicesOffered: pfServices,
+          preferredLeadCategories: pfNiches,
+          outreachExperience: pfExperience,
+          discoverySource: pfDiscovery,
+        }),
+      })
+      const json = await res.json().catch(() => null)
+      if (!res.ok) {
+        addToast({
+          type: 'error',
+          message: json?.message || 'Failed to update profile & socials.',
+        })
+        return
+      }
+      addToast({ type: 'success', message: 'Profile & socials updated.' })
+    } catch {
+      addToast({ type: 'error', message: 'Network error. Please try again.' })
+    } finally {
+      setProfileSaving(false)
+    }
+  }
+
   const startCheckout = async (plan: string, mode: 'one_time' | 'subscription') => {
     setBillingLoading(true)
     try {
@@ -571,6 +725,364 @@ export default function SettingsPage() {
                 </p>
               </div>
             </div>
+          </motion.div>
+
+          {/* Profile & Socials Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.03 }}
+            className="metallic-card p-6 sm:p-8"
+          >
+            <div className="flex items-center justify-between mb-6 gap-4">
+              <div className="flex items-center gap-4 min-w-0">
+                <div className="w-14 h-14 rounded-xl bg-surface-secondary border border-border-subtle flex items-center justify-center shrink-0">
+                  <LinkIcon className="w-6 h-6 text-text-secondary" />
+                </div>
+                <div className="min-w-0">
+                  <h2 className="text-lg font-bold text-text-primary">Profile & Socials</h2>
+                  <p className="text-sm text-text-secondary">
+                    Your links, services & target niches
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={handleSaveSocials}
+                disabled={profileLoading || profileSaving}
+                className="px-5 py-2.5 rounded-xl bg-accent-mint text-text-on-accent text-xs font-bold hover:bg-accent-mint/90 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 shrink-0"
+              >
+                {profileSaving ? (
+                  <div className="w-4 h-4 rounded-full border-2 border-black/20 border-t-black animate-spin" />
+                ) : profileLoading ? (
+                  'Loading...'
+                ) : (
+                  'Save Changes'
+                )}
+              </button>
+            </div>
+
+            {profileLoading ? (
+              <div className="py-10 flex flex-col items-center justify-center gap-3">
+                <div className="w-6 h-6 rounded-full border-2 border-accent-mint/20 border-t-accent-mint animate-spin" />
+                <span className="text-xs text-text-secondary">Loading your profile...</span>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-medium text-text-secondary uppercase tracking-wider mb-2">
+                      LinkedIn Profile <span className="text-accent-mint">*</span>
+                      <span className="ml-2 text-[10px] text-accent-mint font-bold normal-case">
+                        Required
+                      </span>
+                    </label>
+                    <input
+                      type="url"
+                      inputMode="url"
+                      autoComplete="url"
+                      value={pfLinkedin}
+                      onChange={(e) => setPfLinkedin(e.target.value)}
+                      placeholder="https://linkedin.com/in/your-profile"
+                      className="w-full px-4 py-3 rounded-xl bg-surface-elevated border border-subtle text-text-primary text-sm outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all placeholder:text-text-secondary/40"
+                    />
+                  </div>
+
+                  {[
+                    {
+                      label: 'Portfolio',
+                      placeholder: 'https://your-portfolio.com',
+                      value: pfPortfolio,
+                      set: setPfPortfolio,
+                    },
+                    {
+                      label: 'Website',
+                      placeholder: 'https://your-company.com',
+                      value: pfWebsite,
+                      set: setPfWebsite,
+                    },
+                    {
+                      label: 'X / Twitter',
+                      placeholder: 'https://twitter.com/your-handle',
+                      value: pfTwitter,
+                      set: setPfTwitter,
+                    },
+                    {
+                      label: 'Instagram',
+                      placeholder: 'https://instagram.com/your-handle',
+                      value: pfInstagram,
+                      set: setPfInstagram,
+                    },
+                    {
+                      label: 'GitHub',
+                      placeholder: 'https://github.com/your-handle',
+                      value: pfGithub,
+                      set: setPfGithub,
+                    },
+                    {
+                      label: 'Dribbble',
+                      placeholder: 'https://dribbble.com/your-handle',
+                      value: pfDribbble,
+                      set: setPfDribbble,
+                    },
+                    {
+                      label: 'Behance',
+                      placeholder: 'https://behance.net/your-profile',
+                      value: pfBehance,
+                      set: setPfBehance,
+                    },
+                  ].map((field) => (
+                    <div key={field.label}>
+                      <label className="block text-xs font-medium text-text-secondary uppercase tracking-wider mb-2">
+                        {field.label}
+                      </label>
+                      <input
+                        type="url"
+                        inputMode="url"
+                        value={field.value}
+                        onChange={(e) => field.set(e.target.value)}
+                        placeholder={field.placeholder}
+                        className="w-full px-4 py-3 rounded-xl bg-surface-elevated border border-subtle text-text-primary text-sm outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all placeholder:text-text-secondary/40"
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                {/* Services you offer */}
+                <div className="flex flex-col gap-2.5">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-medium text-text-secondary uppercase tracking-wider">
+                      Services you offer <span className="text-accent-mint">*</span>
+                      {pfServices.length > 0 && (
+                        <span className="ml-2 text-accent-mint font-bold normal-case">
+                          ({pfServices.length} selected)
+                        </span>
+                      )}
+                    </label>
+                    <button
+                      type="button"
+                      onClick={toggleAllServiceGroups}
+                      className="text-[11px] text-text-secondary/60 hover:text-accent-mint transition-colors font-medium"
+                    >
+                      {openServiceGroups.length === SERVICE_CATEGORIES.length
+                        ? 'Collapse all'
+                        : 'Expand all'}
+                    </button>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    {SERVICE_CATEGORIES.map((cat) => {
+                      const isOpen = openServiceGroups.includes(cat.id)
+                      const selectedCount = cat.items.filter((item) =>
+                        pfServices.includes(item),
+                      ).length
+                      return (
+                        <div
+                          key={cat.id}
+                          className={`rounded-2xl border transition-all duration-200 overflow-hidden ${
+                            selectedCount > 0
+                              ? 'border-accent-mint/30 bg-accent-mint/[0.03]'
+                              : 'border-white/[0.06] bg-white/[0.015] hover:border-white/10'
+                          }`}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => toggleServiceGroup(cat.id)}
+                            className="w-full px-3.5 py-3 min-h-[44px] flex items-center justify-between text-left transition-colors"
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <span className="text-base leading-none">{cat.icon}</span>
+                              <span className="text-xs font-semibold text-text-primary tracking-tight">
+                                {cat.name}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              {selectedCount > 0 && (
+                                <span className="px-2 py-0.5 rounded-md bg-accent-mint/15 border border-accent-mint/30 text-accent-mint text-[10px] font-bold">
+                                  {selectedCount} selected
+                                </span>
+                              )}
+                              <ChevronDownIcon
+                                className={`w-3.5 h-3.5 text-text-secondary/60 transition-transform duration-200 ${
+                                  isOpen ? 'rotate-180 text-accent-mint' : ''
+                                }`}
+                              />
+                            </div>
+                          </button>
+                          {isOpen && (
+                            <div className="px-4 pb-3.5 pt-1 flex flex-wrap gap-1.5 border-t border-white/[0.04]">
+                              {cat.items.map((s) => {
+                                const isSelected = pfServices.includes(s)
+                                return (
+                                  <button
+                                    key={s}
+                                    type="button"
+                                    onClick={() => setPfServices(toggleProfileItem(pfServices, s))}
+                                    className={`px-3 py-2 min-h-[36px] rounded-xl text-xs font-medium border transition-all duration-200 ${
+                                      isSelected
+                                        ? 'bg-accent-mint/15 border-accent-mint/40 text-accent-mint font-semibold'
+                                        : 'bg-white/[0.02] border-white/[0.06] text-text-secondary hover:text-text-primary hover:bg-white/5 hover:border-white/10'
+                                    }`}
+                                  >
+                                    {s}
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* Target Client Niches */}
+                <div className="flex flex-col gap-2.5">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-medium text-text-secondary uppercase tracking-wider">
+                      Target Client Niches <span className="text-accent-mint">*</span>
+                      {pfNiches.length > 0 && (
+                        <span className="ml-2 text-accent-mint font-bold normal-case">
+                          ({pfNiches.length} selected)
+                        </span>
+                      )}
+                    </label>
+                    <button
+                      type="button"
+                      onClick={toggleAllNicheGroups}
+                      className="text-[11px] text-text-secondary/60 hover:text-accent-mint transition-colors font-medium"
+                    >
+                      {openNicheGroups.length === CLIENT_NICHE_CATEGORIES.length
+                        ? 'Collapse all'
+                        : 'Expand all'}
+                    </button>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    {CLIENT_NICHE_CATEGORIES.map((cat) => {
+                      const isOpen = openNicheGroups.includes(cat.id)
+                      const selectedCount = cat.items.filter((item) =>
+                        pfNiches.includes(item),
+                      ).length
+                      return (
+                        <div
+                          key={cat.id}
+                          className={`rounded-2xl border transition-all duration-200 overflow-hidden ${
+                            selectedCount > 0
+                              ? 'border-accent-mint/30 bg-accent-mint/[0.03]'
+                              : 'border-white/[0.06] bg-white/[0.015] hover:border-white/10'
+                          }`}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => toggleNicheGroup(cat.id)}
+                            className="w-full px-3.5 py-3 min-h-[44px] flex items-center justify-between text-left transition-colors"
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <span className="text-base leading-none">{cat.icon}</span>
+                              <span className="text-xs font-semibold text-text-primary tracking-tight">
+                                {cat.name}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              {selectedCount > 0 && (
+                                <span className="px-2 py-0.5 rounded-md bg-accent-mint/15 border border-accent-mint/30 text-accent-mint text-[10px] font-bold">
+                                  {selectedCount} selected
+                                </span>
+                              )}
+                              <ChevronDownIcon
+                                className={`w-3.5 h-3.5 text-text-secondary/60 transition-transform duration-200 ${
+                                  isOpen ? 'rotate-180 text-accent-mint' : ''
+                                }`}
+                              />
+                            </div>
+                          </button>
+                          {isOpen && (
+                            <div className="px-4 pb-3.5 pt-1 flex flex-wrap gap-1.5 border-t border-white/[0.04]">
+                              {cat.items.map((c) => {
+                                const isSelected = pfNiches.includes(c)
+                                return (
+                                  <button
+                                    key={c}
+                                    type="button"
+                                    onClick={() => setPfNiches(toggleProfileItem(pfNiches, c))}
+                                    className={`px-3 py-2 min-h-[36px] rounded-xl text-xs font-medium border transition-all duration-200 ${
+                                      isSelected
+                                        ? 'bg-accent-mint/15 border-accent-mint/40 text-accent-mint font-semibold'
+                                        : 'bg-white/[0.02] border-white/[0.06] text-text-secondary hover:text-text-primary hover:bg-white/5 hover:border-white/10'
+                                    }`}
+                                  >
+                                    {c}
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* Experience + discovery source */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-xs font-medium text-text-secondary uppercase tracking-wider mb-2">
+                      Outreach experience <span className="text-accent-mint">*</span>
+                    </label>
+                    <select
+                      value={pfExperience}
+                      onChange={(e) => setPfExperience(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl bg-surface-elevated border border-subtle text-text-primary text-sm outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all"
+                    >
+                      <option value="" disabled>
+                        Select your experience level
+                      </option>
+                      {EXPERIENCE_LEVELS.map((el) => (
+                        <option key={el.value} value={el.value} className="bg-[#161718] text-white">
+                          {el.label}
+                        </option>
+                      ))}
+                      {pfExperience &&
+                        !EXPERIENCE_LEVELS.some((el) => el.value === pfExperience) && (
+                          <option value={pfExperience} className="bg-[#161718] text-white">
+                            {pfExperience}
+                          </option>
+                        )}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-text-secondary uppercase tracking-wider mb-2">
+                      How you found us <span className="text-accent-mint">*</span>
+                    </label>
+                    <select
+                      value={pfDiscovery}
+                      onChange={(e) => setPfDiscovery(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl bg-surface-elevated border border-subtle text-text-primary text-sm outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all"
+                    >
+                      <option value="" disabled>
+                        Select how you found us
+                      </option>
+                      {DISCOVERY_SOURCES.map((src) => (
+                        <option key={src} value={src} className="bg-[#161718] text-white">
+                          {src}
+                        </option>
+                      ))}
+                      {pfDiscovery && !DISCOVERY_SOURCES.includes(pfDiscovery) && (
+                        <option value={pfDiscovery} className="bg-[#161718] text-white">
+                          {pfDiscovery}
+                        </option>
+                      )}
+                    </select>
+                  </div>
+                </div>
+
+                <p className="text-xxs text-text-secondary/50">
+                  These details come from your sign-up application and help us match you with the
+                  right leads. LinkedIn and the starred fields are required.
+                </p>
+              </div>
+            )}
           </motion.div>
 
           {/* Phone Verification */}

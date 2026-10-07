@@ -486,7 +486,38 @@ must be implemented first. `tsc` flags these as 2 of the ~49 pre-existing errors
 - **E2E proof:** signup → start-over → **same email re-registers clean** (proves both Firebase
   account and DB row were deleted — no `email-already-in-use`, no P2025) → sign-out lands on
   `/login` with no bounce; console 0 errors; lint clean; tsc 38 = pre-existing; vitest
-  18f/167p = unchanged baseline.
+   18f/167p = unchanged baseline.
+
+### Settings → Profile & Socials editor (2026-10-06) — code complete, visual check pending login
+User ask: let users edit the profile/social data collected at onboarding, mobile-optimized.
+- **New `src/lib/profile.ts`** — shared validation for `PATCH /api/auth/me`: 8 social fields
+  (trim/cap 500, `isValidSocialProfile`, `''`/`null` clears), text fields (cap 1000), arrays
+  (1–25 items, ≤80 chars each, dedupe). **Gate-protection rule:** `linkedin`, `servicesOffered`,
+  `preferredLeadCategories`, `outreachExperience`, `discoverySource` mirror the
+  `hasCompletedOnboarding` contract (ClientLayout redirects failures to `/onboarding`, whose
+  POST resets status → PENDING!) → these are editable but **never clearable**; the other 7
+  socials clear freely. Duplicate-social check mirrors onboarding (self-excluded). Privileged
+  keys (role/status/plan/email/phone/credits) never read → no escalation path.
+- **`api/auth/me/route.ts`:** GET now returns all 13 profile fields (for prefill; PATCH
+  already existed — extended with the validated profile merge + dup-check + fuller response).
+- **New `src/app/api/auth/me/route.test.ts`** — 12 tests (update/clear/reject-clear/invalid
+  link/dup+self-excluded/array caps/privileged-ignored/legacy name-city-referral/401/GET prefill).
+- **New `src/lib/onboarding-options.ts`** — `SERVICE_CATEGORIES`, `CLIENT_NICHE_CATEGORIES`,
+  `EXPERIENCE_LEVELS`, `DISCOVERY_SOURCES` extracted from onboarding page (single source of
+  truth; onboarding now imports it — pure move, no content change).
+- **`settings/page.tsx`:** new "Profile & Socials" card between Profile and Phone Verification —
+  LinkedIn* full-width + 7 optional URL inputs (2-col ≥md), accordion chip pickers for services
+  & niches (expand/collapse-all, count badges, ≥44px group rows / ≥36px chips), experience +
+  discovery selects (legacy values kept as extra options), own Save button (top-right,
+  disabled while prefilling/saving), toasts for API `message`s, GET prefill on mount.
+- **Verified:** lint clean · tsc 41 errors = pre-existing baseline, **0 in touched files** ·
+  vitest **18 failed | 183 passed (201)** = baseline + the 12 new · dev server serves
+  `/settings` HTTP 200 (route compiles). **⚠️ NOT browser-screenshot-verified:** auth-gated
+  (ClientLayout) + standing no-new-accounts rule → needs a working login (same ask as §6.2).
+- **Session infra note:** all sub-agent models were dead this session
+  (`mimo-v2.5-free`/`deepseek-v4-flash-free`/`muse-spark-1.3-free` → not found; config edits
+  don't hot-reload) → built directly. Agent configs under `C:\Users\HP\.config\opencode\agent\`
+  fixed to live models — **works after opencode restart.**
 
 ---
 
@@ -550,8 +581,8 @@ must be implemented first. `tsc` flags these as 2 of the ~49 pre-existing errors
 
 1. ~~#8~~ ~~#9 code~~ ~~#10 code~~ ~~#6~~ — all shipped + browser-verified.
 2. **Live sweeps (need a logged-in session):** #9 admin dropdowns (`/admin/users`,
-   `/admin/review`) + #10 drawer click-through + #8 onboarding dropdown — ask user for a
-   test login.
+   `/admin/review`) + #10 drawer click-through + #8 onboarding dropdown + **Settings →
+   Profile & Socials visual check** — ask user for a test login.
 3. Blocked on user: #4 card-4 video, #7 social/legal URLs (nav columns
    done), #12 Firebase panel.
 4. Pre-launch: rotate Razorpay test keys / set Vercel env vars (see §4); hand backend guy

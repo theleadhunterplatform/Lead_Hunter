@@ -5,6 +5,7 @@ import { rateLimitByKey } from '@/lib/rate-limit'
 import { getPlanCredits } from '@/lib/config/plans'
 import { referralService } from '@/lib/services/referral'
 import { getAdminAuthInstance } from '@/lib/firebase-admin'
+import { parseProfilePatch, findDuplicateSocialLink, profilePayload } from '@/lib/profile'
 
 export const dynamic = 'force-dynamic'
 
@@ -189,6 +190,7 @@ export async function GET(request: NextRequest) {
         hasCompletedOnboarding,
         createdAt: user.createdAt.toISOString(),
         updatedAt: user.updatedAt.toISOString(),
+        ...profilePayload(user),
       },
     })
   } catch (error) {
@@ -217,7 +219,10 @@ export async function PATCH(request: NextRequest) {
       )
     }
 
-    const body = await request.json().catch(() => ({}))
+    const rawBody = await request.json().catch(() => ({}))
+    const body: Record<string, unknown> =
+      rawBody && typeof rawBody === 'object' && !Array.isArray(rawBody) ? rawBody : {}
+
     const { name, city, referralCode, phone } = body
 
     const updateData: any = {}
@@ -231,6 +236,31 @@ export async function PATCH(request: NextRequest) {
       updateData.phone = phone.trim()
     }
 
+    // Profile & socials (settings editor): validated subset of the onboarding
+    // data. Privileged fields (role, status, plan, credits...) are never read.
+    const profileResult = parseProfilePatch(body)
+    if (!profileResult.ok) {
+      return NextResponse.json(
+        { code: profileResult.code, message: profileResult.message },
+        { status: 400 },
+      )
+    }
+    const profileData = profileResult.data
+    if (Object.keys(profileData).length > 0) {
+      const duplicateSocial = await findDuplicateSocialLink(authUser.uid, profileData)
+      if (duplicateSocial) {
+        return NextResponse.json(
+          {
+            code: 'DUPLICATE_SOCIAL_LINK',
+            message:
+              'A social media profile provided is already linked to another Lead Hunter account. Each member must register with their own unique profile to prevent credit abuse.',
+          },
+          { status: 400 },
+        )
+      }
+      Object.assign(updateData, profileData)
+    }
+
     const user = await db.user.upsert({
       where: { id: authUser.uid },
       update: updateData,
@@ -242,6 +272,7 @@ export async function PATCH(request: NextRequest) {
         city: typeof city === 'string' ? city.trim() : null,
         role: 'user',
         status: 'PENDING',
+        ...profileData,
         creditAccount: {
           create: {
             subscriptionBalance: getPlanCredits('FREE'),
@@ -268,7 +299,7 @@ export async function PATCH(request: NextRequest) {
         id: user.id,
         email: user.email,
         name: user.name,
-        city: (user as any).city || null,
+        ...profilePayload(user),
       },
     })
   } catch (error) {
