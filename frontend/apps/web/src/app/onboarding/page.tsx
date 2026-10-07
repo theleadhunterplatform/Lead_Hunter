@@ -148,6 +148,7 @@ export default function OnboardingPage() {
   const [preferredLeadCategories, setPreferredLeadCategories] = useState<string[]>([])
   const [outreachExperience, setOutreachExperience] = useState('')
   const [discoverySource, setDiscoverySource] = useState('')
+  const [discoverySourceOther, setDiscoverySourceOther] = useState('')
   const [step1Error, setStep1Error] = useState('')
   const [openServices, setOpenServices] = useState<string[]>(['dev'])
   const [openNiches, setOpenNiches] = useState<string[]>(['tech'])
@@ -209,6 +210,7 @@ export default function OnboardingPage() {
             : '',
         )
         setDiscoverySource(data.discoverySource || '')
+        setDiscoverySourceOther(data.discoverySourceOther || '')
         if (data.countryCode) {
           setCountryCode(data.countryCode)
         }
@@ -256,9 +258,10 @@ export default function OnboardingPage() {
       preferredLeadCategories,
       outreachExperience,
       discoverySource,
+      discoverySourceOther,
     }
     localStorage.setItem('onboarding_data', JSON.stringify(data))
-  }, [step, countryCode, phoneNumber, portfolio, website, linkedin, instagram, dribbble, behance, github, twitter, servicesOffered, preferredLeadCategories, outreachExperience, discoverySource])
+  }, [step, countryCode, phoneNumber, portfolio, website, linkedin, instagram, dribbble, behance, github, twitter, servicesOffered, preferredLeadCategories, outreachExperience, discoverySource, discoverySourceOther])
 
   useEffect(() => {
     if (otpCountdown <= 0) return
@@ -476,8 +479,15 @@ export default function OnboardingPage() {
   const canProceedFromStep2 =
     servicesOffered.length > 0 && preferredLeadCategories.length > 0 && outreachExperience !== ''
 
+  const canSubmitDiscovery =
+    discoverySource !== '' && (discoverySource !== 'Other' || discoverySourceOther.trim() !== '')
+
   const handleSubmit = async () => {
-    if (!discoverySource) return
+    if (!canSubmitDiscovery) return
+    if (discoverySource === 'Other' && !discoverySourceOther.trim()) {
+      setError('Tell us where you found us')
+      return
+    }
     if (!linkedin.trim()) {
       setError('LinkedIn profile link is required')
       setStep1Error('LinkedIn profile link is required')
@@ -526,7 +536,10 @@ export default function OnboardingPage() {
         servicesOffered,
         preferredLeadCategories,
         outreachExperience,
-        discoverySource,
+        discoverySource:
+          discoverySource === 'Other'
+            ? discoverySourceOther.trim() || 'Other'
+            : discoverySource,
       })
       localStorage.removeItem('onboarding_step')
       localStorage.removeItem('onboarding_data')
@@ -1124,6 +1137,23 @@ export default function OnboardingPage() {
                       ))}
                     </div>
 
+                    {discoverySource === 'Other' && (
+                      <div className="mt-1">
+                        <input
+                          type="text"
+                          value={discoverySourceOther}
+                          onChange={(e) => setDiscoverySourceOther(e.target.value)}
+                          placeholder="e.g. Instagram reel, a podcast, newsletter..."
+                          maxLength={120}
+                          autoFocus
+                          className="w-full px-4 py-3 rounded-xl bg-white/[0.02] border border-white/[0.08] text-text-primary text-sm outline-none focus:border-accent-mint/40 focus:ring-1 focus:ring-accent-mint/30 transition-all placeholder:text-text-secondary/50"
+                        />
+                        <p className="text-[11px] text-text-secondary/50 mt-1.5 text-center">
+                          Tell us exactly where you found us
+                        </p>
+                      </div>
+                    )}
+
                     {error && (
                       <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-400 flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2 min-w-0">
@@ -1144,9 +1174,9 @@ export default function OnboardingPage() {
 
                   <button
                     onClick={handleSubmit}
-                    disabled={!discoverySource || isSubmitting}
+                    disabled={!canSubmitDiscovery || isSubmitting}
                     className={`mt-6 w-full rounded-xl active:scale-98 transition-all px-4 py-2.5 font-semibold flex items-center justify-center gap-2 ${
-                      discoverySource && !isSubmitting
+                      canSubmitDiscovery && !isSubmitting
                         ? 'bg-primary hover:bg-primary/90 text-black shadow-[0_4px_20px_rgba(var(--rgb-primary),0.25)]'
                         : 'bg-white/5 text-text-secondary/40 cursor-not-allowed'
                     }`}

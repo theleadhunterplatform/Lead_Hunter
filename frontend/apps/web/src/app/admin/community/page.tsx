@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   SparklesIcon,
@@ -21,7 +21,10 @@ import {
   EyeIcon,
   ArchiveBoxIcon,
   MegaphoneIcon,
+  ArrowUpTrayIcon,
+  ArrowPathIcon,
 } from '@heroicons/react/24/solid'
+import { MagnifyingGlassPlusIcon } from '@heroicons/react/24/outline'
 import { useToast } from '@/components/ui/Toast'
 import { getFirebaseToken } from '@/lib/firebase'
 import { CustomLoader } from '@/components/ui/CustomLoader'
@@ -63,6 +66,289 @@ interface EligibleProof {
     plan: string
   }
   isFeatured: boolean
+}
+
+/**
+ * Reads an image file as a Data URL and optimizes large photos client-side
+ * using an HTML canvas to keep payload compact and fast (< 300KB).
+ */
+async function processImageFile(file: File): Promise<string> {
+  if (!file.type.startsWith('image/')) {
+    throw new Error('Please select an image file (PNG, JPG, WebP, or GIF)')
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    throw new Error('Image size must be under 10MB')
+  }
+
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onerror = () => reject(new Error('Failed to read image file'))
+    reader.onload = () => {
+      const result = reader.result as string
+      if (!result) {
+        reject(new Error('Empty file result'))
+        return
+      }
+
+      // If it's a GIF or SVG or already small enough (< 350KB), preserve as-is
+      if (file.type === 'image/gif' || file.type === 'image/svg+xml' || file.size < 350 * 1024) {
+        resolve(result)
+        return
+      }
+
+      const img = new Image()
+      img.onerror = () => resolve(result)
+      img.onload = () => {
+        try {
+          const maxDim = 1400
+          let { width, height } = img
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width)
+              width = maxDim
+            } else {
+              width = Math.round((width * maxDim) / height)
+              height = maxDim
+            }
+          }
+
+          const canvas = document.createElement('canvas')
+          canvas.width = width
+          canvas.height = height
+          const ctx = canvas.getContext('2d')
+          if (!ctx) {
+            resolve(result)
+            return
+          }
+          ctx.drawImage(img, 0, 0, width, height)
+          // High quality JPEG (0.86) keeps screenshots razor-sharp while keeping payload < 300KB
+          const compressed = canvas.toDataURL('image/jpeg', 0.86)
+          resolve(compressed)
+        } catch {
+          resolve(result)
+        }
+      }
+      img.src = result
+    }
+    reader.readAsDataURL(file)
+  })
+}
+
+interface ImageUploadFieldProps {
+  value: string
+  onChange: (value: string) => void
+  label?: string
+  onPreview?: (url: string) => void
+}
+
+function ImageUploadField({
+  value,
+  onChange,
+  label = 'Post Image / Screenshot (Optional)',
+  onPreview,
+}: ImageUploadFieldProps) {
+  const [mode, setMode] = useState<'upload' | 'url'>('upload')
+  const [isDragging, setIsDragging] = useState(false)
+  const [processing, setProcessing] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const { addToast } = useToast()
+
+  const handleProcessFile = async (file: File) => {
+    setProcessing(true)
+    try {
+      const dataUrl = await processImageFile(file)
+      onChange(dataUrl)
+      addToast({ type: 'success', message: `Image attached: ${file.name}` })
+    } catch (err: any) {
+      addToast({ type: 'error', message: err?.message || 'Failed to process image' })
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+    const file = e.dataTransfer.files?.[0]
+    if (file) handleProcessFile(file)
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+  }
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      handleProcessFile(file)
+    }
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  const handleClear = () => {
+    onChange('')
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  const isDataUrl = value?.startsWith('data:')
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between">
+        <label className="block text-xs font-semibold text-text-secondary">
+          {label}
+        </label>
+        <div className="flex items-center gap-1 bg-surface-container-lowest p-0.5 rounded-lg border border-white/[0.08]">
+          <button
+            type="button"
+            onClick={() => setMode('upload')}
+            className={`px-2 py-0.5 rounded text-[10px] font-semibold transition-colors ${
+              mode === 'upload'
+                ? 'bg-accent-mint text-black'
+                : 'text-zinc-400 hover:text-white'
+            }`}
+          >
+            Direct Upload
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode('url')}
+            className={`px-2 py-0.5 rounded text-[10px] font-semibold transition-colors ${
+              mode === 'url'
+                ? 'bg-accent-mint text-black'
+                : 'text-zinc-400 hover:text-white'
+            }`}
+          >
+            Image URL
+          </button>
+        </div>
+      </div>
+
+      {value ? (
+        /* Image Preview Box */
+        <div className="relative rounded-xl border border-white/15 overflow-hidden bg-black/60 shadow-lg group">
+          <div className="relative w-full h-44 sm:h-52 bg-zinc-950 flex items-center justify-center overflow-hidden">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={value}
+              alt="Post preview"
+              className="w-full h-full object-contain cursor-pointer hover:scale-[1.02] transition-transform"
+              onClick={() => onPreview?.(value)}
+            />
+          </div>
+
+          {/* Top-right overlay actions */}
+          <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5 bg-black/80 backdrop-blur-md p-1 rounded-xl border border-white/10 shadow-lg">
+            {onPreview && (
+              <button
+                type="button"
+                onClick={() => onPreview(value)}
+                className="p-1.5 rounded-lg text-zinc-300 hover:text-white hover:bg-white/10 transition-colors"
+                title="Preview Full Size"
+              >
+                <MagnifyingGlassPlusIcon className="w-4 h-4" />
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="p-1.5 rounded-lg text-zinc-300 hover:text-white hover:bg-white/10 transition-colors"
+              title="Replace Image"
+            >
+              <ArrowUpTrayIcon className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={handleClear}
+              className="p-1.5 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors"
+              title="Remove Image"
+            >
+              <XMarkIcon className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Bottom metadata strip */}
+          <div className="px-3 py-1.5 bg-surface-elevated/90 backdrop-blur-md border-t border-white/10 text-[11px] text-zinc-400 flex items-center justify-between">
+            <span className="flex items-center gap-1.5 text-accent-mint font-medium text-[11px]">
+              <CheckCircleIcon className="w-3.5 h-3.5" />
+              {isDataUrl ? 'Direct image attached' : 'Image URL linked'}
+            </span>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="text-[10px] text-zinc-400 hover:text-accent-mint underline font-medium"
+            >
+              Choose different file
+            </button>
+          </div>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/png, image/jpeg, image/webp, image/gif"
+            onChange={handleFileChange}
+            className="hidden"
+          />
+        </div>
+      ) : mode === 'upload' ? (
+        /* Drag & Drop Upload Zone */
+        <div
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          onClick={() => fileInputRef.current?.click()}
+          className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2.5 ${
+            isDragging
+              ? 'border-accent-mint bg-accent-mint/10 scale-[0.99]'
+              : 'border-white/15 bg-surface-container-lowest hover:border-accent-mint/50 hover:bg-surface-elevated/50'
+          }`}
+        >
+          <div className="p-3 rounded-2xl bg-surface-elevated border border-white/10 text-accent-mint">
+            {processing ? (
+              <ArrowPathIcon className="w-6 h-6 animate-spin text-accent-mint" />
+            ) : (
+              <ArrowUpTrayIcon className="w-6 h-6" />
+            )}
+          </div>
+          <div>
+            <p className="text-xs font-bold text-white">
+              {processing ? 'Optimizing image...' : 'Click to upload image, or drag & drop'}
+            </p>
+            <p className="text-[11px] text-text-secondary mt-0.5">
+              PNG, JPG, WebP or GIF (auto-optimized)
+            </p>
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/png, image/jpeg, image/webp, image/gif"
+            onChange={handleFileChange}
+            className="hidden"
+          />
+        </div>
+      ) : (
+        /* URL Input Field */
+        <div className="space-y-1.5">
+          <input
+            type="text"
+            placeholder="https://... or paste direct image URL"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            className="w-full px-4 py-2.5 bg-surface-container-lowest border border-white/20 rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-accent-mint"
+          />
+          <p className="text-[10px] text-zinc-500">
+            Paste a direct URL to an image hosted online.
+          </p>
+        </div>
+      )}
+    </div>
+  )
 }
 
 export default function AdminCommunityPage() {
@@ -835,18 +1121,16 @@ export default function AdminCommunityPage() {
               </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-text-secondary mb-1.5">
-                Image / Screenshot URL (Optional)
-              </label>
-              <input
-                type="text"
-                placeholder="https://... or base64 data URL"
-                value={createForm.imageUrl}
-                onChange={(e) => setCreateForm((f) => ({ ...f, imageUrl: e.target.value }))}
-                className="w-full px-4 py-2.5 bg-surface-container-lowest border border-white/20 rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-accent-mint"
-              />
-            </div>
+            <ImageUploadField
+              label={
+                createForm.category === 'ANNOUNCEMENT'
+                  ? 'Announcement Image / Graphic (Optional)'
+                  : 'Proof Image / Screenshot (Optional)'
+              }
+              value={createForm.imageUrl}
+              onChange={(val) => setCreateForm((f) => ({ ...f, imageUrl: val }))}
+              onPreview={(url) => setLightboxImage(url)}
+            />
 
             <div>
               <label className="block text-xs font-semibold text-text-secondary mb-1.5">
@@ -1103,6 +1387,17 @@ export default function AdminCommunityPage() {
                     className="w-full px-3.5 py-2 bg-surface-container-lowest border border-white/20 rounded-xl text-xs text-white focus:outline-none focus:border-accent-mint resize-none"
                   />
                 </div>
+
+                <ImageUploadField
+                  label={
+                    editTarget.category === 'ANNOUNCEMENT'
+                      ? 'Announcement Image / Graphic (Optional)'
+                      : 'Proof Image / Screenshot (Optional)'
+                  }
+                  value={editTarget.imageUrl || ''}
+                  onChange={(val) => setEditTarget({ ...editTarget, imageUrl: val })}
+                  onPreview={(url) => setLightboxImage(url)}
+                />
 
                 <div className="flex items-center gap-2 pt-1">
                   <input

@@ -644,6 +644,26 @@ Closures + Positive replies**. Design/animations untouched — only image source
   WhatsApp refs anywhere · sampled URLs 200 with correct content-types (incl. `p51.png`).
 - ⚠️ Not eyeballed in a browser: chrome-devtools profile locked by the parallel session.
 
+### Onboarding: free-text capture for the "Other" discovery source (2026-10-07)
+User ask: on the "how did you find us?" onboarding question, the **Other** option must
+capture *where* they actually found us.
+- `onboarding/page.tsx`: new `discoverySourceOther` state. Selecting the **Other** chip
+  reveals a text input (autofocus, `maxLength=120`, placeholder "e.g. Instagram reel, a
+  podcast, newsletter...") + helper line; Submit stays disabled until it holds non-whitespace
+  text (`canSubmitDiscovery`); draft persistence (localStorage `onboarding_data`) includes
+  the field; payload stores `discoverySource = trimmed text` (fallback `'Other'`).
+- **No backend change needed:** `onboardingSchema` = `z.string().min(1)` (any string),
+  `/api/onboarding` spreads `...parsed.data` into the update. The typed text lands in
+  `User.discoverySource` → shows in admin users/contacts/review/detail ("How they found
+  us") and admin-insights discovery bars (each distinct free text = its own bar). Settings
+  select already renders unknown values as a trailing option, so editing stays safe.
+- **Verified:** lint clean · `tsc` 0 errors in file · browser E2E through steps 1→3: input
+  appears only on Other, button disabled on empty **and whitespace-only**, enabled with
+  text, hidden when another chip is picked, typed text preserved on return. No submission
+  made (no test data written to their DB).
+- Note (pre-existing, untouched): draft restore races the save-effect under React
+  StrictMode in dev — storage gets overwritten on mount; restore works outside double-mount.
+
 ---
 
 ## 3. Blocked — waiting on user input
