@@ -11,8 +11,8 @@ describe('PLANS config', () => {
     expect(PLANS.FREE.price).toBe(0)
   })
 
-  it('FREELANCER gives 500 credits', () => {
-    expect(PLANS.FREELANCER.credits).toBe(500)
+  it('FREELANCER gives 1000 credits', () => {
+    expect(PLANS.FREELANCER.credits).toBe(1000)
   })
 
   it('AGENCY gives 1000 credits', () => {
@@ -23,7 +23,7 @@ describe('PLANS config', () => {
 describe('getPlanCredits', () => {
   it('returns credits for a known plan', () => {
     expect(getPlanCredits('FREE')).toBe(50)
-    expect(getPlanCredits('FREELANCER')).toBe(500)
+    expect(getPlanCredits('FREELANCER')).toBe(1000)
     expect(getPlanCredits('AGENCY')).toBe(1000)
   })
 

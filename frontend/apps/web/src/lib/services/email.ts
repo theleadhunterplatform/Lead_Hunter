@@ -15,6 +15,7 @@ import {
   renderBroadcastAnnouncement,
   renderPlanChange,
   renderCreditTopup,
+  renderOnboardingReminder,
 } from '@/lib/email-templates'
 
 interface SendOptions {
@@ -263,6 +264,11 @@ export const emailService = {
     }
     const { subject, text, html } = await renderOnboardingComplete({ name: user.name, appUrl: APP_URL })
     return send('onboarding_complete', user.email, subject, text, { html })
+  },
+
+  async sendOnboardingReminder(user: { name: string; email: string }) {
+    const { subject, text, html } = await renderOnboardingReminder({ name: user.name, appUrl: APP_URL })
+    return send('onboarding_reminder', user.email, subject, text, { html })
   },
 
   // Flow 2: Account Approved

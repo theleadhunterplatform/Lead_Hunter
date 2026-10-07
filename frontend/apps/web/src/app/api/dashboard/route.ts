@@ -10,6 +10,7 @@ import {
   PendingApprovalError,
 } from '@/lib/auth'
 import { getPosts } from '@/lib/external-api/client'
+import { getDynamicPlanCredits } from '@/lib/services/credits'
 
 export const dynamic = 'force-dynamic'
 
@@ -79,7 +80,7 @@ export async function GET(request: NextRequest) {
       (user?.creditAccount?.bonusBalance ?? 0) +
       (user?.creditAccount?.rolloverBalance ?? 0)
     const creditsRemaining = totalCredits
-    const planCredits = user?.plan === 'FREELANCER' ? 500 : user?.plan === 'AGENCY' ? 1000 : 50
+    const planCredits = await getDynamicPlanCredits(user?.plan || 'FREE')
 
     let activeConversationsCount = 0
     let activeConversationsThisWeek = 0

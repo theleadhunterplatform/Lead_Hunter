@@ -3,7 +3,7 @@ import { db } from '@/lib/db'
 import { requireAdmin, ForbiddenError, getAuthUser } from '@/lib/auth'
 import { adminUserActionSchema } from '@/lib/validators/auth'
 import { auditService } from '@/lib/services/audit'
-import { creditService, InsufficientCreditsError } from '@/lib/services/credits'
+import { creditService, InsufficientCreditsError, getDynamicPlanCredits } from '@/lib/services/credits'
 import { emailService } from '@/lib/services/email'
 import { getPlan } from '@/lib/config/plans'
 import { getAdminAuthInstance } from '@/lib/firebase-admin'
@@ -154,7 +154,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     const body = parsed.data
 
-    if (body.action) {
+    if (body.action && ['APPROVE', 'REJECT', 'SUSPEND', 'ACTIVATE'].includes(body.action)) {
       const statusMap: Record<string, string> = {
         APPROVE: 'ACTIVE',
         REJECT: 'REJECTED',
@@ -228,7 +228,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         const initialCredits =
           body.subscriptionCredits !== undefined
             ? body.subscriptionCredits
-            : (getPlan(body.plan || 'FREE')?.credits ?? 0)
+            : await getDynamicPlanCredits(body.plan || 'FREE')
         emailResult = await emailService.sendApproved(
           { name: user.name, email: user.email },
           body.plan || 'FREE',
@@ -283,7 +283,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         return NextResponse.json({ code: 'NOT_FOUND', message: 'User not found' }, { status: 404 })
       }
       const initialCredits =
-        user.creditAccount?.subscriptionBalance ?? (getPlan(user.plan || 'FREE')?.credits ?? 0)
+        user.creditAccount?.subscriptionBalance ?? (await getDynamicPlanCredits(user.plan || 'FREE'))
       const emailResult = await emailService.sendApproved(
         { name: user.name, email: user.email },
         user.plan || 'FREE',
@@ -295,6 +295,40 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         emailError: emailResult.error || null,
         message: emailResult.success
           ? `Welcome approval email delivered to ${user.email}.`
+          : `Email dispatch failed: ${emailResult.error || 'Unknown error'}`,
+      })
+    }
+
+    if (body.action === 'SEND_ONBOARDING_REMINDER') {
+      const user = await db.user.findUnique({
+        where: { id: targetUserId },
+      })
+      if (!user) {
+        return NextResponse.json({ code: 'NOT_FOUND', message: 'User not found' }, { status: 404 })
+      }
+      const emailResult = await emailService.sendOnboardingReminder({
+        name: user.name || 'there',
+        email: user.email,
+      })
+      await auditService.log({
+        userId: targetUserId,
+        adminId: authUser.uid,
+        action: 'STATUS_CHANGE',
+        targetType: 'USER',
+        targetId: targetUserId,
+        details: {
+          method: 'SEND_ONBOARDING_REMINDER',
+          email: user.email,
+          success: emailResult.success,
+          error: emailResult.error,
+        },
+      })
+      return NextResponse.json({
+        success: emailResult.success,
+        emailSent: emailResult.success,
+        emailError: emailResult.error || null,
+        message: emailResult.success
+          ? `Onboarding reminder email delivered to ${user.email}.`
           : `Email dispatch failed: ${emailResult.error || 'Unknown error'}`,
       })
     }

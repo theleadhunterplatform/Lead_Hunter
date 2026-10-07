@@ -15,15 +15,23 @@ import {
   DocumentDuplicateIcon,
   UserIcon,
   TrashIcon,
+  EnvelopeIcon,
+  ExclamationTriangleIcon,
+  CheckCircleIcon,
 } from '@heroicons/react/24/solid'
 import { CustomLoader } from '@/components/ui/CustomLoader'
+import { useToast } from '@/components/ui/Toast'
 import type { PaymentRecord } from '@/lib/payments-format'
 
+interface ApprovePlanOption {
+  id: string
+  label: string
+  credits: number
+}
 
-const PLANS = [
-  { id: 'FREE', label: 'Free', credits: 50 },
-  { id: 'FREELANCER', label: 'Freelancer', credits: 500 },
-  { id: 'AGENCY', label: 'Agency', credits: 1000 },
+const DEFAULT_APPROVE_PLANS: ApprovePlanOption[] = [
+  { id: 'FREE', label: 'Free Starter', credits: 50 },
+  { id: 'FREELANCER', label: 'Freelancer Pro', credits: 1000 },
 ]
 
 const PLAN_BADGES: Record<string, string> = {
@@ -107,6 +115,8 @@ export default function AdminUserDetailPage() {
   const statusParam = searchParams.get('status') || ''
   const fromReview = searchParams.get('from') === 'review'
 
+  const { addToast } = useToast()
+  const [plans, setPlans] = useState<ApprovePlanOption[]>(DEFAULT_APPROVE_PLANS)
   const [user, setUser] = useState<UserDetail | null>(null)
   const [prevUser, setPrevUser] = useState<{ id: string; name: string } | null>(null)
   const [nextUser, setNextUser] = useState<{ id: string; name: string } | null>(null)
@@ -123,7 +133,47 @@ export default function AdminUserDetailPage() {
   }
 
   const [approvalRenewalDate, setApprovalRenewalDate] = useState(getDefaultRenewalDateStr)
-  const [approvalCredits, setApprovalCredits] = useState('500')
+  const [approvalCredits, setApprovalCredits] = useState('1000')
+
+  useEffect(() => {
+    fetch('/api/plans')
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success && json.data?.plans?.length) {
+          setPlans(
+            json.data.plans.map((p: any) => ({
+              id: p.id,
+              label: p.name || p.id,
+              credits: p.credits,
+            })),
+          )
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  const handleSendReminder = async () => {
+    if (!user) return
+    setActionLoading('REMIND')
+    try {
+      const token = await getFirebaseToken()
+      const res = await fetch(`/api/admin/users/${user.id}`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'SEND_ONBOARDING_REMINDER' }),
+      })
+      const json = await res.json()
+      if (res.ok && json.success) {
+        addToast({ type: 'success', message: `Onboarding reminder sent to ${user.email}` })
+      } else {
+        addToast({ type: 'error', message: json.message || 'Failed to send reminder email' })
+      }
+    } catch {
+      addToast({ type: 'error', message: 'Network error sending reminder email' })
+    } finally {
+      setActionLoading(null)
+    }
+  }
   const [editRenewalDate, setEditRenewalDate] = useState('')
   const [editSubCredits, setEditSubCredits] = useState('')
 
@@ -496,14 +546,22 @@ export default function AdminUserDetailPage() {
                 <span
                   className={`inline-flex items-center text-xs font-medium px-2.5 py-1 rounded-full ${PLAN_BADGES[user.plan] || 'text-text-secondary bg-white/5'}`}
                 >
-                  {user.plan === 'FREE'
-                    ? '50'
-                    : user.plan === 'FREELANCER'
-                      ? 'Freelancer'
-                      : user.plan === 'AGENCY'
-                        ? 'Agency'
-                        : user.plan}
+                  {plans.find((p) => p.id === user.plan)?.label || (user.plan === 'FREE' ? 'Free Starter' : user.plan)}
                 </span>
+              </div>
+              <div className="flex justify-between text-sm items-center">
+                <span className="text-text-secondary">Onboarding</span>
+                {Boolean(user.linkedin && (user.servicesOffered?.length ?? 0) > 0) ? (
+                  <span className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full text-emerald-400 bg-emerald-500/10 border border-emerald-500/20">
+                    <CheckCircleIcon className="w-3.5 h-3.5" />
+                    Complete
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full text-amber-400 bg-amber-500/10 border border-amber-500/20">
+                    <ExclamationTriangleIcon className="w-3.5 h-3.5" />
+                    Incomplete
+                  </span>
+                )}
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-text-secondary">Role</span>
@@ -529,11 +587,31 @@ export default function AdminUserDetailPage() {
             <div className="space-y-3">
               {user.status !== 'ACTIVE' && (
                 <div className="space-y-3">
+                  {!Boolean(user.linkedin && (user.servicesOffered?.length ?? 0) > 0) && (
+                    <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 space-y-2">
+                      <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-400">
+                        <ExclamationTriangleIcon className="w-4 h-4 shrink-0" />
+                        Incomplete Onboarding Application
+                      </div>
+                      <p className="text-xxs text-text-secondary leading-relaxed">
+                        This applicant has not completed their onboarding services or profile links.
+                      </p>
+                      <button
+                        onClick={handleSendReminder}
+                        disabled={actionLoading === 'REMIND'}
+                        className="w-full px-3 py-2 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-xs font-medium transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                      >
+                        <EnvelopeIcon className="w-3.5 h-3.5" />
+                        {actionLoading === 'REMIND' ? 'Sending...' : 'Send Onboarding Reminder Email'}
+                      </button>
+                    </div>
+                  )}
+
                   <label className="text-xs text-text-secondary font-medium block">
                     Approve with Plan & Renewal
                   </label>
                   <div className="flex gap-1.5">
-                    {PLANS.map((p) => (
+                    {plans.map((p) => (
                       <button
                         key={p.id}
                         type="button"
@@ -548,7 +626,7 @@ export default function AdminUserDetailPage() {
                         }`}
                       >
                         {p.label}
-                        <span className="block text-xxs opacity-60">{p.credits} credits</span>
+                        <span className="block text-xxs opacity-60">{p.credits.toLocaleString()} credits</span>
                       </button>
                     ))}
                   </div>
@@ -593,7 +671,7 @@ export default function AdminUserDetailPage() {
                   >
                     {actionLoading === 'APPROVE'
                       ? 'Approving...'
-                      : `Approve as ${PLANS.find((p) => p.id === selectedPlan)?.label}`}
+                      : `Approve as ${plans.find((p) => p.id === selectedPlan)?.label || selectedPlan}`}
                   </button>
                 </div>
               )}

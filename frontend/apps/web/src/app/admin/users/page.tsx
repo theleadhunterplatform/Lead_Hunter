@@ -12,9 +12,12 @@ import {
   ChevronDownIcon,
   TrashIcon,
   PaperAirplaneIcon,
+  EnvelopeIcon,
+  ExclamationTriangleIcon,
 } from '@heroicons/react/24/solid'
 import { CustomLoader } from '@/components/ui/CustomLoader'
 import { PortalMenu } from '@/components/ui/PortalMenu'
+import { useToast } from '@/components/ui/Toast'
 
 
 interface CreditAccountInfo {
@@ -53,10 +56,15 @@ const PLAN_BADGES: Record<string, string> = {
   AGENCY: 'text-accent-purple bg-accent-purple/10',
 }
 
-const PLANS = [
-  { id: 'FREE', label: 'Free', credits: 50 },
-  { id: 'FREELANCER', label: 'Freelancer', credits: 500 },
-  { id: 'AGENCY', label: 'Agency', credits: 1000 },
+interface ApprovePlanOption {
+  id: string
+  label: string
+  credits: number
+}
+
+const DEFAULT_APPROVE_PLANS: ApprovePlanOption[] = [
+  { id: 'FREE', label: 'Free Starter', credits: 50 },
+  { id: 'FREELANCER', label: 'Freelancer Pro', credits: 1000 },
 ]
 
 interface Pagination {
@@ -80,8 +88,10 @@ const STATUS_COLORS: Record<string, string> = {
 }
 
 export default function AdminUsersPage() {
+  const { addToast } = useToast()
   const searchParams = useSearchParams()
   const [users, setUsers] = useState<AdminUser[]>([])
+  const [plans, setPlans] = useState<ApprovePlanOption[]>(DEFAULT_APPROVE_PLANS)
   const [pagination, setPagination] = useState<Pagination | null>(null)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState(searchParams.get('search') || '')
@@ -89,6 +99,48 @@ export default function AdminUsersPage() {
   const [serviceFilter, setServiceFilter] = useState(searchParams.get('service') || '')
   const [page, setPage] = useState(() => Math.max(1, parseInt(searchParams.get('page') || '1', 10)))
   const [actionLoading, setActionLoading] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetch('/api/plans')
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success && json.data?.plans?.length) {
+          setPlans(
+            json.data.plans.map((p: any) => ({
+              id: p.id,
+              label: p.name || p.id,
+              credits: p.credits,
+            })),
+          )
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  const isOnboardingComplete = (u: AdminUser) =>
+    Boolean(u.linkedin && (u.servicesOffered?.length ?? 0) > 0)
+
+  const handleSendReminder = async (userId: string, email: string) => {
+    setActionLoading(`${userId}-REMIND`)
+    try {
+      const token = await getFirebaseToken()
+      const res = await fetch(`/api/admin/users/${userId}`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'SEND_ONBOARDING_REMINDER' }),
+      })
+      const json = await res.json()
+      if (res.ok && json.success) {
+        addToast({ type: 'success', message: `Onboarding reminder sent to ${email}` })
+      } else {
+        addToast({ type: 'error', message: json.message || 'Failed to send reminder email' })
+      }
+    } catch {
+      addToast({ type: 'error', message: 'Network error sending reminder email' })
+    } finally {
+      setActionLoading(null)
+    }
+  }
 
   // Sync state to URL without full reload so back button / refreshes stay on the exact page
   useEffect(() => {
@@ -306,6 +358,9 @@ export default function AdminUsersPage() {
                     Plan
                   </th>
                   <th className="text-left px-6 py-4 text-xs font-semibold text-text-secondary uppercase tracking-wider">
+                    Onboarding
+                  </th>
+                  <th className="text-left px-6 py-4 text-xs font-semibold text-text-secondary uppercase tracking-wider">
                     Services
                   </th>
                   <th className="text-left px-6 py-4 text-xs font-semibold text-text-secondary uppercase tracking-wider">
@@ -322,7 +377,7 @@ export default function AdminUsersPage() {
               <tbody>
                 {users.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-sm text-text-secondary">
+                    <td colSpan={8} className="px-6 py-12 text-center text-sm text-text-secondary">
                       No users found
                     </td>
                   </tr>
@@ -357,14 +412,21 @@ export default function AdminUsersPage() {
                         <span
                           className={`inline-flex items-center text-xs font-medium px-2.5 py-1 rounded-full ${PLAN_BADGES[u.plan] || 'text-text-secondary bg-white/5'}`}
                         >
-                          {u.plan === 'FREE'
-                            ? '50'
-                            : u.plan === 'FREELANCER'
-                              ? 'Freelancer'
-                              : u.plan === 'AGENCY'
-                                ? 'Agency'
-                                : u.plan}
+                          {plans.find((p) => p.id === u.plan)?.label || (u.plan === 'FREE' ? 'Free Starter' : u.plan)}
                         </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        {isOnboardingComplete(u) ? (
+                          <span className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full text-emerald-400 bg-emerald-500/10 border border-emerald-500/20">
+                            <CheckCircleIcon className="w-3.5 h-3.5" />
+                            Complete
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full text-amber-400 bg-amber-500/10 border border-amber-500/20">
+                            <ExclamationTriangleIcon className="w-3.5 h-3.5" />
+                            Incomplete
+                          </span>
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex flex-wrap gap-1">
@@ -488,6 +550,17 @@ export default function AdminUsersPage() {
                       <td className="px-6 py-4 text-right">
                         {u.status === 'PENDING' ? (
                           <div className="flex items-center justify-end gap-2 relative">
+                            {!isOnboardingComplete(u) && (
+                              <button
+                                onClick={() => handleSendReminder(u.id, u.email)}
+                                disabled={actionLoading === `${u.id}-REMIND`}
+                                title="Send onboarding reminder email"
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-medium hover:bg-amber-500/20 transition-all disabled:opacity-50"
+                              >
+                                <EnvelopeIcon className="w-3.5 h-3.5" />
+                                {actionLoading === `${u.id}-REMIND` ? 'Sending...' : 'Remind'}
+                              </button>
+                            )}
                             <button
                               onClick={(e) => {
                                 approveBtnRef.current = e.currentTarget
@@ -510,10 +583,10 @@ export default function AdminUsersPage() {
                               onClose={() => setApproveDropdown(null)}
                               anchorRef={approveBtnRef}
                               align="right"
-                              width={176}
-                              estimatedHeight={PLANS.length * 40 + 8}
+                              width={196}
+                              estimatedHeight={plans.length * 40 + 8}
                             >
-                              {PLANS.map((p) => (
+                              {plans.map((p) => (
                                 <button
                                   key={p.id}
                                   onClick={() => {
@@ -524,7 +597,7 @@ export default function AdminUsersPage() {
                                 >
                                   <span className="font-medium">{p.label}</span>
                                   <span className="text-text-secondary ml-2">
-                                    ({p.credits} credits)
+                                    ({p.credits.toLocaleString()} credits)
                                   </span>
                                 </button>
                               ))}

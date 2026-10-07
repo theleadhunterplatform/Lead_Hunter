@@ -14,8 +14,11 @@ import {
   UserIcon,
   BriefcaseIcon,
   MusicalNoteIcon,
+  EnvelopeIcon,
+  ExclamationTriangleIcon,
 } from '@heroicons/react/24/solid'
 import { PortalMenu } from '@/components/ui/PortalMenu'
+import { useToast } from '@/components/ui/Toast'
 
 interface Pagination {
   page: number
@@ -49,15 +52,22 @@ interface ReviewUser {
   discoverySource: string | null
 }
 
-const PLANS = [
-  { id: 'FREE', label: 'Free', credits: 50 },
-  { id: 'FREELANCER', label: 'Freelancer', credits: 500 },
-  { id: 'AGENCY', label: 'Agency', credits: 1000 },
+interface ApprovePlanOption {
+  id: string
+  label: string
+  credits: number
+}
+
+const DEFAULT_APPROVE_PLANS: ApprovePlanOption[] = [
+  { id: 'FREE', label: 'Free Starter', credits: 50 },
+  { id: 'FREELANCER', label: 'Freelancer Pro', credits: 1000 },
 ]
 
 export default function AdminReviewPage() {
+  const { addToast } = useToast()
   const searchParams = useSearchParams()
   const [users, setUsers] = useState<ReviewUser[]>([])
+  const [plans, setPlans] = useState<ApprovePlanOption[]>(DEFAULT_APPROVE_PLANS)
   const [pagination, setPagination] = useState<Pagination | null>(null)
   const [page, setPage] = useState(() => Math.max(1, parseInt(searchParams.get('page') || '1', 10)))
   const [loading, setLoading] = useState(true)
@@ -99,6 +109,48 @@ export default function AdminReviewPage() {
   useEffect(() => {
     fetchPending()
   }, [fetchPending])
+
+  useEffect(() => {
+    fetch('/api/plans')
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success && json.data?.plans?.length) {
+          setPlans(
+            json.data.plans.map((p: any) => ({
+              id: p.id,
+              label: p.name || p.id,
+              credits: p.credits,
+            })),
+          )
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  const isOnboardingComplete = (u: ReviewUser) =>
+    Boolean(u.linkedin && (u.servicesOffered?.length ?? 0) > 0)
+
+  const handleSendReminder = async (userId: string, email: string) => {
+    setActionLoading(`${userId}-REMIND`)
+    try {
+      const token = await getFirebaseToken()
+      const res = await fetch(`/api/admin/users/${userId}`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'SEND_ONBOARDING_REMINDER' }),
+      })
+      const json = await res.json()
+      if (res.ok && json.success) {
+        addToast({ type: 'success', message: `Onboarding reminder sent to ${email}` })
+      } else {
+        addToast({ type: 'error', message: json.message || 'Failed to send reminder email' })
+      }
+    } catch {
+      addToast({ type: 'error', message: 'Network error sending reminder email' })
+    } finally {
+      setActionLoading(null)
+    }
+  }
 
   const handleAction = async (userId: string, action: string, plan?: string) => {
     setActionLoading(`${userId}-${action}`)
@@ -170,7 +222,7 @@ export default function AdminReviewPage() {
               <div className="p-6">
                 <div className="flex items-start justify-between mb-4">
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <UserIcon className="w-4 h-4 text-accent-mint" />
                       <Link
                         href={`/admin/users/${u.id}?from=review&page=${page}&status=PENDING`}
@@ -179,6 +231,17 @@ export default function AdminReviewPage() {
                       >
                         {u.name}
                       </Link>
+                      {isOnboardingComplete(u) ? (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full text-emerald-400 bg-emerald-500/10 border border-emerald-500/20">
+                          <CheckCircleIcon className="w-3 h-3" />
+                          Complete
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full text-amber-400 bg-amber-500/10 border border-amber-500/20">
+                          <ExclamationTriangleIcon className="w-3 h-3" />
+                          Incomplete Onboarding
+                        </span>
+                      )}
                     </div>
                     <p className="text-sm text-text-secondary mt-0.5 ml-6">{u.email}</p>
                   </div>
@@ -273,9 +336,11 @@ export default function AdminReviewPage() {
 
               <div className="border-t border-white/[0.06] p-4 bg-white/[0.02] flex items-center gap-2">
                 <ReviewActions
-                  userId={u.id}
+                  user={u}
                   actionLoading={actionLoading}
                   onAction={handleAction}
+                  onSendReminder={handleSendReminder}
+                  plans={plans}
                 />
               </div>
             </div>
@@ -356,26 +421,42 @@ export default function AdminReviewPage() {
 }
 
 function ReviewActions({
-  userId,
+  user,
   actionLoading,
   onAction,
+  onSendReminder,
+  plans,
 }: {
-  userId: string
+  user: ReviewUser
   actionLoading: string | null
   onAction: (userId: string, action: string, plan?: string) => void
+  onSendReminder: (userId: string, email: string) => void
+  plans: ApprovePlanOption[]
 }) {
   const [showPlans, setShowPlans] = useState(false)
   const btnRef = useRef<HTMLButtonElement | null>(null)
+  const isOnboardingDone = Boolean(user.linkedin && (user.servicesOffered?.length ?? 0) > 0)
 
   return (
     <>
+      {!isOnboardingDone && (
+        <button
+          onClick={() => onSendReminder(user.id, user.email)}
+          disabled={actionLoading === `${user.id}-REMIND`}
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm font-medium hover:bg-amber-500/20 transition-all disabled:opacity-50"
+          title="Send onboarding reminder email"
+        >
+          <EnvelopeIcon className="w-4 h-4" />
+          {actionLoading === `${user.id}-REMIND` ? 'Sending...' : 'Send Reminder'}
+        </button>
+      )}
       <div className="relative">
         <button
           onClick={(e) => {
             btnRef.current = e.currentTarget
             setShowPlans(!showPlans)
           }}
-          disabled={actionLoading === `${userId}-APPROVE` || actionLoading === `${userId}-REJECT`}
+          disabled={actionLoading === `${user.id}-APPROVE` || actionLoading === `${user.id}-REJECT`}
           className="inline-flex items-center gap-1 px-4 py-2 rounded-lg bg-green-500/10 border border-green-500/20 text-green-400 text-sm font-medium hover:bg-green-500/20 transition-all disabled:opacity-50"
         >
           <CheckCircleIcon className="w-4 h-4" />
@@ -387,31 +468,31 @@ function ReviewActions({
           onClose={() => setShowPlans(false)}
           anchorRef={btnRef}
           align="left"
-          width={192}
-          estimatedHeight={PLANS.length * 40 + 8}
+          width={196}
+          estimatedHeight={plans.length * 40 + 8}
         >
-          {PLANS.map((p) => (
+          {plans.map((p) => (
             <button
               key={p.id}
               onClick={() => {
                 setShowPlans(false)
-                onAction(userId, 'APPROVE', p.id)
+                onAction(user.id, 'APPROVE', p.id)
               }}
               className="w-full text-left px-4 py-2.5 text-sm text-text-primary hover:bg-white/[0.06] transition-colors"
             >
               <span className="font-medium">{p.label}</span>
-              <span className="text-text-secondary ml-2">({p.credits} credits)</span>
+              <span className="text-text-secondary ml-2">({p.credits.toLocaleString()} credits)</span>
             </button>
           ))}
         </PortalMenu>
       </div>
       <button
-        onClick={() => onAction(userId, 'REJECT')}
-        disabled={actionLoading === `${userId}-REJECT`}
+        onClick={() => onAction(user.id, 'REJECT')}
+        disabled={actionLoading === `${user.id}-REJECT`}
         className="inline-flex items-center gap-1 px-4 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-medium hover:bg-red-500/20 transition-all disabled:opacity-50"
       >
         <XCircleIcon className="w-4 h-4" />
-        {actionLoading === `${userId}-REJECT` ? '...' : 'Reject'}
+        {actionLoading === `${user.id}-REJECT` ? '...' : 'Reject'}
       </button>
     </>
   )

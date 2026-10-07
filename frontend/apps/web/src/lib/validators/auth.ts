@@ -6,8 +6,18 @@ export const adminRegisterSchema = z.object({
 
 export const adminUserActionSchema = z
   .object({
-    action: z.enum(['APPROVE', 'REJECT', 'SUSPEND', 'ACTIVATE', 'RENEW_NOW', 'RESEND_APPROVAL_EMAIL']).optional(),
-    plan: z.enum(['FREE', 'FREELANCER', 'AGENCY']).optional(),
+    action: z
+      .enum([
+        'APPROVE',
+        'REJECT',
+        'SUSPEND',
+        'ACTIVATE',
+        'RENEW_NOW',
+        'RESEND_APPROVAL_EMAIL',
+        'SEND_ONBOARDING_REMINDER',
+      ])
+      .optional(),
+    plan: z.string().optional(),
     bonusCredits: z.number().int().min(0).optional(),
     subscriptionCredits: z.number().int().min(0).optional(),
     renewalDate: z
@@ -16,7 +26,7 @@ export const adminUserActionSchema = z
         message: 'Invalid renewal date format',
       })
       .optional(),
-    changePlan: z.enum(['FREE', 'FREELANCER', 'AGENCY']).optional(),
+    changePlan: z.string().optional(),
     tags: z.array(z.string()).optional(),
   })
   .refine(

@@ -678,3 +678,36 @@ The Lead Hunter Club Team`,
     },
   })
 }
+
+// 14. Onboarding Reminder
+export interface OnboardingReminderData {
+  name: string
+  appUrl: string
+}
+
+export async function renderOnboardingReminder(data: OnboardingReminderData) {
+  return resolveDynamicTemplate({
+    templateId: 'tpl-auto-onboarding-reminder',
+    fallbackSubject: `Action Required: Complete your Lead Hunter Club application`,
+    fallbackBody: `Hi {{name}},
+
+We noticed you started setting up your account on The Lead Hunter Club, but haven't completed your onboarding details yet.
+
+To get your application reviewed and unlock access to high-intent client opportunities, please take 2 minutes to fill in your profile and services:
+
+👉 [Complete Your Application]({{appUrl}}/onboarding)
+
+Once submitted, our team will review your application so you can start hunting.
+
+Best regards,
+The Lead Hunter Club Team`,
+    variables: {
+      name: data.name,
+      appUrl: data.appUrl,
+    },
+    cta: {
+      text: 'Complete Application',
+      url: `${data.appUrl}/onboarding`,
+    },
+  })
+}

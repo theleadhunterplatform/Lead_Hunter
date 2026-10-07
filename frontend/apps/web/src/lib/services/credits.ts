@@ -19,7 +19,7 @@ function now(): Date {
   return new Date()
 }
 
-async function getDynamicPlanCredits(planId: string, tx?: Prisma.TransactionClient): Promise<number> {
+export async function getDynamicPlanCredits(planId: string, tx?: Prisma.TransactionClient): Promise<number> {
   try {
     const client = tx || db
     const plansSetting = await client.setting.findUnique({ where: { key: 'plans_config' } })
