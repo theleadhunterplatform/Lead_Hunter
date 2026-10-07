@@ -16,21 +16,40 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status')
     const search = searchParams.get('search')?.trim()
     const serviceFilter = searchParams.get('service')?.trim()
+    const onboarding = searchParams.get('onboarding')?.trim()?.toUpperCase()
 
-    const where: Record<string, unknown> = {}
+    const andConditions: Record<string, unknown>[] = []
     if (status && ['PENDING', 'ACTIVE', 'REJECTED', 'SUSPENDED'].includes(status)) {
-      where.status = status
+      andConditions.push({ status })
     }
     if (search) {
-      where.OR = [
-        { email: { contains: search, mode: 'insensitive' } },
-        { name: { contains: search, mode: 'insensitive' } },
-        { phone: { contains: search, mode: 'insensitive' } },
-      ]
+      andConditions.push({
+        OR: [
+          { email: { contains: search, mode: 'insensitive' } },
+          { name: { contains: search, mode: 'insensitive' } },
+          { phone: { contains: search, mode: 'insensitive' } },
+        ],
+      })
     }
     if (serviceFilter) {
-      where.servicesOffered = { has: serviceFilter }
+      andConditions.push({ servicesOffered: { has: serviceFilter } })
     }
+    if (onboarding === 'COMPLETE') {
+      andConditions.push({
+        linkedin: { not: null, notIn: ['', ' '] },
+        servicesOffered: { isEmpty: false },
+      })
+    } else if (onboarding === 'INCOMPLETE') {
+      andConditions.push({
+        OR: [
+          { linkedin: null },
+          { linkedin: '' },
+          { servicesOffered: { isEmpty: true } },
+        ],
+      })
+    }
+
+    const where = andConditions.length > 0 ? { AND: andConditions } : {}
 
     const [users, total] = await Promise.all([
       db.user.findMany({

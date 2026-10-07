@@ -97,6 +97,7 @@ export default function AdminUsersPage() {
   const [search, setSearch] = useState(searchParams.get('search') || '')
   const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || 'PENDING')
   const [serviceFilter, setServiceFilter] = useState(searchParams.get('service') || '')
+  const [onboardingFilter, setOnboardingFilter] = useState(searchParams.get('onboarding') || 'ALL')
   const [page, setPage] = useState(() => Math.max(1, parseInt(searchParams.get('page') || '1', 10)))
   const [actionLoading, setActionLoading] = useState<string | null>(null)
 
@@ -153,8 +154,10 @@ export default function AdminUsersPage() {
     else url.searchParams.delete('search')
     if (serviceFilter) url.searchParams.set('service', serviceFilter)
     else url.searchParams.delete('service')
+    if (onboardingFilter !== 'ALL') url.searchParams.set('onboarding', onboardingFilter)
+    else url.searchParams.delete('onboarding')
     window.history.replaceState({}, '', url.toString())
-  }, [page, statusFilter, search, serviceFilter])
+  }, [page, statusFilter, search, serviceFilter, onboardingFilter])
 
   const handlePageChange = (newPage: number) => {
     setPage(newPage)
@@ -174,6 +177,7 @@ export default function AdminUsersPage() {
     if (statusFilter !== 'ALL') params.set('status', statusFilter)
     if (search.trim()) params.set('search', search.trim())
     if (serviceFilter) params.set('service', serviceFilter)
+    if (onboardingFilter !== 'ALL') params.set('onboarding', onboardingFilter)
 
     try {
       const res = await fetch(`/api/admin/users?${params}`, {
@@ -187,7 +191,7 @@ export default function AdminUsersPage() {
     } finally {
       setLoading(false)
     }
-  }, [page, statusFilter, search, serviceFilter])
+  }, [page, statusFilter, search, serviceFilter, onboardingFilter])
 
   useEffect(() => {
     fetchUsers()
@@ -309,7 +313,7 @@ export default function AdminUsersPage() {
               setServiceFilter(e.target.value)
               setPage(1)
             }}
-            className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all px-3 py-2.5 text-sm appearance-none cursor-pointer min-w-[160px]"
+            className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all pl-3 pr-8 py-2.5 text-sm appearance-none cursor-pointer min-w-[150px]"
           >
             <option value="">All Services</option>
             {users.length > 0 &&
@@ -319,6 +323,22 @@ export default function AdminUsersPage() {
                 </option>
               ))}
           </select>
+          <ChevronDownIcon className="w-4 h-4 absolute right-2.5 top-1/2 -translate-y-1/2 text-text-secondary/60 pointer-events-none" />
+        </div>
+        <div className="relative">
+          <select
+            value={onboardingFilter}
+            onChange={(e) => {
+              setOnboardingFilter(e.target.value)
+              setPage(1)
+            }}
+            className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all pl-3 pr-8 py-2.5 text-sm appearance-none cursor-pointer min-w-[160px]"
+          >
+            <option value="ALL">All Onboarding</option>
+            <option value="COMPLETE">Complete</option>
+            <option value="INCOMPLETE">Incomplete</option>
+          </select>
+          <ChevronDownIcon className="w-4 h-4 absolute right-2.5 top-1/2 -translate-y-1/2 text-text-secondary/60 pointer-events-none" />
         </div>
         <div className="flex gap-1">
           {STATUS_FILTERS.map((s) => (
