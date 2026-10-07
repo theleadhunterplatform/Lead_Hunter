@@ -173,7 +173,7 @@ export default function AdminUsersPage() {
 
     const params = new URLSearchParams()
     params.set('page', page.toString())
-    params.set('pageSize', '20')
+    params.set('pageSize', '10')
     if (statusFilter !== 'ALL') params.set('status', statusFilter)
     if (search.trim()) params.set('search', search.trim())
     if (serviceFilter) params.set('service', serviceFilter)

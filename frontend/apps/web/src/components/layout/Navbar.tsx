@@ -110,7 +110,7 @@ export default function Navbar() {
             isScrolled
               ? isHovered
                 ? 'max-w-[1100px] bg-background/90 backdrop-blur-2xl border border-white/[0.08] shadow-[0_12px_40px_rgba(0,0,0,0.6)] rounded-2xl px-5 py-3'
-                : 'max-w-[760px] bg-background/90 backdrop-blur-2xl border border-white/[0.08] shadow-[0_12px_40px_rgba(0,0,0,0.6)] rounded-full px-5 py-2.5'
+                : 'max-w-[840px] bg-background/90 backdrop-blur-2xl border border-white/[0.08] shadow-[0_12px_40px_rgba(0,0,0,0.6)] rounded-full px-5 py-2.5'
               : 'max-w-[1100px] bg-transparent border border-transparent rounded-2xl px-5 py-3'
           }`}
         >
@@ -129,8 +129,8 @@ export default function Navbar() {
             </span>
           </Link>
 
-          {/* Center: Links (Desktop) */}
-          <div className="hidden md:flex items-center shrink-0 flex-nowrap">
+          {/* Center: Links (Desktop) — shown from lg; below that the hamburger takes over so the collapsed pill never overflows */}
+          <div className="hidden lg:flex items-center shrink-0 flex-nowrap">
             <div className="flex items-center gap-1 flex-nowrap">
                {navLinks.map((link) => {
                  const isHash = link.href.includes('#')
@@ -212,7 +212,7 @@ export default function Navbar() {
             {/* Mobile Menu Button */}
             <button
               onClick={() => setMobileOpen(!mobileOpen)}
-              className="md:hidden w-11 h-11 rounded-full bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-white/[0.08] transition-all duration-300"
+              className="lg:hidden w-11 h-11 rounded-full bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-white/[0.08] transition-all duration-300"
               aria-label="Toggle menu"
               aria-expanded={mobileOpen}
               aria-controls="mobile-menu"
@@ -231,7 +231,7 @@ export default function Navbar() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
-            className="fixed inset-0 z-40 md:hidden"
+            className="fixed inset-0 z-40 lg:hidden"
           >
             {/* Backdrop */}
             <div

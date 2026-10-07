@@ -664,6 +664,23 @@ capture *where* they actually found us.
 - Note (pre-existing, untouched): draft restore races the save-effect under React
   StrictMode in dev — storage gets overwritten on mount; restore works outside double-mount.
 
+### Navbar: Start Hunting button escaped the collapsed pill on scroll (2026-10-07)
+User report (screenshot): scrolling the landing page, the "Start Hunting" button hangs
+outside the floating collapsed navbar.
+- **Root cause:** scrolled non-hovered pill capped at `max-w-[760px]` while all children are
+  `shrink-0` and the row actually needs ~800px (brand 170 + links 440 + CTA 148 + px-5
+  padding) → content overflowed the rounded bg (measured 15px protrusion at 1440, ~78px at
+  768). The md band (768–1023) could never fit links + brand + CTA at all.
+- **Fix in `components/layout/Navbar.tsx`:** collapsed pill `max-w-[760px]` → `max-w-[840px]`;
+  desktop nav links `hidden md:flex` → `hidden lg:flex` and hamburger button + mobile menu
+  overlay `md:hidden` → `lg:hidden` (tablet band now uses the hamburger — navigation stays
+  reachable; brand text + CTA + hamburger fit with room to spare). Hover state (1100) and
+  mobile layout untouched.
+- **Verified (browser, dev server):** overflow = −21px slack at 1440 (scrolled),
+  −20/−21 at 1024 (unscrolled incl. "Log in" + scrolled), −21 at 900 and −20 at 768
+  (links hidden, hamburger visible), ~500 mobile unchanged (brand + hamburger, no
+  horizontal doc scroll) · `next lint --file` clean.
+
 ---
 
 ## 3. Blocked — waiting on user input
