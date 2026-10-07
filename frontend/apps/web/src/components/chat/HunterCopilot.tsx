@@ -15,6 +15,7 @@ import ReactMarkdown from 'react-markdown'
 import { auth } from '@/lib/firebase'
 import { WolfOrb } from '@/components/chat/WolfOrb'
 import { CopilotLoading } from '@/components/chat/CopilotLoading'
+import { copilotStore, useCopilot } from '@/lib/copilot-store'
 
 interface Message {
   id: string
@@ -176,8 +177,7 @@ function UserBubble({ content }: { content: string }) {
 }
 
 export function HunterCopilot() {
-  const [isOpen, setIsOpen] = useState(false)
-  const [isMinimized, setIsMinimized] = useState(false)
+  const { open: isOpen, minimized: isMinimized } = useCopilot()
   const [messages, setMessages] = useState<Message[]>([INITIAL_WELCOME])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -278,13 +278,10 @@ export function HunterCopilot() {
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.8, y: 20 }}
           transition={{ duration: 0.4, ease }}
-          className="fixed bottom-6 right-6 z-50 safe-area-bottom"
+          className="fixed bottom-6 right-6 z-50 hidden safe-area-bottom md:block"
         >
           <button
-            onClick={() => {
-              setIsOpen(true)
-              setIsMinimized(false)
-            }}
+            onClick={() => copilotStore.open()}
             title="Open Hunter Copilot 24/7 Support"
             aria-label="Open Hunter Copilot"
             className="group relative grid h-[56px] w-[56px] place-items-center rounded-full border border-white/10 bg-surface-container/95 shadow-elevation-4 backdrop-blur-md transition-all duration-300 hover:border-primary/45 hover:shadow-[0_16px_48px_-12px_rgba(0,0,0,0.85),0_0_28px_-6px_rgba(255,184,0,0.3)] active:scale-95"
@@ -312,23 +309,23 @@ export function HunterCopilot() {
         <motion.div
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, ease }}
-          className="fixed bottom-6 right-6 z-50 safe-area-bottom"
-        >
-          <div className="flex items-center gap-2.5 rounded-2xl border border-white/10 bg-surface-container/95 py-2 pl-2 pr-2 shadow-elevation-4 backdrop-blur-md">
-            <WolfOrb
-              size="xs"
-              state={loading ? 'thinking' : 'online'}
-              showRing={false}
-              showStatus={false}
-            />
-            <span className="pr-1 text-xs font-bold text-white">Hunter Copilot</span>
-            <span className="ml-0.5 h-1.5 w-1.5 rounded-full bg-secondary" />
-            <div className="ml-1 flex items-center gap-0.5 border-l border-white/10 pl-1.5">
-              <ControlButton onClick={() => setIsMinimized(false)} title="Expand Copilot">
-                <ChevronUp size={14} />
-              </ControlButton>
-              <ControlButton onClick={() => setIsOpen(false)} title="Close Copilot" danger>
+            transition={{ duration: 0.3, ease }}
+            className="fixed bottom-6 right-6 z-50 hidden safe-area-bottom md:block"
+          >
+            <div className="flex items-center gap-2.5 rounded-2xl border border-white/10 bg-surface-container/95 py-2 pl-2 pr-2 shadow-elevation-4 backdrop-blur-md">
+              <WolfOrb
+                size="xs"
+                state={loading ? 'thinking' : 'online'}
+                showRing={false}
+                showStatus={false}
+              />
+              <span className="pr-1 text-xs font-bold text-white">Hunter Copilot</span>
+              <span className="ml-0.5 h-1.5 w-1.5 rounded-full bg-secondary" />
+              <div className="ml-1 flex items-center gap-0.5 border-l border-white/10 pl-1.5">
+                <ControlButton onClick={() => copilotStore.expand()} title="Expand Copilot">
+                  <ChevronUp size={14} />
+                </ControlButton>
+                <ControlButton onClick={() => copilotStore.close()} title="Close Copilot" danger>
                 <X size={14} />
               </ControlButton>
             </div>
@@ -345,7 +342,7 @@ export function HunterCopilot() {
             exit={{ opacity: 0, y: 20, scale: 0.96 }}
             transition={{ duration: 0.32, ease }}
             style={{ transformOrigin: 'bottom right' }}
-            className="fixed bottom-6 right-6 z-50 flex h-[560px] max-h-[85vh] w-[360px] flex-col overflow-hidden rounded-[22px] border border-white/[0.1] bg-surface-container-low/98 shadow-[0_24px_80px_-16px_rgba(0,0,0,0.9),0_0_0_1px_rgba(255,255,255,0.04),inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-2xl safe-area-bottom sm:w-[410px]"
+            className="fixed inset-x-3 bottom-3 z-50 flex h-[78vh] max-h-[640px] flex-col overflow-hidden rounded-[22px] border border-white/[0.1] bg-surface-container-low/98 shadow-[0_24px_80px_-16px_rgba(0,0,0,0.9),0_0_0_1px_rgba(255,255,255,0.04),inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-2xl safe-area-bottom sm:inset-x-auto sm:bottom-6 sm:right-6 sm:h-[560px] sm:max-h-[85vh] sm:w-[410px]"
           >
             {/* Ambient + hairline */}
             <div className="pointer-events-none absolute -right-10 -top-12 h-40 w-56 rounded-full bg-primary/12 blur-3xl" />
@@ -391,10 +388,12 @@ export function HunterCopilot() {
                 <ControlButton onClick={handleResetChat} title="Reset conversation">
                   <RotateCcw size={13} />
                 </ControlButton>
-                <ControlButton onClick={() => setIsMinimized(true)} title="Minimize">
-                  <Minus size={14} />
-                </ControlButton>
-                <ControlButton onClick={() => setIsOpen(false)} title="Close" danger>
+                <span className="hidden sm:block">
+                  <ControlButton onClick={() => copilotStore.minimize()} title="Minimize">
+                    <Minus size={14} />
+                  </ControlButton>
+                </span>
+                <ControlButton onClick={() => copilotStore.close()} title="Close" danger>
                   <X size={14} />
                 </ControlButton>
               </div>

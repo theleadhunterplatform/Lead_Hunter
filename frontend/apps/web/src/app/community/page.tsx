@@ -13,6 +13,8 @@ import {
   XMarkIcon,
   ArrowRightIcon,
   ShieldCheckIcon,
+  MegaphoneIcon,
+  SparklesIcon,
 } from '@heroicons/react/24/solid'
 import { MagnifyingGlassPlusIcon } from '@heroicons/react/24/outline'
 import { useAuth } from '@/hooks/useAuth'
@@ -24,7 +26,7 @@ interface CommunityPostItem {
   id: string
   title: string
   content: string
-  category: 'DEAL_CLOSED' | 'MEETING_SCHEDULED' | 'POSITIVE_REPLY' | 'SPOTLIGHT'
+  category: 'ANNOUNCEMENT' | 'DEAL_CLOSED' | 'MEETING_SCHEDULED' | 'POSITIVE_REPLY' | 'SPOTLIGHT' | 'STRATEGY'
   dealSize: string | null
   clientNiche: string | null
   imageUrl: string | null
@@ -48,11 +50,13 @@ interface Stats {
 }
 
 const CATEGORY_TABS = [
-  { id: 'ALL', label: 'All Wins', icon: Squares2X2Icon },
+  { id: 'ALL', label: 'All Updates', icon: Squares2X2Icon },
+  { id: 'ANNOUNCEMENT', label: 'Announcements', icon: MegaphoneIcon, emoji: '📢' },
   { id: 'DEAL_CLOSED', label: 'Deals Closed', icon: TrophyIcon, emoji: '🏆' },
   { id: 'MEETING_SCHEDULED', label: 'Meetings Booked', icon: CalendarDaysIcon, emoji: '📅' },
   { id: 'POSITIVE_REPLY', label: 'Positive Replies', icon: ChatBubbleLeftRightIcon, emoji: '💬' },
   { id: 'SPOTLIGHT', label: 'Spotlights', icon: CheckBadgeIcon, emoji: '⭐' },
+  { id: 'STRATEGY', label: 'Strategies', icon: SparklesIcon, emoji: '💡' },
 ] as const
 
 const REACTION_CONFIG = [
@@ -266,11 +270,25 @@ export default function CommunityPage() {
         {posts.length === 0 ? (
           <div className="metallic-card py-20 text-center space-y-3">
             <div className="w-14 h-14 rounded-2xl bg-white/[0.05] border border-white/[0.08] flex items-center justify-center mx-auto text-text-secondary">
-              <TrophyIcon className="w-7 h-7" />
+              {selectedCategory === 'ANNOUNCEMENT' ? (
+                <MegaphoneIcon className="w-7 h-7 text-amber-400" />
+              ) : selectedCategory === 'STRATEGY' ? (
+                <SparklesIcon className="w-7 h-7 text-sky-400" />
+              ) : (
+                <TrophyIcon className="w-7 h-7" />
+              )}
             </div>
-            <h3 className="text-base font-bold text-white">No wins found in this category</h3>
+            <h3 className="text-base font-bold text-white">
+              {selectedCategory === 'ANNOUNCEMENT'
+                ? 'No announcements posted yet'
+                : selectedCategory === 'STRATEGY'
+                ? 'No playbook strategies found'
+                : 'No wins found in this category'}
+            </h3>
             <p className="text-xs text-text-secondary max-w-sm mx-auto">
-              Check back soon as our team regularly reviews and publishes genuine member wins.
+              {selectedCategory === 'ANNOUNCEMENT'
+                ? 'Official updates, lead drops, and announcements from the Lead Hunter team will appear here.'
+                : 'Check back soon as our team regularly reviews and publishes genuine member wins.'}
             </p>
           </div>
         ) : (
@@ -295,13 +313,35 @@ export default function CommunityPage() {
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex flex-wrap items-center gap-2">
                       {post.isPinned && (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-primary/15 text-primary border border-primary/30">
-                          📌 Pinned Featured Win
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold ${
+                          post.category === 'ANNOUNCEMENT'
+                            ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                            : 'bg-primary/15 text-primary border border-primary/30'
+                        }`}>
+                          📌 {post.category === 'ANNOUNCEMENT' ? 'Pinned Announcement' : 'Pinned Featured Win'}
                         </span>
                       )}
 
                       {/* Category Badge */}
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-primary/15 text-primary border border-primary/30">
+                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
+                        post.category === 'ANNOUNCEMENT'
+                          ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                          : post.category === 'STRATEGY'
+                          ? 'bg-sky-500/15 text-sky-300 border border-sky-500/30'
+                          : 'bg-primary/15 text-primary border border-primary/30'
+                      }`}>
+                        {post.category === 'ANNOUNCEMENT' && (
+                          <>
+                            <MegaphoneIcon className="w-3.5 h-3.5" />
+                            <span>Official Announcement</span>
+                          </>
+                        )}
+                        {post.category === 'STRATEGY' && (
+                          <>
+                            <SparklesIcon className="w-3.5 h-3.5" />
+                            <span>Strategy & Playbook</span>
+                          </>
+                        )}
                         {post.category === 'DEAL_CLOSED' && <span>Deal Closed</span>}
                         {post.category === 'MEETING_SCHEDULED' && <span>Meeting Booked</span>}
                         {post.category === 'POSITIVE_REPLY' && <span>Warm Reply</span>}
@@ -323,11 +363,23 @@ export default function CommunityPage() {
                       )}
                     </div>
 
-                    {/* Verified Guarantee Badge */}
-                    <div className="inline-flex items-center gap-1.5 text-xs font-bold text-accent-mint">
-                      <ShieldCheckIcon className="w-4 h-4" />
-                      <span>Verified Win</span>
-                    </div>
+                    {/* Verified Guarantee / Announcement Badge */}
+                    {post.category === 'ANNOUNCEMENT' ? (
+                      <div className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-400">
+                        <MegaphoneIcon className="w-4 h-4" />
+                        <span>Platform Update</span>
+                      </div>
+                    ) : post.category === 'STRATEGY' ? (
+                      <div className="inline-flex items-center gap-1.5 text-xs font-bold text-sky-400">
+                        <SparklesIcon className="w-4 h-4" />
+                        <span>Playbook Tip</span>
+                      </div>
+                    ) : (
+                      <div className="inline-flex items-center gap-1.5 text-xs font-bold text-accent-mint">
+                        <ShieldCheckIcon className="w-4 h-4" />
+                        <span>Verified Win</span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Header: Title */}
@@ -373,8 +425,12 @@ export default function CommunityPage() {
                       <div className="space-y-0.5">
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-bold text-white">{post.authorName}</span>
-                          <span className="px-1.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-accent-mint/15 text-accent-mint border border-accent-mint/30">
-                            {post.authorPlan || 'MEMBER'}
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider border ${
+                            post.category === 'ANNOUNCEMENT'
+                              ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                              : 'bg-accent-mint/15 text-accent-mint border-accent-mint/30'
+                          }`}>
+                            {post.authorPlan || (post.category === 'ANNOUNCEMENT' ? 'OFFICIAL' : 'MEMBER')}
                           </span>
                         </div>
                         <div className="text-[11px] text-text-secondary">{formattedDate}</div>

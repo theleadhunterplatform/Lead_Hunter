@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 const createPostSchema = z.object({
   title: z.string().min(3, 'Title must be at least 3 characters'),
   content: z.string().min(10, 'Story content must be at least 10 characters'),
-  category: z.enum(['DEAL_CLOSED', 'MEETING_SCHEDULED', 'POSITIVE_REPLY', 'SPOTLIGHT']).default('DEAL_CLOSED'),
+  category: z.enum(['ANNOUNCEMENT', 'DEAL_CLOSED', 'MEETING_SCHEDULED', 'POSITIVE_REPLY', 'SPOTLIGHT', 'STRATEGY']).default('ANNOUNCEMENT'),
   dealSize: z.string().optional().nullable(),
   clientNiche: z.string().optional().nullable(),
   imageUrl: z.string().optional().nullable(),

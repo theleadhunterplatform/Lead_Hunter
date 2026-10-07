@@ -520,7 +520,7 @@ function PricingContent() {
                           <BanknotesIcon className="w-6 h-6" />
                         </div>
                         <span className="text-xs font-bold text-accent-orange uppercase tracking-wider bg-accent-orange/10 px-2.5 py-1 rounded-lg">
-                          Never Expires
+                          Top-Up Pack
                         </span>
                       </div>
 
@@ -583,9 +583,9 @@ function PricingContent() {
                   <ShieldCheckIcon className="w-6 h-6" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold text-white">Purchased Credits Never Expire</h4>
+                  <h4 className="text-sm font-bold text-white">Credits Roll Over on Renewal</h4>
                   <p className="text-xs text-text-secondary mt-0.5">
-                    Purchased credits stack on top of your monthly allowance and never expire while your membership is active.
+                    Purchased credits stack on top of your monthly allowance. Any unused balance rolls over for 15 days when your plan renews.
                   </p>
                 </div>
               </div>

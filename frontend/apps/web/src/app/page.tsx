@@ -678,7 +678,7 @@ export default function LandingPage() {
 2) Lead with email: 10 coins
 3) Phone & email: 15 coins
 4) Profile link: 5 coins
-If you run out, buy top-ups starting at ₹199. Top-up coins never expire.`}
+If you run out, buy top-ups starting at ₹199. Unused credits roll over for 15 days when your plan renews.`}
           />
           <FAQItem
             q="What is the source of these leads?"

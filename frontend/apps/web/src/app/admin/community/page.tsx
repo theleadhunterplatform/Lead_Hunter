@@ -20,6 +20,7 @@ import {
   CheckCircleIcon,
   EyeIcon,
   ArchiveBoxIcon,
+  MegaphoneIcon,
 } from '@heroicons/react/24/solid'
 import { useToast } from '@/components/ui/Toast'
 import { getFirebaseToken } from '@/lib/firebase'
@@ -29,7 +30,7 @@ interface CommunityPost {
   id: string
   title: string
   content: string
-  category: 'DEAL_CLOSED' | 'MEETING_SCHEDULED' | 'POSITIVE_REPLY' | 'SPOTLIGHT'
+  category: 'ANNOUNCEMENT' | 'DEAL_CLOSED' | 'MEETING_SCHEDULED' | 'POSITIVE_REPLY' | 'SPOTLIGHT' | 'STRATEGY'
   dealSize: string | null
   clientNiche: string | null
   imageUrl: string | null
@@ -79,12 +80,12 @@ export default function AdminCommunityPage() {
   const [createForm, setCreateForm] = useState({
     title: '',
     content: '',
-    category: 'DEAL_CLOSED' as const,
+    category: 'ANNOUNCEMENT' as 'ANNOUNCEMENT' | 'DEAL_CLOSED' | 'MEETING_SCHEDULED' | 'POSITIVE_REPLY' | 'SPOTLIGHT' | 'STRATEGY',
     dealSize: '',
     clientNiche: '',
     imageUrl: '',
-    authorName: '',
-    authorPlan: 'Pro Member',
+    authorName: 'Lead Hunter Club Team',
+    authorPlan: 'Official Update',
     isPinned: false,
   })
   const [creating, setCreating] = useState(false)
@@ -725,72 +726,87 @@ export default function AdminCommunityPage() {
       {activeTab === 'CREATE' && (
         <div className="max-w-2xl bg-surface-elevated border border-white/[0.08] rounded-2xl p-6 md:p-8 space-y-6">
           <div className="space-y-1">
-            <h3 className="text-lg font-bold text-white">Create Custom Win or Spotlight Post</h3>
+            <h3 className="text-lg font-bold text-white">Create Announcement or Win Post</h3>
             <p className="text-xs text-text-secondary">
-              Directly publish an inspiring outreach breakdown, member spotlight, or platform milestone.
+              Directly publish an official platform announcement, outreach breakdown, or member spotlight.
             </p>
           </div>
 
           <form onSubmit={handleCreateSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-text-secondary mb-1.5">
-                Headline / Title *
+                {createForm.category === 'ANNOUNCEMENT' ? 'Announcement Headline / Title *' : 'Headline / Title *'}
               </label>
               <input
                 type="text"
                 required
-                placeholder="e.g. Agency Closed $6,000/mo Retainer from Lead Hunter LinkedIn Post"
+                placeholder={
+                  createForm.category === 'ANNOUNCEMENT'
+                    ? 'e.g. 🚀 250+ Verified Shopify Leads Added This Week!'
+                    : 'e.g. Agency Closed $6,000/mo Retainer from Lead Hunter LinkedIn Post'
+                }
                 value={createForm.title}
                 onChange={(e) => setCreateForm((f) => ({ ...f, title: e.target.value }))}
                 className="w-full px-4 py-2.5 bg-surface-container-lowest border border-white/20 rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-accent-mint"
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-text-secondary mb-1.5">
-                  Category *
-                </label>
-                <select
-                  value={createForm.category}
-                  onChange={(e) => setCreateForm((f) => ({ ...f, category: e.target.value as any }))}
-                  className="w-full px-3.5 py-2.5 bg-surface-container-lowest border border-white/20 rounded-xl text-xs text-white focus:outline-none focus:border-accent-mint"
-                >
-                  <option value="DEAL_CLOSED">🏆 Deal Closed</option>
-                  <option value="MEETING_SCHEDULED">📅 Meeting Booked</option>
-                  <option value="POSITIVE_REPLY">💬 Positive Reply</option>
-                  <option value="SPOTLIGHT">⭐ Member Spotlight</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-text-secondary mb-1.5">
-                  Deal Size (Optional)
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. $4,500/mo or $15,000"
-                  value={createForm.dealSize}
-                  onChange={(e) => setCreateForm((f) => ({ ...f, dealSize: e.target.value }))}
-                  className="w-full px-4 py-2.5 bg-surface-container-lowest border border-white/20 rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-accent-mint"
-                />
-              </div>
+            <div>
+              <label className="block text-xs font-semibold text-text-secondary mb-1.5">
+                Category / Post Type *
+              </label>
+              <select
+                value={createForm.category}
+                onChange={(e) => {
+                  const cat = e.target.value as any
+                  setCreateForm((f) => ({
+                    ...f,
+                    category: cat,
+                    authorName: cat === 'ANNOUNCEMENT' && (!f.authorName || f.authorName === 'Lead Hunter Club Team') ? 'Lead Hunter Club Team' : f.authorName,
+                    authorPlan: cat === 'ANNOUNCEMENT' ? 'Official Update' : f.authorPlan === 'Official Update' ? 'Pro Member' : f.authorPlan,
+                  }))
+                }}
+                className="w-full px-3.5 py-2.5 bg-surface-container-lowest border border-white/20 rounded-xl text-xs text-white focus:outline-none focus:border-accent-mint"
+              >
+                <option value="ANNOUNCEMENT">📢 Platform Announcement / Update</option>
+                <option value="DEAL_CLOSED">🏆 Deal Closed</option>
+                <option value="MEETING_SCHEDULED">📅 Meeting Booked</option>
+                <option value="POSITIVE_REPLY">💬 Positive Reply</option>
+                <option value="SPOTLIGHT">⭐ Member Spotlight</option>
+                <option value="STRATEGY">💡 Strategy & Tips</option>
+              </select>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-text-secondary mb-1.5">
-                  Client Niche (Optional)
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. B2B SaaS, E-Commerce, Real Estate"
-                  value={createForm.clientNiche}
-                  onChange={(e) => setCreateForm((f) => ({ ...f, clientNiche: e.target.value }))}
-                  className="w-full px-4 py-2.5 bg-surface-container-lowest border border-white/20 rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-accent-mint"
-                />
+            {createForm.category !== 'ANNOUNCEMENT' && createForm.category !== 'STRATEGY' && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-text-secondary mb-1.5">
+                    Deal Size (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. $4,500/mo or $15,000"
+                    value={createForm.dealSize}
+                    onChange={(e) => setCreateForm((f) => ({ ...f, dealSize: e.target.value }))}
+                    className="w-full px-4 py-2.5 bg-surface-container-lowest border border-white/20 rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-accent-mint"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-text-secondary mb-1.5">
+                    Client Niche (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. B2B SaaS, E-Commerce, Real Estate"
+                    value={createForm.clientNiche}
+                    onChange={(e) => setCreateForm((f) => ({ ...f, clientNiche: e.target.value }))}
+                    className="w-full px-4 py-2.5 bg-surface-container-lowest border border-white/20 rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-accent-mint"
+                  />
+                </div>
               </div>
+            )}
 
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-text-secondary mb-1.5">
                   Author Name *
@@ -798,37 +814,22 @@ export default function AdminCommunityPage() {
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Marcus Vance or Liam K."
+                  placeholder={createForm.category === 'ANNOUNCEMENT' ? 'Lead Hunter Club Team' : 'e.g. Marcus Vance or Liam K.'}
                   value={createForm.authorName}
                   onChange={(e) => setCreateForm((f) => ({ ...f, authorName: e.target.value }))}
                   className="w-full px-4 py-2.5 bg-surface-container-lowest border border-white/20 rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-accent-mint"
                 />
               </div>
-            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-text-secondary mb-1.5">
-                  Author Plan Tier
+                  Author Plan / Badge
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Agency Member or Pro Member"
+                  placeholder={createForm.category === 'ANNOUNCEMENT' ? 'Official Update' : 'e.g. Agency Member or Pro Member'}
                   value={createForm.authorPlan}
                   onChange={(e) => setCreateForm((f) => ({ ...f, authorPlan: e.target.value }))}
-                  className="w-full px-4 py-2.5 bg-surface-container-lowest border border-white/20 rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-accent-mint"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-text-secondary mb-1.5">
-                  Proof Image / Screenshot URL
-                </label>
-                <input
-                  type="text"
-                  placeholder="https://... or base64 data URL"
-                  value={createForm.imageUrl}
-                  onChange={(e) => setCreateForm((f) => ({ ...f, imageUrl: e.target.value }))}
                   className="w-full px-4 py-2.5 bg-surface-container-lowest border border-white/20 rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-accent-mint"
                 />
               </div>
@@ -836,12 +837,29 @@ export default function AdminCommunityPage() {
 
             <div>
               <label className="block text-xs font-semibold text-text-secondary mb-1.5">
-                Story / Strategy Breakdown *
+                Image / Screenshot URL (Optional)
+              </label>
+              <input
+                type="text"
+                placeholder="https://... or base64 data URL"
+                value={createForm.imageUrl}
+                onChange={(e) => setCreateForm((f) => ({ ...f, imageUrl: e.target.value }))}
+                className="w-full px-4 py-2.5 bg-surface-container-lowest border border-white/20 rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-accent-mint"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-text-secondary mb-1.5">
+                {createForm.category === 'ANNOUNCEMENT' ? 'Announcement Message / Details *' : 'Story / Strategy Breakdown *'}
               </label>
               <textarea
                 rows={5}
                 required
-                placeholder="Explain the outreach strategy, what signal was captured in Lead Hunter, and the result..."
+                placeholder={
+                  createForm.category === 'ANNOUNCEMENT'
+                    ? 'Write the announcement details, link instructions, or updates for members...'
+                    : 'Explain the outreach strategy, what signal was captured in Lead Hunter, and the result...'
+                }
                 value={createForm.content}
                 onChange={(e) => setCreateForm((f) => ({ ...f, content: e.target.value }))}
                 className="w-full px-4 py-2.5 bg-surface-container-lowest border border-white/20 rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-accent-mint resize-none"
@@ -857,7 +875,9 @@ export default function AdminCommunityPage() {
                 className="w-4 h-4 rounded border-white/20 bg-surface-container-lowest text-accent-mint focus:ring-0"
               />
               <label htmlFor="createPin" className="text-xs text-zinc-300 font-medium">
-                Pin this win to the top of the Community Hub
+                {createForm.category === 'ANNOUNCEMENT'
+                  ? 'Pin this announcement to the top of Community Feed'
+                  : 'Pin this win to the top of the Community Hub'}
               </label>
             </div>
 
@@ -1026,34 +1046,54 @@ export default function AdminCommunityPage() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-text-secondary mb-1">
-                      Deal Size
-                    </label>
-                    <input
-                      type="text"
-                      value={editTarget.dealSize || ''}
-                      onChange={(e) => setEditTarget({ ...editTarget, dealSize: e.target.value })}
-                      className="w-full px-3.5 py-2 bg-surface-container-lowest border border-white/20 rounded-xl text-xs text-white focus:outline-none focus:border-accent-mint"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-text-secondary mb-1">
-                      Client Niche
-                    </label>
-                    <input
-                      type="text"
-                      value={editTarget.clientNiche || ''}
-                      onChange={(e) => setEditTarget({ ...editTarget, clientNiche: e.target.value })}
-                      className="w-full px-3.5 py-2 bg-surface-container-lowest border border-white/20 rounded-xl text-xs text-white focus:outline-none focus:border-accent-mint"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-xs font-semibold text-text-secondary mb-1">
+                    Category / Post Type
+                  </label>
+                  <select
+                    value={editTarget.category}
+                    onChange={(e) => setEditTarget({ ...editTarget, category: e.target.value as any })}
+                    className="w-full px-3.5 py-2 bg-surface-container-lowest border border-white/20 rounded-xl text-xs text-white focus:outline-none focus:border-accent-mint"
+                  >
+                    <option value="ANNOUNCEMENT">📢 Platform Announcement / Update</option>
+                    <option value="DEAL_CLOSED">🏆 Deal Closed</option>
+                    <option value="MEETING_SCHEDULED">📅 Meeting Booked</option>
+                    <option value="POSITIVE_REPLY">💬 Positive Reply</option>
+                    <option value="SPOTLIGHT">⭐ Member Spotlight</option>
+                    <option value="STRATEGY">💡 Strategy & Tips</option>
+                  </select>
                 </div>
+
+                {editTarget.category !== 'ANNOUNCEMENT' && editTarget.category !== 'STRATEGY' && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-text-secondary mb-1">
+                        Deal Size
+                      </label>
+                      <input
+                        type="text"
+                        value={editTarget.dealSize || ''}
+                        onChange={(e) => setEditTarget({ ...editTarget, dealSize: e.target.value })}
+                        className="w-full px-3.5 py-2 bg-surface-container-lowest border border-white/20 rounded-xl text-xs text-white focus:outline-none focus:border-accent-mint"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-text-secondary mb-1">
+                        Client Niche
+                      </label>
+                      <input
+                        type="text"
+                        value={editTarget.clientNiche || ''}
+                        onChange={(e) => setEditTarget({ ...editTarget, clientNiche: e.target.value })}
+                        className="w-full px-3.5 py-2 bg-surface-container-lowest border border-white/20 rounded-xl text-xs text-white focus:outline-none focus:border-accent-mint"
+                      />
+                    </div>
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-xs font-semibold text-text-secondary mb-1">
-                    Story Content
+                    {editTarget.category === 'ANNOUNCEMENT' ? 'Announcement Content / Message' : 'Story Content'}
                   </label>
                   <textarea
                     rows={4}

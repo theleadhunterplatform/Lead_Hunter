@@ -170,7 +170,7 @@ export default function RefillPage() {
             Refill Your Lead Hunter Pipeline
           </h1>
           <p className="text-sm text-text-secondary leading-relaxed">
-            Need extra contact reveals without changing your monthly subscription plan? Top up instant credits that never expire as long as your account is active.
+            Need extra contact reveals without changing your monthly subscription plan? Top up instant credits and get back to revealing leads — any unused balance rolls over for 15 days when your plan renews.
           </p>
         </div>
 

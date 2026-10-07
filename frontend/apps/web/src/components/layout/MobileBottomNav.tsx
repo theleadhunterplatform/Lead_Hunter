@@ -16,6 +16,8 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/solid'
 import { useAuth } from '@/hooks/useAuth'
+import { WolfOrb } from '@/components/chat/WolfOrb'
+import { copilotStore, useCopilot } from '@/lib/copilot-store'
 
 const tabs = [
   { name: 'Feed', href: '/leads', icon: BanknotesIcon },
@@ -47,6 +49,7 @@ export function MobileBottomNav({
   const routerPathname = usePathname()
   const pathname = activePathOverride || routerPathname
   const { user, logout } = useAuth()
+  const copilot = useCopilot()
   const [moreOpen, setMoreOpen] = useState(false)
 
   const handleNavClick = (e: React.MouseEvent, href: string) => {
@@ -111,6 +114,33 @@ export function MobileBottomNav({
               </Link>
             )
           })}
+          {!isDemo && (
+            <button
+              type="button"
+              onClick={() => copilotStore.open()}
+              aria-label="Open Hunter Copilot"
+              aria-haspopup="dialog"
+              className={`flex-1 flex flex-col items-center justify-center gap-1 min-h-[56px] transition-colors active:scale-95 ${
+                copilot.open ? 'text-accent-orange' : 'text-text-secondary'
+              }`}
+            >
+              <WolfOrb
+                size="xxs"
+                state={copilot.open ? 'online' : 'idle'}
+                showRing={false}
+                showStatus={false}
+                showGlow={false}
+                trackPointer={false}
+                ariaLabel="Hunter Copilot"
+              />
+              <span className="text-[10px] font-semibold leading-none">Copilot</span>
+              <span
+                className={`h-1 w-1 rounded-full transition-opacity ${
+                  copilot.open ? 'bg-accent-orange opacity-100' : 'opacity-0'
+                }`}
+              />
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setMoreOpen(true)}

@@ -4,7 +4,7 @@ import React, { useCallback, useMemo, useRef, useState } from 'react'
 import { motion, useMotionValue, useSpring, useTransform, type MotionStyle } from 'framer-motion'
 
 type WolfOrbState = 'idle' | 'online' | 'thinking' | 'listening'
-type WolfOrbSize = 'xs' | 'sm' | 'md' | 'lg'
+type WolfOrbSize = 'xxs' | 'xs' | 'sm' | 'md' | 'lg'
 
 interface WolfOrbProps {
   size?: WolfOrbSize
@@ -12,11 +12,13 @@ interface WolfOrbProps {
   trackPointer?: boolean
   showStatus?: boolean
   showRing?: boolean
+  showGlow?: boolean
   className?: string
   ariaLabel?: string
 }
 
 const sizeMap: Record<WolfOrbSize, number> = {
+  xxs: 22,
   xs: 40,
   sm: 56,
   md: 72,
@@ -73,6 +75,7 @@ export function WolfOrb({
   trackPointer = true,
   showStatus = true,
   showRing = true,
+  showGlow = true,
   className = '',
   ariaLabel = 'Hunter Copilot avatar',
 }: WolfOrbProps) {
@@ -157,22 +160,24 @@ export function WolfOrb({
       aria-label={ariaLabel}
     >
       {/* Ambient outer glow */}
-      <motion.div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 rounded-full blur-xl"
-        style={{
-          background: `radial-gradient(circle at 50% 50%, ${accent.glow}, transparent 70%)`,
-          scale: 1.35,
-        }}
-        animate={{
-          opacity: isThinking ? [0.55, 1, 0.55] : hovered ? 0.95 : isOnline ? [0.5, 0.85, 0.5] : 0.55,
-        }}
-        transition={{
-          duration: isThinking ? 0.9 : 2.8,
-          repeat: Infinity,
-          ease: 'easeInOut',
-        }}
-      />
+      {showGlow && (
+        <motion.div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 rounded-full blur-xl"
+          style={{
+            background: `radial-gradient(circle at 50% 50%, ${accent.glow}, transparent 70%)`,
+            scale: 1.35,
+          }}
+          animate={{
+            opacity: isThinking ? [0.55, 1, 0.55] : hovered ? 0.95 : isOnline ? [0.5, 0.85, 0.5] : 0.55,
+          }}
+          transition={{
+            duration: isThinking ? 0.9 : 2.8,
+            repeat: Infinity,
+            ease: 'easeInOut',
+          }}
+        />
+      )}
 
       {/* Orbit ring */}
       {showRing && (
@@ -198,7 +203,7 @@ export function WolfOrb({
       )}
 
       {/* Secondary thin orbit */}
-      {showRing && size !== 'xs' && (
+      {showRing && size !== 'xs' && size !== 'xxs' && (
         <motion.div
           aria-hidden
           className="pointer-events-none absolute left-1/2 top-1/2 rounded-full border border-dashed"

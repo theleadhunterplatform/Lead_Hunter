@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 const updatePostSchema = z.object({
   title: z.string().min(3).optional(),
   content: z.string().min(10).optional(),
-  category: z.enum(['DEAL_CLOSED', 'MEETING_SCHEDULED', 'POSITIVE_REPLY', 'SPOTLIGHT']).optional(),
+  category: z.enum(['ANNOUNCEMENT', 'DEAL_CLOSED', 'MEETING_SCHEDULED', 'POSITIVE_REPLY', 'SPOTLIGHT', 'STRATEGY']).optional(),
   dealSize: z.string().optional().nullable(),
   clientNiche: z.string().optional().nullable(),
   imageUrl: z.string().optional().nullable(),

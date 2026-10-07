@@ -285,7 +285,7 @@ export default function ReferralsPage() {
               <p className="mt-2 text-3xl font-extrabold text-white tabular-nums tracking-tight">
                 {loading ? '—' : data?.stats.currentBonusBalance ?? 0}
               </p>
-              <p className="mt-1 text-xs text-text-secondary">Never expires</p>
+              <p className="mt-1 text-xs text-text-secondary">Added to your balance</p>
             </div>
           </div>
         </div>

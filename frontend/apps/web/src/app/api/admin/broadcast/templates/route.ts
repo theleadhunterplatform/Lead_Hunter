@@ -112,7 +112,7 @@ The Lead Hunter Club Team`,
 
 Great news! {{addedCredits}} credits have been added to your Lead Hunter Club balance.
 
-Your new total balance is {{newTotal}} credits. They never expire as long as your membership is in good standing.
+Your new total balance is {{newTotal}} credits. Any unused balance rolls over for 15 days when your plan renews.
 
 Start claiming fresh client leads now:
 {{appUrl}}/leads
@@ -144,7 +144,7 @@ The Lead Hunter Club Team`,
 
 This is a quick reminder that your {{plan}} subscription is scheduled to renew in {{daysRemaining}} days (on {{renewalDate}}).
 
-Your unused monthly credits will automatically roll over according to your plan rules so you never lose what you've earned.
+Your unused monthly credits will automatically roll over for 15 days when your plan renews.
 
 Manage your account & billing:
 {{appUrl}}/settings

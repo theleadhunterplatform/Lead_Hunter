@@ -10,29 +10,96 @@ const ease = [0.16, 1, 0.3, 1] as const
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 
-export const REVIEW_IMAGES = [
-  '/review/WhatsApp Image 2026-07-31 at 3.38.43 PM.jpeg',
-  '/review/WhatsApp Image 2026-08-03 at 9.27.12 PM.jpeg',
-  '/review/WhatsApp Image 2026-08-06 at 6.24.19 PM.jpeg',
-  '/review/WhatsApp Image 2026-08-10 at 4.37.01 PM.jpeg',
-  '/review/WhatsApp Image 2026-08-11 at 5.38.35 PM.jpeg',
-  '/review/WhatsApp Image 2026-08-11 at 8.55.23 PM.jpeg',
-  '/review/WhatsApp Image 2026-08-12 at 3.54.09 PM.jpeg',
-  '/review/WhatsApp Image 2026-08-12 at 6.44.28 PM.jpeg',
-  '/review/WhatsApp Image 2026-08-13 at 7.02.13 PM.jpeg',
-  '/review/WhatsApp Image 2026-08-14 at 6.46.29 PM.jpeg',
-  '/review/WhatsApp Image 2026-08-14 at 9.40.07 PM.jpeg',
-  '/review/WhatsApp Image 2026-08-18 at 6.35.01 PM.jpeg',
-  '/review/WhatsApp Image 2026-08-18 at 7.14.23 PM.jpeg',
-  '/review/WhatsApp Image 2026-08-19 at 5.09.45 PM.jpeg',
-  '/review/WhatsApp Image 2026-08-20 at 8.06.19 PM.jpeg',
-  '/review/WhatsApp Image 2026-08-24 at 9.42.52 PM.jpeg',
-  '/review/WhatsApp Image 2026-08-25 at 6.23.55 PM.jpeg',
-  '/review/WhatsApp Image 2026-08-26 at 10.34.15 PM.jpeg',
-  '/review/WhatsApp Image 2026-08-26 at 7.34.40 PM.jpeg',
-  '/review/WhatsApp Image 2026-08-27 at 4.18.23 PM.jpeg',
-  '/review/WhatsApp Image 2026-08-27 at 5.18.49 PM.jpeg',
+// Positive replies & meeting screenshots — drive the homepage
+// (6-card grid + 12 flying-cards hover overlay)
+export const POSITIVE_REPLY_IMAGES = [
+  '/review/positive/p01.jpg',
+  '/review/positive/p02.jpg',
+  '/review/positive/p03.jpg',
+  '/review/positive/p04.jpg',
+  '/review/positive/p05.jpg',
+  '/review/positive/p06.jpg',
+  '/review/positive/p07.jpg',
+  '/review/positive/p08.jpg',
+  '/review/positive/p09.jpg',
+  '/review/positive/p10.jpg',
+  '/review/positive/p11.jpg',
+  '/review/positive/p12.jpg',
+  '/review/positive/p13.jpg',
+  '/review/positive/p14.jpg',
+  '/review/positive/p15.jpg',
+  '/review/positive/p16.jpg',
+  '/review/positive/p17.jpg',
+  '/review/positive/p18.jpg',
+  '/review/positive/p19.jpg',
+  '/review/positive/p20.jpg',
+  '/review/positive/p21.jpg',
+  '/review/positive/p22.jpg',
+  '/review/positive/p23.jpg',
+  '/review/positive/p24.jpg',
+  '/review/positive/p25.jpg',
+  '/review/positive/p26.jpg',
+  '/review/positive/p27.jpg',
+  '/review/positive/p28.jpg',
+  '/review/positive/p29.jpg',
+  '/review/positive/p30.jpg',
+  '/review/positive/p31.jpg',
+  '/review/positive/p32.jpg',
+  '/review/positive/p33.jpg',
+  '/review/positive/p34.jpg',
+  '/review/positive/p35.jpg',
+  '/review/positive/p36.jpg',
+  '/review/positive/p37.jpg',
+  '/review/positive/p38.jpg',
+  '/review/positive/p39.jpg',
+  '/review/positive/p40.jpg',
+  '/review/positive/p41.jpg',
+  '/review/positive/p42.jpg',
+  '/review/positive/p43.jpg',
+  '/review/positive/p44.jpg',
+  '/review/positive/p45.jpg',
+  '/review/positive/p46.jpg',
+  '/review/positive/p47.jpg',
+  '/review/positive/p48.jpg',
+  '/review/positive/p49.jpg',
+  '/review/positive/p50.jpg',
+  '/review/positive/p51.png',
+  '/review/positive/p52.jpg',
+  '/review/positive/p53.jpg',
+  '/review/positive/p54.jpg',
+  '/review/positive/p55.jpg',
+  '/review/positive/p56.jpg',
+  '/review/positive/p57.jpg',
+  '/review/positive/p58.jpg',
+  '/review/positive/p59.jpg',
+  '/review/positive/p60.jpg',
+  '/review/positive/p61.jpg',
+  '/review/positive/p62.jpg',
+  '/review/positive/p63.jpg',
+  '/review/positive/p64.jpg',
+  '/review/positive/p65.jpg',
+  '/review/positive/p66.jpg',
+  '/review/positive/p67.jpg',
+  '/review/positive/p68.jpg',
 ]
+
+// Closed-deal screenshots — See-all reviews page only
+export const CLOSURE_IMAGES = [
+  '/review/closures/c01.jpeg',
+  '/review/closures/c02.jpeg',
+  '/review/closures/c03.jpeg',
+  '/review/closures/c04.jpeg',
+  '/review/closures/c05.jpeg',
+  '/review/closures/c06.jpeg',
+  '/review/closures/c07.jpeg',
+  '/review/closures/c08.jpeg',
+  '/review/closures/c09.jpeg',
+  '/review/closures/c10.jpeg',
+  '/review/closures/c11.jpeg',
+]
+
+// Everything shown on /reviews: closures first, then positive replies
+export const ALL_REVIEW_IMAGES = [...CLOSURE_IMAGES, ...POSITIVE_REPLY_IMAGES]
 
 // Positions for the flying reviews in the reviews explosion (relative coordinates)
 const FLYING_POSITIONS = [
@@ -102,9 +169,9 @@ export default function TestimonialsSection() {
   const disableFlyingOverlay = isCoarsePointer
 
   // Show a clean preview of 6 reviews on the homepage
-  const homepageReviews = REVIEW_IMAGES.slice(0, 6)
+  const homepageReviews = POSITIVE_REPLY_IMAGES.slice(0, 6)
   // Use subsequent reviews for the interactive flying cards overlay
-  const flyingReviews = REVIEW_IMAGES.slice(6, 18)
+  const flyingReviews = POSITIVE_REPLY_IMAGES.slice(6, 18)
 
   // Emit brand reaction particles continuously when hovered (fine pointer only)
   React.useEffect(() => {

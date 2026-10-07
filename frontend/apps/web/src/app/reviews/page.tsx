@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { motion } from 'framer-motion'
-import { REVIEW_IMAGES, ReviewScreenshotCard } from '@/app/components/TestimonialsSection'
+import { ALL_REVIEW_IMAGES, ReviewScreenshotCard } from '@/app/components/TestimonialsSection'
 
 const ease = [0.16, 1, 0.3, 1] as const
 
@@ -72,7 +72,7 @@ export default function ReviewsPage() {
 
         {/* Masonry Grid (using modern CSS column-count) */}
         <div className="columns-1 sm:columns-2 lg:columns-3 gap-6 space-y-6">
-          {REVIEW_IMAGES.map((imageUrl, index) => (
+          {ALL_REVIEW_IMAGES.map((imageUrl, index) => (
             <motion.div
               key={imageUrl}
               initial={{ opacity: 0, y: 30 }}

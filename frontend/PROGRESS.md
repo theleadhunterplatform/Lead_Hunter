@@ -26,6 +26,7 @@
 | 11 | FAQ reorder — landing FAQ `page.tsx` from 1,2,3,4 → 1,4,2,3 | ✅ done + visually verified |
 | 12 | "Firebase auth panel" change | ❓ unclear — awaiting user clarification |
 | 13 | Landing copy → `docs/landingpagecontent.md` (hero/how/why/testimonials/pricing/final CTA) | ✅ done + browser-verified (desktop + mobile) |
+| 14 | Admin dashboard insights — persona/growth/revenue/activation/ops on `/admin` | ✅ shipped — API 200 + browser render verified |
 
 Note: user's original list had duplicate "5" (rollover + pricing); renumbered as above (rollover=5, pricing=6).
 
@@ -562,6 +563,86 @@ the API returns.
   reveal gating, fallback labels, cell cap, CSV/TSV parseability.
 - **Verified:** lint clean · tsc **0 errors total** (backend's fixes included) · vitest
   **17 failed | 192 passed (209)** = baseline + 6 new.
+
+### Coin-expiry copy sweep (2026-10-07)
+User ask: coins DO expire — remove every "never expire / no expiry" claim across the webapp.
+Real mechanic = `lib/services/rollover.ts` `ROLLOVER_VALIDITY_DAYS = 15`: unused balance rolls
+over for 15 days after the user renews/updates their plan (full leftover carries, expiry
+refreshed).
+- **11 violations removed across 6 files:** landing FAQ (`page.tsx` "Top-up coins never
+  expire"), `/pricing` pack badge "Never Expires" → "Top-Up Pack" + assurance banner
+  "Purchased Credits Never Expire" → "Credits Roll Over on Renewal", `/refill` hero
+  ("credits that never expire as long as your account is active"), Hunter Copilot — 5 spots
+  (`api/copilot/route.ts` system prompt + direct FAQ + deterministic KB + "(never expire)"
+  bullet + fallback), admin broadcast templates (topup "They never expire…" + renewal
+  reminder "so you never lose what you've earned" → both now state the 15-day rollover),
+  `/referrals` "Never expires" sub-label → "Added to your balance". Replacement copy = the
+  accurate 15-day rollover wording (matches code + pricing's existing feature bullet).
+- **Kept on purpose:** admin `users/[id]` "Lifetime successful charges" (spend stat, not a
+  coin claim) and HeroSection support-ticket subject "How do rollover credits expire?"
+  (implies expiry — fine).
+- **Verified:** re-grep for `never expire|no expiry|Never Expires|forever|yours to keep|
+  never lose|while your membership|as long as your` = 0 hits in `apps/web/src` · lint clean
+  (all 6 files) · vitest **17 failed | 192 passed (209)** = baseline.
+- **⚠️ Bare `npx tsc --noEmit` now reports 44 pre-existing errors** (broadcast routes use
+  `admin.id` on `AuthUser` which has no `id`; sheets/export select fields; cron/newsletter/
+  razorpay typings; Prisma mock args in credits/verify-session/coins tests; 1 `ButtonColor`
+  in leads page + 2 support-page types). **Zero are from this sweep** — the 2 in the
+  broadcast route exist verbatim at HEAD (`git show HEAD:…`), everything else is at exact
+  HEAD state; earlier "tsc 0" baselines were almost certainly incremental-cache replays
+  (`incremental: true`). Builds unaffected (`next.config.js` → `ignoreBuildErrors: true`).
+  Owner = backend guy (routes/tests) — flag, don't fix (frontend-only directive); if a
+  clean full-check tsc is wanted, note the count is 44 + transient `.next/types` stubs from
+  the parallel session's dev server.
+- **Git incident (recovered):** a chained `git stash push` (failed — pathspec relative to
+  wrong workdir) left its `git stash pop` to pop an unrelated pre-existing stash
+  (`fumble-mobile-plus-teammate-wip-2026-09-20`, ~40 conflicted files). Fully reverted to
+  pre-pop state via `git restore --source=HEAD`, stash entry kept intact at `stash@{0}`
+  (+ `stash@{1}` = "WIP before feed rebase" — both belong to older sessions, leave alone).
+
+### Admin dashboard insights (2026-10-07) — shipped (API + browser verified)
+User ask: real-data persona/growth/revenue/activation/ops insights on the main `/admin`
+dashboard. **All 5 blocks live on the main page** (user's placement choice).
+- **New `GET /api/admin/insights`** (`src/app/api/admin/insights/route.ts`): `requireAdmin`,
+  single `Promise.all` (users · PAYMENT_CREDITED audit logs · userLeadState · ticket/proof/
+  subscriber/referral counts), JS-only aggregation, `Cache-Control: private, max-age=30,
+  stale-while-revalidate=60`. Returns `{ persona, growth, revenue, activation, ops }`.
+  Persona groups via `SERVICE_CATEGORIES` from `lib/onboarding-options.ts` (import = pure data,
+  safe server-side); revenue reuses `formatPaymentLog` (matches payments page semantics, INR).
+- **Rewrote `src/app/admin/page.tsx`** (additive): kept header · 4 status cards · pending
+  callout · 30s `/api/admin` polling · pending-highlight · "Review Pending" link untouched;
+  added below: Growth&funnel (8-wk signup bars + funnel mini-stats), Who are our users
+  (service-group bars, outreach-experience bars, discovery-source bars, lead-category chips,
+  **top-services chips link to `/admin/users?service=X&status=ALL`** — users page defaults to
+  `status=PENDING` so `status=ALL` is required for drill-down), Revenue & plans (INR totals +
+  plan-mix bars), Activation funnel (signed-up→onboarded→revealed→saved), Ops chips
+  (tickets→`/admin/support`, proofs→`/admin/rewards`, subscribers→`/admin/newsletter`,
+  referrals = plain). Insights poll every 60s (separate from stats); skeleton while loading,
+  empty states per block (DB has ~5 users post Oct-5 wipe — charts are empty-state safe).
+  Chart pattern = CSS bars borrowed from `analytics/page.tsx`, no new deps, no schema change.
+- **Verified:** `tsc` 0 errors in both touched files (repo-wide = the documented 44
+  pre-existing) · lint clean for both files (repo lint fails only on pre-existing
+  broadcast-page unescaped quotes) · vitest **17 failed | 192 passed (209)** = baseline ·
+  dev server: `/admin` 200, `/api/admin/insights` 401 unauth, `/api/admin` 401 unauth,
+  compiled clean in log.
+- **⚠️ Not browser-verified:** needs an admin login session to eyeball the 5 blocks
+  (same standing gap as #9 sweep).
+
+### Reviews gallery swap — new testimony images (2026-10-07)
+User-supplied `D:\Downloads\Testimonies-20261007T141104Z-1-001\Testimonies` has two
+folders; mapping per user: **landing ← Positive replies + meetings**, **/reviews ←
+Closures + Positive replies**. Design/animations untouched — only image sources changed.
+- **Assets:** SHA256-deduped copy → `public/review/positive/` (68 files `p01–p68`, 11.0 MB,
+  `p51.png` included) + `public/review/closures/` (11 unique of 16 — 5 exact dupes skipped,
+  0.7 MB). **Deleted** all 21 old `public/review/WhatsApp Image 2026-07/08*.jpeg`.
+- **Code:** `TestimonialsSection.tsx` now exports `POSITIVE_REPLY_IMAGES` (homepage uses
+  `slice(0,6)` grid + `slice(6,18)` flying overlay — design unchanged), `CLOSURE_IMAGES`,
+  and `ALL_REVIEW_IMAGES = [...CLOSURE_IMAGES, ...POSITIVE_REPLY_IMAGES]`;
+  `reviews/page.tsx` import switched to `ALL_REVIEW_IMAGES`. Old `REVIEW_IMAGES` export gone.
+- **Verified:** lint clean (only pre-existing `<img>` warning) · SSR HTML: landing = exactly
+  6 imgs `/review/positive/p01–p06`; `/reviews` = 79 imgs (first `c01`, last `p68`); 0 old
+  WhatsApp refs anywhere · sampled URLs 200 with correct content-types (incl. `p51.png`).
+- ⚠️ Not eyeballed in a browser: chrome-devtools profile locked by the parallel session.
 
 ---
 
