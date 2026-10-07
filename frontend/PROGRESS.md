@@ -519,6 +519,50 @@ User ask: let users edit the profile/social data collected at onboarding, mobile
   don't hot-reload) → built directly. Agent configs under `C:\Users\HP\.config\opencode\agent\`
   fixed to live models — **works after opencode restart.**
 
+### Admin onboarding-gate bypass (2026-10-07) — "why does login land on /onboarding?" fixed
+User report: every login bounced straight to `/onboarding` (esp. yashnandan, dualspark).
+- **Root cause:** `ca424ce` (Oct 6, "block step skipping") flipped `hasCompletedOnboarding`
+  OR→AND — now requires ALL of phone+linkedin+services+niches+experience+discovery (was: any
+  one field). The ClientLayout redirect itself is July code, untouched; but **every surviving
+  DB row fails the strict gate**: dualspark missing **linkedin only**, yashnandan missing
+  phone+linkedin, admin@leadhunter + yashkaranjule230 never onboarded (all six). NOT the
+  settings feature (gate untouched by `a2d8adf` — verified on diff).
+- **Fix 1 (code):** `api/auth/me` GET gate now exempts `role === 'admin'`, mirroring the
+  pre-existing "Admins bypass onboarding requirement" in `requireFullyAuthorized`
+  (auth.ts:299 — API side was already safe). `hasCompletedOnboarding()` + ClientLayout
+  untouched → `auth.test.ts` untouched. +2 route tests (admin incomplete→true; non-admin
+  incomplete→false) = 14 in the file.
+- **Fix 2 (data):** dualsparkstudio DB role `user` → `admin` (user: "these people are admin")
+  so it rides the same bypass. All 4 login-able rows now `admin`: admin@leadhunter,
+  dualspark, yashkaranjule230, yashnandanshrivastava (system@internal never logs in).
+- **⚠️ Side-effect:** dualspark now sees the admin panel (role change). Revert =
+  `UPDATE users SET role='user' WHERE email='dualsparkstudio@gmail.com'` → then it must have
+  its LinkedIn URL filled (its only missing gate field) or it bounces again.
+- **Unaffected:** PENDING new signups still hit the strict AND-gate → onboarding funnel
+  (ca424ce intent) intact; `system@internal`/row-less yash Firebase accounts unchanged.
+- **Verified:** lint clean · tsc 44 = baseline, **0 in touched files** (my earlier 49 was a
+  test-typing mistake, fixed) · vitest **18 failed | 185 passed (203)** = baseline + 2 new.
+
+### Saved-leads export now ships real API intel (2026-10-07)
+User ask: the Export button (CSV/TSV/XLSX) on `/saved` wasn't exporting the actual lead intel
+the API returns.
+- **Root cause:** `leadsToRows` (lib/csv.ts) built its own weak `formatIntel` mash — 5 labelled
+  pieces **hard-truncated to 400 chars**, no summary, no signal, no tags, no status/urgency/reply%
+  — while the UI's Deep Intel (`buildLeadIntelText`/`parseIntelSections`) shows the full parsed
+  sections from `buyerType`. Same intel, different (lossy) code path.
+- **Fix:** rewrote `leadsToRows` in `src/lib/csv.ts` — Lead Intelligence cell = every parsed
+  Deep Intel section (`Verdict: … • Context: … • Requirements: …`, same parser as the drawer),
+  fallback to the classic labelled pieces then the raw blob; added columns Title, One-Liner,
+  Category, Source, Status, Urgency, Reply Probability, Summary (detailsSummary→summary→taskScope),
+  Signal Context, Tags. Contact columns stay reveal-gated (blank until unlocked); intel passes
+  through whatever the API serves (server already sanitizes unrevealed previews). Cells capped
+  at 5000 chars (Excel max 32k) — old 400-char truncation gone. `WIDE_COLS` += Summary,
+  Signal Context. Single consumer = saved page (dashboard has no export path).
+- **New `src/lib/csv.test.ts`** — 6 tests: full sections >400 chars intact, structured columns,
+  reveal gating, fallback labels, cell cap, CSV/TSV parseability.
+- **Verified:** lint clean · tsc **0 errors total** (backend's fixes included) · vitest
+  **17 failed | 192 passed (209)** = baseline + 6 new.
+
 ---
 
 ## 3. Blocked — waiting on user input

@@ -272,4 +272,33 @@ describe('GET /api/auth/me — profile prefill', () => {
     expect(json.data.discoverySource).toBe('Twitter')
     expect(json.data.hasCompletedOnboarding).toBe(true)
   })
+
+  it('treats admin accounts as onboarded even with missing onboarding fields', async () => {
+    const admin = {
+      ...makeUser(),
+      role: 'admin',
+      phone: null,
+      linkedin: null,
+      servicesOffered: [] as string[],
+      preferredLeadCategories: [] as string[],
+      outreachExperience: null,
+      discoverySource: null,
+    }
+    vi.mocked(db.user.findUnique).mockResolvedValue(admin as never)
+
+    const res = await GET(getReq())
+    expect(res.status).toBe(200)
+    const json = await res.json()
+    expect(json.data.hasCompletedOnboarding).toBe(true)
+  })
+
+  it('still reports onboarding incomplete for non-admin users missing a required field', async () => {
+    const user = { ...makeUser(), linkedin: null }
+    vi.mocked(db.user.findUnique).mockResolvedValue(user as never)
+
+    const res = await GET(getReq())
+    expect(res.status).toBe(200)
+    const json = await res.json()
+    expect(json.data.hasCompletedOnboarding).toBe(false)
+  })
 })

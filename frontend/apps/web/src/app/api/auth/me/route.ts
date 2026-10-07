@@ -145,14 +145,18 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    const hasCompletedOnboarding = !!(
-      user.phone &&
-      user.linkedin &&
-      (user.servicesOffered?.length ?? 0) > 0 &&
-      (user.preferredLeadCategories?.length ?? 0) > 0 &&
-      user.outreachExperience &&
-      user.discoverySource
-    )
+    // Admins bypass the onboarding requirement (mirrors requireFullyAuthorized,
+    // lib/auth.ts:299) so approved admin accounts are never bounced to /onboarding.
+    const hasCompletedOnboarding =
+      user.role === 'admin' ||
+      !!(
+        user.phone &&
+        user.linkedin &&
+        (user.servicesOffered?.length ?? 0) > 0 &&
+        (user.preferredLeadCategories?.length ?? 0) > 0 &&
+        user.outreachExperience &&
+        user.discoverySource
+      )
 
     const creditAccount = user.creditAccount
       ? {

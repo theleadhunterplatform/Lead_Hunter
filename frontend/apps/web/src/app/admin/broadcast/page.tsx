@@ -1830,7 +1830,7 @@ export default function AdminBroadcastPage() {
                   <div className="flex items-center justify-between text-[11px]">
                     <span className="text-text-secondary">From:</span>
                     <span className="font-semibold text-white">
-                      Lead Hunter Club &lt;noreply@leadhunterclub.com&gt;
+                      Lead Hunter Club &lt;noreply@theleadhunterclub.com&gt;
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-[11px]">
