@@ -9,6 +9,9 @@ import {
     setTargetWhatsAppGroup,
     clearTargetWhatsAppGroup,
     unlinkWhatsAppDevice,
+    getWhatsAppAlertTemplate,
+    setWhatsAppAlertTemplate,
+    DEFAULT_WHATSAPP_ALERT_TEMPLATE,
 } from '../services/whatsapp.service';
 
 /**
@@ -95,15 +98,49 @@ export const sendWhatsAppTestMessageHandler = asyncHandler(async (req: Request, 
 });
 
 /**
+ * GET /api/whatsapp/template
+ * Returns the current active alert template and default template.
+ */
+export const getWhatsAppTemplateHandler = asyncHandler(async (_req: Request, res: Response) => {
+    const template = getWhatsAppAlertTemplate();
+    return res.status(200).json({
+        success: true,
+        data: {
+            template,
+            defaultTemplate: DEFAULT_WHATSAPP_ALERT_TEMPLATE,
+        },
+    });
+});
+
+/**
+ * POST /api/whatsapp/template
+ * PUT /api/whatsapp/template
+ * Updates the WhatsApp alert template.
+ */
+export const setWhatsAppTemplateHandler = asyncHandler(async (req: Request, res: Response) => {
+    const { template } = req.body || {};
+    const result = await setWhatsAppAlertTemplate(typeof template === 'string' ? template : null);
+    return res.status(200).json({
+        success: true,
+        message: 'WhatsApp alert message template updated successfully',
+        data: result,
+    });
+});
+
+/**
  * POST /api/whatsapp/alert
  * Triggers a lead drop announcement manually.
  */
 export const triggerLeadDropAlertHandler = asyncHandler(async (req: Request, res: Response) => {
-    const { count, categories } = req.body || {};
+    const { count, categories, template } = req.body || {};
     const leadCount = typeof count === 'number' && count > 0 ? count : 10;
     const leadCategories = Array.isArray(categories) ? categories : ['Web Dev', 'UI/UX', 'Marketing', 'AI'];
 
-    const result = await dispatchLeadDropAlert(leadCount, leadCategories);
+    const result = await dispatchLeadDropAlert(
+        leadCount,
+        leadCategories,
+        typeof template === 'string' ? template : undefined
+    );
 
     if (!result.success) {
         return res.status(400).json({

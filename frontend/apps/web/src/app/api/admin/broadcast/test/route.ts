@@ -16,6 +16,7 @@ const testSchema = z.object({
       'approved',
       'low_credits',
       'renewal_reminder',
+      'onboarding_reminder',
       'plan_upgrade',
       'plan_downgrade',
       'plan_change',
@@ -102,6 +103,13 @@ export async function POST(request: NextRequest) {
             year: 'numeric',
           }),
         )
+        break
+
+      case 'onboarding_reminder':
+        result = await emailService.sendOnboardingReminder({
+          name: 'Demo Member',
+          email: toEmail,
+        })
         break
 
       case 'plan_upgrade':

@@ -181,7 +181,7 @@ export default function CommunityPage() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto bg-bg-main text-text-primary p-6 md:p-10">
+    <div className="flex-1 overflow-y-auto overflow-x-hidden bg-bg-main text-text-primary p-6 md:p-10">
       <div className="max-w-5xl mx-auto space-y-8 relative">
         {/* Hero Section */}
         <div className="flex flex-col gap-3">

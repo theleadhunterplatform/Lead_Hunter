@@ -87,6 +87,7 @@ interface WhatsAppStatusData {
   qrDataUrl: string | null
   hasQr: boolean
   groups: Array<{ id: string; subject: string; participantsCount: number }>
+  alertTemplate?: string | null
 }
 
 const TEMPLATE_CATEGORIES = [
@@ -108,9 +109,48 @@ const AUTOMATED_TRIGGER_OPTIONS = [
   { id: 'tpl-auto-low-credits', label: '📉 When Credits Drop <= 2 Coins (Low Credits Alert)' },
   { id: 'tpl-auto-renewal-reminder', label: '📅 3 Days Before Subscription Renews (Renewal Notice)' },
   { id: 'tpl-auto-application-received', label: '📝 When Onboarding / Application is Submitted' },
+  { id: 'tpl-auto-onboarding-reminder', label: '👋 When Admin Sends Onboarding Reminder (Application Incomplete)' },
   { id: 'tpl-auto-account-rejected', label: '❌ When Application is Rejected' },
   { id: 'tpl-auto-account-suspended', label: '🚫 When Account is Suspended' },
 ]
+
+const DEFAULT_WHATSAPP_TEMPLATE = `🚀 *Fresh Leads Dropped — Lead Hunter Club*
+
+🔥 *{count} new verified client opportunities* have just been approved and added to the platform!
+
+📌 *Niches:* {niches}
+
+👉 *Claim & review them now before competitors:*
+{link}`
+
+function renderWhatsAppFormattedText(text: string) {
+  if (!text) return null
+  const lines = text.split('\n')
+  return lines.map((line, lIdx) => {
+    const parts = line.split(/(\*[^*]+\*|https?:\/\/[^\s]+)/g)
+    return (
+      <span key={lIdx} className="block min-h-[1.15em]">
+        {parts.map((part, pIdx) => {
+          if (part.startsWith('*') && part.endsWith('*') && part.length > 2) {
+            return (
+              <strong key={pIdx} className="font-bold text-white">
+                {part.slice(1, -1)}
+              </strong>
+            )
+          }
+          if (part.startsWith('http://') || part.startsWith('https://')) {
+            return (
+              <span key={pIdx} className="text-[#53bdeb] underline font-medium break-all">
+                {part}
+              </span>
+            )
+          }
+          return <span key={pIdx}>{part}</span>
+        })}
+      </span>
+    )
+  })
+}
 
 export default function AdminBroadcastPage() {
   const { addToast } = useToast()
@@ -165,6 +205,112 @@ export default function AdminBroadcastPage() {
   const [isReconnectingWa, setIsReconnectingWa] = useState(false)
   const [isSettingTargetGroup, setIsSettingTargetGroup] = useState<string | null>(null)
   const [copiedJid, setCopiedJid] = useState<string | null>(null)
+
+  // WhatsApp Alert Template Customization State
+  const [waTemplate, setWaTemplate] = useState<string>(DEFAULT_WHATSAPP_TEMPLATE)
+  const [isSavingWaTemplate, setIsSavingWaTemplate] = useState(false)
+  const [isTemplateDirty, setIsTemplateDirty] = useState(false)
+  const [hasLoadedWaTemplate, setHasLoadedWaTemplate] = useState(false)
+
+  // Sync loaded template from backend/database
+  useEffect(() => {
+    if (waData?.alertTemplate && !hasLoadedWaTemplate) {
+      setWaTemplate(waData.alertTemplate)
+      setHasLoadedWaTemplate(true)
+    }
+  }, [waData?.alertTemplate, hasLoadedWaTemplate])
+
+  // Interpolated preview for real-time demonstration
+  const sampleWaPreview = useMemo(() => {
+    return waTemplate
+      .replace(/\{count\}/gi, '3')
+      .replace(/\{count_suffix\}/gi, 'ies')
+      .replace(/\{have_has\}/gi, 'have')
+      .replace(/\{niches\}/gi, 'Web Dev, UI/UX, AI Agents')
+      .replace(/\{link\}/gi, 'https://www.theleadhunterclub.com/leads')
+  }, [waTemplate])
+
+  const handleSaveWaTemplate = async () => {
+    if (!waTemplate.trim()) {
+      addToast({ type: 'error', message: 'Message template cannot be empty' })
+      return
+    }
+    setIsSavingWaTemplate(true)
+    try {
+      const token = await getFirebaseToken()
+      const res = await fetch('/api/admin/whatsapp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ action: 'save_template', template: waTemplate.trim() }),
+      })
+      const json = await res.json()
+      if (res.ok && json.success) {
+        addToast({ type: 'success', message: 'WhatsApp alert message template saved successfully!' })
+        setIsTemplateDirty(false)
+        fetchWhatsAppStatus(true)
+      } else {
+        addToast({ type: 'error', message: json.message || 'Failed to save template' })
+      }
+    } catch (err: any) {
+      addToast({ type: 'error', message: err?.message || 'Error saving template' })
+    } finally {
+      setIsSavingWaTemplate(false)
+    }
+  }
+
+  const handleResetWaTemplate = async () => {
+    if (!confirm('Reset the WhatsApp lead drop template to the system default format?')) {
+      return
+    }
+    setIsSavingWaTemplate(true)
+    try {
+      const token = await getFirebaseToken()
+      const res = await fetch('/api/admin/whatsapp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ action: 'reset_template' }),
+      })
+      const json = await res.json()
+      if (res.ok && json.success) {
+        setWaTemplate(DEFAULT_WHATSAPP_TEMPLATE)
+        setIsTemplateDirty(false)
+        addToast({ type: 'success', message: 'Template reset to default!' })
+        fetchWhatsAppStatus(true)
+      } else {
+        addToast({ type: 'error', message: json.message || 'Failed to reset template' })
+      }
+    } catch (err: any) {
+      addToast({ type: 'error', message: err?.message || 'Error resetting template' })
+    } finally {
+      setIsSavingWaTemplate(false)
+    }
+  }
+
+  const handleInsertWaTag = (tag: string) => {
+    const el = document.getElementById('wa-template-input') as HTMLTextAreaElement | null
+    if (!el) {
+      setWaTemplate((prev) => prev + tag)
+      setIsTemplateDirty(true)
+      return
+    }
+    const start = el.selectionStart ?? el.value.length
+    const end = el.selectionEnd ?? el.value.length
+    const current = el.value
+    const nextVal = current.slice(0, start) + tag + current.slice(end)
+    setWaTemplate(nextVal)
+    setIsTemplateDirty(true)
+    setTimeout(() => {
+      el.focus()
+      const nextPos = start + tag.length
+      el.setSelectionRange(nextPos, nextPos)
+    }, 0)
+  }
 
   const handleSelectTargetGroup = async (groupId: string, groupName: string) => {
     setIsSettingTargetGroup(groupId)
@@ -224,17 +370,23 @@ export default function AdminBroadcastPage() {
     }
   }, [showQrModal, fetchWhatsAppStatus])
 
-  const handleSendWaTest = async () => {
+  const handleSendWaTest = async (overrideTemplate?: string) => {
     setIsSendingWaTest(true)
     try {
       const token = await getFirebaseToken()
+      const tpl = typeof overrideTemplate === 'string' ? overrideTemplate : waTemplate
       const res = await fetch('/api/admin/whatsapp', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ action: 'alert', leadCount: 3, niche: 'Web & App Development' }),
+        body: JSON.stringify({
+          action: 'alert',
+          leadCount: 3,
+          niche: 'Web & App Development',
+          template: tpl,
+        }),
       })
       const json = await res.json()
       if (res.ok && json.success) {
@@ -1405,6 +1557,187 @@ export default function AdminBroadcastPage() {
                   : 'Link WhatsApp via QR code above to view groups.'}
               </p>
             )}
+          </div>
+        </div>
+
+        {/* Customizable WhatsApp Alert Message Template Section */}
+        <div className="pt-3 border-t border-white/[0.06] space-y-3">
+          {/* Header & Action Controls */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <PencilSquareIcon className="w-3.5 h-3.5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-xs font-bold text-white tracking-wide">
+                    Automated Alert Message Template
+                  </h3>
+                  {isTemplateDirty ? (
+                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 animate-pulse">
+                      Unsaved Changes
+                    </span>
+                  ) : (
+                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      Saved &amp; Active
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-text-secondary">
+                  Customise the message that gets automatically broadcasted to the target group when leads are qualified.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={handleResetWaTemplate}
+                disabled={isSavingWaTemplate}
+                title="Reset to default template format"
+                className="px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-text-secondary hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-40"
+              >
+                <ArrowPathIcon className="w-3 h-3" />
+                <span>Reset Default</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSaveWaTemplate}
+                disabled={isSavingWaTemplate || !isTemplateDirty}
+                className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white flex items-center gap-1.5 transition-all shadow-sm cursor-pointer shadow-emerald-900/40"
+              >
+                {isSavingWaTemplate ? (
+                  <>
+                    <ArrowPathIcon className="w-3 h-3 animate-spin" />
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckIcon className="w-3 h-3" />
+                    <span>Save Template</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Grid: Editor on Left, WhatsApp Live Preview on Right */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
+            {/* Left: Editor & Tag Inserters */}
+            <div className="lg:col-span-7 flex flex-col justify-between space-y-2">
+              {/* Variable Pills */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-[10px] text-text-secondary font-medium mr-1">Insert Variable:</span>
+                <button
+                  type="button"
+                  onClick={() => handleInsertWaTag('{count}')}
+                  title="Inserts number of new leads"
+                  className="px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/25 transition-all cursor-pointer hover:border-emerald-400/40"
+                >
+                  + &#123;count&#125;
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleInsertWaTag('{niches}')}
+                  title="Inserts lead niches / categories"
+                  className="px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/25 transition-all cursor-pointer hover:border-emerald-400/40"
+                >
+                  + &#123;niches&#125;
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleInsertWaTag('{link}')}
+                  title="Inserts link to platform leads directory"
+                  className="px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/25 transition-all cursor-pointer hover:border-emerald-400/40"
+                >
+                  + &#123;link&#125;
+                </button>
+              </div>
+
+              {/* Textarea */}
+              <div className="relative">
+                <textarea
+                  id="wa-template-input"
+                  rows={8}
+                  value={waTemplate}
+                  onChange={(e) => {
+                    setWaTemplate(e.target.value)
+                    setIsTemplateDirty(true)
+                  }}
+                  placeholder="Compose your custom WhatsApp drop alert template..."
+                  className="w-full bg-black/40 border border-white/[0.08] focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/30 rounded-xl p-3 text-xs text-white placeholder-text-secondary/40 font-mono leading-relaxed resize-y focus:outline-none transition-all shadow-inner"
+                />
+              </div>
+
+              {/* Formatting Helper & Char Counter */}
+              <div className="flex items-center justify-between text-[10px] text-text-secondary pt-0.5">
+                <span className="flex items-center gap-1.5">
+                  <span>Formatting:</span>
+                  <code className="text-zinc-300">*bold*</code>
+                  <code className="text-zinc-300">_italic_</code>
+                  <code className="text-zinc-300">~strike~</code>
+                  <span>+ Emojis supported</span>
+                </span>
+                <span className="font-mono">{waTemplate.length} chars</span>
+              </div>
+            </div>
+
+            {/* Right: Authentic WhatsApp Bubble Live Preview */}
+            <div className="lg:col-span-5 flex flex-col justify-between space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-text-secondary">
+                    Live WhatsApp Bubble Preview
+                  </span>
+                </div>
+                <span className="text-[9px] text-text-secondary/70">Sample: 3 leads</span>
+              </div>
+
+              {/* WhatsApp Chat Container */}
+              <div
+                className="rounded-xl border border-white/[0.06] p-3 flex flex-col justify-end min-h-[190px] shadow-inner relative overflow-hidden"
+                style={{
+                  backgroundColor: '#0c1317',
+                  backgroundImage:
+                    'radial-gradient(circle at center, rgba(16, 185, 129, 0.03) 0%, transparent 70%)',
+                }}
+              >
+                {/* Outgoing Message Bubble */}
+                <div
+                  className="self-end max-w-[94%] rounded-xl rounded-tr-none px-3.5 py-2.5 shadow-md relative"
+                  style={{ backgroundColor: '#005c4b' }}
+                >
+                  {/* Bubble Content */}
+                  <div className="text-[11.5px] leading-relaxed text-[#e9edef] whitespace-pre-wrap break-words font-sans">
+                    {renderWhatsAppFormattedText(sampleWaPreview)}
+                  </div>
+
+                  {/* Message Timestamp & Double Checks */}
+                  <div className="flex items-center justify-end gap-1 mt-1 -mb-1 text-[9px] text-[#8696a0]">
+                    <span>Just now</span>
+                    <span className="text-[#53bdeb] font-bold">✓✓</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick Test Button */}
+              <button
+                type="button"
+                onClick={() => handleSendWaTest(waTemplate)}
+                disabled={isSendingWaTest || waData?.status !== 'connected'}
+                title={
+                  waData?.status !== 'connected'
+                    ? 'Connect WhatsApp bot first to send alert'
+                    : 'Dispatch this exact template right now to the connected WhatsApp group'
+                }
+                className="w-full py-1.5 rounded-lg text-[11px] font-semibold bg-white/[0.04] hover:bg-white/[0.08] text-emerald-300 border border-emerald-500/20 hover:border-emerald-500/40 flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-40"
+              >
+                <PaperAirplaneIcon className={`w-3 h-3 ${isSendingWaTest ? 'animate-pulse' : ''}`} />
+                <span>{isSendingWaTest ? 'Dispatching Live Test...' : 'Test Send This Template to Group'}</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>

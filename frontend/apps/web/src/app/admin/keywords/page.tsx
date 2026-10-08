@@ -8,6 +8,7 @@ import {
 } from '@heroicons/react/24/solid'
 import { CustomLoader } from '@/components/ui/CustomLoader'
 import { useToast } from '@/components/ui/Toast'
+import { notifyLeadsUpdated } from '@/lib/sync-events'
 
 interface Keyword {
   _id: string
@@ -122,6 +123,7 @@ export default function AdminKeywordsPage() {
           type: 'success',
           message: json.message || `Scrape queued for "${text}"`,
         })
+        notifyLeadsUpdated({ source: 'keyword-single', keyword: text })
       } else {
         const errorMsg = json.message || 'Scrape request failed'
         if (isApifyExhausted(errorMsg)) {
@@ -170,6 +172,7 @@ export default function AdminKeywordsPage() {
           type: 'success',
           message: json.message || 'Scraping started for all active keywords',
         })
+        notifyLeadsUpdated({ source: 'keyword-all' })
       } else {
         const errorMsg = json.message || 'Failed to trigger all scrapers'
         if (isApifyExhausted(errorMsg)) {

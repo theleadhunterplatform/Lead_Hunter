@@ -64,9 +64,10 @@ export default async function middleware(request: NextRequest) {
       return response
     }
 
-    const session = await verifySession(sessionCookie.value)
+    const session = await verifySession(sessionCookie.value, { allowGracePeriod: true })
     if (!session) {
       const loginUrl = new URL('/login', request.url)
+      loginUrl.searchParams.set('redirect', pathname)
       const response = NextResponse.redirect(loginUrl)
       response.cookies.set('__session', '', { maxAge: 0, path: '/' })
       addSecurityHeaders(response)

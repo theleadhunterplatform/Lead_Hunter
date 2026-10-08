@@ -151,7 +151,7 @@ export default function SupportPage() {
   }, [tickets, activeTab, selectedCategory, searchQuery])
 
   return (
-    <main className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-10 pt-8 pb-28 md:py-8 relative scrollbar-hide">
+    <main className="flex-1 overflow-y-auto overflow-x-hidden px-4 sm:px-6 lg:px-10 pt-8 pb-28 md:py-8 relative scrollbar-hide">
       <div className="absolute top-[-10%] left-1/2 -translate-x-1/2 w-[800px] h-[400px] glow-mint-soft pointer-events-none" />
 
       <div className="max-w-[1400px] mx-auto relative z-10">

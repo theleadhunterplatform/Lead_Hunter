@@ -84,7 +84,7 @@ export default function AnalyticsPage() {
   const totalDistribution = distribution.reduce((sum, d) => sum + d.count, 0)
 
   return (
-    <main data-lenis-prevent className="flex-1 h-full min-h-0 overflow-y-auto px-4 sm:px-6 lg:px-8 pt-8 pb-28 md:py-10 relative">
+    <main data-lenis-prevent className="flex-1 h-full min-h-0 overflow-y-auto overflow-x-hidden px-4 sm:px-6 lg:px-8 pt-8 pb-28 md:py-10 relative">
         <div className="max-w-[1400px] mx-auto">
           <header className="mb-10">
             <h1 className="text-3xl font-bold text-text-primary tracking-tight">Analytics</h1>

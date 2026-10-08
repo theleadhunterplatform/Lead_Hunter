@@ -5,6 +5,9 @@
 @layer base {
   html {
     font-size: 16px;
+    /* Never let the document pan sideways (decorative glows, wide cards).
+       `clip` (not `hidden`) so no scroll container is created — sticky + Lenis keep working. */
+    overflow-x: clip;
     scrollbar-width: none;
     -ms-overflow-style: none;
     -webkit-text-size-adjust: 100%;

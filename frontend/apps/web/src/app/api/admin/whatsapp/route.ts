@@ -42,10 +42,11 @@ export async function GET(request: NextRequest) {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     }
 
-    const [statusRes, groupsRes, dbSetting] = await Promise.allSettled([
+    const [statusRes, groupsRes, dbSetting, dbTemplate] = await Promise.allSettled([
       fetch(`${BASE_URL}/whatsapp/status`, { headers, cache: 'no-store' }),
       fetch(`${BASE_URL}/whatsapp/groups`, { headers, cache: 'no-store' }),
       db.setting.findUnique({ where: { key: 'whatsapp_community_group' } }).catch(() => null),
+      db.setting.findUnique({ where: { key: 'whatsapp_alert_template' } }).catch(() => null),
     ])
 
     const statusJson = statusRes.status === 'fulfilled' && statusRes.value.ok
@@ -60,8 +61,13 @@ export async function GET(request: NextRequest) {
       ? (dbSetting.value.value as { id?: string; name?: string })
       : null
 
+    const dbTplVal = dbTemplate.status === 'fulfilled' && dbTemplate.value?.value
+      ? (dbTemplate.value.value as { template?: string })
+      : null
+
     const configuredGroupId = statusJson?.data?.configuredGroupId || dbVal?.id || ''
     const configuredGroupName = statusJson?.data?.configuredGroupName || dbVal?.name || null
+    const alertTemplate = statusJson?.data?.alertTemplate || dbTplVal?.template || null
 
     return NextResponse.json({
       success: true,
@@ -73,6 +79,7 @@ export async function GET(request: NextRequest) {
         qrDataUrl: statusJson?.data?.qrDataUrl || null,
         hasQr: !!statusJson?.data?.hasQr,
         groups: groupsJson?.data || [],
+        alertTemplate,
       },
     })
   } catch (error: unknown) {
@@ -190,6 +197,85 @@ export async function POST(request: NextRequest) {
       } catch (dbErr) {
         console.warn('[Admin WhatsApp] Failed to clear db.setting on unlink:', dbErr)
       }
+    }
+
+    // Handle Saving alert template
+    if (body.action === 'save_template') {
+      const template = typeof body.template === 'string' ? body.template.trim() : ''
+      if (template) {
+        try {
+          await db.setting.upsert({
+            where: { key: 'whatsapp_alert_template' },
+            create: {
+              key: 'whatsapp_alert_template',
+              value: {
+                template,
+                updatedAt: new Date().toISOString(),
+              },
+              description: 'Custom message template for WhatsApp community lead drop alerts',
+            },
+            update: {
+              value: {
+                template,
+                updatedAt: new Date().toISOString(),
+              },
+            },
+          })
+        } catch (dbErr) {
+          console.warn('[Admin WhatsApp] Failed to save alert template to db.setting:', dbErr)
+        }
+      } else {
+        try {
+          await db.setting.deleteMany({
+            where: { key: 'whatsapp_alert_template' },
+          })
+        } catch (dbErr) {
+          console.warn('[Admin WhatsApp] Failed to delete alert template in db.setting:', dbErr)
+        }
+      }
+
+      // Sync backend in-memory cache
+      try {
+        await fetch(`${BASE_URL}/whatsapp/template`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ template }),
+        })
+      } catch (beErr) {
+        console.warn('[Admin WhatsApp] Backend notification template error:', beErr)
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: 'WhatsApp alert message template saved successfully!',
+        data: { template },
+      })
+    }
+
+    // Handle Resetting alert template
+    if (body.action === 'reset_template') {
+      try {
+        await db.setting.deleteMany({
+          where: { key: 'whatsapp_alert_template' },
+        })
+      } catch (dbErr) {
+        console.warn('[Admin WhatsApp] Failed to delete alert template:', dbErr)
+      }
+
+      try {
+        await fetch(`${BASE_URL}/whatsapp/template`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ template: null }),
+        })
+      } catch (beErr) {
+        console.warn('[Admin WhatsApp] Backend reset template error:', beErr)
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: 'Alert template reset to default',
+      })
     }
 
     const endpoint = body.action === 'alert'

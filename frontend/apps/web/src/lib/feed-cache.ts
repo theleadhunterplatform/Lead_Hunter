@@ -5,7 +5,7 @@ interface FeedCacheEntry {
 }
 
 const feedCache = new Map<string, FeedCacheEntry>()
-const FEED_CACHE_TTL = 30_000 // 30 seconds
+const FEED_CACHE_TTL = 5_000 // 5 seconds (ensures newly scraped leads appear in real time)
 const MAX_FEED_CACHE_SIZE = 50
 
 export function getCachedFeed(key: string): FeedCacheEntry | null {

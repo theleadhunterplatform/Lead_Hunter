@@ -17,6 +17,9 @@ import {
   updateProfile,
   updatePassword,
   reauthenticateWithCredential,
+  setPersistence,
+  browserLocalPersistence,
+  browserSessionPersistence,
   type User as FirebaseUser,
   type ConfirmationResult,
 } from 'firebase/auth'
@@ -64,8 +67,26 @@ const app = getApps().length ? getApp() : initializeApp(firebaseConfig)
 // on marketing pages until auth is actually needed.
 let _auth: Auth | null = null
 function ensureAuth(): Auth {
-  if (!_auth) _auth = getAuth(app)
+  if (!_auth) {
+    _auth = getAuth(app)
+    if (typeof window !== 'undefined') {
+      const stayLoggedIn = localStorage.getItem('lh_stay_logged_in') !== 'false'
+      setPersistence(_auth, stayLoggedIn ? browserLocalPersistence : browserSessionPersistence).catch((err) => {
+        console.warn('[Firebase] setPersistence error:', err)
+      })
+    }
+  }
   return _auth
+}
+
+export async function configureAuthPersistence(remember: boolean): Promise<void> {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem('lh_stay_logged_in', remember ? 'true' : 'false')
+    await setPersistence(ensureAuth(), remember ? browserLocalPersistence : browserSessionPersistence)
+  } catch (err) {
+    console.warn('[Firebase] configureAuthPersistence error:', err)
+  }
 }
 
 export const auth: Auth = new Proxy({} as Auth, {
@@ -162,6 +183,9 @@ export {
   updateProfile,
   updatePassword,
   reauthenticateWithCredential,
+  setPersistence,
+  browserLocalPersistence,
+  browserSessionPersistence,
   storage,
 }
 export type { FirebaseUser, ConfirmationResult }

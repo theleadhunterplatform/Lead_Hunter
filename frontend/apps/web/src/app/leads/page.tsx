@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import dynamic from 'next/dynamic'
+import { subscribeToLeadsUpdated } from '@/lib/sync-events'
 
 import LeadCard from './components/LeadCard'
 import PipelineLeadCard from './components/PipelineLeadCard'
@@ -278,6 +279,9 @@ export default function LeadsPage() {
   const { user } = useAuth()
 
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null)
+  const selectedLeadIdRef = useRef<string | null>(null)
+  selectedLeadIdRef.current = selectedLeadId
+
   const [drawerLeadDetail, setDrawerLeadDetail] = useState<AppLead | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const debouncedSearch = useDebounce(searchQuery, 250)
@@ -291,30 +295,87 @@ export default function LeadsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchLeads = async () => {
+  const fetchLeads = async (quiet = false) => {
     try {
-      setLoading(true)
+      if (!quiet) setLoading(true)
       setError(null)
       const token = await getFirebaseToken()
-      const res = await fetch('/api/leads?pageSize=100', {
+      const url = quiet ? '/api/leads?pageSize=100&refresh=true' : '/api/leads?pageSize=100'
+      const res = await fetch(url, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       })
       const json = await res.json()
-      if (res.ok && json.data) {
+      if (res.ok && Array.isArray(json.data)) {
         setLeadsList(json.data)
+        // If drawer is currently open on a lead, keep its details quietly updated
+        if (selectedLeadIdRef.current) {
+          const updated = json.data.find((l: AppLead) => l.id === selectedLeadIdRef.current)
+          if (updated) {
+            setDrawerLeadDetail(updated)
+          }
+        }
       } else {
-        setError(json.message || 'Failed to load leads.')
+        if (!quiet) setError(json.message || 'Failed to load leads.')
       }
     } catch (err) {
       console.error('Failed to fetch leads:', err)
-      setError('Could not reach the lead feed. Check your connection and try again.')
+      if (!quiet) setError('Could not reach the lead feed. Check your connection and try again.')
     } finally {
-      setLoading(false)
+      if (!quiet) setLoading(false)
     }
   }
 
   useEffect(() => {
     fetchLeads()
+
+    // Real-time live polling: quietly fetch new scraped leads every 6 seconds when tab is active
+    const pollInterval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        fetchLeads(true)
+      }
+    }, 6_000)
+
+    // Re-sync immediately when user switches focus back to this tab
+    const handleVisibilityChange = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        fetchLeads(true)
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    // Accelerated burst polling when a scrape is initiated or leads update
+    let burstInterval: NodeJS.Timeout | null = null
+    let burstTimeout: NodeJS.Timeout | null = null
+
+    const startBurstPoll = () => {
+      if (burstInterval) clearInterval(burstInterval)
+      if (burstTimeout) clearTimeout(burstTimeout)
+
+      fetchLeads(true)
+
+      burstInterval = setInterval(() => {
+        if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+          fetchLeads(true)
+        }
+      }, 3000)
+
+      burstTimeout = setTimeout(() => {
+        if (burstInterval) clearInterval(burstInterval)
+        burstInterval = null
+      }, 45000)
+    }
+
+    const unsubscribe = subscribeToLeadsUpdated(() => {
+      startBurstPoll()
+    })
+
+    return () => {
+      clearInterval(pollInterval)
+      if (burstInterval) clearInterval(burstInterval)
+      if (burstTimeout) clearTimeout(burstTimeout)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      unsubscribe()
+    }
   }, [])
 
   // Deep-link: ?lead=<id> opens the drawer on load / share
@@ -548,86 +609,10 @@ export default function LeadsPage() {
     filteredLeads.find((l) => l.id === selectedLeadId) ??
     null
 
-  // Temporary toggle: pause showing leads and display the holding state
-  const HIDE_LEADS_FOR_NOW = true
-
-  if (HIDE_LEADS_FOR_NOW) {
-    return (
-      <main
-        data-lenis-prevent
-        className="flex-1 h-full min-h-0 overflow-y-auto px-4 sm:px-6 lg:px-8 py-8 pb-32 relative scrollbar-hide"
-      >
-        <div className="max-w-[1400px] mx-auto relative z-10">
-          <div className="flex items-center justify-between mb-8 mt-2">
-            <div className="flex items-center gap-3">
-              <h1 className="text-[28px] font-bold text-text-primary tracking-tight">Lead Feed</h1>
-              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-accent-purple/10 text-accent-purple border border-accent-purple/20">
-                Sourcing Active
-              </span>
-            </div>
-          </div>
-
-          <div className="min-h-[500px] flex flex-col items-center justify-center py-20 px-6 text-center rounded-3xl bg-surface-secondary/20 border border-white/[0.06] backdrop-blur-xl relative overflow-hidden shadow-2xl">
-            {/* Ambient background glows */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-accent-purple/15 rounded-full blur-3xl pointer-events-none" />
-            <div className="absolute top-1/3 left-1/3 w-64 h-64 bg-accent-blue/10 rounded-full blur-2xl pointer-events-none" />
-
-            {/* Pulsing Hunter Radar Icon */}
-            <div className="relative mb-8">
-              <div className="relative w-24 h-24 rounded-3xl bg-gradient-to-br from-white/[0.08] to-white/[0.02] border border-white/10 flex items-center justify-center shadow-xl backdrop-blur-md">
-                <span className="absolute inset-0 rounded-3xl border border-accent-purple/40 animate-ping opacity-30" />
-                <span className="absolute -inset-2 rounded-3xl border border-accent-purple/20 animate-pulse opacity-50" />
-
-                <motion.div
-                  animate={{
-                    rotate: [0, 8, -8, 0],
-                    scale: [1, 1.05, 1],
-                  }}
-                  transition={{
-                    duration: 4,
-                    repeat: Infinity,
-                    ease: 'easeInOut',
-                  }}
-                  className="w-12 h-12 rounded-2xl bg-accent-purple/20 border border-accent-purple/30 flex items-center justify-center text-accent-purple shadow-inner"
-                >
-                  <MagnifyingGlassIcon className="w-6 h-6 text-accent-purple animate-pulse" />
-                </motion.div>
-              </div>
-
-              {/* Status active beacon */}
-              <span className="absolute -top-1 -right-1 flex h-4 w-4">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-purple opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-4 w-4 bg-accent-purple shadow-[0_0_8px_rgba(168,85,247,0.8)]"></span>
-              </span>
-            </div>
-
-            {/* Main Required Message */}
-            <h2 className="text-2xl sm:text-4xl font-extrabold text-text-primary tracking-tight mb-3">
-              Hold up we are finding leads for you
-            </h2>
-
-            <p className="text-sm sm:text-base text-text-secondary/80 max-w-lg leading-relaxed mb-8">
-              Our AI discovery engine is actively hunting, analyzing, and verifying high-intent leads tailored for you. New opportunities will be delivered to your feed shortly.
-            </p>
-
-            {/* Live activity indicator */}
-            <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-white/[0.04] border border-white/[0.08] backdrop-blur-md text-xs font-medium text-text-secondary">
-              <span className="flex h-2 w-2 relative">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
-              </span>
-              <span>Scanning live signals across global channels...</span>
-            </div>
-          </div>
-        </div>
-      </main>
-    )
-  }
-
   return (
     <main
       data-lenis-prevent
-      className="flex-1 h-full min-h-0 overflow-y-auto px-4 sm:px-6 lg:px-8 py-8 pb-32 relative scrollbar-hide"
+      className="flex-1 h-full min-h-0 overflow-y-auto overflow-x-hidden px-4 sm:px-6 lg:px-8 py-8 pb-32 relative scrollbar-hide"
     >
       <div className="max-w-[1400px] mx-auto relative z-10">
         <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-10 mt-2">
@@ -865,6 +850,7 @@ export default function LeadsPage() {
                 )
               )}
             </div>
+      </div>
 
           <AnimatePresence>
             {selectedLead && (
@@ -931,7 +917,6 @@ export default function LeadsPage() {
               </motion.div>
             )}
           </AnimatePresence>
-      </div>
     </main>
   )
 }

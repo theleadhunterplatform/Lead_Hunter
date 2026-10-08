@@ -289,8 +289,9 @@ export async function GET(request: NextRequest) {
     } else {
       let externalLeads: ExternalPost[] = []
       try {
+        const bypassCache = searchParams.get('refresh') === 'true' || searchParams.get('noCache') === 'true'
         const cacheKey = `${niche || 'All'}:${page}:${pageSize}`
-        const cached = getCachedFeed(cacheKey)
+        const cached = bypassCache ? null : getCachedFeed(cacheKey)
 
         let rawLeads: any[]
         let total: number

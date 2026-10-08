@@ -13,11 +13,21 @@ import {
 } from '@/lib/firebase'
 import type { User } from '@/lib/types'
 
-function setSessionCookie(token: string | null) {
+export const SESSION_COOKIE_NAME = '__session'
+export const DEFAULT_SESSION_MAX_AGE_SECONDS = 30 * 24 * 60 * 60 // 30 days
+
+export function setSessionCookie(token: string | null) {
+  if (typeof document === 'undefined') return
   if (token) {
-    document.cookie = `__session=${token}; path=/; max-age=3600; SameSite=Lax; secure`
+    const stayLoggedIn =
+      typeof localStorage !== 'undefined'
+        ? localStorage.getItem('lh_stay_logged_in') !== 'false'
+        : true
+
+    const maxAgeAttr = stayLoggedIn ? `; max-age=${DEFAULT_SESSION_MAX_AGE_SECONDS}` : ''
+    document.cookie = `${SESSION_COOKIE_NAME}=${token}; path=/; SameSite=Lax; secure${maxAgeAttr}`
   } else {
-    document.cookie = '__session=; path=/; max-age=0; SameSite=Lax; secure'
+    document.cookie = `${SESSION_COOKIE_NAME}=; path=/; max-age=0; SameSite=Lax; secure`
   }
 }
 
@@ -120,7 +130,9 @@ export function useAuth() {
       // 3. Otherwise, create the inFlight promise
       inFlightMePromise = (async () => {
         try {
-          let token = await fbUser.getIdToken()
+          const tokenAge = lastTokenRefresh ? now - lastTokenRefresh : Infinity
+          const shouldForceRefresh = force || tokenAge > 40 * 60 * 1000
+          let token = await fbUser.getIdToken(shouldForceRefresh)
           setSessionCookie(token)
           let res = await fetch('/api/auth/me', {
             headers: { Authorization: `Bearer ${token}` },
@@ -212,8 +224,14 @@ export function useAuth() {
       }
     })
 
-    const handleVisibilityChange = () => {
+    const handleVisibilityChange = async () => {
       if (document.visibilityState === 'visible' && fbUserRef.current && isMounted) {
+        try {
+          const freshToken = await fbUserRef.current.getIdToken()
+          setSessionCookie(freshToken)
+        } catch {
+          // Handled in syncUser
+        }
         syncUser(fbUserRef.current)
       }
     }

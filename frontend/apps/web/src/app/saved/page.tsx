@@ -553,7 +553,7 @@ export default function SavedLeadsPage() {
     <main
       ref={mainRef}
       data-lenis-prevent
-      className="flex-1 h-full min-h-0 overflow-y-auto px-4 sm:px-6 lg:px-8 pt-8 pb-28 md:py-10 relative scrollbar-hide"
+      className="flex-1 h-full min-h-0 overflow-y-auto overflow-x-hidden px-4 sm:px-6 lg:px-8 pt-8 pb-28 md:py-10 relative scrollbar-hide"
     >
       <div className="max-w-[1400px] mx-auto relative z-10">
         {/* Summary Cards Row */}
@@ -585,18 +585,18 @@ export default function SavedLeadsPage() {
         </div>
 
         {/* Table Controls */}
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
-          <div className="flex flex-wrap items-center gap-4 sm:gap-8 shrink-0">
+        <div className="flex flex-col md:flex-row flex-wrap items-center md:justify-between gap-4 mb-8">
+          <div className="flex flex-col md:flex-row items-center gap-3 sm:gap-8 min-w-0">
             <h2 className="text-2xl font-bold text-text-primary tracking-tight flex items-center gap-3 whitespace-nowrap shrink-0">
               <BookmarkIcon className="w-6 h-6 text-text-secondary" />
               Saved Leads
             </h2>
-            <div className="flex items-center gap-1 bg-white/5 p-1 rounded-xl border border-white/5 shrink-0">
+            <div className="flex flex-wrap items-center justify-center gap-1 bg-white/5 p-1 rounded-xl border border-white/5 min-w-0 self-center md:self-auto">
               {['All Leads', 'In Progress', 'Archived'].map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`px-4 py-2 min-h-[44px] rounded-lg text-11 font-bold uppercase tracking-widest transition-all ${
+                  className={`px-3 sm:px-4 py-2 min-h-[44px] rounded-lg text-11 font-bold uppercase tracking-widest transition-all ${
                     activeTab === tab
                       ? 'bg-accent-purple text-text-on-accent shadow-lg'
                       : 'text-text-secondary hover:text-text-primary'

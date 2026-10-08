@@ -304,6 +304,8 @@ export async function qualifyLeadPost(postId: string): Promise<QualificationResu
 
     const result = await qualifyPostContent(post.content, post.platform);
 
+    post.status = result.status;
+
     const updateData: Record<string, unknown> = {
         status: result.status,
         ai_score: result.confidence,

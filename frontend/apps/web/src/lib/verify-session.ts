@@ -54,15 +54,24 @@ export interface FirebaseIdToken {
   email_verified?: boolean
 }
 
+export interface VerifySessionOptions {
+  allowGracePeriod?: boolean
+  maxAgeSeconds?: number
+}
+
 export async function verifySession(
   token: string,
+  options?: VerifySessionOptions,
 ): Promise<{ uid: string; email_verified?: boolean } | null> {
-  const decoded = await verifyFirebaseToken(token)
+  const decoded = await verifyFirebaseToken(token, options)
   if (!decoded) return null
   return { uid: decoded.uid, email_verified: decoded.email_verified }
 }
 
-export async function verifyFirebaseToken(token: string): Promise<FirebaseIdToken | null> {
+export async function verifyFirebaseToken(
+  token: string,
+  options?: VerifySessionOptions,
+): Promise<FirebaseIdToken | null> {
   try {
     const projectId =
       process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ||
@@ -78,10 +87,28 @@ export async function verifyFirebaseToken(token: string): Promise<FirebaseIdToke
     const payload = parseJwtPart(parts[1]) as Record<string, unknown> | null
     if (!payload?.sub || typeof payload.sub !== 'string') return null
 
-    // 60-second leeway for clock drift
+    const nowSeconds = Date.now() / 1000
     const CLOCK_SKEW_LEEWAY_SECONDS = 60
-    if (!payload.exp || Date.now() / 1000 > (payload.exp as number) + CLOCK_SKEW_LEEWAY_SECONDS) {
-      return null
+
+    if (options?.allowGracePeriod) {
+      // For middleware page navigation: accept tokens whose cryptographic signature
+      // is valid, issued for this project, and issued within maxAgeSeconds (default 30 days).
+      // This gives client-side Firebase a chance to hydrate and silent-refresh the ID token.
+      const maxAgeSeconds = options.maxAgeSeconds ?? 30 * 24 * 60 * 60
+      const issuedAt =
+        typeof payload.iat === 'number'
+          ? payload.iat
+          : typeof payload.auth_time === 'number'
+          ? payload.auth_time
+          : 0
+      if (nowSeconds - issuedAt > maxAgeSeconds) {
+        return null
+      }
+    } else {
+      // Strict expiry check (standard 1-hour ID token lifespan)
+      if (!payload.exp || nowSeconds > (payload.exp as number) + CLOCK_SKEW_LEEWAY_SECONDS) {
+        return null
+      }
     }
 
     if (payload.aud !== projectId) return null

@@ -259,7 +259,7 @@ export default function RewardsPage() {
   const currentTier = getMilestoneInfo(selectedType)
 
   return (
-    <div className="flex-1 overflow-y-auto bg-bg-main text-text-primary p-6 md:p-10">
+    <div className="flex-1 overflow-y-auto overflow-x-hidden bg-bg-main text-text-primary p-6 md:p-10">
       <div className="max-w-5xl mx-auto space-y-8 relative">
         {/* Top Header */}
         <div className="flex flex-col gap-2">

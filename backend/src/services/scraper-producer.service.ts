@@ -21,7 +21,10 @@ export async function runScraperProducerJob(): Promise<{ keywords: number; targe
             console.log(`  · "${kw.text}" → platforms: [${platforms.join(', ')}]`);
 
             for (const platform of platforms) {
-                const jobId = `scrape-${platform}-${kw._id}-${new Date().toISOString().split('T')[0]}`;
+                // 25-minute cycle slot: deduplicates within the same cycle,
+                // while allowing the 30-minute auto-scrape schedule to run continuously.
+                const cycleSlot = Math.floor(Date.now() / (25 * 60 * 1000));
+                const jobId = `scrape-${platform}-${kw._id}-${cycleSlot}`;
 
                 await scraperQueue.add(
                     `scrape-${platform}-${kw.text}`,
@@ -32,8 +35,7 @@ export async function runScraperProducerJob(): Promise<{ keywords: number; targe
                     },
                     {
                         jobId,
-                        // Must keep completed jobs for the day so jobId blocks re-runs.
-                        removeOnComplete: { age: 60 * 60 * 25 },
+                        removeOnComplete: { age: 60 * 60 * 2 },
                     }
                 );
 
@@ -54,7 +56,8 @@ export async function runScraperProducerJob(): Promise<{ keywords: number; targe
         );
 
         for (const target of activeTargets) {
-            const jobId = `scrape-target-${target.id}-${new Date().toISOString().split('T')[0]}`;
+            const cycleSlot = Math.floor(Date.now() / (25 * 60 * 1000));
+            const jobId = `scrape-target-${target.id}-${cycleSlot}`;
 
             await scraperQueue.add(
                 `scrape-target-${target.name}`,
@@ -66,7 +69,7 @@ export async function runScraperProducerJob(): Promise<{ keywords: number; targe
                 },
                 {
                     jobId,
-                    removeOnComplete: { age: 60 * 60 * 25 },
+                    removeOnComplete: { age: 60 * 60 * 2 },
                 }
             );
 

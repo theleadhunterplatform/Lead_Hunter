@@ -5,8 +5,15 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { ArrowLeftIcon } from '@heroicons/react/24/solid'
-import { useState, useCallback } from 'react'
-import { signInWithEmailAndPassword, sendPasswordResetEmail, auth } from '@/lib/firebase'
+import { useState, useCallback, useEffect } from 'react'
+import {
+  signInWithEmailAndPassword,
+  sendPasswordResetEmail,
+  auth,
+  onAuthStateChanged,
+  configureAuthPersistence,
+} from '@/lib/firebase'
+import { setSessionCookie } from '@/hooks/useAuth'
 
 const FIREBASE_ERRORS: Record<string, string> = {
   'auth/invalid-email': 'Please enter a valid email address.',
@@ -32,8 +39,39 @@ export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [isLoading, setIsLoading] = useState(false)
+  const [isCheckingSession, setIsCheckingSession] = useState(true)
+  const [stayLoggedIn, setStayLoggedIn] = useState(true)
   const [error, setError] = useState('')
   const [resetSent, setResetSent] = useState(false)
+  const redirectTo = searchParams.get('redirect') || '/dashboard'
+
+  useEffect(() => {
+    let isMounted = true
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!isMounted) return
+      if (user) {
+        try {
+          const token = await user.getIdToken()
+          setSessionCookie(token)
+          router.replace(redirectTo)
+          return
+        } catch (err) {
+          console.warn('[LoginPage] Failed to acquire token for existing user:', err)
+        }
+      }
+      setIsCheckingSession(false)
+    })
+
+    const timer = setTimeout(() => {
+      if (isMounted) setIsCheckingSession(false)
+    }, 1200)
+
+    return () => {
+      isMounted = false
+      unsubscribe()
+      clearTimeout(timer)
+    }
+  }, [redirectTo, router])
 
   const handleForgotPassword = async () => {
     const emailInput = document.querySelector<HTMLInputElement>('input[name="email"]')
@@ -61,16 +99,36 @@ export default function LoginPage() {
     const formData = new FormData(e.currentTarget)
     const email = formData.get('email') as string
     const password = formData.get('password') as string
-    const redirectTo = searchParams.get('redirect') || '/dashboard'
 
     try {
-      await signInWithEmailAndPassword(auth, email, password)
+      await configureAuthPersistence(stayLoggedIn)
+      const cred = await signInWithEmailAndPassword(auth, email, password)
+      const token = await cred.user.getIdToken()
+      setSessionCookie(token)
       router.push(redirectTo)
     } catch (err: unknown) {
       setError(err instanceof Error ? friendlyFirebaseError(err.message) : 'Failed to sign in')
     } finally {
       setIsLoading(false)
     }
+  }
+
+  if (isCheckingSession) {
+    return (
+      <main className="min-h-screen bg-bg-main flex flex-col items-center justify-center px-4 relative overflow-hidden">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[radial-gradient(circle_at_center,rgba(var(--rgb-primary),0.08)_0%,transparent_60%)] pointer-events-none" />
+        <div className="relative z-10 flex flex-col items-center gap-3">
+          <Image
+            src="/logo.svg"
+            alt="Lead Hunter Club"
+            width={48}
+            height={48}
+            className="w-12 h-12 rounded-xl shadow-[0_0_20px_rgba(var(--rgb-primary),0.2)] animate-pulse"
+          />
+          <p className="text-xs text-text-secondary">Checking existing session...</p>
+        </div>
+      </main>
+    )
   }
 
   return (
@@ -155,6 +213,18 @@ export default function LoginPage() {
                 className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all px-4 py-3"
                 required
               />
+            </div>
+
+            <div className="flex items-center justify-between py-0.5">
+              <label className="flex items-center gap-2 text-xs text-text-secondary cursor-pointer select-none hover:text-white transition-colors">
+                <input
+                  type="checkbox"
+                  checked={stayLoggedIn}
+                  onChange={(e) => setStayLoggedIn(e.target.checked)}
+                  className="w-4 h-4 rounded border-white/20 bg-surface-elevated text-primary focus:ring-1 focus:ring-primary/50 cursor-pointer accent-[#ff5c00]"
+                />
+                <span>Stay logged in</span>
+              </label>
             </div>
 
             <button

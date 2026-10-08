@@ -95,6 +95,37 @@ describe('verifyFirebaseToken', () => {
     expect(await verifyFirebaseToken(token)).toBeNull()
   })
 
+  it('allows an expired token within grace period when allowGracePeriod is true', async () => {
+    const { verifyFirebaseToken } = await loadVerifySession()
+    fetchMock.mockResolvedValueOnce(makeJwksResponse() as never)
+
+    const nowSec = Math.floor(Date.now() / 1000)
+    const token = makeToken({
+      sub: 'user-1',
+      iat: nowSec - 3600 * 2, // 2 hours ago
+      exp: nowSec - 3600,     // expired 1 hour ago
+      aud: 'test-project',
+      iss: 'https://securetoken.google.com/test-project',
+    })
+    const res = await verifyFirebaseToken(token, { allowGracePeriod: true })
+    expect(res).not.toBeNull()
+    expect(res?.uid).toBe('user-1')
+  })
+
+  it('rejects an expired token older than maxAgeSeconds when allowGracePeriod is true', async () => {
+    const { verifyFirebaseToken } = await loadVerifySession()
+    const nowSec = Math.floor(Date.now() / 1000)
+    const token = makeToken({
+      sub: 'user-1',
+      iat: nowSec - (31 * 24 * 3600), // 31 days ago
+      exp: nowSec - (31 * 24 * 3600 - 3600),
+      aud: 'test-project',
+      iss: 'https://securetoken.google.com/test-project',
+    })
+    const res = await verifyFirebaseToken(token, { allowGracePeriod: true })
+    expect(res).toBeNull()
+  })
+
   it('returns null when audience does not match project', async () => {
     const { verifyFirebaseToken } = await loadVerifySession()
     fetchMock.mockResolvedValueOnce(makeJwksResponse() as never)

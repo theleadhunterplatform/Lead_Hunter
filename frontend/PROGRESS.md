@@ -9,6 +9,23 @@
 
 ---
 
+### ⚠ Local-only dummy lead data (DEMO mode) — NEVER commit/push these changes
+User asked for local dummy lead data to test the lead drawer without the live DB. Wired behind
+`DEMO_LEADS=1` (already set in `apps/web/.env.local`, which is gitignored):
+- **NEW file** `apps/web/src/lib/demo-leads.ts` (untracked) — 8 dummy leads, ids `mock-1`…`mock-8`
+  (id prefix `mock` triggers LeadDrawer's built-in smooth reveal — no network/credits spent).
+  2 seeded as saved (`mock-2`, `mock-4` → `/saved`), 1 outreach (`mock-7`, status `sent`).
+  In-memory save/unsave state via `PATCH`.
+- **EDITED tracked files (keep uncommitted!)**: `apps/web/src/app/api/leads/route.ts` and
+  `apps/web/src/app/api/leads/[id]/route.ts` — each got a `DEMO_LEADS === '1'` branch right after
+  auth (GET list, GET/PATCH/DELETE by id). Inert without the flag; safe if ever accidentally
+  committed *only if* `demo-leads.ts` is committed with them (dynamic `import('@/lib/demo-leads')`).
+- Flag removal = delete `DEMO_LEADS=1` line from `.env.local` → back to real API behavior.
+- Verified: tsc clean for these files; dev server logs `Reload env: .env.local`;
+  `/api/leads` returns 401 unauthenticated (auth runs before the demo branch).
+
+---
+
 ## 1. The checklist (11–12 items)
 
 | # | Item | Status |
@@ -179,6 +196,25 @@ Note: user's original list had duplicate "5" (rollover + pricing); renumbered as
   subresource) → use `domcontentloaded`.
 
 ## 2. Completed work (don't redo)
+
+### Mobile-UX sweep: saved pills, centered controls, lead drawer (done, pushed)
+- **Horizontal scroll killed** earlier in the sweep: `56e82c6` (glow clipping) + `c6ee452`
+  (scrollports on leads/saved/referrals/rewards/community mains + `html { overflow-x: clip }`).
+- **Saved filter pills** `a59ad0f` + `321534d` + `5596380`: group `min-w-0 w-full md:w-auto`,
+  pills `flex-wrap justify-center`, title/search/export all centered at 375 (centers == 188),
+  `min-h-[44px]` targets; desktop 1280 row intact. User confirmed live.
+- **Lead drawer mobile** `b802a9a`: root cause was the drawer living INSIDE the leads page's
+  `relative z-10` wrapper → bottom nav (z-40) painted OVER the sticky footer (footer bottom
+  64px incl. action buttons hidden). Fix: `<AnimatePresence>` drawer moved OUT of the z-10
+  wrapper (sibling inside `<main>`); saved page's drawer was already outside. Header on mobile:
+  decorative line `hidden sm:block`, claimed chip `hidden sm:inline-flex` (duplicated as
+  `sm:hidden` in the stats-chips row) → meta row single-line, X aligned; desktop unchanged
+  (line + chip still in header row). Credit/unlock modal verified fine as-is (viewport
+  `z-[90]`, buttons fit 375). Verified 375 (locked + revealed footers, `scrollWidth 375`)
+  and 1280 desktop; tsc only pre-existing `leads/page.tsx(821)` onSaveToggle errors.
+- Local `/api/leads` was 503 during testing (oracle down) — mocked via `window.fetch` patch
+  returning `{data:[AppLead]}` for `/api/leads?` + `/api/leads/<id>`; `initScript` param did
+  NOT stick, patch via `evaluate_script` + "Try Again" works.
 
 ### #1 Hero image → full-bleed wolf background (done)
 - **Asset:** user pasted "Wolf Stalking Through Darkness.png" in chat (no file path — extracted
@@ -681,6 +717,120 @@ outside the floating collapsed navbar.
   (links hidden, hamburger visible), ~500 mobile unchanged (brand + hamburger, no
   horizontal doc scroll) · `next lint --file` clean.
 
+### First-visit tutorial popup — Stage A functional core (2026-10-08)
+New 3-state modal `components/onboarding/TutorialPopup.tsx` (self-managing: reads its own
+flag, auto-opens 800ms after mount), mounted as `<TutorialPopup />` in
+`app/dashboard/page.tsx` (page is already `'use client'`, so no wrapper needed).
+- **States:** video 1 (`tutorial-platform.mp4`, poster + amber play-circle, no autoplay) →
+  video 2 (`tutorial-credits.mp4`) → done ("You're all set." + confetti + "Start finding
+  leads →" CTA + "Replay videos"). Shell/motion = CommunityWinPopup pattern (spring 350/28,
+  `bg-black/75 backdrop-blur-md` backdrop, z-[100], ESC + scroll lock) + HunterCopilot
+  `rounded-[22px]` shell tokens; state crossfades via `AnimatePresence mode="wait"` (~0.25s);
+  `useReducedMotion()` → opacity-only + confetti skipped.
+- **Progress bar:** watch-driven halves — `timeupdate` maps to 0–50 (video 1) / 50–100
+  (video 2), `transition-[width] duration-200`; **Next** jumps the current half to full then
+  advances; video `ended` = Next after 600ms (timer cleared on Next/unmount to avoid
+  double-advance); bar stays visible at 100% on the done state.
+- **Flag:** `localStorage['lh_tutorial_seen']='1'` set by × / ESC / backdrop / "Skip for now"
+  / completion CTA (`// TODO: persist flag server-side` left at the helper). **Replay does
+  NOT clear it.** Dev force-open: `?tutorial=1` + `NODE_ENV==='development'` opens regardless
+  of flag AND suppresses persistence while present (refresh re-tests) — mirrors `?preview=1`.
+- **Verified:** `npx tsc --noEmit` = 44 errors = pre-existing baseline, **0 in touched
+  files**; `npx next lint --file` on both touched files clean; dev server already running on
+  :3000 (not started by us) → `/dashboard` **HTTP 200**, no compile-failure markers, all 4
+  `/videos/tutorial-*` assets 200. **Not verified (needs login, Stage B):** click-through
+  playback/progress/confetti visuals — dashboard is auth-gated; browser MCP profile was
+  locked by another Chrome instance so no browser probe ran.
+
+### First-visit tutorial popup — Stage B/C: 3 videos, hero redesign, browser-verified (2026-10-08)
+Continues the Stage A entry above. Popup is now 3 video steps + done, fully verified in
+browser (dev session with `?tutorial=1` — auth gate bypassed by force-open, not by login).
+- **Assets (user-supplied sources, encoded by us):**
+  - `D:\Downloads\welcome\welcome.mov` (30.116s, 1920x1080/30/h264) → `public/videos/tutorial-welcome.mp4`
+    (7,505,640 B) + `tutorial-welcome-poster.jpg` (frame at 2.5s, 1920x1080).
+  - `D:\Downloads\credit explained full revised\credit explained full revised.mov` (54.218s) →
+    **replaced** `public/videos/tutorial-credits.mp4` (5,828,817 B) + poster (frame at 3.5s).
+  - Encode recipe (matches the existing platform spec): `ffmpeg -c:v libx264 -preset slow -crf 23
+    -pix_fmt yuv420p -r 30 -c:a aac -b:a 160k -movflags +faststart`; ffmpeg/ffprobe live at
+    `C:\ProgramData\chocolatey\bin\`. All 4 assets probe h264 High / 1920x1080 / 30fps /
+    yuv420p + AAC-LC. `tutorial-platform.mp4` (40.9s) unchanged = step 2.
+- **`STEPS` array now drives 3 steps:** 1 Welcome (`tutorial-welcome`) → 2 "how do I actually
+  find leads?" (`tutorial-platform`) → 3 "How do credits work?" (`tutorial-credits`) → done.
+  Both stale `// TODO` asset comments removed.
+- **Stage C redesign (design-taste pass):** video on TOP as hero, `text-3xl md:text-4xl`
+  question title, `max-w-[50ch]` blurb, **3-segment** progress bar (0 → 33 → 67 → 100,
+  `aria-valuenow` verified 0/33/67/100), gradient-hairline frame, staggered `stepChild`
+  reveals, `controls={started}` + amber play-circle overlay retained (intentional).
+- **`watchingRef` guard (Stage B fix — preserve it):** `video.pause()` inside `advance()` fires
+  a trailing `timeupdate` that used to clobber jump-to-full values; the sync ref gates
+  progress writes. Removing it re-breaks the bar.
+- **Verified (browser, fresh load):** step 1 = welcome.mp4 30.1s `readyState 4`; step 2 =
+  platform.mp4 40.9s; step 3 = credits.mp4 54.2s; `ended` → auto-advance 600ms; Next jumps
+  segment to full; 3 clicks → "You're all set." + confetti canvas + glowing CTA; Replay
+  re-runs all 3; ×/ESC/backdrop/"Skip for now" close + set `lh_tutorial_seen='1'`;
+  `?tutorial=1` force-opens and keeps flag `null`; **done state stable 15s** (an earlier
+  "done → step 3" revert never reproduced). Panel never scrolls: 109 rAF samples,
+  `scrollHeight == clientHeight` throughout (636 → 659 vs 662 = `max-h-[92dvh]` cap).
+- **Mobile 375x812, all 4 states:** no doc horizontal overflow (`scrollWidth 375`), panel
+  `x16 w343`, heights 501/479/444/498 (all < 812), video 300x169. Emulation cleared after.
+- **Popup cannot navigate** (grep: no `<a>`/`href`/`Link`/`router`/`location` write — L72 is a
+  read-only `URLSearchParams`). Stray `/leads` + `/saved` navigations observed during probing
+  were **MCP environment noise**, not a product bug. Done CTA `Start finding leads →` only
+  dismisses (stays on dashboard) — flag if user wants it to route.
+- **Pending user sign-off:** the 3 question titles + blurbs, and whether step 3's button should
+  read `Next →` or `Start finding leads →`.
+- **Gotchas:** chrome-devtools MCP profile lock → kill `chrome.exe` with
+  `CommandLine -like '*chrome-devtools-mcp*'` + sleep 3s; `take_screenshot` lags 1-2 calls
+  (take 2); `navigate_page reload` can time out at 10s → prefer `new_page` + `type:"url"`;
+  scope synthetic clicks to `[role="dialog"]`. Root `tsconfig.json` was auto-rewritten by
+Next (`jsx: "react-jsx"` → `"preserve"` + array formatting) — Next's own required value, do
+not revert.
+
+### First-visit tutorial popup — Stage D: Apple-keynote polish + copy sign-off (2026-10-09)
+Continues Stage B/C above. User asked for a "cute sexy like apple websites popup" look and
+supplied final copy; file header now reads "Stage D — Apple-keynote polish pass" (~525 lines).
+- **Copy decisions (user-confirmed):** step 2 title = `"So how do I actually use the
+  platform?"`; step 3 footer button = `"Start finding leads →"` (was `Next →`; still calls
+  `advance()` → done state — the label change is cosmetic).
+- **Done CTA now navigates:** `handleDoneCta` = `dismiss()` + `router.push('/leads')`
+  (resolves the Stage B/C "popup cannot navigate" open question — default taken, revert by
+  dropping the router call). `Replay videos` unchanged (re-runs all 3 steps in place).
+- **Visual pass:** saturating backdrop blur + amber ambient light wash, hairline-lit
+  `rounded-[28px]` shell, frosted play control w/ idle pulse, mono `01 / 03` step pill,
+  3-segment spring progress w/ glow, pill CTA w/ gradient + sheen, staggered spring step
+  transitions, done-state check plate w/ mint halo. Design tokens only (no new deps/colors).
+- **Verified:** `tsc --noEmit` **run from `apps\web`** = 44 = baseline, 0 in TutorialPopup
+  (from repo root it reports a bogus 903 — `@/*` maps to `./src/*`); `next lint --file` on
+  the component = clean; `badge-amber`/`accent-mint` confirmed present in Tailwind `palette`.
+- **Screenshots (all 5 QA-pass, no defects):** captured via the isolated-profile CDP flow —
+  `C:\Users\HP\AppData\Local\Temp\opencode\tutorial-shots\` — step1-welcome,
+  step2-platform (new title renders), step3-credits (new label renders), step4-done
+  (confetti + full segments + full-width CTA), mobile-step1-welcome (375px, `sw=375`,
+  no overflow). Capture script `capture-tutorial.mjs` (port 9333, profile copy
+  `chrome-profile-copy`) — two chrome-devtools-mcp processes (PIDs 7108/692) still fight
+  over the shared profile; killing the unused opencode window would fix MCP permanently.
+- **Stage commit set:** `apps/web/src/components/onboarding/`, `apps/web/src/app/
+  dashboard/page.tsx`, `apps/web/public/videos/tutorial-*` (6), `PROGRESS.md`. Excluded
+  (other session's WIP): `api/leads/*` demo-mode edits, `lib/demo-leads.ts`,
+  `tutorial-preview-qa/`, root `tsconfig.json`, moodboard/`1003.mov`/`leadhunter-walkthrough`.
+
+### Lead feed: holding loader removed (`b24bb87`, 2026-10-08)
+User ask: `/leads` showed a full-page custom loader ("Hold up we are finding leads for
+you") instead of the actual lead feed.
+- **Cause:** `app/leads/page.tsx` carried a temporary scaffolding toggle
+  `HIDE_LEADS_FOR_NOW = true` (landed with the page in `cc6f09e`) that early-returned the
+  holding screen — the real feed below it never rendered.
+- **Fix:** deleted the toggle + its whole early-return block (76 lines). The original feed
+  renders again: search, sort, niche pills, tag filters, PipelineLeadCard grid, error/empty
+  states, LeadDrawer. The brief `CustomLoader page="leads"` spinner while `/api/leads`
+  fetches is unchanged (that's the normal loading state, not the holding page).
+- **Verified:** lint clean on the file · `tsc --noEmit` = 44 errors = exact pre-existing
+  baseline (the 2 errors printed in this file are the old `LeadDrawer.onSaveToggle` prop
+  mismatch from `b73652b`, present before this change) · diff = pure 76-line deletion.
+  **Not browser-verified (needs login):** localhost has no session → `/leads` redirects to
+  `/login`; no stored test credentials (same standing gap as §6.2). Standing rule: no new
+  accounts.
+
 ---
 
 ## 3. Blocked — waiting on user input
@@ -749,3 +899,40 @@ outside the floating collapsed navbar.
    done), #12 Firebase panel.
 4. Pre-launch: rotate Razorpay test keys / set Vercel env vars (see §4); hand backend guy
    the dashboard/copilot copy inconsistencies logged in #6.
+
+---
+
+## 7. Motion graphics (motion-graphics-lab, not this repo)
+
+Separate project: `E:\programming and stuff\motion-graphics-lab` (Remotion, entry `src/index.ts`,
+lint = `eslint src && tsc`). Assets/outputs under its own `public\` / `out\`. Visual style =
+together.ai reference "Obsidian Kinetic" (obsidian/amber/mint, one uncut camera flight over
+floating UI).
+
+- **Video 2 — Welcome: DELIVERED 2026-10-08** → `motion-graphics-lab\out\welcome-video.mp4`
+  (1920x1080, 30fps, 870f = 29.1s, h264+aac 192k, -16.4 LUFS / peak -1.1 dBFS, 7.7 MB).
+  Pipeline that worked: QA stills (numeric probe first — see gotchas) → 10 chunked renders
+  (90f, `--concurrency=1 --port=3210`) → **concat filter** (never demuxer) → decode scan +
+  PSNR 41-44 dB spot-check vs stills → two-pass loudnorm to -16 LUFS (linear mode is
+  TP-capped ~-19 for this VO; use `linear=false` with measured params) → copy to `out\`.
+  Composition: id `WelcomeVideo`, 6 scenes unsequenced (global frames; wrapper `<Sequence>`
+  rebases `useCurrentFrame()` — removed, only the 3 in-card video Sequences remain).
+- **Video 1 — Intro: paused.** Script = v8 "Intent" (locked draft). Build not started; work
+  paused until welcome shipped (it has now — intro can resume).
+- **Gotchas (do not rediscover):**
+  - Remotion `spring()` output never reaches exactly 1 → never `>= 1`; use `col >= i - 0.2`
+    (the ScenePipeline pill `lit()` bug: CONTACTED flickered, CLOSED never lit).
+  - Image tool attachments get shuffled/stale (fresh names/JPEG don't help) → numeric probe
+    first (PIL bands/meanLum/amberPx), cross-check image read, trust numbers.
+  - `fade()` rejects inF=0; `premountFor` doesn't exist (TS2769); `noUnusedLocals: true`;
+    PowerShell 5.1 no `&&`; ffmpeg frame extraction = `select=eq(n,N)` not `-ss`;
+    renders deterministic (byte-identical repeats).
+  - Stills: `npx remotion still src/index.ts WelcomeVideo <out.png> --frame=N --port=3210`.
+
+
+### Final edit (same session) — v2 delivered
+- User requested: kinetic motion subtitles throughout + real screen-recording clip (`track it close it-1.mov`) at the "Track it, close it." beat + motion overlay elements on ALL screen-recording scenes. Directive: ship fast, no exhaustive tests.
+- Changes in `src/welcome/WelcomeVideo.tsx` (marker-splice script `Temp\opencode\splice_welcome.py`): (1) `PHRASES` + `SubtitleLayer` word-stagger captions (bottom scrim, amber accent words, type-scene phrases hidden); (2) ScenePipeline rewritten to play `clip-track.mov` (frames 120-247 of source, Sequence from=462 dur=128) with SAVED/CONTACTED/CLOSED pill overlays + cyan sparkline + "+10 credits" chip; (3) WindowCard overlays: LIVE DEMAND badge, refresh chip, "-10 credits" chip, "Contact unlocked" chip; fixed 3x no-useless-escape lint errors. eslint + tsc clean.
+- Pipeline repeat: 10 chunks (wv_chunks2) -> concat filter -> decode clean (870f, 29.077s) -> two-pass loudnorm (measured -24.80/-7.12/3.20, linear=false) -> **-16.34 LUFS, TP -1.07**.
+- Delivered `out\welcome-video.mp4` (15.9MB, 1920x1080@30, h264+aac, 29.1s). QA grid frames f160/f330/f530/f560 confirmed all overlays + subtitles + track clip.
+

@@ -6,6 +6,7 @@ import {
   PlusIcon, TrashIcon, PencilSquareIcon, CheckIcon, XMarkIcon, ArrowPathIcon, ArrowTopRightOnSquareIcon, UserGroupIcon,
 } from '@heroicons/react/24/solid'
 import { CustomLoader } from '@/components/ui/CustomLoader'
+import { notifyLeadsUpdated } from '@/lib/sync-events'
 
 
 
@@ -96,7 +97,9 @@ export default function AdminTargetsPage() {
         headers: { Authorization: `Bearer ${token}` },
       })
       const json = await res.json().catch(() => ({}))
-      if (!res.ok || json.success === false) {
+      if (res.ok && json.success !== false) {
+        notifyLeadsUpdated({ source: 'targets-all' })
+      } else {
         const msg = json.message || 'Failed to trigger watchlist scraping'
         const isApify =
           msg.toLowerCase().includes('apify') ||

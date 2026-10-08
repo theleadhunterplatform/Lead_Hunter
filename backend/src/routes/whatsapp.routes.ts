@@ -10,6 +10,8 @@ import {
     setTargetWhatsAppGroupHandler,
     clearTargetWhatsAppGroupHandler,
     unlinkWhatsAppDeviceHandler,
+    getWhatsAppTemplateHandler,
+    setWhatsAppTemplateHandler,
 } from '../controllers/whatsapp.controller';
 
 const router = express.Router();
@@ -19,6 +21,9 @@ router.use(protect, requirePlatformAdmin);
 
 router.get('/status', getWhatsAppStatusHandler);
 router.get('/groups', getWhatsAppGroupsHandler);
+router.get('/template', getWhatsAppTemplateHandler);
+router.post('/template', setWhatsAppTemplateHandler);
+router.put('/template', setWhatsAppTemplateHandler);
 router.post('/target-group', setTargetWhatsAppGroupHandler);
 router.delete('/target-group', clearTargetWhatsAppGroupHandler);
 router.post('/clear-target-group', clearTargetWhatsAppGroupHandler);

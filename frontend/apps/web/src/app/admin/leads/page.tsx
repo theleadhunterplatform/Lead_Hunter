@@ -34,6 +34,7 @@ import {
   getEmailStatusBadge,
 } from '@/lib/email-verification'
 import type { ExternalPost } from '@/lib/external-api/client'
+import { notifyLeadsUpdated, subscribeToLeadsUpdated } from '@/lib/sync-events'
 
 interface LeadStats {
   qualified_today?: number
@@ -240,12 +241,60 @@ export default function AdminLeadsPage() {
     fetchAiMetrics()
     fetchLeadStats()
     fetchLeads()
+
+    // Standard quiet polling every 6 seconds when tab is active
     const interval = setInterval(() => {
-      fetchAiMetrics()
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        fetchAiMetrics()
+        fetchLeadStats()
+        fetchLeads(currentPage, activeTab, searchQuery, true)
+      }
+    }, 6000)
+
+    const handleVisibilityChange = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        fetchLeads(currentPage, activeTab, searchQuery, true)
+        fetchLeadStats()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    // Accelerated burst polling when a scrape is initiated or leads update
+    let burstInterval: NodeJS.Timeout | null = null
+    let burstTimeout: NodeJS.Timeout | null = null
+
+    const startBurstPoll = () => {
+      if (burstInterval) clearInterval(burstInterval)
+      if (burstTimeout) clearTimeout(burstTimeout)
+
+      fetchLeads(currentPage, activeTab, searchQuery, true)
       fetchLeadStats()
-    }, 30000)
-    return () => clearInterval(interval)
-  }, [fetchIntelSettings, fetchAiMetrics, fetchLeadStats, fetchLeads])
+
+      burstInterval = setInterval(() => {
+        if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+          fetchLeads(currentPage, activeTab, searchQuery, true)
+          fetchLeadStats()
+        }
+      }, 3000)
+
+      burstTimeout = setTimeout(() => {
+        if (burstInterval) clearInterval(burstInterval)
+        burstInterval = null
+      }, 45000)
+    }
+
+    const unsubscribe = subscribeToLeadsUpdated(() => {
+      startBurstPoll()
+    })
+
+    return () => {
+      clearInterval(interval)
+      if (burstInterval) clearInterval(burstInterval)
+      if (burstTimeout) clearTimeout(burstTimeout)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      unsubscribe()
+    }
+  }, [fetchIntelSettings, fetchAiMetrics, fetchLeadStats, fetchLeads, currentPage, activeTab, searchQuery])
 
   useEffect(() => {
     setSelectedLeadIds([])
@@ -560,6 +609,7 @@ export default function AdminLeadsPage() {
       }
       addToast({ type: 'success', message: json.message || 'Selected leads approved.' })
       setSelectedLeadIds([])
+      notifyLeadsUpdated({ source: 'bulk-approve-selected' })
       fetchLeads(currentPage, activeTab, searchQuery, true)
       fetchLeadStats()
     } catch (err) {
@@ -582,6 +632,7 @@ export default function AdminLeadsPage() {
       }
       addToast({ type: 'success', message: json.message || 'Selected leads deleted.' })
       setSelectedLeadIds([])
+      notifyLeadsUpdated({ source: 'bulk-delete-selected' })
       fetchLeads(currentPage, activeTab, searchQuery, true)
       fetchLeadStats()
     } catch (err) {
@@ -598,6 +649,7 @@ export default function AdminLeadsPage() {
       const json = await res.json()
       if (json.approved > 0) {
         addToast({ type: 'success', message: json.message || 'Bulk approval complete.' })
+        notifyLeadsUpdated({ source: 'bulk-approve' })
       } else if (json.skipped > 0) {
         addToast({ type: 'info', message: json.message || 'No leads with contact details to approve.' })
       } else {

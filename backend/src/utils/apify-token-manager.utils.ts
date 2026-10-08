@@ -3,6 +3,7 @@ import Redis from 'ioredis';
 import config from '../config';
 import ApifyKey from '../models/apify-key.model';
 import prisma from '../lib/prisma';
+import { getApifyPlatformUsage } from './apify-usage.utils';
 
 type ApifyKeyRecord = Awaited<ReturnType<typeof ApifyKey.find>>[number];
 
@@ -44,10 +45,35 @@ function keyHasRemainingQuota(record: ApifyKeyRecord, month: string): boolean {
     return used < limit;
 }
 
+async function isKeyUsable(record: ApifyKeyRecord, month: string): Promise<boolean> {
+    if (!keyHasRemainingQuota(record, month)) return false;
+    if (typeof record.key === 'string' && record.key.startsWith('apify_api_')) {
+        try {
+            const platformUsage = await getApifyPlatformUsage(record.key);
+            if (platformUsage?.exhausted) {
+                const keyId = record._id || record.id;
+                if (keyId) {
+                    await markApifyKeyExhausted(keyId);
+                }
+                return false;
+            }
+        } catch {
+            // If limits call fails, do not block
+        }
+    }
+    return true;
+}
+
 async function listPoolKeys(): Promise<ApifyKeyRecord[]> {
     const month = currentUsageMonth();
     const keys = await ApifyKey.find({ is_active: true, is_deleted: false }, { sort: { created_at: 1 } });
-    return keys.filter((key) => keyHasRemainingQuota(key, month));
+    const usable: ApifyKeyRecord[] = [];
+    for (const key of keys) {
+        if (await isKeyUsable(key, month)) {
+            usable.push(key);
+        }
+    }
+    return usable;
 }
 
 async function refreshRedisLease(workerId: string, keyId: string): Promise<void> {

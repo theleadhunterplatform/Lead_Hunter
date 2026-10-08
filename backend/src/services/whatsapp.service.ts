@@ -26,6 +26,90 @@ let reconnectTimer: NodeJS.Timeout | null = null;
 let dynamicGroupId: string | null = null;
 let dynamicGroupName: string | null = null;
 
+// Dynamic alert message template (persisted in DB, overrides default)
+export const DEFAULT_WHATSAPP_ALERT_TEMPLATE = `🚀 *Fresh Leads Dropped — Lead Hunter Club*
+
+🔥 *{count} new verified client opportunit{count_suffix}* {have_has} just been approved and added to the platform!
+
+📌 *Niches:* {niches}
+
+👉 *Claim & review them now before competitors:*
+{link}`;
+
+let dynamicAlertTemplate: string | null = null;
+
+/**
+ * Loads the custom WhatsApp alert message template from the database settings table.
+ */
+export async function loadWhatsAppTemplateFromDb(): Promise<void> {
+    try {
+        const setting = await prisma.setting.findUnique({
+            where: { key: 'whatsapp_alert_template' },
+        });
+        if (setting && setting.value && typeof setting.value === 'object') {
+            const val = setting.value as { template?: string };
+            if (val.template && typeof val.template === 'string' && val.template.trim()) {
+                dynamicAlertTemplate = val.template.trim();
+                console.log('ℹ️  [WhatsApp] Loaded custom alert message template from DB');
+            }
+        }
+    } catch (err: any) {
+        console.warn('⚠️  [WhatsApp] Failed to load alert template from DB setting:', err.message);
+    }
+}
+
+/**
+ * Returns the currently active WhatsApp alert template (or the default).
+ */
+export function getWhatsAppAlertTemplate(): string {
+    return dynamicAlertTemplate || DEFAULT_WHATSAPP_ALERT_TEMPLATE;
+}
+
+/**
+ * Persists a new custom WhatsApp alert message template to the database settings table.
+ */
+export async function setWhatsAppAlertTemplate(
+    template: string | null
+): Promise<{ success: boolean; template: string }> {
+    const trimmed = template?.trim() || null;
+    dynamicAlertTemplate = trimmed;
+
+    if (!trimmed) {
+        try {
+            await prisma.setting.deleteMany({
+                where: { key: 'whatsapp_alert_template' },
+            });
+        } catch (err: any) {
+            console.warn('⚠️  [WhatsApp] Failed to clear alert template in DB:', err.message);
+        }
+        return { success: true, template: DEFAULT_WHATSAPP_ALERT_TEMPLATE };
+    }
+
+    try {
+        await prisma.setting.upsert({
+            where: { key: 'whatsapp_alert_template' },
+            create: {
+                key: 'whatsapp_alert_template',
+                value: {
+                    template: trimmed,
+                    updatedAt: new Date().toISOString(),
+                },
+                description: 'Custom message template for WhatsApp community lead drop alerts',
+            },
+            update: {
+                value: {
+                    template: trimmed,
+                    updatedAt: new Date().toISOString(),
+                },
+            },
+        });
+    } catch (err: any) {
+        console.warn('⚠️  [WhatsApp] Failed to save alert template to DB:', err.message);
+    }
+
+    return { success: true, template: trimmed };
+}
+
 // Batch buffer for lead notifications
 let pendingLeadsCount = 0;
 let pendingNiches = new Set<string>();
@@ -126,6 +210,9 @@ export async function clearTargetWhatsAppGroup(): Promise<{ success: boolean; me
 export async function initWhatsAppClient(): Promise<void> {
     if (!dynamicGroupId) {
         await loadTargetWhatsAppGroupFromDb();
+    }
+    if (!dynamicAlertTemplate) {
+        await loadWhatsAppTemplateFromDb();
     }
     if (!config.whatsapp.enabled) {
         console.log('ℹ️  [WhatsApp] Service is disabled via WHATSAPP_ENABLED=false');
@@ -391,12 +478,13 @@ export async function unlinkWhatsAppDevice(): Promise<{ success: boolean; messag
 }
 
 /**
- * Immediate dispatch for new leads drop announcement.
+ * Interpolates variables into a WhatsApp alert template.
  */
-export async function dispatchLeadDropAlert(
+export function renderWhatsAppAlertMessage(
+    template: string,
     leadsCount: number,
     categories: string[] = []
-): Promise<{ success: boolean; error?: string }> {
+): string {
     let appUrl = (process.env.FRONTEND_URL || 'https://www.theleadhunterclub.com').trim();
     // Guarantee canonical production link even if server environment variable has stale vercel.app or old URL
     if (appUrl.includes('vercel.app') || (!appUrl.includes('localhost') && !appUrl.includes('127.0.0.1'))) {
@@ -409,20 +497,30 @@ export async function dispatchLeadDropAlert(
         ? cleanCategories.slice(0, 4).join(', ')
         : 'Web Dev, Design, Marketing & AI';
 
-    const opportunityText = leadsCount === 1
-        ? '🔥 *1 new verified client opportunity* has just been approved and added to the platform!'
-        : `🔥 *${leadsCount} new verified client opportunities* have just been approved and added to the platform!`;
+    const countSuffix = leadsCount === 1 ? 'y' : 'ies';
+    const haveHas = leadsCount === 1 ? 'has' : 'have';
 
-    const message = [
-        '🚀 *Fresh Leads Dropped — Lead Hunter Club*',
-        '',
-        opportunityText,
-        '',
-        `📌 *Niches:* ${categoryText}`,
-        '',
-        `👉 *Claim & review them now before competitors:*`,
-        `${appUrl}/leads`,
-    ].join('\n');
+    return template
+        .replace(/\{count\}/gi, String(leadsCount))
+        .replace(/\{count_suffix\}/gi, countSuffix)
+        .replace(/\{have_has\}/gi, haveHas)
+        .replace(/\{niches\}/gi, categoryText)
+        .replace(/\{link\}/gi, `${appUrl}/leads`);
+}
+
+/**
+ * Immediate dispatch for new leads drop announcement.
+ */
+export async function dispatchLeadDropAlert(
+    leadsCount: number,
+    categories: string[] = [],
+    customTemplate?: string
+): Promise<{ success: boolean; error?: string }> {
+    const rawTemplate = (customTemplate && customTemplate.trim())
+        ? customTemplate.trim()
+        : getWhatsAppAlertTemplate();
+
+    const message = renderWhatsAppAlertMessage(rawTemplate, leadsCount, categories);
 
     return sendGroupMessage(message);
 }
@@ -478,6 +576,7 @@ export function getWhatsAppStatus(): {
     hasQr: boolean;
     qrDataUrl: string | null;
     groupsCount: number;
+    alertTemplate: string;
 } {
     const cleanPhone = botJid ? botJid.split(':')[0] : null;
     const activeGroupId = dynamicGroupId || config.whatsapp.groupId || '';
@@ -495,6 +594,7 @@ export function getWhatsAppStatus(): {
         hasQr: !!latestQr,
         qrDataUrl: latestQrDataUrl,
         groupsCount: cachedGroups.length,
+        alertTemplate: getWhatsAppAlertTemplate(),
     };
 }
 

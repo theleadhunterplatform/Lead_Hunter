@@ -17,6 +17,7 @@ import {
   type ConfirmationResult,
   auth,
 } from '@/lib/firebase'
+import { setSessionCookie } from '@/hooks/useAuth'
 import { normalizePhone } from '@/lib/phone'
 import { PhoneInputWithCountry } from '@/components/ui/PhoneInputWithCountry'
 import {
@@ -296,6 +297,7 @@ export default function RegisterPage() {
       try {
         const token = await userCredential.user?.getIdToken().catch(() => null)
         if (token) {
+          setSessionCookie(token)
           const codeToSend = (formData.get('referralCode') as string)?.trim() || referralCode || undefined
           await fetch('/api/auth/me', {
             method: 'PATCH',

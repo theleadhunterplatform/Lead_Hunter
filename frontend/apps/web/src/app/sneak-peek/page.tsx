@@ -92,7 +92,7 @@ export default function SneakPeekPage() {
     <div className="flex h-screen bg-bg-main overflow-hidden font-sans relative">
       <AppSidebar isSneakPeek={true} />
 
-      <main className="flex-1 overflow-y-auto px-6 py-8 pb-32 relative scrollbar-hide">
+      <main className="flex-1 overflow-y-auto overflow-x-hidden px-6 py-8 pb-32 relative scrollbar-hide">
         {/* Ambient Background Glows */}
         <div className="absolute top-[-10%] left-1/2 -translate-x-1/2 w-[800px] h-[400px] glow-purple-medium pointer-events-none" />
         <div className="absolute top-[20%] right-[-5%] w-[600px] h-[600px] glow-mint-soft pointer-events-none" />

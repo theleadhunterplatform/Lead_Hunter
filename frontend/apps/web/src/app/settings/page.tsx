@@ -11,6 +11,7 @@ import {
   RecaptchaVerifier,
   linkWithCredential,
   EmailAuthProvider,
+  updateProfile,
   updatePassword,
   reauthenticateWithCredential,
   sendPasswordResetEmail,
@@ -73,6 +74,13 @@ export default function SettingsPage() {
   const { user, logout, firebaseUser } = useAuth()
   const [isEditing, setIsEditing] = useState(false)
   const [displayName, setDisplayName] = useState(user?.name || '')
+  const [profileSavingName, setProfileSavingName] = useState(false)
+
+  useEffect(() => {
+    if (user?.name && !isEditing) {
+      setDisplayName(user.name)
+    }
+  }, [user?.name, isEditing])
 
   // Password Change State
   const [currentPassword, setCurrentPassword] = useState('')
@@ -452,7 +460,57 @@ export default function SettingsPage() {
     }
   }
 
-  const handleSaveProfile = () => {
+  const handleSaveProfile = async () => {
+    const trimmed = displayName.trim()
+    if (!trimmed) {
+      addToast({ type: 'error', message: 'Please enter your full name.' })
+      return
+    }
+
+    setProfileSavingName(true)
+    try {
+      const token = await getFirebaseToken()
+      if (!token) {
+        addToast({ type: 'error', message: 'Authentication session not found. Please reload the page.' })
+        return
+      }
+
+      const res = await fetch('/api/auth/me', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ name: trimmed }),
+      })
+
+      const json = await res.json().catch(() => null)
+      if (!res.ok) {
+        addToast({ type: 'error', message: json?.message || 'Failed to update name.' })
+        return
+      }
+
+      // Sync Firebase client auth profile
+      if (auth.currentUser) {
+        await updateProfile(auth.currentUser, { displayName: trimmed }).catch(() => {})
+      }
+
+      addToast({ type: 'success', message: 'Profile updated successfully!' })
+      setIsEditing(false)
+
+      // Notify useAuth and other listeners to refetch user info immediately
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('user-refetch'))
+      }
+    } catch {
+      addToast({ type: 'error', message: 'Network error updating profile name.' })
+    } finally {
+      setProfileSavingName(false)
+    }
+  }
+
+  const handleCancelEditProfile = () => {
+    setDisplayName(user?.name || '')
     setIsEditing(false)
   }
 
@@ -628,7 +686,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <main className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-10 pt-8 pb-28 md:py-12 relative scrollbar-hide">
+    <main className="flex-1 overflow-y-auto overflow-x-hidden px-4 sm:px-6 lg:px-10 pt-8 pb-28 md:py-12 relative scrollbar-hide">
       <div className="absolute top-[-10%] left-1/2 -translate-x-1/2 w-[800px] h-[400px] glow-mint-soft pointer-events-none" />
 
       <div className="max-w-[1000px] mx-auto relative z-10">
@@ -656,16 +714,41 @@ export default function SettingsPage() {
                   <p className="text-sm text-text-secondary">Your personal information</p>
                 </div>
               </div>
-              <button
-                onClick={() => (isEditing ? handleSaveProfile() : setIsEditing(true))}
-                className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all ${
-                  isEditing
-                    ? 'bg-accent-mint text-text-on-accent hover:bg-surface-secondary'
-                    : 'bg-white/5 text-text-secondary hover:text-text-primary hover:bg-white/10'
-                }`}
-              >
-                {isEditing ? 'Save Changes' : 'Edit Profile'}
-              </button>
+              <div className="flex items-center gap-2">
+                {isEditing && (
+                  <button
+                    type="button"
+                    onClick={handleCancelEditProfile}
+                    disabled={profileSavingName}
+                    className="px-4 py-2.5 rounded-xl text-xs font-semibold bg-white/5 text-text-secondary hover:text-white hover:bg-white/10 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => (isEditing ? handleSaveProfile() : setIsEditing(true))}
+                  disabled={profileSavingName}
+                  className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    isEditing
+                      ? 'bg-accent-mint text-text-on-accent hover:opacity-90 shadow-sm'
+                      : 'bg-white/5 text-text-secondary hover:text-text-primary hover:bg-white/10'
+                  }`}
+                >
+                  {isEditing ? (
+                    profileSavingName ? (
+                      <>
+                        <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
+                        <span>Saving...</span>
+                      </>
+                    ) : (
+                      'Save Changes'
+                    )
+                  ) : (
+                    'Edit Profile'
+                  )}
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -679,7 +762,18 @@ export default function SettingsPage() {
                     type="text"
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl bg-surface-elevated border border-subtle text-text-primary text-sm outline-none focus:ring-1 focus:ring-accent-mint/50"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        handleSaveProfile()
+                      } else if (e.key === 'Escape') {
+                        handleCancelEditProfile()
+                      }
+                    }}
+                    disabled={profileSavingName}
+                    placeholder="Enter your full name"
+                    autoFocus
+                    className="w-full px-4 py-3 rounded-xl bg-surface-elevated border border-subtle text-text-primary text-sm outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all disabled:opacity-50"
                   />
                 ) : (
                   <p className="text-sm text-text-primary font-medium px-4 py-3 rounded-xl bg-surface-elevated/50 border border-subtle/50">

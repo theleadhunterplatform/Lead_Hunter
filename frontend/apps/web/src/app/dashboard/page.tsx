@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { getFirebaseToken } from '@/lib/firebase'
 import { useAuth } from '@/hooks/useAuth'
 import { CustomLoader } from '@/components/ui/CustomLoader'
+import { TutorialPopup } from '@/components/onboarding/TutorialPopup'
 
 import {
   ArrowTopRightOnSquareIcon,
@@ -106,7 +107,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <main data-lenis-prevent className="flex-1 h-full min-h-0 overflow-y-auto px-4 sm:px-6 lg:px-10 pt-8 pb-28 md:py-12 relative scrollbar-hide">
+    <main data-lenis-prevent className="flex-1 h-full min-h-0 overflow-y-auto overflow-x-hidden px-4 sm:px-6 lg:px-10 pt-8 pb-28 md:py-12 relative scrollbar-hide">
       <div className="absolute top-[-10%] left-1/2 -translate-x-1/2 w-[800px] h-[400px] glow-mint-soft pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-5%] w-[600px] h-[600px] glow-purple-soft pointer-events-none" />
 
@@ -194,7 +195,7 @@ export default function DashboardPage() {
                           setSelectedBar(isBarOpen ? null : data.day)
                         }
                       }}
-                      className="flex-1 flex flex-col items-center gap-4 group cursor-pointer min-w-[36px]"
+                      className="flex-1 flex flex-col items-center gap-4 group cursor-pointer min-w-[28px]"
                     >
                       <div
                         style={{ height: `${Math.max(heightPercent * 2, 4)}px`, transition: 'height 400ms ease' }}
@@ -262,6 +263,8 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      <TutorialPopup />
     </main>
   )
 }
