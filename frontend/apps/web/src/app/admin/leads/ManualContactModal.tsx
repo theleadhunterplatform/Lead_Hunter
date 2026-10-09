@@ -67,7 +67,8 @@ export default function ManualContactModal({
       const token = await getFirebaseToken()
       if (!token) throw new Error('Not authenticated')
 
-      const res = await fetch(`/api/admin/leads/${lead.id}/contact`, {
+      const leadId = lead.id || (lead as any)._id
+      const res = await fetch(`/api/admin/leads/${leadId}/contact`, {
         method: 'PUT',
         headers: {
           Authorization: `Bearer ${token}`,
