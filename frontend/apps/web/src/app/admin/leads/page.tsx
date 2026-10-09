@@ -1199,7 +1199,33 @@ export default function AdminLeadsPage() {
                           </div>
                         )}
 
-
+                        <div
+                          className={`px-2 py-0.5 border text-[8px] font-black uppercase tracking-widest rounded flex items-center gap-1.5 ${
+                            (lead.claimed_count || 0) >= 25
+                              ? 'bg-red-500/10 border-red-500/30 text-red-400'
+                              : (lead.claimed_count || 0) > 0
+                                ? 'bg-accent-mint/10 border-accent-mint/30 text-accent-mint'
+                                : 'bg-surface-elevated border-white/[0.08] text-zinc-400'
+                          }`}
+                          title={`${lead.claimed_count || 0} out of 25 members have claimed this lead (${Math.max(0, 25 - (lead.claimed_count || 0))} slots remaining)`}
+                        >
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              (lead.claimed_count || 0) >= 25
+                                ? 'bg-red-400'
+                                : (lead.claimed_count || 0) > 0
+                                  ? 'bg-accent-mint'
+                                  : 'bg-zinc-600'
+                            }`}
+                          />
+                          <span>Claims:</span>
+                          <span className="font-bold text-white">
+                            {lead.claimed_count || 0}/25
+                          </span>
+                          {(lead.claimed_count || 0) >= 25 && (
+                            <span className="text-[7px] text-red-300 font-black ml-0.5">(MAX)</span>
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -1771,7 +1797,7 @@ export default function AdminLeadsPage() {
                             {claimingIds.includes(lead.id) ? (
                               <Loader2 size={12} className="animate-spin inline" />
                             ) : lead.is_claimed ? (
-                              'Claimed'
+                              `Claimed (${lead.claimed_count || 0}/25)`
                             ) : !lead.intelligence ? (
                               'Intel pending'
                             ) : (
