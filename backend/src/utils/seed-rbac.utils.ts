@@ -69,8 +69,20 @@ const SEED_ROLES = [
     }
 ];
 
+const getInitialAdminPassword = () => {
+    if (process.env.ADMIN_PASSWORD && process.env.ADMIN_PASSWORD !== 'Admin@12345') {
+        return process.env.ADMIN_PASSWORD;
+    }
+    if (process.env.NODE_ENV === 'production' || process.env.ENV === 'production') {
+        const crypto = require('crypto');
+        const generated = crypto.randomBytes(18).toString('base64url') + '!A9';
+        console.warn(`[SECURITY WARNING] Insecure default ADMIN_PASSWORD detected in production. Generated random password: ${generated}`);
+        return generated;
+    }
+    return process.env.ADMIN_PASSWORD || 'Admin@12345';
+};
+
 const DEFAULT_ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'admin@leadhunter.com').toLowerCase().trim();
-const DEFAULT_ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Admin@12345';
 const DEFAULT_ADMIN_NAME = process.env.ADMIN_NAME || 'Platform Admin';
 
 const assignSystemOwner = async (user: any, systemOwnerRole: any) => {
@@ -107,7 +119,7 @@ export const seedDefaultAdmin = async (systemOwnerRole?: any) => {
         user = await User.create({
             name: DEFAULT_ADMIN_NAME,
             email: DEFAULT_ADMIN_EMAIL,
-            password: DEFAULT_ADMIN_PASSWORD,
+            password: getInitialAdminPassword(),
         });
         console.log(`✔ Default admin account created (${DEFAULT_ADMIN_EMAIL})`);
     } else {

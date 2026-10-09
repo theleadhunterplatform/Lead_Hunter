@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { rateLimitByKey } from '@/lib/rate-limit'
+import { safeCompareStrings } from '@/lib/security'
 
 export async function GET(request: NextRequest) {
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
@@ -22,7 +23,7 @@ export async function GET(request: NextRequest) {
   }
 
   const validKey = process.env.ADMIN_REGISTRATION_KEY
-  if (!validKey || key !== validKey) {
+  if (!validKey || !safeCompareStrings(key, validKey)) {
     return NextResponse.json(
       { code: 'INVALID_KEY', message: 'Invalid registration key' },
       { status: 403 },

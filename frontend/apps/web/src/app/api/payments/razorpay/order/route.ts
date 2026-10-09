@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireActiveUser, ForbiddenError, AuthRequiredError } from '@/lib/auth'
-import { DEFAULT_RAZORPAY_KEY_ID, DEFAULT_RAZORPAY_KEY_SECRET } from '@/lib/razorpay'
 
 export const dynamic = 'force-dynamic'
 
@@ -52,14 +51,10 @@ export async function POST(request: NextRequest) {
 
     const keyId = (
       process.env.RAZORPAY_KEY_ID ||
-      process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ||
-      DEFAULT_RAZORPAY_KEY_ID
+      process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID
     )?.replace(/['"]/g, '').trim()
 
-    const keySecret = (
-      process.env.RAZORPAY_KEY_SECRET ||
-      DEFAULT_RAZORPAY_KEY_SECRET
-    )?.replace(/['"]/g, '').trim()
+    const keySecret = process.env.RAZORPAY_KEY_SECRET?.replace(/['"]/g, '').trim()
 
     // 1. Primary: Direct dynamic Razorpay order creation via Next.js
     if (keyId && keySecret) {

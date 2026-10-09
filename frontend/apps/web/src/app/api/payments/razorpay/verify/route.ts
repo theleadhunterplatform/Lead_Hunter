@@ -3,7 +3,7 @@ import { db } from '@/lib/db'
 import { requireActiveUser, ForbiddenError, AuthRequiredError } from '@/lib/auth'
 import { creditService } from '@/lib/services/credits'
 import { emailService } from '@/lib/services/email'
-import { DEFAULT_RAZORPAY_KEY_SECRET } from '@/lib/razorpay'
+import { safeCompareStrings } from '@/lib/security'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,33 +24,23 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 1. Multi-candidate HMAC-SHA256 signature verification
-    const rawEnvSecret = process.env.RAZORPAY_KEY_SECRET
-    const possibleSecrets = Array.from(
-      new Set(
-        [
-          rawEnvSecret,
-          rawEnvSecret ? rawEnvSecret.replace(/['"]/g, '').trim() : null,
-          DEFAULT_RAZORPAY_KEY_SECRET,
-          DEFAULT_RAZORPAY_KEY_SECRET.replace(/['"]/g, '').trim(),
-        ].filter(Boolean) as string[]
-      )
-    )
-
+    // 1. Secure HMAC-SHA256 signature verification with configured secret
+    const keySecret = process.env.RAZORPAY_KEY_SECRET?.replace(/['"]/g, '').trim()
     let signatureValid = false
-    const crypto = await import('crypto')
-    const signaturePayload = `${razorpay_order_id}|${razorpay_payment_id}`
 
-    for (const secret of possibleSecrets) {
+    if (keySecret) {
       try {
-        const expected = crypto.createHmac('sha256', secret).update(signaturePayload).digest('hex')
-        if (expected === razorpay_signature) {
+        const crypto = await import('crypto')
+        const signaturePayload = `${razorpay_order_id}|${razorpay_payment_id}`
+        const expected = crypto.createHmac('sha256', keySecret).update(signaturePayload).digest('hex')
+        if (safeCompareStrings(expected, razorpay_signature)) {
           signatureValid = true
-          break
         }
-      } catch {
-        // Continue to next secret
+      } catch (cryptoErr) {
+        console.warn('[Razorpay Verify] HMAC computation error:', cryptoErr)
       }
+    } else {
+      console.warn('[Razorpay Verify] RAZORPAY_KEY_SECRET is not configured in environment')
     }
 
     // 1b. If HMAC check failed locally, verify directly with Razorpay Server API (authoritative)

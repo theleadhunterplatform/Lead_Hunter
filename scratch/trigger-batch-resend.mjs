@@ -12,7 +12,7 @@ async function main() {
         const res = await fetch(url, {
           method: 'POST',
           headers: {
-            'x-admin-key': 'leadhunter-admin-2026',
+            'x-admin-key': process.env.ADMIN_API_KEY || process.env.ADMIN_REGISTRATION_KEY || '',
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ action: 'RESEND_ALL_FAILED' }),

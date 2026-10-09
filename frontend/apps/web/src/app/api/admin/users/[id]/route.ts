@@ -7,6 +7,7 @@ import { creditService, InsufficientCreditsError, getDynamicPlanCredits } from '
 import { emailService } from '@/lib/services/email'
 import { getPlan } from '@/lib/config/plans'
 import { getAdminAuthInstance } from '@/lib/firebase-admin'
+import { safeCompareStrings } from '@/lib/security'
 
 export const dynamic = 'force-dynamic'
 
@@ -675,9 +676,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   try {
     const { id } = await params
     const adminKey = request.headers.get('x-admin-key')
-    let authorized =
-      adminKey === 'leadhunter-admin-2026' ||
-      Boolean(process.env.ADMIN_REGISTRATION_KEY && adminKey === process.env.ADMIN_REGISTRATION_KEY)
+    const validKey = process.env.ADMIN_API_KEY || process.env.ADMIN_REGISTRATION_KEY
+    let authorized = Boolean(validKey && adminKey && safeCompareStrings(adminKey, validKey))
     if (!authorized) {
       const authUser = await getAuthUser(request)
       if (authUser) {

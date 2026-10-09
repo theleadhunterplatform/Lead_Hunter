@@ -2,17 +2,11 @@ import Razorpay from 'razorpay'
 
 let cachedClient: Razorpay | null = null
 
-export const DEFAULT_RAZORPAY_KEY_ID = 'rzp_test_SxYOJz74qr94Pt'
-export const DEFAULT_RAZORPAY_KEY_SECRET = 'TT86QwQm86efbc7l6sv7V209'
-
 export function getRazorpay(): Razorpay {
   const rawKeyId =
     process.env.RAZORPAY_KEY_ID ||
-    process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ||
-    DEFAULT_RAZORPAY_KEY_ID
-  const rawKeySecret =
-    process.env.RAZORPAY_KEY_SECRET ||
-    DEFAULT_RAZORPAY_KEY_SECRET
+    process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID
+  const rawKeySecret = process.env.RAZORPAY_KEY_SECRET
 
   const keyId = rawKeyId?.replace(/['"]/g, '').trim()
   const keySecret = rawKeySecret?.replace(/['"]/g, '').trim()
@@ -36,10 +30,9 @@ export function getRazorpayWebhookSecret(): string {
 }
 
 export function isRazorpayConfigured(): boolean {
-  return !!(
-    (process.env.RAZORPAY_KEY_ID || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || DEFAULT_RAZORPAY_KEY_ID) &&
-    (process.env.RAZORPAY_KEY_SECRET || DEFAULT_RAZORPAY_KEY_SECRET)
-  )
+  const keyId = (process.env.RAZORPAY_KEY_ID || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID)?.replace(/['"]/g, '').trim()
+  const keySecret = process.env.RAZORPAY_KEY_SECRET?.replace(/['"]/g, '').trim()
+  return Boolean(keyId && keySecret)
 }
 
 export function verifyRazorpaySignature(

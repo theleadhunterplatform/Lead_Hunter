@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { getAuthUser } from '@/lib/auth'
 import { adminRegisterSchema } from '@/lib/validators/auth'
 import { rateLimitByKey } from '@/lib/rate-limit'
+import { safeCompareStrings } from '@/lib/security'
 
 export const dynamic = 'force-dynamic'
 
@@ -33,7 +34,7 @@ export async function POST(request: NextRequest) {
     const { key } = parsed.data
 
     const validKey = process.env.ADMIN_REGISTRATION_KEY
-    if (!validKey || key !== validKey) {
+    if (!validKey || !safeCompareStrings(key, validKey)) {
       return NextResponse.json(
         { code: 'INVALID_KEY', message: 'Invalid registration key' },
         { status: 403 },

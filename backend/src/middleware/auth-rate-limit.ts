@@ -1,5 +1,6 @@
 import rateLimit from 'express-rate-limit';
 import { Request, Response, NextFunction } from 'express';
+import crypto from 'crypto';
 import config from '../config';
 
 const limiter = rateLimit({
@@ -10,12 +11,18 @@ const limiter = rateLimit({
     message: { success: false, error: 'Too many auth attempts. Try again later.' },
 });
 
-// Skip rate limiting for the internal service account used by the Next.js proxy
+// Allow rate limit bypass for internal Next.js proxy ONLY when presenting a verified secret header
 export const authRateLimiter = (req: Request, res: Response, next: NextFunction) => {
-    const body = req.body as { email?: string };
-    const serviceEmail = process.env.EXTERNAL_API_EMAIL || 'admin@leadhunter.com';
-    if (body?.email && body.email.toLowerCase() === serviceEmail.toLowerCase()) {
-        return next();
+    const internalSecret = process.env.INTERNAL_SERVICE_SECRET;
+    const providedSecret = (req.headers['x-internal-secret'] || req.headers['x-service-key']) as string | undefined;
+
+    if (internalSecret && providedSecret) {
+        const bufA = Buffer.from(providedSecret, 'utf8');
+        const bufB = Buffer.from(internalSecret, 'utf8');
+        if (bufA.length === bufB.length && crypto.timingSafeEqual(bufA, bufB)) {
+            return next();
+        }
     }
+
     return limiter(req, res, next);
 };

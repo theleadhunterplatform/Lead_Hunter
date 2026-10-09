@@ -20,9 +20,13 @@ async function getToken(): Promise<string> {
 
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (process.env.INTERNAL_SERVICE_SECRET) {
+        headers['x-internal-secret'] = process.env.INTERNAL_SERVICE_SECRET
+      }
       const res = await fetch(`${BASE_URL}/auth/login`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ email: EMAIL, password: PASSWORD }),
       })
 
