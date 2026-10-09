@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { getFirebaseToken } from '@/lib/firebase'
 import {
   KeyIcon, PlusIcon, TrashIcon, ShieldCheckIcon, ShieldExclamationIcon,
@@ -8,6 +8,7 @@ import {
 } from '@heroicons/react/24/solid'
 import { CustomLoader } from '@/components/ui/CustomLoader'
 import { useToast } from '@/components/ui/Toast'
+import { parseApifyTokens } from '@/lib/apify-token-parser'
 
 interface ApifyKey {
   _id: string
@@ -36,8 +37,15 @@ export default function AdminTokensPage() {
   const [newKey, setNewKey] = useState('')
   const [newLabel, setNewLabel] = useState('')
   const [isAddingKey, setIsAddingKey] = useState(false)
+  const [isBulkMode, setIsBulkMode] = useState(false)
+  const [bulkText, setBulkText] = useState('')
+  const [isBulkAdding, setIsBulkAdding] = useState(false)
   const [deletingKeyId, setDeletingKeyId] = useState<string | null>(null)
   const { addToast } = useToast()
+
+  const parsedPreview = useMemo(() => {
+    return parseApifyTokens(bulkText)
+  }, [bulkText])
 
   const [enrichmentKeys, setEnrichmentKeys] = useState<Record<string, { is_configured: boolean; value: string }>>({})
   const [automationSettings, setAutomationSettings] = useState<AutomationSettings | null>(null)
@@ -168,6 +176,61 @@ export default function AdminTokensPage() {
       console.error('Failed to add Apify key:', err)
     } finally {
       setIsAddingKey(false)
+    }
+  }
+
+  const handleKeyPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const pasted = e.clipboardData.getData('text')
+    const detected = parseApifyTokens(pasted)
+    if (detected.length > 1 || pasted.includes('\n') || /^[a-zA-Z0-9_\-\s]+:\s*apify_api_/i.test(pasted)) {
+      e.preventDefault()
+      setBulkText(pasted)
+      setIsBulkMode(true)
+      addToast({
+        type: 'info',
+        message: `Detected ${detected.length > 0 ? detected.length : 'bulk'} token(s). Switched to Bulk Add!`,
+      })
+    }
+  }
+
+  const handleBulkAdd = async () => {
+    if (!bulkText.trim() || parsedPreview.length === 0) {
+      addToast({ type: 'error', message: 'No valid Apify tokens detected in the text' })
+      return
+    }
+
+    setIsBulkAdding(true)
+    try {
+      const token = await getFirebaseToken()
+      if (!token) throw new Error('Not authenticated. Please log in as an administrator.')
+
+      const res = await fetch('/api/admin/apify-keys/bulk', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: parsedPreview }),
+      })
+      const json = await res.json().catch(() => ({}))
+
+      if (!res.ok) {
+        throw new Error(json.message || 'Failed to import tokens')
+      }
+
+      setBulkText('')
+      setIsBulkMode(false)
+      await fetchTokens()
+      window.dispatchEvent(new CustomEvent('apify-keys-updated'))
+      try {
+        sessionStorage.removeItem('apify_exhausted_modal_dismissed')
+      } catch {}
+
+      addToast({
+        type: 'success',
+        message: json.message || `Successfully added ${json.addedCount} Apify keys!`,
+      })
+    } catch (err: any) {
+      addToast({ type: 'error', message: err?.message || 'Failed to bulk import Apify keys' })
+    } finally {
+      setIsBulkAdding(false)
     }
   }
 
@@ -323,35 +386,155 @@ export default function AdminTokensPage() {
       ) : (
         <div className="space-y-6">
           <div className="bg-surface/40 backdrop-blur-xl border border-white/[0.06] rounded-2xl p-6">
-            <h2 className="text-sm font-semibold text-text-primary mb-4 flex items-center gap-2">
-              <KeyIcon className="w-4 h-4 text-accent-mint" />Apify API Keys
-            </h2>
-            <div className="flex items-end gap-3 mb-6">
-              <div className="flex-1">
-                <label className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider mb-1 block">API Key</label>
-                <input value={newKey} onChange={e => setNewKey(e.target.value)} placeholder="apify_api_..."
-                  className="w-full bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all px-4 py-2.5 text-sm"
-                />
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-semibold text-text-primary flex items-center gap-2">
+                  <KeyIcon className="w-4 h-4 text-accent-mint" />Apify API Keys
+                </h2>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/5 text-text-secondary border border-white/5">
+                  {tokens.length} Active
+                </span>
               </div>
-              <div className="flex-1">
-                <label className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider mb-1 block">Label</label>
-                <input value={newLabel} onChange={e => setNewLabel(e.target.value)} placeholder="My Key"
-                  className="w-full bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all px-4 py-2.5 text-sm"
-                />
+
+              <div className="flex items-center gap-1.5 p-0.5 bg-surface-elevated border border-white/5 rounded-lg text-xs">
+                <button
+                  onClick={() => setIsBulkMode(false)}
+                  className={`px-3 py-1 rounded-md transition-all font-medium text-[11px] ${
+                    !isBulkMode
+                      ? 'bg-accent-mint text-black font-semibold shadow-sm'
+                      : 'text-text-secondary hover:text-white'
+                  }`}
+                >
+                  Single Key
+                </button>
+                <button
+                  onClick={() => setIsBulkMode(true)}
+                  className={`px-3 py-1 rounded-md transition-all font-medium text-[11px] flex items-center gap-1.5 ${
+                    isBulkMode
+                      ? 'bg-accent-mint text-black font-semibold shadow-sm'
+                      : 'text-text-secondary hover:text-white'
+                  }`}
+                >
+                  <span>⚡ Bulk Add</span>
+                </button>
               </div>
-              <button
-                onClick={addKey}
-                disabled={!newKey.trim() || isAddingKey}
-                className="px-5 py-2.5 rounded-xl bg-accent-mint text-white text-sm font-medium hover:bg-accent-mint/90 transition-all disabled:opacity-50 flex items-center justify-center min-w-[48px]"
-                title="Add Apify Key"
-              >
-                {isAddingKey ? (
-                  <ArrowPathIcon className="w-4 h-4 animate-spin" />
-                ) : (
-                  <PlusIcon className="w-4 h-4" />
-                )}
-              </button>
             </div>
+
+            {isBulkMode ? (
+              <div className="mb-6 p-4 rounded-xl bg-surface-elevated/60 border border-white/10 space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-text-primary flex items-center gap-2">
+                    <span>Paste Tokens / Message</span>
+                    <span className="text-[10px] text-text-secondary font-normal">
+                      (Supports format: <code className="text-accent-mint">T1: apify_api_...</code> or one token per line)
+                    </span>
+                  </label>
+                  {parsedPreview.length > 0 && (
+                    <span className="text-[11px] font-semibold text-accent-mint bg-accent-mint/10 border border-accent-mint/20 px-2.5 py-0.5 rounded-full">
+                      {parsedPreview.length} token{parsedPreview.length > 1 ? 's' : ''} detected
+                    </span>
+                  )}
+                </div>
+
+                <textarea
+                  value={bulkText}
+                  onChange={(e) => setBulkText(e.target.value)}
+                  placeholder={`T1: apify_api_sampleKey123AbcDef\nt2: apify_api_sampleKey456GhiJkl\nt3: apify_api_sampleKey789MnoPqr`}
+                  rows={5}
+                  className="w-full bg-surface border border-white/10 text-white font-mono text-xs rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all p-3 resize-y placeholder:text-zinc-600"
+                />
+
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-1">
+                  <div className="text-[11px] text-text-secondary">
+                    {parsedPreview.length > 0 ? (
+                      <span>
+                        Labels auto-detected:{' '}
+                        <span className="text-white font-medium">
+                          {parsedPreview.map((p) => p.label).slice(0, 4).join(', ')}
+                          {parsedPreview.length > 4 ? ` (+${parsedPreview.length - 4} more)` : ''}
+                        </span>
+                      </span>
+                    ) : (
+                      <span>Paste your token list or message above to preview</span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 self-end sm:self-auto">
+                    <button
+                      onClick={() => {
+                        setBulkText('')
+                        setIsBulkMode(false)
+                      }}
+                      className="px-3.5 py-2 rounded-xl text-xs font-medium text-text-secondary hover:text-white transition-all"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleBulkAdd}
+                      disabled={isBulkAdding || parsedPreview.length === 0}
+                      className="px-5 py-2 rounded-xl bg-accent-mint text-black text-xs font-bold hover:bg-accent-mint/90 transition-all disabled:opacity-50 flex items-center gap-2 shadow-lg shadow-accent-mint/10"
+                    >
+                      {isBulkAdding ? (
+                        <>
+                          <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                          <span>Verifying & Adding...</span>
+                        </>
+                      ) : (
+                        <>
+                          <PlusIcon className="w-4 h-4" />
+                          <span>Add All {parsedPreview.length > 0 ? `(${parsedPreview.length})` : ''} Tokens</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="mb-6 space-y-2">
+                <div className="flex items-end gap-3">
+                  <div className="flex-1">
+                    <label className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider mb-1 block">API Key</label>
+                    <input
+                      value={newKey}
+                      onChange={e => setNewKey(e.target.value)}
+                      onPaste={handleKeyPaste}
+                      placeholder="apify_api_... (or paste multi-key message)"
+                      className="w-full bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all px-4 py-2.5 text-sm"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider mb-1 block">Label</label>
+                    <input
+                      value={newLabel}
+                      onChange={e => setNewLabel(e.target.value)}
+                      placeholder="My Key"
+                      className="w-full bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all px-4 py-2.5 text-sm"
+                    />
+                  </div>
+                  <button
+                    onClick={addKey}
+                    disabled={!newKey.trim() || isAddingKey}
+                    className="px-5 py-2.5 rounded-xl bg-accent-mint text-white text-sm font-medium hover:bg-accent-mint/90 transition-all disabled:opacity-50 flex items-center justify-center min-w-[48px]"
+                    title="Add Apify Key"
+                  >
+                    {isAddingKey ? (
+                      <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <PlusIcon className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
+                <div className="flex items-center justify-between px-1">
+                  <button
+                    type="button"
+                    onClick={() => setIsBulkMode(true)}
+                    className="text-[11px] text-text-secondary hover:text-accent-mint transition-colors flex items-center gap-1.5"
+                  >
+                    <span>⚡ Have multiple tokens or a message list? Click to Bulk Add</span>
+                  </button>
+                </div>
+              </div>
+            )}
 
             <div className="space-y-2">
               {tokens.length === 0 ? (
