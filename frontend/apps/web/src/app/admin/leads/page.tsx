@@ -19,12 +19,14 @@ import {
   Plus,
   Coins,
   Edit3,
+  ClipboardPaste,
 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 
 import { LinkedinLogo, XLogo, RedditLogo, ThreadsLogo } from '@/components/BrandIcons'
 import ManualLeadModal from './ManualLeadModal'
 import RefineLeadModal from './RefineLeadModal'
+import ManualContactModal from './ManualContactModal'
 import { useToast } from '@/components/ui/Toast'
 import { getFirebaseToken } from '@/lib/firebase'
 import { applyClaimResponseToLead } from '@/lib/claim-reveal'
@@ -116,6 +118,8 @@ export default function AdminLeadsPage() {
   const [leads, setLeads] = useState<ExternalPost[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isManualModalOpen, setIsManualModalOpen] = useState(false)
+  const [isManualContactOpen, setIsManualContactOpen] = useState(false)
+  const [manualContactLead, setManualContactLead] = useState<ExternalPost | null>(null)
   const [isRefineModalOpen, setIsRefineModalOpen] = useState(false)
   const [refineLead, setRefineLead] = useState<ExternalPost | null>(null)
   const [creditModalLead, setCreditModalLead] = useState<ExternalPost | null>(null)
@@ -1363,6 +1367,18 @@ export default function AdminLeadsPage() {
                               )}
                               {enrichingIds.includes(lead.id) ? 'Queueing...' : getEnrichButtonLabel(lead)}
                             </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setManualContactLead(lead)
+                                setIsManualContactOpen(true)
+                              }}
+                              className="h-8 px-3 text-[9px] uppercase font-black rounded-lg flex items-center gap-1.5 bg-blue-500/10 text-blue-300 border border-blue-500/30 hover:bg-blue-500 hover:text-black transition-all"
+                              title="Paste contact details manually"
+                            >
+                              <ClipboardPaste size={12} />
+                              Paste Contact
+                            </button>
                           </div>
                         </div>
                         {(!lead.enrichment_status || lead.enrichment_status === 'pending') && (
@@ -1428,18 +1444,32 @@ export default function AdminLeadsPage() {
                     {getLeadEmailEntries(lead).length > 0 || (lead.contact_info?.phone_numbers && lead.contact_info.phone_numbers.length > 0) ? (
                       <div className="mb-6 p-4 bg-accent-mint/5 border border-accent-mint/20 rounded-xl relative overflow-hidden">
                         <div className="absolute top-0 right-0 w-16 h-16 bg-accent-mint/5 -rotate-45 translate-x-8 -translate-y-8" />
-                        <div className="flex items-center gap-2 mb-3">
-                          <div className="w-6 h-6 bg-accent-mint/10 flex items-center justify-center rounded border border-accent-mint/30">
-                            <Mail size={12} className="text-accent-mint" />
-                          </div>
-                          <span className="text-[10px] font-black uppercase tracking-widest text-accent-mint">
-                            {getLeadEmailEntries(lead).length > 1 ? 'Contact Emails' : 'Contact Email'}
-                          </span>
-                          {lead.contact_info?.email_conflict && (
-                            <span className="text-[8px] px-1.5 py-0.5 bg-yellow-500/10 text-yellow-500 border border-yellow-500/30 uppercase font-black rounded">
-                              Conflict
+                        <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 bg-accent-mint/10 flex items-center justify-center rounded border border-accent-mint/30">
+                              <Mail size={12} className="text-accent-mint" />
+                            </div>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-accent-mint">
+                              {getLeadEmailEntries(lead).length > 1 ? 'Contact Emails' : 'Contact Email'}
                             </span>
-                          )}
+                            {lead.contact_info?.email_conflict && (
+                              <span className="text-[8px] px-1.5 py-0.5 bg-yellow-500/10 text-yellow-500 border border-yellow-500/30 uppercase font-black rounded">
+                                Conflict
+                              </span>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setManualContactLead(lead)
+                              setIsManualContactOpen(true)
+                            }}
+                            className="h-7 text-[9px] uppercase font-black px-2.5 rounded-lg flex items-center gap-1.5 bg-blue-500/10 text-blue-300 border border-blue-500/30 hover:bg-blue-500 hover:text-black transition-all"
+                            title="Edit or add contact details manually"
+                          >
+                            <ClipboardPaste size={12} />
+                            Paste Contact
+                          </button>
                         </div>
 
                         {lead.contact_info?.email_conflict && (
@@ -1499,7 +1529,21 @@ export default function AdminLeadsPage() {
                     ) : lead.status === 'relevant' && canEnrichLead(lead) ? (
                       <div className="flex flex-col gap-3 mb-6">
                         <div className="p-4 bg-surface/50 border border-white/[0.06] rounded-xl space-y-3">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Contact Details</p>
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Contact Details</p>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setManualContactLead(lead)
+                                setIsManualContactOpen(true)
+                              }}
+                              className="h-7 text-[9px] uppercase font-black px-2.5 rounded-lg flex items-center gap-1.5 bg-blue-500/10 text-blue-300 border border-blue-500/30 hover:bg-blue-500 hover:text-black transition-all"
+                              title="Paste contact details manually"
+                            >
+                              <ClipboardPaste size={12} />
+                              Paste Contact
+                            </button>
+                          </div>
                           <div className="space-y-2">
                             <div>
                               <p className="text-[8px] font-black uppercase tracking-widest text-zinc-600 mb-0.5">Email</p>
@@ -1612,6 +1656,20 @@ export default function AdminLeadsPage() {
                               )}
                               Approve
                             </button>
+                            {!leadHasContactDetails(lead) && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setManualContactLead(lead)
+                                  setIsManualContactOpen(true)
+                                }}
+                                className="h-7 text-[8px] uppercase font-black px-2.5 rounded-lg flex items-center gap-1 bg-blue-500/10 text-blue-300 border border-blue-500/30 hover:bg-blue-500 hover:text-black transition-all"
+                                title="Paste contact details manually to enable approval"
+                              >
+                                <ClipboardPaste size={11} />
+                                Paste Contact
+                              </button>
+                            )}
                             <button
                               onClick={() => handleRejectReview(lead.id)}
                               disabled={reviewActionIds.includes(lead.id)}
@@ -1797,6 +1855,15 @@ export default function AdminLeadsPage() {
         </div>
       )}
 
+      <ManualContactModal
+        isOpen={isManualContactOpen}
+        onClose={() => {
+          setIsManualContactOpen(false)
+          setManualContactLead(null)
+        }}
+        onSuccess={fetchLeads}
+        lead={manualContactLead}
+      />
       <ManualLeadModal
         isOpen={isManualModalOpen}
         onClose={() => setIsManualModalOpen(false)}
