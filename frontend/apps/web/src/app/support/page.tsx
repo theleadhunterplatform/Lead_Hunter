@@ -19,6 +19,8 @@ import {
 } from '@heroicons/react/24/solid'
 import { Badge, Button, Input, Select, Modal, CustomLoader } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
+import { VideoHelpModal } from '@/components/support/VideoHelpModal'
+import { TutorialPopup } from '@/components/onboarding/TutorialPopup'
 import { getFirebaseToken } from '@/lib/firebase'
 
 interface TicketSummary {
@@ -42,6 +44,22 @@ const statusColor: Record<string, 'mint' | 'purple'> = {
 
 type StatusTab = 'ALL' | 'OPEN' | 'IN_PROGRESS' | 'RESOLVED_CLOSED'
 
+/** Video guides backing Quick Resource Cards 1 & 2 (open VideoHelpModal). */
+const VIDEO_GUIDES = {
+  platform: {
+    title: 'How to use platform',
+    videoSrc: '/videos/tutorial-platform.mp4',
+    poster: '/videos/tutorial-platform-poster.jpg',
+  },
+  credits: {
+    title: 'How credits work',
+    videoSrc: '/videos/tutorial-credits.mp4',
+    poster: '/videos/tutorial-credits-poster.jpg',
+  },
+} as const
+
+type VideoGuide = (typeof VIDEO_GUIDES)[keyof typeof VIDEO_GUIDES]
+
 export default function SupportPage() {
   const [tickets, setTickets] = useState<TicketSummary[]>([])
   const [loading, setLoading] = useState(true)
@@ -54,7 +72,19 @@ export default function SupportPage() {
   const [activeTab, setActiveTab] = useState<StatusTab>('ALL')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
+  const [showTutorial, setShowTutorial] = useState(false)
+  // Video help modal: content is kept after close so the exit animation never
+  // shows an empty title/src; `videoHelpOpen` alone drives mount/unmount.
+  const [videoHelp, setVideoHelp] = useState<VideoGuide | null>(null)
+  const [videoHelpOpen, setVideoHelpOpen] = useState(false)
   const { addToast } = useToast()
+
+  const openVideoHelp = (guide: VideoGuide) => {
+    setVideoHelp(guide)
+    setVideoHelpOpen(true)
+  }
+
+  const closeVideoHelp = () => setVideoHelpOpen(false)
 
   const loadTickets = async () => {
     try {
@@ -171,6 +201,11 @@ export default function SupportPage() {
           </span>
         </nav>
 
+        <TutorialPopup
+          open={showTutorial}
+          onClose={() => setShowTutorial(false)}
+        />
+
         {/* Page Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
           <div>
@@ -210,11 +245,29 @@ export default function SupportPage() {
           </div>
         </div>
 
+        {/* Watch Tutorial banner */}
+        <div className="mb-6">
+          <button
+            type="button"
+            onClick={() => {
+              localStorage.removeItem('lh_tutorial_seen')
+              setShowTutorial(true)
+            }}
+            className="rounded-full bg-gradient-to-b from-badge-amber to-primary py-2.5 px-6 text-sm font-bold text-black shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_4px_18px_rgba(var(--rgb-primary),0.3)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_8px_24px_rgba(var(--rgb-primary),0.45)] active:translate-y-0 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+          >
+            Watch tutorial
+          </button>
+        </div>
+
         {/* Quick Resource Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <Link
-            href="/leads"
-            className="group relative p-5 metallic-card rounded-2xl border border-white/[0.06] hover:border-white/20 transition-all"
+          {/* Card 1 — video guide (was a /leads Link; now opens the platform tour modal).
+              `w-full text-left cursor-pointer` keep button UA defaults (centered text,
+              arrow cursor) pixel-identical to the old Link; group/hover classes untouched. */}
+          <button
+            type="button"
+            onClick={() => openVideoHelp(VIDEO_GUIDES.platform)}
+            className="group relative p-5 metallic-card rounded-2xl border border-white/[0.06] hover:border-white/20 transition-all w-full text-left cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-orange/50"
           >
             <div className="flex items-start gap-3.5">
               <div className="p-2.5 rounded-xl bg-accent-orange/10 text-accent-orange">
@@ -222,19 +275,21 @@ export default function SupportPage() {
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="text-sm font-semibold text-text-primary group-hover:text-accent-orange transition-colors flex items-center justify-between">
-                  <span>Lead Intelligence Guides</span>
+                  <span>How to use platform</span>
                   <ChevronRightIcon className="w-3.5 h-3.5 text-text-secondary opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
                 </h3>
                 <p className="text-xxs text-text-secondary mt-1">
-                  How buyer intent signals are calculated, filtered, and saved.
+                  Watch a quick tour of searching, filtering, and saving leads.
                 </p>
               </div>
             </div>
-          </Link>
+          </button>
 
-          <Link
-            href="/settings"
-            className="group relative p-5 metallic-card rounded-2xl border border-white/[0.06] hover:border-white/20 transition-all"
+          {/* Card 2 — video guide (was a /settings Link; now opens the credits tour modal) */}
+          <button
+            type="button"
+            onClick={() => openVideoHelp(VIDEO_GUIDES.credits)}
+            className="group relative p-5 metallic-card rounded-2xl border border-white/[0.06] hover:border-white/20 transition-all w-full text-left cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-orange/50"
           >
             <div className="flex items-start gap-3.5">
               <div className="p-2.5 rounded-xl bg-accent-orange/10 text-accent-orange">
@@ -242,15 +297,15 @@ export default function SupportPage() {
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="text-sm font-semibold text-text-primary group-hover:text-accent-orange transition-colors flex items-center justify-between">
-                  <span>Billing & Credits FAQ</span>
+                  <span>How credits work</span>
                   <ChevronRightIcon className="w-3.5 h-3.5 text-text-secondary opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
                 </h3>
                 <p className="text-xxs text-text-secondary mt-1">
-                  Learn about credit rollovers, quota resets, and invoices.
+                  See how credits unlock contact details and when they reset.
                 </p>
               </div>
             </div>
-          </Link>
+          </button>
 
           <div
             onClick={() => setCreateOpen(true)}
@@ -464,6 +519,15 @@ export default function SupportPage() {
             </div>
           </div>
         </Modal>
+
+        {/* Video help modal (Quick Resource Cards 1 & 2) */}
+        <VideoHelpModal
+          open={videoHelpOpen}
+          onClose={closeVideoHelp}
+          title={videoHelp?.title ?? ''}
+          videoSrc={videoHelp?.videoSrc ?? ''}
+          poster={videoHelp?.poster ?? ''}
+        />
 
         {/* Tickets Container */}
         <div className="metallic-card rounded-2xl overflow-hidden border border-white/[0.06]">
