@@ -146,15 +146,14 @@ describe('POST /api/leads/reveal', () => {
     expect(json.required).toBeGreaterThan(0)
   })
 
-  it('reveals without charging when already claimed externally', async () => {
+  it('blocks reveal with 400 LEAD_ALREADY_CLAIMED when lead is already claimed / reached limit', async () => {
     vi.mocked(getPost).mockResolvedValue(makePost({ is_claimed: true }) as never)
     vi.mocked(db.userLeadState.findUnique).mockResolvedValue(null)
 
     const res = await POST(makeRevealRequest({ leadId: 'lead-1' }))
-    expect(res.status).toBe(200)
+    expect(res.status).toBe(400)
     const json = await res.json()
-    expect(json.success).toBe(true)
-    expect(json.coinsUsed).toBe(0)
+    expect(json.code).toBe('LEAD_ALREADY_CLAIMED')
     expect(creditService.deductInTx).not.toHaveBeenCalled()
   })
 
