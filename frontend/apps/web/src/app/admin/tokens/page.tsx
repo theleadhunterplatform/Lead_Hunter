@@ -396,28 +396,54 @@ export default function AdminTokensPage() {
                 </span>
               </div>
 
-              <div className="flex items-center gap-1.5 p-0.5 bg-surface-elevated border border-white/5 rounded-lg text-xs">
-                <button
-                  onClick={() => setIsBulkMode(false)}
-                  className={`px-3 py-1 rounded-md transition-all font-medium text-[11px] ${
-                    !isBulkMode
-                      ? 'bg-accent-mint text-black font-semibold shadow-sm'
-                      : 'text-text-secondary hover:text-white'
-                  }`}
-                >
-                  Single Key
-                </button>
-                <button
-                  onClick={() => setIsBulkMode(true)}
-                  className={`px-3 py-1 rounded-md transition-all font-medium text-[11px] flex items-center gap-1.5 ${
-                    isBulkMode
-                      ? 'bg-accent-mint text-black font-semibold shadow-sm'
-                      : 'text-text-secondary hover:text-white'
-                  }`}
-                >
-                  <span>⚡ Bulk Add</span>
-                </button>
-              </div>
+              <button
+                onClick={() => setIsBulkMode(!isBulkMode)}
+                className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm ${
+                  isBulkMode
+                    ? 'bg-white/10 hover:bg-white/20 text-white border border-white/10'
+                    : 'bg-accent-mint text-black hover:bg-accent-mint/90'
+                }`}
+              >
+                {isBulkMode ? (
+                  <>
+                    <KeyIcon className="w-3.5 h-3.5" />
+                    <span>Single Key</span>
+                  </>
+                ) : (
+                  <>
+                    <span>⚡</span>
+                    <span>Bulk Add Keys</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Mode Switcher Tabs */}
+            <div className="flex items-center gap-2 mb-4 p-1 bg-surface-elevated/70 border border-white/5 rounded-xl w-fit">
+              <button
+                type="button"
+                onClick={() => setIsBulkMode(false)}
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs transition-all ${
+                  !isBulkMode
+                    ? 'bg-accent-mint text-black font-bold shadow-sm'
+                    : 'text-text-secondary hover:text-white font-medium'
+                }`}
+              >
+                <KeyIcon className="w-3.5 h-3.5" />
+                <span>Single Key</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsBulkMode(true)}
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs transition-all ${
+                  isBulkMode
+                    ? 'bg-accent-mint text-black font-bold shadow-sm'
+                    : 'text-text-secondary hover:text-white font-medium'
+                }`}
+              >
+                <span>⚡</span>
+                <span>Bulk Add (Paste List / Message)</span>
+              </button>
             </div>
 
             {isBulkMode ? (
