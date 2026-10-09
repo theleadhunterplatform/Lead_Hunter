@@ -23,6 +23,42 @@ interface Target {
   monthly_comments_found?: number
 }
 
+function formatScrapedTime(dateStr?: string | null): { relative: string; full: string } {
+  if (!dateStr) return { relative: 'Never', full: 'Never scraped' }
+  try {
+    const d = new Date(dateStr)
+    if (isNaN(d.getTime())) return { relative: 'Never', full: 'Never scraped' }
+    const diffMs = Date.now() - d.getTime()
+    const seconds = Math.max(0, Math.floor(diffMs / 1000))
+    let relative = 'Just now'
+    if (seconds < 60) {
+      relative = 'Just now'
+    } else if (seconds < 3600) {
+      const mins = Math.floor(seconds / 60)
+      relative = mins === 1 ? '1 min ago' : `${mins} mins ago`
+    } else if (seconds < 86400) {
+      const hrs = Math.floor(seconds / 3600)
+      relative = hrs === 1 ? '1 hour ago' : `${hrs} hours ago`
+    } else if (seconds < 172800) {
+      relative = 'Yesterday'
+    } else {
+      const days = Math.floor(seconds / 86400)
+      relative = days === 1 ? '1 day ago' : `${days} days ago`
+    }
+
+    const full = d.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+    return { relative, full }
+  } catch {
+    return { relative: 'Unknown', full: '' }
+  }
+}
+
 export default function AdminTargetsPage() {
   const [targets, setTargets] = useState<Target[]>([])
   const [loading, setLoading] = useState(true)
@@ -218,11 +254,28 @@ export default function AdminTargetsPage() {
                     </div>
                   </div>
                   {t.notes && <p className="text-xs text-text-secondary mb-3">{t.notes}</p>}
-                  <div className="flex items-center gap-4 text-[10px] text-text-secondary mb-4">
-                    <span>{t.platform}</span>
-                    <span>Comments found: {t.monthly_comments_found ?? t.last_comments_found ?? 0}</span>
-                    {t.last_scraped_at && <span>Last scraped: {new Date(t.last_scraped_at).toLocaleDateString()}</span>}
-                  </div>
+                  {(() => {
+                    const scrapeTime = formatScrapedTime(t.last_scraped_at)
+                    return (
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-text-secondary mb-4">
+                        <span className="capitalize font-medium text-text-primary/80">{t.platform}</span>
+                        <span>
+                          Comments in last scrape:{' '}
+                          <span className="font-semibold text-accent-mint">{t.last_comments_found ?? 0}</span>
+                          {typeof t.monthly_comments_found === 'number' && t.monthly_comments_found > (t.last_comments_found ?? 0) && (
+                            <span className="text-text-secondary/70"> ({t.monthly_comments_found} this month)</span>
+                          )}
+                        </span>
+                        <span
+                          title={scrapeTime.full ? `Scraped on ${scrapeTime.full}` : undefined}
+                          className={t.last_scraped_at ? 'cursor-help' : ''}
+                        >
+                          Last scraped:{' '}
+                          <span className="font-semibold text-text-primary">{scrapeTime.relative}</span>
+                        </span>
+                      </div>
+                    )
+                  })()}
                   <div className="flex items-center gap-2 pt-3 border-t border-white/[0.06]">
                     <button onClick={() => { setEditingId(t._id || t.id); setEditName(t.name); setEditUrl(t.url); setEditNotes(t.notes || '') }}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-white/5 text-text-secondary text-xs font-medium transition-all">

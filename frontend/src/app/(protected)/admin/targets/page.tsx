@@ -145,7 +145,26 @@ export default function TargetsPage() {
 
   const formatLastChecked = (date?: string | null) => {
     if (!date) return "Never checked";
-    return new Date(date).toLocaleString();
+    try {
+      const d = new Date(date);
+      if (isNaN(d.getTime())) return "Never checked";
+      const diffMs = Date.now() - d.getTime();
+      const seconds = Math.max(0, Math.floor(diffMs / 1000));
+      if (seconds < 60) return "Just now";
+      if (seconds < 3600) {
+        const mins = Math.floor(seconds / 60);
+        return mins === 1 ? "1 min ago" : `${mins} mins ago`;
+      }
+      if (seconds < 86400) {
+        const hrs = Math.floor(seconds / 3600);
+        return hrs === 1 ? "1 hour ago" : `${hrs} hours ago`;
+      }
+      if (seconds < 172800) return "Yesterday";
+      const days = Math.floor(seconds / 86400);
+      return days === 1 ? "1 day ago" : `${days} days ago`;
+    } catch {
+      return "Unknown";
+    }
   };
 
   const saveEdit = async () => {
