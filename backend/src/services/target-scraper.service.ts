@@ -62,8 +62,10 @@ export class TargetScraperService {
             const hoursSince =
                 (Date.now() - new Date(target.last_scraped_at).getTime()) / (1000 * 60 * 60);
             if (hoursSince < minHours) {
+                const minLabel = minHours < 1 ? `${Math.round(minHours * 60)}m` : `${minHours}h`;
+                const sinceLabel = hoursSince < 1 ? `${Math.round(hoursSince * 60)}m` : `${hoursSince.toFixed(1)}h`;
                 console.log(
-                    `⏭️ [TargetScraper] Skipping "${target.name}" — scraped ${hoursSince.toFixed(1)}h ago (min ${minHours}h)`
+                    `⏭️ [TargetScraper] Skipping "${target.name}" — scraped ${sinceLabel} ago (min ${minLabel})`
                 );
                 return { saved: 0, skipped: 0, deferred: true };
             }
