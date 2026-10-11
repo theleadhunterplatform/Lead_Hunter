@@ -9,6 +9,7 @@ import LeadCard from './components/LeadCard'
 import PipelineLeadCard from './components/PipelineLeadCard'
 import { CustomLoader } from '@/components/ui/CustomLoader'
 import { useDebounce } from '@/hooks/useDebounce'
+import { useHorizontalWheelScroll } from '@/hooks/useHorizontalWheelScroll'
 
 const LeadDrawer = dynamic(() => import('./components/LeadDrawer'), {
   ssr: false,
@@ -290,6 +291,8 @@ export default function LeadsPage() {
   const [activeNiche, setActiveNiche] = useState<string>('All')
   const [sortBy, setSortBy] = useState<SortOption>('newest')
   const [viewMode] = useState<'grid' | 'pipeline'>('pipeline')
+  // Mouse-wheel support for the niche pill strip (vertical wheel → horizontal)
+  const nicheScrollRef = useHorizontalWheelScroll<HTMLDivElement>()
 
   const [leadsList, setLeadsList] = useState<AppLead[]>([])
   const [loading, setLoading] = useState(true)
@@ -747,6 +750,7 @@ export default function LeadsPage() {
 
         {/* Niche Filter Pills */}
         <div
+          ref={nicheScrollRef}
           className="flex items-center gap-2 overflow-x-auto pb-4 mb-4 -mx-4 px-4 md:-mx-0 md:px-0 scrollbar-hide [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >

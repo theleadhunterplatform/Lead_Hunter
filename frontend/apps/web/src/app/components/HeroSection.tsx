@@ -3,6 +3,7 @@
 import { useState, useRef, useMemo, useEffect } from 'react'
 import { motion, AnimatePresence, useScroll, useTransform, useReducedMotion } from 'framer-motion'
 import { useIsMobile } from '@/hooks/useMediaQuery'
+import { useHorizontalWheelScroll } from '@/hooks/useHorizontalWheelScroll'
 import {
   ArrowRightIcon,
   MagnifyingGlassIcon,
@@ -403,6 +404,8 @@ function LeadsContent() {
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [isFilterOpen, setIsFilterOpen] = useState(false)
   const [activeNiche, setActiveNiche] = useState('All')
+  // Mouse-wheel support for the niche pill strip (vertical wheel → horizontal)
+  const nicheScrollRef = useHorizontalWheelScroll<HTMLDivElement>()
 
   const allTags = useMemo(() => Array.from(new Set(allLeads.flatMap((l) => l.nicheTags ?? []))), [])
 
@@ -592,7 +595,7 @@ function LeadsContent() {
         </div>
 
         {/* Niche Filter Pills */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-4 mb-4 scrollbar-hide">
+        <div ref={nicheScrollRef} className="flex items-center gap-2 overflow-x-auto pb-4 mb-4 scrollbar-hide">
           {primaryNiches.map((niche) => {
             const isActive = activeNiche === niche
             return (
@@ -1802,6 +1805,8 @@ function RewardsContent() {
 // ─── Community Wins section (mirrors /community, dummy data) ────────────────
 function CommunityContent({ onNavigate }: SectionProps) {
   const [selectedCategory, setSelectedCategory] = useState('all')
+  // Mouse-wheel support for the tab strip (vertical wheel → horizontal)
+  const tabsScrollRef = useHorizontalWheelScroll<HTMLDivElement>()
 
   const stats = [
     { label: 'Verified Deals Closed', value: '38', accent: 'text-primary', sub: 'Signed client contracts & retainers' },
@@ -1902,7 +1907,7 @@ function CommunityContent({ onNavigate }: SectionProps) {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-white/[0.08]">
+        <div ref={tabsScrollRef} className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-white/[0.08]">
           {tabs.map((tab) => {
             const isActive = selectedCategory === tab.id
             return (
@@ -2337,6 +2342,7 @@ export default function HeroSection() {
           {/* CTA Row */}
           <motion.div
             {...reveal(0.6, 12)}
+            data-guide-anchor="cta-hero"
             style={{ pointerEvents: revealed ? 'auto' : 'none' }}
             className="flex flex-wrap items-center justify-center gap-3.5"
           >

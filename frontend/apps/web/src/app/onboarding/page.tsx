@@ -8,6 +8,8 @@ import { api } from '@/lib/api/client'
 import { normalizePhone, isValidPhoneNumber } from '@/lib/phone'
 import { PhoneInputWithCountry } from '@/components/ui/PhoneInputWithCountry'
 import { RecoveryEmailPanel } from '@/components/auth/RecoveryEmailPanel'
+import OnboardingPet from './OnboardingPet'
+import type { GuideStatus } from './guideCopy'
 import {
   extractCountryAndLocalNumber,
   findCountryByDialCode,
@@ -482,6 +484,26 @@ export default function OnboardingPage() {
   const canSubmitDiscovery =
     discoverySource !== '' && (discoverySource !== 'Other' || discoverySourceOther.trim() !== '')
 
+  // Hunter-pup guide companion: read-only snapshot of existing state.
+  const guideStatus: GuideStatus = {
+    step: step === 2 ? 2 : step === 3 ? 3 : 1,
+    focused: null,
+    linkedin,
+    linkedinOk: linkedin.trim() !== '' && isValidSocialProfile(linkedin),
+    phone: phoneNumber,
+    phoneOk: isValidPhoneNumber(phoneNumber),
+    step1Error,
+    servicesCount: servicesOffered.length,
+    nichesCount: preferredLeadCategories.length,
+    hasExperience: outreachExperience !== '',
+    canProceedFromStep2,
+    discoverySource,
+    discoveryOther: discoverySourceOther,
+    canSubmit: canSubmitDiscovery,
+    submitError: error,
+    isSubmitting,
+  }
+
   const handleSubmit = async () => {
     if (!canSubmitDiscovery) return
     if (discoverySource === 'Other' && !discoverySourceOther.trim()) {
@@ -647,6 +669,7 @@ export default function OnboardingPage() {
                         </span>
                       </label>
                       <input
+                        data-guide-anchor="linkedin"
                         value={linkedin}
                         onChange={(e) => { setLinkedin(e.target.value); setStep1Error('') }}
                         placeholder="https://linkedin.com/in/your-profile"
@@ -659,6 +682,7 @@ export default function OnboardingPage() {
                         Portfolio URL
                       </label>
                       <input
+                        data-guide-anchor="social"
                         value={portfolio}
                         onChange={(e) => { setPortfolio(e.target.value); setStep1Error('') }}
                         placeholder="https://your-portfolio.com"
@@ -671,6 +695,7 @@ export default function OnboardingPage() {
                         Website
                       </label>
                       <input
+                        data-guide-anchor="social"
                         value={website}
                         onChange={(e) => { setWebsite(e.target.value); setStep1Error('') }}
                         placeholder="https://your-company.com"
@@ -683,6 +708,7 @@ export default function OnboardingPage() {
                         Instagram
                       </label>
                       <input
+                        data-guide-anchor="social"
                         value={instagram}
                         onChange={(e) => { setInstagram(e.target.value); setStep1Error('') }}
                         placeholder="https://instagram.com/your-handle"
@@ -695,6 +721,7 @@ export default function OnboardingPage() {
                         Dribbble
                       </label>
                       <input
+                        data-guide-anchor="social"
                         value={dribbble}
                         onChange={(e) => { setDribbble(e.target.value); setStep1Error('') }}
                         placeholder="https://dribbble.com/your-handle"
@@ -707,6 +734,7 @@ export default function OnboardingPage() {
                         Behance
                       </label>
                       <input
+                        data-guide-anchor="social"
                         value={behance}
                         onChange={(e) => { setBehance(e.target.value); setStep1Error('') }}
                         placeholder="https://behance.net/your-profile"
@@ -719,6 +747,7 @@ export default function OnboardingPage() {
                         GitHub
                       </label>
                       <input
+                        data-guide-anchor="social"
                         value={github}
                         onChange={(e) => { setGithub(e.target.value); setStep1Error('') }}
                         placeholder="https://github.com/your-handle"
@@ -731,6 +760,7 @@ export default function OnboardingPage() {
                         Twitter / X
                       </label>
                       <input
+                        data-guide-anchor="social"
                         value={twitter}
                         onChange={(e) => { setTwitter(e.target.value); setStep1Error('') }}
                         placeholder="https://twitter.com/your-handle"
@@ -739,7 +769,7 @@ export default function OnboardingPage() {
                     </div>
 
                     <div className="border-t border-white/[0.06] pt-4">
-                      <div className="flex flex-col gap-1">
+                      <div className="flex flex-col gap-1" data-guide-anchor="phone">
                         <label className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider flex items-center justify-between">
                           <span>
                             Phone number <span className="text-primary">*</span>
@@ -794,6 +824,7 @@ export default function OnboardingPage() {
                   )}
 
                   <button
+                    data-guide-anchor="cta-1"
                     onClick={() => {
                       if (!linkedin.trim()) {
                         setStep1Error('LinkedIn profile link is required')
@@ -853,7 +884,7 @@ export default function OnboardingPage() {
 
                   <div className="flex flex-col gap-3">
                     {/* Services Section */}
-                    <div className="flex flex-col gap-2.5">
+                    <div className="flex flex-col gap-2.5" data-guide-anchor="services">
                       <div className="flex items-center justify-between">
                         <label className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider flex items-center gap-1.5">
                           <span>
@@ -959,7 +990,7 @@ export default function OnboardingPage() {
                     </div>
 
                     {/* Client Niches Section */}
-                    <div className="flex flex-col gap-2.5">
+                    <div className="flex flex-col gap-2.5" data-guide-anchor="niches">
                       <div className="flex items-center justify-between">
                         <label className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider flex items-center gap-1.5">
                           <span>
@@ -1066,7 +1097,7 @@ export default function OnboardingPage() {
                       </div>
                     </div>
 
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-1" data-guide-anchor="experience">
                       <label className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider">
                         Outreach experience <span className="text-primary">*</span>
                       </label>
@@ -1088,6 +1119,7 @@ export default function OnboardingPage() {
                   </div>
 
 <button
+                      data-guide-anchor="cta-2"
                       onClick={() => setStep(3)}
                       disabled={!canProceedFromStep2}
                       className={`mt-5 w-full rounded-xl active:scale-98 transition-all px-4 py-2.5 text-sm font-semibold ${
@@ -1131,7 +1163,7 @@ export default function OnboardingPage() {
                   </div>
 
                   <div className="flex flex-col gap-3">
-                    <div className="flex flex-wrap gap-2 justify-center">
+                    <div className="flex flex-wrap gap-2 justify-center" data-guide-anchor="discovery">
                       {DISCOVERY_SOURCES.map((s) => (
                         <button
                           key={s}
@@ -1151,9 +1183,10 @@ export default function OnboardingPage() {
                       <div className="mt-1">
                         <input
                           type="text"
+                          data-guide-anchor="discoveryOther"
                           value={discoverySourceOther}
                           onChange={(e) => setDiscoverySourceOther(e.target.value)}
-                          placeholder="e.g. Instagram reel, a podcast, newsletter..."
+                           placeholder="e.g. Instagram reel, YouTube, newsletter..."
                           maxLength={120}
                           autoFocus
                           className="w-full px-3 py-2.5 rounded-xl bg-white/[0.02] border border-white/[0.08] text-text-primary text-sm outline-none focus:border-accent-mint/40 focus:ring-1 focus:ring-accent-mint/30 transition-all placeholder:text-text-secondary/50"
@@ -1183,6 +1216,7 @@ export default function OnboardingPage() {
                   </div>
 
                   <button
+                    data-guide-anchor="cta-3"
                     onClick={handleSubmit}
                     disabled={!canSubmitDiscovery || isSubmitting}
                     className={`mt-5 w-full rounded-xl active:scale-98 transition-all px-4 py-2.5 text-sm font-semibold flex items-center justify-center gap-2 ${
@@ -1218,6 +1252,7 @@ export default function OnboardingPage() {
             )}
         </div>
       </motion.div>
+      <OnboardingPet status={guideStatus} />
     </main>
   )
 }

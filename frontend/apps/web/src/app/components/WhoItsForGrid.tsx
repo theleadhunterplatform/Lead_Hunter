@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useMemo } from 'react'
+import { useHorizontalWheelScroll } from '@/hooks/useHorizontalWheelScroll'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   UserIcon,
@@ -285,6 +286,8 @@ export default function WhoItsForGrid() {
   const [sortBy, setSortBy] = useState<'newest' | 'replyProbability' | 'urgency'>('newest')
   const [isFilterOpen, setIsFilterOpen] = useState(false)
   const [selectedNicheId, setSelectedNicheId] = useState<string>('all')
+  // Mouse-wheel support for the niche pill strip (vertical wheel → horizontal)
+  const nicheScrollRef = useHorizontalWheelScroll<HTMLDivElement>()
 
   const activePersona = PERSONAS.find((p) => p.id === activeTab) || PERSONAS[0]
 
@@ -629,7 +632,7 @@ export default function WhoItsForGrid() {
                 </div>
 
                 {/* Niche Filter Pills Row */}
-                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-hide shrink-0">
+                <div ref={nicheScrollRef} className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-hide shrink-0">
                   {AUDIENCE_NICHES.map((niche) => {
                     const isActive = selectedNicheId === niche.id
                     return (

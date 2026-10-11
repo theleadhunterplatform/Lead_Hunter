@@ -12,6 +12,7 @@ import {
 import Link from 'next/link'
 import HeroSection from '@/app/components/HeroSection'
 import ComingSoon from '@/app/components/ComingSoon'
+import LandingPet from '@/app/components/LandingPet'
 import { COMING_SOON } from '@/lib/launch'
 import TokenSystemSection from '@/app/components/TokenSystemSection'
 import WhoItsForGrid from '@/app/components/WhoItsForGrid'
@@ -73,7 +74,9 @@ export default function LandingPage() {
 
   return (
     <main className="min-h-screen bg-bg-main text-text-primary font-sans overflow-x-hidden">
-      <HeroSection />
+      <div data-landing-section="hero">
+        <HeroSection />
+      </div>
 
       {/* Everything below the hero keeps the original 1280px frame —
           the hero itself now bleeds full-width so its artwork snaps to the viewport edges. */}
@@ -83,7 +86,7 @@ export default function LandingPage() {
       <div className="w-full h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
 
       {/* Problem & How It Works (Bento Grid) */}
-      <section id="funnel" className="py-16 md:py-20 px-4 sm:px-6 max-w-[1100px] mx-auto relative">
+      <section id="funnel" data-landing-section="funnel" className="py-16 md:py-20 px-4 sm:px-6 max-w-[1100px] mx-auto relative">
         <div className="text-center mb-10 md:mb-12 relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -328,6 +331,7 @@ export default function LandingPage() {
       <div className="w-full h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
       <section
         id="philosophy"
+        data-landing-section="philosophy"
         className="py-16 md:py-20 px-4 sm:px-6 max-w-[1100px] mx-auto relative"
       >
         {/* Section Header */}
@@ -467,6 +471,7 @@ export default function LandingPage() {
       <div className="w-full h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
       <section
         id="pricing"
+        data-landing-section="pricing"
         className="py-16 md:py-20 px-4 sm:px-6 max-w-[1100px] mx-auto relative overflow-hidden"
       >
         {/* Header */}
@@ -627,6 +632,7 @@ export default function LandingPage() {
                 {/* CTA */}
                 <Link
                   href="/register"
+                  data-guide-anchor="cta-pricing"
                   className={`block w-full min-h-[44px] py-3 rounded-xl font-semibold text-xs tracking-wide text-center transition-all duration-300 ${
                     p.featured
                       ? 'bg-accent-orange text-text-on-accent hover:brightness-110 shadow-[0_4px_20px_rgba(var(--rgb-accent-orange),0.3)]'
@@ -655,7 +661,7 @@ export default function LandingPage() {
       </section>
 
       {/* FAQ */}
-      <section id="faq" className="py-16 md:py-20 px-4 sm:px-6 max-w-[800px] mx-auto">
+      <section id="faq" data-landing-section="faq" className="py-16 md:py-20 px-4 sm:px-6 max-w-[800px] mx-auto">
         <div className="text-center mb-10">
           <span className="text-sm font-semibold text-accent-orange mb-3 block">
             FAQ
@@ -697,7 +703,7 @@ If you run out, buy top-ups starting at ₹199. Unused credits roll over for 15 
 
       {/* Final CTA */}
       <div className="w-full h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
-      <section className="py-16 md:py-20 px-4 sm:px-6 max-w-[1000px] mx-auto text-center relative overflow-hidden">
+      <section data-landing-section="final" className="py-16 md:py-20 px-4 sm:px-6 max-w-[1000px] mx-auto text-center relative overflow-hidden">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -740,6 +746,7 @@ If you run out, buy top-ups starting at ₹199. Unused credits roll over for 15 
             >
               <Link
                 href="/register"
+                data-guide-anchor="cta-final"
                 className="inline-flex items-center gap-2.5 px-7 py-3 rounded-xl bg-accent-orange text-text-on-accent font-semibold text-xs sm:text-sm shadow-[0_4px_20px_rgba(var(--rgb-accent-orange),0.3)] hover:brightness-110 transition-all duration-300 group"
               >
                 Start Hunting Free
@@ -920,6 +927,7 @@ If you run out, buy top-ups starting at ₹199. Unused credits roll over for 15 
         </div>
       </footer>
       </div>
+      <LandingPet />
     </main>
   )
 }

@@ -1,15 +1,22 @@
 'use client'
 
 import React, { useCallback, useMemo, useRef, useState } from 'react'
-import { motion, useMotionValue, useSpring, useTransform, type MotionStyle } from 'framer-motion'
+import { motion, useMotionValue, useSpring, useTransform, type MotionStyle, type MotionValue } from 'framer-motion'
 
 type WolfOrbState = 'idle' | 'online' | 'thinking' | 'listening'
+export type { WolfOrbState }
 type WolfOrbSize = 'xxs' | 'xs' | 'sm' | 'md' | 'lg'
 
 interface WolfOrbProps {
   size?: WolfOrbSize
   state?: WolfOrbState
   trackPointer?: boolean
+  /**
+   * Controlled gaze mode: drive the orb's look-direction from external
+   * motion values (e.g. a global cursor tracker). When provided, the local
+   * pointer-over-orb handler is disabled. Values are normalized -0.5..0.5.
+   */
+  gaze?: { x: MotionValue<number>; y: MotionValue<number> }
   showStatus?: boolean
   showRing?: boolean
   showGlow?: boolean
@@ -73,6 +80,7 @@ export function WolfOrb({
   size = 'md',
   state = 'idle',
   trackPointer = true,
+  gaze,
   showStatus = true,
   showRing = true,
   showGlow = true,
@@ -84,8 +92,10 @@ export function WolfOrb({
   const wrapRef = useRef<HTMLDivElement>(null)
   const [hovered, setHovered] = useState(false)
 
-  const mx = useMotionValue(0)
-  const my = useMotionValue(0)
+  const mxInner = useMotionValue(0)
+  const myInner = useMotionValue(0)
+  const mx = gaze?.x ?? mxInner
+  const my = gaze?.y ?? myInner
   const spring = { stiffness: 220, damping: 22, mass: 0.4 }
   const sx = useSpring(mx, spring)
   const sy = useSpring(my, spring)
@@ -104,7 +114,7 @@ export function WolfOrb({
 
   const handleMove = useCallback(
     (e: React.MouseEvent | React.PointerEvent) => {
-      if (!trackPointer) return
+      if (!trackPointer || gaze) return
       const el = wrapRef.current
       if (!el) return
       const r = el.getBoundingClientRect()
@@ -113,14 +123,16 @@ export function WolfOrb({
       mx.set(Math.max(-0.5, Math.min(0.5, nx)))
       my.set(Math.max(-0.5, Math.min(0.5, ny)))
     },
-    [mx, my, trackPointer],
+    [mx, my, trackPointer, gaze],
   )
 
   const handleLeave = useCallback(() => {
     setHovered(false)
-    mx.set(0)
-    my.set(0)
-  }, [mx, my])
+    if (!gaze) {
+      mx.set(0)
+      my.set(0)
+    }
+  }, [mx, my, gaze])
 
   const isThinking = state === 'thinking'
   const isOnline = state === 'online'

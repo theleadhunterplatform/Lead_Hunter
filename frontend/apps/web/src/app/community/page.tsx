@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useHorizontalWheelScroll } from '@/hooks/useHorizontalWheelScroll'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import {
@@ -74,6 +75,8 @@ export default function CommunityPage() {
   const [stats, setStats] = useState<Stats>({ totalDeals: 0, totalMeetings: 0, totalWins: 0 })
   const [loading, setLoading] = useState(true)
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL')
+  // Mouse-wheel support for the tab strip (vertical wheel → horizontal)
+  const tabsScrollRef = useHorizontalWheelScroll<HTMLDivElement>()
 
   // Lightbox modal for viewing verified screenshots
   const [lightboxImage, setLightboxImage] = useState<string | null>(null)
@@ -245,7 +248,7 @@ export default function CommunityPage() {
         </div>
 
 {/* Category Filters Bar */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-white/[0.08]">
+          <div ref={tabsScrollRef} className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-white/[0.08]">
             {CATEGORY_TABS.map((tab) => {
               const isActive = selectedCategory === tab.id
               const Icon = tab.icon

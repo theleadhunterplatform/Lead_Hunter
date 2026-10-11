@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useHorizontalWheelScroll } from '@/hooks/useHorizontalWheelScroll'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   TrophyIcon,
@@ -70,6 +71,8 @@ export default function AdminRewardsPage() {
   })
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL'>('PENDING')
+  // Mouse-wheel support for the tab strip (vertical wheel → horizontal)
+  const tabsScrollRef = useHorizontalWheelScroll<HTMLDivElement>()
   const [search, setSearch] = useState('')
 
   // Action Modals
@@ -336,7 +339,7 @@ export default function AdminRewardsPage() {
 
       {/* Controls & Filter Tabs */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/[0.08] pb-4">
-        <div className="flex items-center gap-2 overflow-x-auto">
+        <div ref={tabsScrollRef} className="flex items-center gap-2 overflow-x-auto">
           {(['PENDING', 'APPROVED', 'REJECTED', 'ALL'] as const).map((tab) => {
             const isActive = activeTab === tab
             return (

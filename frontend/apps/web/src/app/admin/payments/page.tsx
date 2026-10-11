@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useHorizontalWheelScroll } from '@/hooks/useHorizontalWheelScroll'
 import Link from 'next/link'
 import { getFirebaseToken } from '@/lib/firebase'
 import { useToast } from '@/components/ui/Toast'
@@ -19,6 +20,8 @@ export default function AdminPaymentsPage() {
   const [payments, setPayments] = useState<PaymentRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  // Mouse-wheel support for the table (vertical wheel → horizontal when it overflows)
+  const tableScrollRef = useHorizontalWheelScroll<HTMLDivElement>()
   const [filterType, setFilterType] = useState<'all' | 'plan' | 'topup'>('all')
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
@@ -161,7 +164,7 @@ export default function AdminPaymentsPage() {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div ref={tableScrollRef} className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead>
                 <tr className="border-b border-white/[0.08] bg-white/[0.02] text-text-secondary uppercase tracking-wider text-[10px]">

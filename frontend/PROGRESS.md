@@ -831,6 +831,66 @@ you") instead of the actual lead feed.
   `/login`; no stored test credentials (same standing gap as §6.2). Standing rule: no new
   accounts.
 
+### Niche pills / tab strips: mouse-wheel horizontal scroll (2026-10-10, committed locally, NOT pushed)
+User report: lead-feed niche pills scroll only via trackpad gesture, not mouse wheel.
+Root cause is platform behavior, not a bug in our code: vertical wheel input bubbles past
+`overflow-x-auto` strips to the page — only real horizontal deltas (trackpad) reach them.
+- **New `src/hooks/useHorizontalWheelScroll.ts`** (callback-ref pattern): native
+  non-passive `wheel` listener translates vertical `deltaY` (px/line/page normalized) into
+  `scrollLeft`; consumes (`preventDefault` + `stopPropagation`, Lenis-safe) ONLY while the
+  strip can move in that direction — at edges / for horizontal intent the event flows
+  through so page scroll keeps working. React `onWheel` can't do this (attached passive).
+- **Wired (3-line change each):** `leads/page.tsx` niche pills (the reported one),
+  `HeroSection.tsx` demo pills (`LeadsContent`) + demo tabs (`CommunityContent`),
+  `community/page.tsx` category tabs, `WhoItsForGrid.tsx` niche pills.
+- **Gotcha found by testing (recorded so nobody re-learns it):** first version used a
+  mount-time `useEffect` + ref object — worked on landing, silently dead on `/community`
+  because `if (loading) return <CustomLoader/>` means the strip mounts AFTER the effect
+  ran (`ref.current === null`, no retry; console proved it). Callback ref fixes this class.
+- **Verified (dev server, synthetic wheel dispatch):** landing pills consume + translate
+  (incl. edge-release + horizontal-passthrough); community tabs consume post-rewrite.
+  `/leads` pills couldn't overflow in this session (API 503 → only the 'All' pill renders;
+  see below) but wiring is identical + lint/tsc clean. **Not pushed per user's hold.**
+- **Scroll audit (19 `overflow-x-auto` site-wide):** same mouse-wheel issue class also in
+  `support:334` segmented tabs, `HeroSection:1438` segmented tabs, `admin/rewards:339`
+  status tabs (4 short tabs, rarely overflows), `WhoItsForGrid:759` decorative chips,
+  `Testimonials:284` mobile snap carousel (touch-first; desktop = grid) — all minor/fit
+  content, left alone. Tables (`settings`, `referrals`, admin pages, `saved:702`,
+  hero demo `874`) + referral-link boxes are CORRECT as-is (vertical wheel should scroll
+  the page over them). Re-run the audit if new strips appear.
+- **Intel for backend guy:** `GET /api/leads` → **503 `SERVICE_UNAVAILABLE` "Lead database
+  is temporarily unreachable"** in dev (seen ~11× incl. the new 6s `refresh=true` poll),
+  so `/leads` renders its error state locally. Not frontend — passing through.
+
+### Admin wheel-scroll follow-up (2026-10-10, `d3e1939` pushed)
+User: same scrollability issue in some admin pages. Audit found only 1 interactive strip
+in admin (`rewards` status tabs) + 3 table wrappers (`payments`, `broadcast` logs,
+`users/[id]` transactions) — wired the same `useHorizontalWheelScroll` hook (3 lines each;
+tables scroll horizontally first while they overflow, page scroll resumes at edges).
+- **Verified live:** `/admin/rewards` tabs overflowed in-browser (373px content in 136px —
+  crowded controls row) → synthetic wheel now moves + consumes. Tables couldn't overflow
+  locally (no data: payments empty state) but wiring is the proven callback-ref pattern.
+  Lint: clean on 3 files; `payments` exhaustive-deps warning + `broadcast` unescaped-quote
+  errors are pre-existing; tsc still 47 with 0 on touched lines.
+- Tables elsewhere (`settings`, `referrals`, `saved`, hero demo) intentionally left native.
+
+### Broadcast nav tabs had NO scroll mechanism (`a639b56` pushed, 2026-10-10)
+Follow-up on the admin report: the broadcast Composer/Templates/Logs tab strip
+(`admin/broadcast:1749`) had no `overflow-x-auto` at all — on narrow screens tabs
+clipped with no way to reach them. Added `overflow-x-auto scrollbar-hide` + the wheel
+hook + `whitespace-nowrap shrink-0` on the 3 buttons. Lint: only pre-existing quote
+errors; tsc 47 unchanged, 0 on touched lines.
+- **Not behavior-verified locally:** `/admin/broadcast` sticks on its LOADING gate in
+  dev (backend data never arrives — same 503-class backend gap as `/leads`), so the tabs
+  never mount here; prod (real data) mounts them and the callback-ref hook covers it
+  (same proven pattern as community tabs). User: confirm on live after deploy (~6 min).
+- **Community re-check:** `/community` tabs fix IS live in prod (hook found in the live
+  page chunk). If tabs still don't wheel-scroll there, hard-refresh (Ctrl+Shift+R) — SPA
+  keeps the old chunk otherwise. Lightbox/modal audited OK (`overflow-auto` present).
+- **Repo quirk discovered:** the shared dev server stops recompiling on file edits after
+  a while (touch produced no recompile; only a restart fixed it). If localhost ever
+  ignores your edits, restart `npm run dev` (I restarted it this session ~18:35).
+
 ---
 
 ## 3. Blocked — waiting on user input
@@ -935,4 +995,135 @@ floating UI).
 - Changes in `src/welcome/WelcomeVideo.tsx` (marker-splice script `Temp\opencode\splice_welcome.py`): (1) `PHRASES` + `SubtitleLayer` word-stagger captions (bottom scrim, amber accent words, type-scene phrases hidden); (2) ScenePipeline rewritten to play `clip-track.mov` (frames 120-247 of source, Sequence from=462 dur=128) with SAVED/CONTACTED/CLOSED pill overlays + cyan sparkline + "+10 credits" chip; (3) WindowCard overlays: LIVE DEMAND badge, refresh chip, "-10 credits" chip, "Contact unlocked" chip; fixed 3x no-useless-escape lint errors. eslint + tsc clean.
 - Pipeline repeat: 10 chunks (wv_chunks2) -> concat filter -> decode clean (870f, 29.077s) -> two-pass loudnorm (measured -24.80/-7.12/3.20, linear=false) -> **-16.34 LUFS, TP -1.07**.
 - Delivered `out\welcome-video.mp4` (15.9MB, 1920x1080@30, h264+aac, 29.1s). QA grid frames f160/f330/f530/f560 confirmed all overlays + subtitles + track clip.
+
+### Wolf SVG avatar exploration (2026-10-09) — DROPPED by user, do not redo
+- Tried building a logo-inspired wolf avatar from `bible-strong/avatar-lab` geometry
+  (diamond head + cone ears/cheeks/snout, eyes as only second color) baked to static
+  SVGs + a scripted detail pass (nose, muzzle bars, inner ears). Iterated v1→v4 with
+  screenshots; best version read as a wolf but user judged it garbage and killed it.
+- **Decision: reuse the existing `WolfOrb` (`src/components/chat/WolfOrb.tsx`) instead** —
+  the hunter-copilot 3D blob already in the app UI. All baked files
+  (`public/brand/*`, `src/components/WolfAvatar.tsx`) were deleted; nothing was ever
+  imported. Parametric sources remain outside the repo (`...\Temp\opencode\bsal\`).
+- Next: onboarding guide companion plan (WolfOrb + cursor/input tracking + hints).
+
+### Onboarding hunter-pup companion (2026-10-09) — code complete, browser QA needs login
+User ask: the Hunter Copilot's 3D wolf blob (`WolfOrb`) as a free-floating overlay
+pet on `/onboarding` — NOT a dock/chat box. It watches the cursor (gaze follows),
+glides beside the focused field, and talks through auto-flipping speech bubbles
+in playful pet voice ("ooh, that link looks off…").
+- **`WolfOrb.tsx` (+11):** new optional `gaze` prop (`{x,y}` MotionValues,
+  normalized -0.5..0.5). Controlled mode bypasses the local pointer handler and
+  the leave-reset; all 4 existing call sites unaffected.
+- **New `src/app/onboarding/guideCopy.ts`:** `GuideStatus` + `pickHint()` pure
+  hint script (submit/error priority, then per-step: focus → listening, valid →
+  online celebration, empty/invalid → idle/thinking). Pet fills `focused`
+  itself via focusin observer; page passes `focused: null`.
+- **New `src/app/onboarding/guideCopy.test.ts`:** 10 tests (priority order,
+  step 1/2/3 walkthroughs) — all pass.
+- **New `src/app/onboarding/OnboardingPet.tsx` (~330 lines):** fixed overlay,
+  `pointer-events-none` except mute × (persist `lh_guide_muted=1`; muted shows a
+  tiny orb restore button). Anchor mode (focused element or `cta-<step>`) →
+  trail mode (cursor + offset, fine pointers) → parked home corner (mobile /
+  reduced-motion). Springs on motion values only (no re-render per mousemove);
+  bubble side flips by quadrant; online-transition bounce; StrictMode-clean
+  listeners (pointermove/focusin/focusout/scroll/resize + step-change rAF).
+- **`onboarding/page.tsx` (+~30, attributes only + status + render):**
+  `data-guide-anchor` on linkedin/phone/socials/cta-1 (step 1), services/niches/
+  experience/cta-2 (step 2), discovery/discoveryOther/cta-3 (step 3);
+  read-only `guideStatus` from existing state (`isValidSocialProfile` /
+  `isValidPhoneNumber` already imported); `<OnboardingPet/>` before `</main>`.
+  No validation logic moved; gate/draft/submit untouched.
+- **Verified:** lint clean (4 files) · tsc 47 total = 44 baseline + transient
+  noise, **0 in touched files** · vitest **17 failed | 204 passed (221)** = same
+  17 pre-existing failures (payment 4, credits 9, auth 1, reveal 3) + 10 new
+  passing. No dev server running (`:3000` closed) so no compile probe.
+- **⚠️ NOT browser-verified (needs login, standing gap §6.2):** gaze-follows-cursor,
+  glide-to-focus, bubble side flips at edges, mobile park, mute/unmute, reduced
+  motion, 0 console errors on a real onboarding run.
+
+### Preview push for pup QA (2026-10-09) — branch `onboarding-pet-preview`
+User couldn't get Firebase verification mail on localhost, asked for a Vercel
+preview link to test the pup. Committed ONLY the 6 pup files (WolfOrb edit,
+onboarding page/guideCopy/guideCopy.test/OnboardingPet, PROGRESS.md) —
+everything else (demo-leads, tutorial-preview-qa, moodboard, etc.) untouched.
+- Rebased onto backend's 7 new commits (`origin/main` → `0de8576`, admin
+  targets/leads/tokens/apify work) before pushing; `0 0` vs upstream branch.
+  Preview build = pup + backend's latest. `main` branch untouched (no prod effect).
+- **Rebase collision (not ours, flagged):** backend committed
+  `components/support/VideoHelpModal.tsx`, which existed locally as another
+  session's untracked WIP with REAL content differences (87 lines ignoring
+  whitespace — not just line endings). Local copy parked at
+  `C:\Users\HP\AppData\Local\Temp\opencode\support-backup\VideoHelpModal.tsx`.
+  Do NOT copy it back blindly — reconcile with that session first. Tree now
+  carries upstream's committed version.
+- **Before testing auth on preview:** add the preview deployment domain to
+  Firebase Console → Authentication → Settings → Authorized domains, or sign-in
+  redirects/links break. If verification mail still never arrives on preview
+  either, it's Firebase-side (templates/quota/spam — backend guy), not env.
+- Preview URL: Vercel dashboard → project `leadhunterclub` → Deployments (branch
+  `onboarding-pet-preview`), or open a PR
+  (`github.com/fumble-codes/leadhunterclub/pull/new/onboarding-pet-preview`) —
+  PR page shows the deployment link + checks. No PR opened (not requested).
+
+### Pup copy fix + LIVE merge (2026-10-09)
+User corrections: no OTP anywhere (we don't have it), no podcast example (we
+don't have one). Fixed: pet phone hint "your OTP lands here" → "so we can
+reach you"; pet Other-box hint "a reel? a podcast? name it" → "a reel? a
+friend? name it"; onboarding Other input placeholder "…a podcast…" →
+"…YouTube…". Left alone on purpose: the page's disabled OTP *functions*
+(lines ~335-476, explicitly commented "temporarily disabled… kept for future
+re-enablement") — dead code, not user-facing; resurrecting/removing is a
+separate call. Verified again: lint clean, 10/10 hint tests, tsc 0 in touched
+files. Merged `onboarding-pet-preview` → `main`, pushed (see deploy §4).
+
+### Landing-page pup (2026-10-10) — code complete, preview QA pending
+User ask: same floating wolf pet on the marketing landing (not a dock/chat).
+Refactored the engine out so both pages share it:
+- **New `src/components/pup/PupCompanion.tsx`:** the full overlay engine moved
+  from OnboardingPet, parameterized (`mood/title/sub`, `defaultAnchor`,
+  `homeCorner`, `hidden`, `quiet`, `onFocusedChange`). `OnboardingPet.tsx` is
+  now a ~20-line wrapper (same behavior; its 10 hint tests still green).
+- **`WolfOrb.tsx` (+1):** `export type { WolfOrbState }` for shared typing.
+- **New `src/app/landingCopy.ts` + 4-test file:** `pickLandingHint()` — hero
+  greeting, funnel/pricing/final one-time nudges, CTA-hover line, null (quiet,
+  pet just watches) everywhere else + all revisits. Same pet voice.
+- **New `src/app/components/LandingPet.tsx`:** section observer (page-owned
+  `data-landing-section` attrs + existing `#features/#tokens/#testimonials/#who`
+  ids), per-section visit counts, CTA hover/focus, hides while copilot chat is
+  open (`useCopilot()`), 4.5s mount delay so the hero intro choreography plays
+  first, home corner bottom-LEFT (copilot owns bottom-right).
+- **Page diffs (attributes + render only):** `page.tsx` (import, hero wrapper,
+  section attrs ×5, `cta-pricing`/`cta-final` anchors, `<LandingPet/>`),
+  `HeroSection.tsx` (+1 `cta-hero` anchor on the CTA row — on top of the
+  parallel session's committed scroll fix, no overlap).
+- **18th test failure is NOT ours:** full suite = **18 failed | 207 passed**;
+  the delta vs the 17-baseline is a 4th `reveal/route.test.ts` failure in
+  credit/claim logic — that file+route were rewritten by backend's `21bf37d`
+  after our last green run; our diff touches zero backend/shared files.
+  (A chained `stash push`/`vitest`/`pop` probe misfired mid-way — vitest's
+  nonzero exit skipped the pop; recovered immediately with an explicit pop.
+  Lesson: never chain pop after a command that can exit nonzero.)
+- **Ship state:** branch `landing-pet-preview` (from main incl. parallel
+  session's `537862d` scroll fix). **No gate flip needed:** `COMING_SOON` is
+  already `false` in the tree (flipped by user/another session), so the Vercel
+  preview of this branch serves the real landing + pet directly (the
+  `?preview=1` trick is dev-only, dead in prod builds). **MERGED LIVE 2026-10-10:**
+  fast-forward to `main` (`537862d..3078128`), pushed, `0 0` vs origin. Other
+  session's admin-pages WIP stashed for the push, popped back intact.
+
+### Landing pup: full dialogue script (2026-10-10) — shipped live
+User ask: more dialogues for the landing pet. Expanded `landingCopy.ts` from
+5 lines to a full script — every tracked section gets a first-sighting line
+(philosophy "contacts are cheap…", features "this is the arsenal…", tokens
+"wolf coins 101 / reveals run 5–15 coins", testimonials "the wall of love…",
+who "which one are you?…", faq "questions? good.…"); hero/funnel/pricing/final
+get second-sighting comebacks ("still thinking?", "told you. live demand.",
+"do the maths", "ok, final push"); third sightings go quiet. CTA hover
+alternates two nudges via a new `ctaHits` counter in `LandingPet`
+("go on, click it" ↔ "no, really"). All copy kept consistent with site truth
+(50 free/no card, ₹999 ≈ 100+, 5–15 coins). Tests 4 → still 4 its but covering
+the whole matrix (14/14 pup tests green with onboarding's 10). Verified: lint
+clean, tsc 0 in touched files, full suite 18f/207p = same pre-existing set.
+Merged to `main`, pushed live.
 

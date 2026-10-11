@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useHorizontalWheelScroll } from '@/hooks/useHorizontalWheelScroll'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { getFirebaseToken } from '@/lib/firebase'
 import Link from 'next/link'
@@ -121,6 +122,8 @@ export default function AdminUserDetailPage() {
   const [prevUser, setPrevUser] = useState<{ id: string; name: string } | null>(null)
   const [nextUser, setNextUser] = useState<{ id: string; name: string } | null>(null)
   const [loading, setLoading] = useState(true)
+  // Mouse-wheel support for the transactions table (vertical wheel → horizontal when it overflows)
+  const tableScrollRef = useHorizontalWheelScroll<HTMLDivElement>()
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [bonusCreditInput, setBonusCreditInput] = useState('')
   const [selectedPlan, setSelectedPlan] = useState('FREELANCER')
@@ -1065,7 +1068,7 @@ export default function AdminUserDetailPage() {
                 </p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <div ref={tableScrollRef} className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead>
                     <tr className="border-b border-white/[0.08] text-xxs uppercase tracking-wider text-text-secondary font-semibold">
