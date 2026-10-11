@@ -41,8 +41,8 @@ const ApifyKey = {
         return mapKey(key);
     },
 
-    async create(data: { key: string; label?: string; comments_limit?: number; usage_month?: string }) {
-        const key = await prisma.apifyKey.create({ data });
+    async create(data: { key: string; label?: string; comments_limit?: number; usage_month?: string; is_active?: boolean; error_message?: string | null }) {
+        const key = await prisma.apifyKey.create({ data: data as any });
         return mapKey(key);
     },
 

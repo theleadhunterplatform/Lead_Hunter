@@ -58,18 +58,18 @@ export const addApifyKey = async (data: { key: string; label?: string }) => {
     const trimmedKey = key.trim();
 
     // Verify token validity with Apify before saving
+    let isValid = true;
+    let errorMessage: string | null = null;
     try {
         const apify = new ApifyClient({ token: trimmedKey });
         const user = await apify.user().get();
         if (!user) {
-            throw new Error('User not found on Apify');
+            isValid = false;
+            errorMessage = 'User not found on Apify';
         }
     } catch (err: any) {
-        const message = err.message || 'User was not found or authentication token is not valid';
-        throw new ErrorResponse(
-            `Apify rejected this token (${message}). Please verify the token on console.apify.com and ensure the account's email is confirmed.`,
-            400
-        );
+        isValid = false;
+        errorMessage = err.message || 'User was not found or authentication token is not valid';
     }
 
     const existing = await ApifyKey.findOne({ key: trimmedKey });
@@ -77,17 +77,24 @@ export const addApifyKey = async (data: { key: string; label?: string }) => {
         if (existing.is_deleted) {
             existing.is_deleted = false;
             existing.deleted_at = null;
-            existing.is_active = true;
+            existing.is_active = isValid;
+            existing.error_message = isValid ? null : errorMessage;
             existing.label = label || existing.label;
             await existing.save();
             return existing;
         }
-        throw new ErrorResponse('Apify key already exists', 400);
+        existing.is_active = isValid;
+        existing.error_message = isValid ? null : errorMessage;
+        if (label) existing.label = label;
+        await existing.save();
+        return existing;
     }
 
     return await ApifyKey.create({
         key: trimmedKey,
         label,
+        is_active: isValid,
+        error_message: isValid ? null : errorMessage,
         comments_limit: config.apify.monthlyCommentLimit,
         usage_month: currentUsageMonth(),
     });

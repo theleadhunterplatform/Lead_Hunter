@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin, ForbiddenError, AuthRequiredError } from '@/lib/auth'
-import { createApifyKey } from '@/lib/external-api/client'
+import { createApifyKey, deleteApifyKey, getApifyKeys } from '@/lib/external-api/client'
 import { db } from '@/lib/db'
 
 import { parseApifyTokens, type ParsedApifyToken } from '@/lib/apify-token-parser'
@@ -34,26 +34,16 @@ export async function POST(request: NextRequest) {
     const month = new Date().toISOString().slice(0, 7)
     let addedCount = 0
     let skippedCount = 0
+    let flaggedCount = 0
     const errors: Array<{ key: string; label?: string; error: string }> = []
 
     for (const item of items) {
       const rawKey = item.key
       const label = item.label || null
 
-      // Check for duplicates in local DB
-      try {
-        const existing = await db.apifyKey.findFirst({
-          where: { key: rawKey, is_deleted: false },
-        })
-        if (existing) {
-          skippedCount++
-          continue
-        }
-      } catch {
-        // continue if db query check fails
-      }
-
       // Live verification with Apify
+      let isValid = true
+      let apifyError: string | null = null
       try {
         const apifyRes = await fetch('https://api.apify.com/v2/users/me', {
           method: 'GET',
@@ -61,22 +51,27 @@ export async function POST(request: NextRequest) {
         })
         if (!apifyRes.ok) {
           const errJson = await apifyRes.json().catch(() => ({}))
-          const apifyMsg = errJson?.error?.message || errJson?.message || `HTTP ${apifyRes.status}`
-          errors.push({ key: rawKey, label: label || undefined, error: apifyMsg })
-          continue
+          apifyError = errJson?.error?.message || errJson?.message || `HTTP ${apifyRes.status}`
+          isValid = false
+          flaggedCount++
+          errors.push({ key: rawKey, label: label || undefined, error: apifyError })
         }
       } catch (err: any) {
         console.warn(`[Bulk Apify Keys] Apify live ping error for ${label || rawKey}:`, err.message)
+        apifyError = err.message || 'Network error verifying key'
+        isValid = false
+        flaggedCount++
+        errors.push({ key: rawKey, label: label || undefined, error: apifyError })
       }
 
-      // Attempt creation on external VPS API (catch 429/timeout so local DB save still succeeds)
+      // Attempt creation on external VPS API (catch 400/429 so local DB save still succeeds)
       try {
         await createApifyKey({ key: rawKey, label })
       } catch (externalErr: any) {
         console.warn(`[Bulk Apify Keys] External API notice for ${label || rawKey}:`, externalErr.message)
       }
 
-      // Save to local database
+      // Save to database (persists BOTH valid and problematic tokens)
       try {
         await db.apifyKey.upsert({
           where: { key: rawKey },
@@ -85,13 +80,15 @@ export async function POST(request: NextRequest) {
             label,
             usage_month: month,
             comments_limit: 2500,
-            is_active: true,
+            is_active: isValid,
             is_deleted: false,
+            error_message: isValid ? null : apifyError,
           },
           update: {
-            is_active: true,
+            is_active: isValid,
             is_deleted: false,
             label: label || undefined,
+            error_message: isValid ? null : apifyError,
           },
         })
         addedCount++
@@ -101,13 +98,18 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const summaryMsg = flaggedCount > 0
+      ? `Added all ${addedCount} token(s). ${addedCount - flaggedCount} active, ${flaggedCount} flagged with errors.`
+      : `Successfully added and verified all ${addedCount} token(s)!`
+
     return NextResponse.json({
       success: true,
       addedCount,
       skippedCount,
+      flaggedCount,
       errorsCount: errors.length,
       errors,
-      message: `Successfully added ${addedCount} key(s)${skippedCount > 0 ? `, ${skippedCount} duplicate(s) skipped` : ''}${errors.length > 0 ? `, ${errors.length} failed` : ''}.`,
+      message: summaryMsg,
     })
   } catch (error: unknown) {
     if (error instanceof ForbiddenError) {
@@ -117,6 +119,62 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ code: 'UNAUTHORIZED', message: 'Authentication required' }, { status: 401 })
     }
     const msg = error instanceof Error ? error.message : 'Bulk import failed'
+    return NextResponse.json({ code: 'ERROR', message: msg }, { status: 500 })
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    await requireAdmin(request)
+    const body = await request.json().catch(() => ({}))
+    const isDeleteAll = Boolean(body?.all)
+    let ids: string[] = Array.isArray(body?.ids) ? body.ids.filter(Boolean) : []
+
+    if (isDeleteAll) {
+      // 1. Delete all keys in external VPS backend
+      try {
+        const allRes = await getApifyKeys()
+        const vpsIds = (allRes.data || []).map((k) => k.id).filter(Boolean)
+        await Promise.allSettled(vpsIds.map((id) => deleteApifyKey(id)))
+      } catch (vpsErr: any) {
+        console.warn('[Bulk Apify Keys] External VPS bulk delete notice:', vpsErr.message)
+      }
+
+      // 2. Hard delete all keys from Supabase database
+      const deletedResult = await db.apifyKey.deleteMany({})
+
+      return NextResponse.json({
+        success: true,
+        deletedCount: deletedResult.count,
+        message: `Successfully deleted all ${deletedResult.count} Apify key(s) from database`,
+      })
+    }
+
+    if (ids.length === 0) {
+      return NextResponse.json({ success: true, deletedCount: 0, message: 'No keys to delete' })
+    }
+
+    // Delete specific keys in external VPS API (run concurrently)
+    await Promise.allSettled(ids.map((id) => deleteApifyKey(id)))
+
+    // Hard delete specified keys from Supabase database
+    const deletedResult = await db.apifyKey.deleteMany({
+      where: { id: { in: ids } },
+    })
+
+    return NextResponse.json({
+      success: true,
+      deletedCount: deletedResult.count,
+      message: `Successfully deleted ${deletedResult.count} Apify key(s)`,
+    })
+  } catch (error: unknown) {
+    if (error instanceof ForbiddenError) {
+      return NextResponse.json({ code: 'FORBIDDEN', message: 'Admin access required' }, { status: 403 })
+    }
+    if (error instanceof AuthRequiredError) {
+      return NextResponse.json({ code: 'UNAUTHORIZED', message: 'Authentication required' }, { status: 401 })
+    }
+    const msg = error instanceof Error ? error.message : 'Bulk delete failed'
     return NextResponse.json({ code: 'ERROR', message: msg }, { status: 500 })
   }
 }

@@ -226,6 +226,7 @@ model ApifyKey {
   comments_used   Int       @default(0)
   comments_limit  Int       @default(2500)
   usage_month     String?
+  error_message   String?
   created_at      DateTime  @default(now())
   updated_at      DateTime  @updatedAt
 

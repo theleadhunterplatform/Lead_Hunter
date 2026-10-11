@@ -25,7 +25,18 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   try {
     await requireAdmin(request)
     const { id } = await params
-    await deleteApifyKey(id)
+    try {
+      await deleteApifyKey(id)
+    } catch (e: any) {
+      console.warn('[Admin Apify Keys] External delete notice:', e.message)
+    }
+    try {
+      await db.apifyKey.deleteMany({
+        where: { id },
+      })
+    } catch (dbErr) {
+      console.warn('[Admin Apify Keys] Local DB delete notice:', dbErr)
+    }
     return NextResponse.json({ success: true, data: {} })
   } catch (error: unknown) {
     if (error instanceof ForbiddenError) {

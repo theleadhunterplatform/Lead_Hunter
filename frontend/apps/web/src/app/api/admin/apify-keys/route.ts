@@ -8,12 +8,61 @@ export const dynamic = 'force-dynamic'
 export async function GET(request: NextRequest) {
   try {
     await requireAdmin(request)
-    const result = await getApifyKeys()
-    const mapped = {
-      ...result,
-      data: (result.data || []).map((k) => ({ ...k, _id: k.id })),
+
+    // Fetch from external VPS API
+    let externalKeys: any[] = []
+    try {
+      const result = await getApifyKeys()
+      externalKeys = result.data || []
+    } catch (extErr: any) {
+      console.warn('[Admin Apify Keys] Failed to fetch external keys, using local DB:', extErr.message)
     }
-    return NextResponse.json(mapped)
+
+    // Fetch from database
+    const dbKeys = await db.apifyKey.findMany({
+      where: { is_deleted: false },
+      orderBy: { created_at: 'desc' },
+    })
+
+    const extByKey = new Map(externalKeys.map((k) => [k.key, k]))
+    const seenKeys = new Set<string>()
+    const merged: any[] = []
+
+    for (const dbKey of dbKeys) {
+      seenKeys.add(dbKey.key)
+      const ext = extByKey.get(dbKey.key)
+      merged.push({
+        _id: dbKey.id,
+        id: dbKey.id,
+        key: dbKey.key,
+        label: dbKey.label || ext?.label || null,
+        is_active: dbKey.is_active && (ext ? ext.is_active : true),
+        error_message: dbKey.error_message || ext?.error_message || null,
+        comments_used: ext?.comments_used ?? dbKey.comments_used,
+        comments_limit: ext?.comments_limit ?? dbKey.comments_limit,
+        comments_remaining: ext?.comments_remaining ?? Math.max(0, (dbKey.comments_limit || 1000) - dbKey.comments_used),
+        assigned_worker: ext?.assigned_worker || null,
+        usage: ext?.usage || null,
+        platform_usage: ext?.platform_usage || null,
+        created_at: dbKey.created_at,
+      })
+    }
+
+    for (const ext of externalKeys) {
+      if (!seenKeys.has(ext.key)) {
+        merged.push({
+          ...ext,
+          _id: ext.id,
+          error_message: ext.error_message || null,
+        })
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      count: merged.length,
+      data: merged,
+    })
   } catch (error: unknown) {
     if (error instanceof ForbiddenError) {
       return NextResponse.json({ code: 'FORBIDDEN', message: 'Admin access required' }, { status: 403 })
@@ -38,6 +87,8 @@ export async function POST(request: NextRequest) {
     const label = body.label?.trim() || null
 
     // 0. Live verification against Apify API before saving
+    let isValid = true
+    let apifyError: string | null = null
     try {
       const apifyRes = await fetch('https://api.apify.com/v2/users/me', {
         method: 'GET',
@@ -47,46 +98,51 @@ export async function POST(request: NextRequest) {
       })
       if (!apifyRes.ok) {
         const errJson = await apifyRes.json().catch(() => ({}))
-        const apifyMsg = errJson?.error?.message || errJson?.message || `HTTP ${apifyRes.status}`
-        return NextResponse.json(
-          {
-            code: 'INVALID_APIFY_KEY',
-            message: `Apify rejected this token (${apifyMsg}). Please verify the token on console.apify.com and ensure the account's email is confirmed.`,
-          },
-          { status: 400 },
-        )
+        apifyError = errJson?.error?.message || errJson?.message || `HTTP ${apifyRes.status}`
+        isValid = false
       }
     } catch (networkErr: any) {
       console.warn('[Admin Apify Keys] Apify live validation network error:', networkErr)
+      apifyError = networkErr?.message || 'Network error verifying key'
+      isValid = false
     }
 
     // 1. Create on external API (VPS backend)
-    const result = await createApifyKey({ key: rawKey, label })
-
-    // 2. Also sync to local Supabase apify_keys table for status tracking
     try {
-      const month = new Date().toISOString().slice(0, 7)
-      await db.apifyKey.upsert({
-        where: { key: rawKey },
-        create: {
-          key: rawKey,
-          label,
-          usage_month: month,
-          comments_limit: 2500,
-          is_active: true,
-          is_deleted: false,
-        },
-        update: {
-          is_active: true,
-          is_deleted: false,
-          label: label || undefined,
-        },
-      })
-    } catch (syncErr) {
-      console.warn('[Admin Apify Keys] Notice: Supabase sync skipped:', syncErr)
+      await createApifyKey({ key: rawKey, label })
+    } catch (extErr: any) {
+      console.warn('[Admin Apify Keys] External API notice:', extErr.message)
     }
 
-    return NextResponse.json({ success: true, data: { ...result.data, _id: result.data.id } }, { status: 201 })
+    // 2. Save to database (persists both valid and problematic tokens)
+    const month = new Date().toISOString().slice(0, 7)
+    const savedKey = await db.apifyKey.upsert({
+      where: { key: rawKey },
+      create: {
+        key: rawKey,
+        label,
+        usage_month: month,
+        comments_limit: 2500,
+        is_active: isValid,
+        is_deleted: false,
+        error_message: isValid ? null : apifyError,
+      },
+      update: {
+        is_active: isValid,
+        is_deleted: false,
+        label: label || undefined,
+        error_message: isValid ? null : apifyError,
+      },
+    })
+
+    return NextResponse.json({
+      success: true,
+      data: { ...savedKey, _id: savedKey.id },
+      flagged: !isValid,
+      message: isValid
+        ? 'Apify key added and verified successfully'
+        : `Token added with warning: ${apifyError}`,
+    }, { status: 201 })
   } catch (error: unknown) {
     if (error instanceof ForbiddenError) {
       return NextResponse.json({ code: 'FORBIDDEN', message: 'Admin access required' }, { status: 403 })

@@ -5,6 +5,7 @@ import { getFirebaseToken } from '@/lib/firebase'
 import {
   KeyIcon, PlusIcon, TrashIcon, ShieldCheckIcon, ShieldExclamationIcon,
   EyeIcon, EyeSlashIcon, CheckCircleIcon, ArrowPathIcon, Cog6ToothIcon,
+  ExclamationTriangleIcon, XCircleIcon,
 } from '@heroicons/react/24/solid'
 import { CustomLoader } from '@/components/ui/CustomLoader'
 import { useToast } from '@/components/ui/Toast'
@@ -16,10 +17,27 @@ interface ApifyKey {
   key: string
   label: string | null
   is_active: boolean
+  error_message?: string | null
   comments_used: number
   comments_limit: number
   comments_remaining: number
   assigned_worker: string | null
+  usage?: {
+    status?: string
+    exhausted?: boolean
+    used?: number
+    limit?: number
+    remaining?: number
+    extra_note?: string | null
+  } | null
+  platform_usage?: {
+    status?: string
+    exhausted?: boolean
+    used?: number
+    limit?: number
+    remaining?: number
+    extra_note?: string | null
+  } | null
 }
 
 interface AutomationSettings {
@@ -41,6 +59,8 @@ export default function AdminTokensPage() {
   const [bulkText, setBulkText] = useState('')
   const [isBulkAdding, setIsBulkAdding] = useState(false)
   const [deletingKeyId, setDeletingKeyId] = useState<string | null>(null)
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false)
   const { addToast } = useToast()
 
   const parsedPreview = useMemo(() => {
@@ -76,6 +96,7 @@ export default function AdminTokensPage() {
       const res = await fetch('/api/admin/apify-keys', { headers: { Authorization: `Bearer ${token}` } })
       const json = await res.json()
       setTokens(json.data || [])
+      setSelectedIds([])
     } catch (e) { console.error(e) }
     finally { setLoading(false) }
   }, [])
@@ -224,7 +245,7 @@ export default function AdminTokensPage() {
       } catch {}
 
       addToast({
-        type: 'success',
+        type: (json.flaggedCount > 0 || json.errorsCount > 0) ? 'warning' : 'success',
         message: json.message || `Successfully added ${json.addedCount} Apify keys!`,
       })
     } catch (err: any) {
@@ -262,6 +283,44 @@ export default function AdminTokensPage() {
       console.error('Failed to delete Apify key:', err)
     } finally {
       setDeletingKeyId(null)
+    }
+  }
+
+  const handleBulkDelete = async (deleteAll = false) => {
+    const idsToDelete = deleteAll ? tokens.map((k) => k._id || k.id).filter(Boolean) : selectedIds
+    if (idsToDelete.length === 0) return
+
+    const count = idsToDelete.length
+    const confirmMsg = deleteAll
+      ? `Are you sure you want to delete ALL ${count} Apify key${count > 1 ? 's' : ''}? This cannot be undone.`
+      : `Are you sure you want to delete ${count} selected Apify key${count > 1 ? 's' : ''}?`
+
+    if (!window.confirm(confirmMsg)) return
+
+    setIsBulkDeleting(true)
+    try {
+      const token = await getFirebaseToken()
+      if (!token) throw new Error('Not authenticated as an administrator')
+
+      const res = await fetch('/api/admin/apify-keys/bulk', {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(deleteAll ? { all: true } : { ids: idsToDelete }),
+      })
+
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(json?.message || `Failed to delete keys (HTTP ${res.status})`)
+      }
+
+      setSelectedIds([])
+      await fetchTokens()
+      window.dispatchEvent(new CustomEvent('apify-keys-updated'))
+      addToast({ type: 'success', message: `Successfully deleted ${count} Apify key${count > 1 ? 's' : ''}` })
+    } catch (err: any) {
+      addToast({ type: 'error', message: err?.message || 'Failed to bulk delete keys' })
+    } finally {
+      setIsBulkDeleting(false)
     }
   }
 
@@ -562,28 +621,187 @@ export default function AdminTokensPage() {
               </div>
             )}
 
-            <div className="space-y-2">
+            {tokens.length > 0 && (
+              <div className="flex flex-wrap items-center justify-between gap-3 px-3.5 py-2.5 bg-surface-elevated/40 border border-white/[0.06] rounded-xl mb-3">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <label className="flex items-center gap-2 cursor-pointer select-none text-xs font-semibold text-text-secondary hover:text-white transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.length === tokens.length && tokens.length > 0}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedIds(tokens.map((k) => k._id || k.id).filter(Boolean))
+                        } else {
+                          setSelectedIds([])
+                        }
+                      }}
+                      className="w-4 h-4 rounded border-white/20 bg-surface text-accent-mint focus:ring-accent-mint/30 focus:ring-offset-0 cursor-pointer accent-emerald-500"
+                    />
+                    <span>Select All ({tokens.length})</span>
+                  </label>
+
+                  {/* Summary badges */}
+                  <div className="flex items-center gap-1.5 text-[11px]">
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-medium">
+                      {tokens.filter(k => k.is_active && !k.error_message).length} Active
+                    </span>
+                    {tokens.some(k => !k.is_active || k.error_message) && (
+                      <span className="px-2 py-0.5 rounded-full bg-red-500/15 border border-red-500/30 text-red-400 font-semibold flex items-center gap-1">
+                        <ExclamationTriangleIcon className="w-3 h-3" />
+                        {tokens.filter(k => !k.is_active || k.error_message).length} Flagged / Busted
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {tokens.some(k => !k.is_active || k.error_message) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const flaggedIds = tokens
+                          .filter(k => !k.is_active || k.error_message)
+                          .map(k => k._id || k.id)
+                          .filter(Boolean)
+                        setSelectedIds(flaggedIds)
+                      }}
+                      className="px-2.5 py-1 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 text-[11px] font-semibold transition-all"
+                    >
+                      Select Busted Only
+                    </button>
+                  )}
+                  {selectedIds.length > 0 ? (
+                    <>
+                      <span className="text-xs text-text-secondary font-medium mr-1">
+                        {selectedIds.length} of {tokens.length} selected
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleBulkDelete(false)}
+                        disabled={isBulkDeleting}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/20 text-xs font-bold transition-all disabled:opacity-50"
+                      >
+                        {isBulkDeleting ? (
+                          <>
+                            <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
+                            <span>Deleting...</span>
+                          </>
+                        ) : (
+                          <>
+                            <TrashIcon className="w-3.5 h-3.5" />
+                            <span>Delete Selected ({selectedIds.length})</span>
+                          </>
+                        )}
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleBulkDelete(true)}
+                      disabled={isBulkDeleting}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-red-500/10 text-text-secondary hover:text-red-400 border border-white/5 hover:border-red-500/20 text-xs font-medium transition-all disabled:opacity-50"
+                      title="Delete all keys at once"
+                    >
+                      <TrashIcon className="w-3.5 h-3.5" />
+                      <span>Delete All Keys</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-2.5">
               {tokens.length === 0 ? (
                 <p className="text-sm text-text-secondary text-center py-6">No API keys added yet</p>
               ) : tokens.map(k => {
                 const keyId = k._id || k.id
                 const isDeleting = deletingKeyId === keyId
+                const isSelected = selectedIds.includes(keyId)
+                const hasError = Boolean(k.error_message) || (!k.is_active)
+                const isExhausted = k.comments_remaining === 0 || k.usage?.status === 'exhausted'
+
                 return (
-                  <div key={keyId} className="flex items-center justify-between bg-surface-elevated/50 rounded-xl px-4 py-3 border border-white/[0.03]">
-                    <div className="flex items-center gap-3">
-                      {k.is_active ? <ShieldCheckIcon className="w-4 h-4 text-green-400" /> : <ShieldExclamationIcon className="w-4 h-4 text-gray-500" />}
-                      <div>
-                        <p className="text-sm font-medium text-text-primary">{k.label || k.key.substring(0, 20)}...</p>
-                        <p className="text-[10px] text-text-secondary">
-                          Used: {k.comments_used}/{k.comments_limit} | Remaining: {k.comments_remaining}
-                          {k.assigned_worker && <> | Worker: {k.assigned_worker}</>}
-                        </p>
+                  <div key={keyId} className={`flex items-start sm:items-center justify-between rounded-xl p-3.5 sm:px-4 sm:py-3 border transition-all ${
+                    hasError
+                      ? 'bg-red-950/20 border-red-500/30 shadow-sm shadow-red-950/20'
+                      : isSelected
+                      ? 'bg-accent-mint/[0.04] border-accent-mint/30 shadow-sm'
+                      : 'bg-surface-elevated/50 border-white/[0.03]'
+                  }`}>
+                    <div className="flex items-start sm:items-center gap-3 flex-1 min-w-0">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={(e) => {
+                          e.stopPropagation()
+                          setSelectedIds(prev =>
+                            e.target.checked ? [...prev, keyId] : prev.filter(id => id !== keyId)
+                          )
+                        }}
+                        className="w-4 h-4 mt-0.5 sm:mt-0 rounded border-white/20 bg-surface text-accent-mint focus:ring-accent-mint/30 focus:ring-offset-0 cursor-pointer accent-emerald-500 flex-shrink-0"
+                      />
+
+                      {/* Icon */}
+                      {hasError ? (
+                        <ExclamationTriangleIcon className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5 sm:mt-0" />
+                      ) : k.is_active ? (
+                        <ShieldCheckIcon className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5 sm:mt-0" />
+                      ) : (
+                        <ShieldExclamationIcon className="w-4 h-4 text-gray-500 flex-shrink-0 mt-0.5 sm:mt-0" />
+                      )}
+
+                      {/* Details & prominent Flag in front of the token */}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {/* FLAG IN FRONT OF THE TOKEN */}
+                          {hasError ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/20 text-red-300 border border-red-500/40 uppercase tracking-wider">
+                              <XCircleIcon className="w-3 h-3" />
+                              Busted Token
+                            </span>
+                          ) : isExhausted ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 uppercase tracking-wider">
+                              <ExclamationTriangleIcon className="w-3 h-3" />
+                              Exhausted
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 uppercase tracking-wider">
+                              Active
+                            </span>
+                          )}
+
+                          <span className="text-sm font-semibold text-text-primary">
+                            {k.label || k.key.substring(0, 20)}
+                          </span>
+
+                          <span className="text-[11px] font-mono text-text-secondary/70">
+                            ({k.key.substring(0, 14)}...{k.key.substring(k.key.length - 4)})
+                          </span>
+                        </div>
+
+                        {/* Error explanation if present */}
+                        {k.error_message ? (
+                          <p className="text-[11px] text-red-400 font-medium flex items-center gap-1 mt-1">
+                            <span>Problem:</span>
+                            <span className="font-semibold">{k.error_message}</span>
+                          </p>
+                        ) : !k.is_active ? (
+                          <p className="text-[11px] text-zinc-400 mt-1">
+                            Token is deactivated or unverified.
+                          </p>
+                        ) : (
+                          <p className="text-[10px] text-text-secondary mt-0.5">
+                            Used: {k.comments_used}/{k.comments_limit} | Remaining: {k.comments_remaining}
+                            {k.assigned_worker && <> | Worker: {k.assigned_worker}</>}
+                          </p>
+                        )}
                       </div>
                     </div>
+
                     <button
                       onClick={() => deleteKey(keyId)}
-                      disabled={isDeleting}
-                      className="p-1.5 rounded-lg hover:bg-red-500/10 text-red-400 transition-all disabled:opacity-50"
+                      disabled={isDeleting || isBulkDeleting}
+                      className="p-1.5 ml-2 rounded-lg hover:bg-red-500/10 text-red-400 transition-all disabled:opacity-50 flex-shrink-0"
                       title="Delete key"
                     >
                       {isDeleting ? (

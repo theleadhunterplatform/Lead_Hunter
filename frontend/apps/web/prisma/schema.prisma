@@ -319,6 +319,7 @@ model ApifyKey {
   created_at     DateTime @default(now())
   updated_at     DateTime @updatedAt
   deleted_at     DateTime?
+  error_message  String?
 
   @@map("apify_keys")
 }
