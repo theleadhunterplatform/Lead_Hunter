@@ -1,7 +1,22 @@
 export function extractEmailFromText(text: string): string | null {
+    if (!text) return null;
     const emailRegex = /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/gi;
     const match = text.match(emailRegex);
-    return match ? match[0].toLowerCase() : null;
+    if (match) {
+        return match[0].toLowerCase();
+    }
+
+    // OCR email repair: handles spaced TLDs (e.g. "praveen k@amazesystemsinc com:" or "user @domain com")
+    const ocrEmailRegex = /([a-zA-Z0-9._%+-]+(?:\s+[a-zA-Z0-9._%+-]+)?)\s*@\s*([a-zA-Z0-9-]+)(?:\s+|\s*\.\s*)(com|org|net|in|co|io|ai|tech|app|edu|gov)\b/i;
+    const ocrMatch = text.match(ocrEmailRegex);
+    if (ocrMatch) {
+        const localPart = ocrMatch[1].trim().replace(/\s+/g, '.');
+        const domain = ocrMatch[2].trim();
+        const tld = ocrMatch[3].trim().toLowerCase();
+        return `${localPart}@${domain}.${tld}`.toLowerCase();
+    }
+
+    return null;
 }
 
 function normalizePhoneCandidate(raw: string): string | null {

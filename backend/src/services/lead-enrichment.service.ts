@@ -657,7 +657,7 @@ export const findLeadEmail = async (leadId: string, options?: { force?: boolean 
 
     if (!ENRICHABLE_PLATFORMS.includes(lead.platform)) {
         throw new ErrorResponse(
-            'Contact finding only supported for LinkedIn, Threads, X (Twitter), and Reddit leads',
+            'Contact finding only supported for LinkedIn, Threads, X (Twitter), Reddit, and Manual leads',
             400
         );
     }

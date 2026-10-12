@@ -77,7 +77,7 @@ export async function enrichLeadPost(postId: string, options?: { force?: boolean
         return {
             success: false,
             status: 'skipped',
-            message: 'Contact enrichment only runs for qualified LinkedIn, Threads, X, or Reddit leads.',
+            message: 'Contact enrichment only runs for qualified LinkedIn, Threads, X, Reddit, or Manual leads.',
         };
     }
 

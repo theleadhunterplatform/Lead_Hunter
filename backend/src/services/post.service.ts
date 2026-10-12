@@ -192,7 +192,7 @@ export const reEnrichPost = async (id: string) => {
     }
 
     if (!shouldEnrichLead(post)) {
-        throw new ErrorResponse('Contact enrichment only runs for qualified LinkedIn, Threads, X, or Reddit leads.', 400);
+        throw new ErrorResponse('Contact enrichment only runs for qualified LinkedIn, Threads, X, Reddit, or Manual leads.', 400);
     }
 
     const added = await enqueueContactEnrichment(
@@ -916,6 +916,10 @@ export const createManualPost = async (data: {
     platform?: 'linkedin' | 'twitter' | 'reddit' | 'manual';
     credit_cost?: number | null;
     creditCost?: number | null;
+    email?: string | null;
+    phone?: string | null;
+    status?: string;
+    ai_score?: number;
 }) => {
     const platform = data.platform || 'manual';
 
@@ -932,6 +936,7 @@ export const createManualPost = async (data: {
     const postId = `manual-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
 
     try {
+    const hasContact = Boolean(data.email || data.phone);
     const post = await LeadPost.create({
         post_id: postId,
         url: 'manual://' + postId, // Mock URL for manual entries
@@ -954,12 +959,21 @@ export const createManualPost = async (data: {
             shares: 0
         },
         keyword: data.keyword,
-        status: 'pending',
+        status: data.status || 'pending',
         source: 'manual',
         image_url: data.imageUrl,
         is_training_data: true,
-        ai_score: 0,
+        ai_score: data.ai_score ?? 0,
         credit_cost: data.credit_cost ?? data.creditCost ?? null,
+        email: data.email || null,
+        contact_info: hasContact ? {
+            email: data.email || undefined,
+            phone: data.phone || undefined,
+            email_source: data.email ? 'post_text' : undefined,
+            phone_source: data.phone ? 'post_text' : undefined,
+        } : {},
+        enrichment_status: hasContact ? 'found' : undefined,
+        enrichment_message: hasContact ? 'Contact detected in post content.' : undefined,
     });
 
     if (post?._id) {

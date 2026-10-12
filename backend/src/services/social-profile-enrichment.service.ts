@@ -15,7 +15,7 @@ export type SocialProfileData = LinkedInProfileData & {
     profile_url?: string | null;
 };
 
-export const ENRICHABLE_PLATFORMS = ['linkedin', 'threads', 'twitter', 'reddit'] as const;
+export const ENRICHABLE_PLATFORMS = ['linkedin', 'threads', 'twitter', 'reddit', 'manual'] as const;
 export type EnrichablePlatform = (typeof ENRICHABLE_PLATFORMS)[number];
 
 function pickField(item: Record<string, any>, keys: string[]) {

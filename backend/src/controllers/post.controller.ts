@@ -3,6 +3,7 @@ import asyncHandler from '../middleware/async';
 import LeadPost from '../models/lead-post.model';
 import * as postService from '../services/post.service';
 import { extractTextFromImage, cleanExtractedText } from '../services/ocr.service';
+import { extractEmailFromText, extractPhoneFromText } from '../utils/lead-enrichment.utils';
 import { enqueueLeadTitling } from '../utils/title-queue.utils';
 import { applyLeadTitle } from '../services/titling.service';
 import { requestLeadIntelligence } from '../utils/intelligence-queue.utils';
@@ -367,6 +368,8 @@ export const uploadManualPost = asyncHandler(async (req: Request, res: Response,
                 console.log(`[Background] OCR: ${file.originalname}`);
                 const ocrResult = await extractTextFromImage(file.path);
                 const extracted = cleanExtractedText(ocrResult.text);
+                const extractedEmail = extractEmailFromText(extracted);
+                const extractedPhone = extractPhoneFromText(extracted);
 
                 const postData: any = {
                     content: extracted && extracted.length >= 5 ? extracted : 'Manual Extraction Required',
@@ -375,6 +378,8 @@ export const uploadManualPost = asyncHandler(async (req: Request, res: Response,
                     imageUrl: `/uploads/${file.filename}`,
                     platform: platform,
                     credit_cost: parsedCreditCost,
+                    email: extractedEmail,
+                    phone: extractedPhone,
                 };
 
                 // Add AI relevancy if available
