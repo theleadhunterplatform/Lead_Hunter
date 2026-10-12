@@ -98,20 +98,27 @@ export const bulkRequalifyPosts = async (query: {
     const posts = await LeadPost.find(filter, { lean: true }) as Array<{
         _id: string;
         qualification_reason?: string | null;
+        review_status?: string | null;
+        claimed_count?: number;
     }>;
 
     if (posts.length === 0) {
         return { queued: 0, message: 'No leads matched the current filters.' };
     }
 
-    const eligible = posts.filter((post) => !isManuallyLabeled(post.qualification_reason));
+    const eligible = posts.filter(
+        (post) =>
+            !isManuallyLabeled(post.qualification_reason) &&
+            post.review_status !== 'approved' &&
+            (!post.claimed_count || post.claimed_count === 0)
+    );
     const skipped = posts.length - eligible.length;
 
     if (eligible.length === 0) {
         return {
             queued: 0,
             skipped,
-            message: 'All matching leads were manually labeled and were skipped.',
+            message: 'All matching leads were manually labeled, approved, or claimed, and were skipped.',
         };
     }
 
@@ -799,7 +806,7 @@ export const updatePostLabel = async (
                 reviewed_by_id: reviewerId || null,
             });
             post.review_status = 'approved';
-        } else {
+        } else if (post.review_status !== 'approved' && (!post.claimed_count || post.claimed_count === 0)) {
             await LeadPost.findByIdAndUpdate(post._id.toString(), {
                 review_status: 'awaiting_review',
                 reviewed_at: null,
@@ -845,6 +852,8 @@ export const updatePostLabel = async (
 export const requalifyPost = async (id: string) => {
     const post = await LeadPost.findOne({ _id: id, is_deleted: false }, { lean: true }) as {
         qualification_reason?: string | null;
+        review_status?: string | null;
+        claimed_count?: number;
     } | null;
     if (!post) {
         throw new ErrorResponse(`Post not found with id of ${id}`, 404);
@@ -852,6 +861,14 @@ export const requalifyPost = async (id: string) => {
 
     if (isManuallyLabeled(post.qualification_reason)) {
         throw new ErrorResponse('This lead was manually labeled. Change the label instead of re-analysing.', 400);
+    }
+
+    if (post.claimed_count && post.claimed_count > 0) {
+        throw new ErrorResponse('This lead has already been claimed by users and cannot be re-qualified.', 400);
+    }
+
+    if (post.review_status === 'approved') {
+        throw new ErrorResponse('This lead is already approved. To re-qualify, reject or un-approve it first.', 400);
     }
 
     await LeadPost.findByIdAndUpdate(id, {
@@ -912,6 +929,7 @@ export const createManualPost = async (data: {
     content: string;
     keyword: string;
     authorName?: string;
+    authorUrl?: string;
     imageUrl?: string;
     platform?: 'linkedin' | 'twitter' | 'reddit' | 'manual';
     credit_cost?: number | null;
@@ -936,7 +954,7 @@ export const createManualPost = async (data: {
     const postId = `manual-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
 
     try {
-    const hasContact = Boolean(data.email || data.phone);
+    const hasContact = Boolean(data.email || data.phone || data.authorUrl);
     const post = await LeadPost.create({
         post_id: postId,
         url: 'manual://' + postId, // Mock URL for manual entries
@@ -945,7 +963,7 @@ export const createManualPost = async (data: {
         author: {
             name: data.authorName || 'Manual Entry',
             id: 'manual',
-            url: '#'
+            url: data.authorUrl || '#'
         },
         posted_at: {
             timestamp: Date.now(),
@@ -971,9 +989,10 @@ export const createManualPost = async (data: {
             phone: data.phone || undefined,
             email_source: data.email ? 'post_text' : undefined,
             phone_source: data.phone ? 'post_text' : undefined,
+            profile_url: data.authorUrl || undefined,
         } : {},
         enrichment_status: hasContact ? 'found' : undefined,
-        enrichment_message: hasContact ? 'Contact detected in post content.' : undefined,
+        enrichment_message: hasContact ? (data.email || data.phone ? 'Contact detected in post content.' : 'Profile link attached.') : undefined,
     });
 
     if (post?._id) {

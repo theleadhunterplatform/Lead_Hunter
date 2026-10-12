@@ -37,12 +37,15 @@ export async function verifyEmailDomain(email: string): Promise<{
     };
 }
 
+import { verifyEmailViaSmtp } from './smtp-email-verifier.utils';
+
 const SOURCE_LABELS: Record<string, string> = {
     post_text: 'Found in post text',
     contact_compass: 'Contact Compass',
     apify_profile: 'LinkedIn profile',
     threads_profile: 'Threads profile',
     pattern_guess: 'Work email pattern',
+    website_crawl: 'Website / Link-in-bio crawl',
 };
 
 export async function runEmailVerification(
@@ -60,6 +63,15 @@ export async function runEmailVerification(
     }
     if (hunter?.result && ['undeliverable', 'invalid', 'disposable'].includes(hunter.result)) {
         return { email_status: 'invalid', verification_note: `Hunter.io: ${hunter.result}` };
+    }
+
+    // Zero-cost direct SMTP handshake verification
+    const smtpCheck = await verifyEmailViaSmtp(email);
+    if (smtpCheck.status === 'invalid') {
+        return { email_status: 'invalid', verification_note: smtpCheck.details };
+    }
+    if (smtpCheck.status === 'verified') {
+        return { email_status: 'verified', verification_note: smtpCheck.details };
     }
 
     const domainCheck = await verifyEmailDomain(email);

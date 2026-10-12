@@ -15,6 +15,7 @@ import {
 import {
     extractEmailFromText,
     extractPhoneFromText,
+    extractWebsiteFromText,
     isVerifiedEmailStatus,
     leadHasPhone,
     mergePhoneEntry,
@@ -23,6 +24,7 @@ import {
     type EmailStatus,
     type PhoneSource,
 } from '../utils/lead-enrichment.utils';
+import { crawlWebsiteForContacts } from '../utils/website-contact-crawler.utils';
 import {
     guessWorkEmails,
     parsePersonName,
@@ -49,7 +51,8 @@ type EmailSource =
     | 'twitter_profile'
     | 'reddit_profile'
     | 'contactout'
-    | 'apollo';
+    | 'apollo'
+    | 'website_crawl';
 
 const MAX_PAID_PHONE_LOOKUPS = parseInt(process.env.MAX_PAID_PHONE_LOOKUPS_PER_LEAD || '2', 10);
 
@@ -779,6 +782,52 @@ export const findLeadEmail = async (leadId: string, options?: { force?: boolean 
             lastMessage = freeDiscovery.lastMessage || lastMessage;
             if (hasVerifiedEmail(lead) && leadHasPhone(lead)) {
                 return { success: true, data: lead, message: lastMessage };
+            }
+        }
+    }
+
+    // Step 2c — Deep Website & Link-in-Bio crawl (Linktree, Stan, Beacons, portfolio, author site)
+    if (!lead.email || !leadHasPhone(lead)) {
+        const candidateUrls = [
+            lead.author?.website,
+            lead.author?.url,
+            lead.contact_info?.profile_url,
+            profileData?.website,
+            extractWebsiteFromText(lead.content),
+        ].filter(Boolean) as string[];
+
+        for (const candidateUrl of candidateUrls) {
+            if (candidateUrl.includes('linkedin.com/in/')) continue;
+
+            try {
+                const crawled = await crawlWebsiteForContacts(candidateUrl);
+                if (crawled && (crawled.emails.length > 0 || crawled.phones.length > 0)) {
+                    const foundEmail = !lead.email && crawled.emails.length > 0 ? crawled.emails[0] : undefined;
+                    const foundPhone = !leadHasPhone(lead) && crawled.phones.length > 0 ? pickFirstPhone(...crawled.phones) : undefined;
+
+                    if (foundEmail || foundPhone) {
+                        const result = await applyContactUpdate(lead, {
+                            email: foundEmail,
+                            email_source: foundEmail ? 'website_crawl' : undefined,
+                            phone: foundPhone,
+                            phone_source: foundPhone ? 'website' : undefined,
+                            contact_info: {
+                                website: crawled.website,
+                            },
+                            message: foundEmail
+                                ? `Email discovered via website/link crawl (${crawled.website}).`
+                                : `Phone discovered via website/link crawl (${crawled.website}).`,
+                        });
+                        lead = result.data;
+                        lastMessage = result.message;
+                        if (hasVerifiedEmail(lead) && leadHasPhone(lead)) {
+                            return { success: true, data: lead, message: lastMessage };
+                        }
+                        break;
+                    }
+                }
+            } catch {
+                // Continue to next candidate
             }
         }
     }

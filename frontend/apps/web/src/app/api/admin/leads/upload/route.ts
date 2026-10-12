@@ -44,6 +44,8 @@ export async function POST(request: NextRequest) {
     if (keyword) outForm.append('keyword', String(keyword))
     const authorName = formData.get('authorName')
     if (authorName) outForm.append('authorName', String(authorName))
+    const authorUrl = formData.get('authorUrl') || formData.get('profileUrl')
+    if (authorUrl) outForm.append('authorUrl', String(authorUrl))
     const platform = formData.get('platform')
     if (platform) outForm.append('platform', String(platform))
 

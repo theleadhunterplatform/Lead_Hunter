@@ -304,26 +304,39 @@ export async function qualifyLeadPost(postId: string): Promise<QualificationResu
 
     const result = await qualifyPostContent(post.content, post.platform);
 
-    post.status = result.status;
+    const isApprovedOrClaimed =
+        post.review_status === 'approved' ||
+        (typeof post.claimed_count === 'number' && post.claimed_count > 0);
 
     const updateData: Record<string, unknown> = {
-        status: result.status,
         ai_score: result.confidence,
         qualification_reason: result.reason,
     };
 
+    if (!isApprovedOrClaimed) {
+        post.status = result.status;
+        updateData.status = result.status;
+    }
+
     if (result.status === 'relevant') {
-        updateData.review_status = 'awaiting_review';
+        if (!isApprovedOrClaimed) {
+            updateData.review_status = 'awaiting_review';
+        }
         updateData.is_training_data = true;
-        if (shouldEnrichLead(post)) {
+        const alreadyHasContact = !!(post.email || (post.contact_info && typeof post.contact_info === 'object' && Object.keys(post.contact_info).length > 0));
+        if (shouldEnrichLead(post) && !alreadyHasContact) {
             updateData.enrichment_status = 'pending';
             updateData.enrichment_message = null;
         }
     } else if (result.status === 'pending') {
-        updateData.review_status = null;
+        if (!isApprovedOrClaimed) {
+            updateData.review_status = null;
+        }
         updateData.is_training_data = false;
     } else {
-        updateData.review_status = null;
+        if (!isApprovedOrClaimed) {
+            updateData.review_status = null;
+        }
         updateData.is_training_data = true;
     }
 

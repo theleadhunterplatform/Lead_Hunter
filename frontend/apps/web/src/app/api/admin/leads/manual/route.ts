@@ -10,6 +10,8 @@ interface ManualLeadRequest {
   content: string
   keyword: string
   authorName?: string
+  authorUrl?: string
+  profileUrl?: string
   platform?: string
   contactEmail?: string
   contactPhone?: string
@@ -46,6 +48,7 @@ export async function POST(request: NextRequest) {
           content: body.content.trim(),
           keyword: body.keyword.trim(),
           authorName: body.contactName?.trim() || body.authorName?.trim() || 'Manual Entry',
+          authorUrl: body.authorUrl?.trim() || body.profileUrl?.trim() || undefined,
           platform: body.platform || 'manual',
           credit_cost: assignedCreditCost,
         }),
@@ -58,7 +61,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Step 2 — if contact details provided, save them immediately (skips enrichment APIs)
-    const hasContact = body.contactEmail?.trim() || body.contactPhone?.trim()
+    const profileLink = body.authorUrl?.trim() || body.profileUrl?.trim()
+    const hasContact = body.contactEmail?.trim() || body.contactPhone?.trim() || profileLink
     if (hasContact) {
       try {
         await fetchApi(`/posts/${post.id}/manual-contact`, {

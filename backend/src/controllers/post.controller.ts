@@ -344,7 +344,8 @@ export const uploadManualPost = asyncHandler(async (req: Request, res: Response,
         return;
     }
 
-    const { keyword = 'Manual Bulk Upload', authorName, platform = 'manual', credit_cost, creditCost } = req.body;
+    const { keyword = 'Manual Bulk Upload', authorName, authorUrl, profileUrl, platform = 'manual', credit_cost, creditCost } = req.body;
+    const resolvedAuthorUrl = (authorUrl || profileUrl)?.trim() || undefined;
     const parsedCreditCost = typeof credit_cost === 'number'
         ? credit_cost
         : typeof creditCost === 'number'
@@ -375,6 +376,7 @@ export const uploadManualPost = asyncHandler(async (req: Request, res: Response,
                     content: extracted && extracted.length >= 5 ? extracted : 'Manual Extraction Required',
                     keyword: keyword || 'Manual Bulk Upload',
                     authorName: authorName || 'Manual Lead',
+                    authorUrl: resolvedAuthorUrl,
                     imageUrl: `/uploads/${file.filename}`,
                     platform: platform,
                     credit_cost: parsedCreditCost,
@@ -477,7 +479,7 @@ export const getClaimedPosts = asyncHandler(async (req: Request, res: Response, 
 // @route   POST /api/posts/manual
 // @access  Private (lead:hunt)
 export const createManualLeadPost = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
-    const { content, keyword, authorName, platform, credit_cost, creditCost } = req.body ?? {};
+    const { content, keyword, authorName, authorUrl, profileUrl, platform, credit_cost, creditCost } = req.body ?? {};
 
     if (!content?.trim()) {
         return res.status(400).json({ success: false, message: 'content is required' });
@@ -490,6 +492,7 @@ export const createManualLeadPost = asyncHandler(async (req: Request, res: Respo
         content: content.trim(),
         keyword: keyword.trim(),
         authorName: authorName?.trim() || 'Manual Entry',
+        authorUrl: (authorUrl || profileUrl)?.trim() || undefined,
         platform: platform || 'manual',
         credit_cost: typeof credit_cost === 'number' ? credit_cost : typeof creditCost === 'number' ? creditCost : undefined,
     });

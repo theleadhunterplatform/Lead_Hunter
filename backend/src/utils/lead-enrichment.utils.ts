@@ -19,6 +19,12 @@ export function extractEmailFromText(text: string): string | null {
     return null;
 }
 
+export function extractWebsiteFromText(text: string): string | null {
+    if (!text) return null;
+    const match = text.match(/https?:\/\/[^\s<>"')]+/i);
+    return match ? match[0] : null;
+}
+
 function normalizePhoneCandidate(raw: string): string | null {
     const trimmed = raw.trim().replace(/\s+/g, ' ');
     const digits = trimmed.replace(/\D/g, '');

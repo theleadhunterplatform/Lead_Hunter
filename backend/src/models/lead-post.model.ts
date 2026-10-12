@@ -72,6 +72,25 @@ const buildWhere = (filter: any = {}) => {
     return { AND: andClauses };
 };
 
+function sanitizeUpdateForProtectedLead(
+    current: { review_status: string | null; claimed_count: number },
+    data: any
+) {
+    if (!current || (!current.claimed_count && current.review_status !== 'approved')) {
+        return data;
+    }
+    const sanitized = { ...data };
+    if (current.review_status === 'approved' && (sanitized.review_status === 'awaiting_review' || sanitized.review_status === null)) {
+        delete sanitized.review_status;
+        delete sanitized.reviewed_at;
+        delete sanitized.reviewed_by_id;
+    }
+    if ((current.claimed_count > 0 || current.review_status === 'approved') && (sanitized.status === 'pending' || sanitized.status === 'irrelevant')) {
+        delete sanitized.status;
+    }
+    return sanitized;
+}
+
 const LeadPost = {
     async find(filter: any = {}, options?: { sort?: Record<string, number>; skip?: number; limit?: number; lean?: boolean }) {
         const posts = await prisma.leadPost.findMany({
@@ -164,21 +183,51 @@ const LeadPost = {
 
     async findOneAndUpdate(filter: any, data: any, _options?: any) {
         const id = filter._id || filter.id;
+        let updateData = data;
+        if (id && data && (data.review_status === 'awaiting_review' || data.review_status === null || data.status === 'pending' || data.status === 'irrelevant')) {
+            const current = await prisma.leadPost.findUnique({
+                where: { id },
+                select: { review_status: true, claimed_count: true }
+            });
+            if (current) {
+                updateData = sanitizeUpdateForProtectedLead(current, data);
+            }
+        }
         const post = await prisma.leadPost.update({
             where: { id },
-            data,
+            data: updateData,
         });
         return mapPost(post);
     },
 
     async findByIdAndUpdate(id: string, data: any, _options?: any) {
-        const post = await prisma.leadPost.update({ where: { id }, data });
+        let updateData = data;
+        if (id && data && (data.review_status === 'awaiting_review' || data.review_status === null || data.status === 'pending' || data.status === 'irrelevant')) {
+            const current = await prisma.leadPost.findUnique({
+                where: { id },
+                select: { review_status: true, claimed_count: true }
+            });
+            if (current) {
+                updateData = sanitizeUpdateForProtectedLead(current, data);
+            }
+        }
+        const post = await prisma.leadPost.update({ where: { id }, data: updateData });
         return mapPost(post);
     },
 
     async updateOne(filter: any, data: any) {
         const id = filter._id || filter.id;
-        await prisma.leadPost.update({ where: { id }, data });
+        let updateData = data;
+        if (id && data && (data.review_status === 'awaiting_review' || data.review_status === null || data.status === 'pending' || data.status === 'irrelevant')) {
+            const current = await prisma.leadPost.findUnique({
+                where: { id },
+                select: { review_status: true, claimed_count: true }
+            });
+            if (current) {
+                updateData = sanitizeUpdateForProtectedLead(current, data);
+            }
+        }
+        await prisma.leadPost.update({ where: { id }, data: updateData });
     },
 };
 

@@ -16,7 +16,8 @@ async function backfillReviewStatus() {
             is_deleted: false,
             status: 'relevant',
             intelligence: null,
-            OR: [{ review_status: null }, { review_status: 'approved' }],
+            claimed_count: 0,
+            review_status: null,
         },
         data: { review_status: 'awaiting_review' },
     });

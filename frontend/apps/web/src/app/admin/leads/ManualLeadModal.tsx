@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   XMarkIcon, ArrowUpTrayIcon, PhotoIcon, CheckCircleIcon,
   ExclamationTriangleIcon, DocumentTextIcon, UserIcon, TagIcon,
-  EnvelopeIcon, PhoneIcon,
+  EnvelopeIcon, PhoneIcon, LinkIcon,
 } from '@heroicons/react/24/solid'
 import { getFirebaseToken } from '@/lib/firebase'
 import { useToast } from '@/components/ui/Toast'
@@ -42,6 +42,7 @@ export default function ManualLeadModal({ isOpen, onClose, onSuccess }: ManualLe
   const [textContent, setTextContent] = useState('')
   const [contactEmail, setContactEmail] = useState('')
   const [contactPhone, setContactPhone] = useState('')
+  const [profileUrl, setProfileUrl] = useState('')
   const [isUploading, setIsUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [results, setResults] = useState<UploadResult[] | null>(null)
@@ -98,6 +99,7 @@ export default function ManualLeadModal({ isOpen, onClose, onSuccess }: ManualLe
             content: textContent.trim(),
             keyword: keyword.trim(),
             authorName: authorName.trim() || undefined,
+            authorUrl: profileUrl.trim() || undefined,
             platform,
             contactEmail: contactEmail.trim() || undefined,
             contactPhone: contactPhone.trim() || undefined,
@@ -126,6 +128,7 @@ export default function ManualLeadModal({ isOpen, onClose, onSuccess }: ManualLe
       formData.append('keyword', keyword || 'Manual Bulk Upload')
       formData.append('platform', platform)
       if (authorName) formData.append('authorName', authorName)
+      if (profileUrl.trim()) formData.append('authorUrl', profileUrl.trim())
       if (parsedCost !== undefined && !isNaN(parsedCost)) {
         formData.append('creditCost', String(parsedCost))
       }
@@ -161,6 +164,7 @@ export default function ManualLeadModal({ isOpen, onClose, onSuccess }: ManualLe
     setTextContent('')
     setContactEmail('')
     setContactPhone('')
+    setProfileUrl('')
     setError(null)
     setResults(null)
     onClose()
@@ -332,6 +336,19 @@ export default function ManualLeadModal({ isOpen, onClose, onSuccess }: ManualLe
                             className="w-full bg-white/5 border border-white/10 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all px-3.5 py-2.5 text-sm"
                           />
                         </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-text-secondary flex items-center gap-2">
+                          <LinkIcon className="w-3 h-3" /> Profile Link (Optional)
+                        </label>
+                        <input
+                          type="url"
+                          placeholder="e.g. https://linkedin.com/in/username or https://x.com/handle"
+                          value={profileUrl}
+                          onChange={(e) => setProfileUrl(e.target.value)}
+                          className="w-full bg-white/5 border border-white/10 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all px-3.5 py-2.5 text-sm"
+                        />
                       </div>
                     </div>
                   )}

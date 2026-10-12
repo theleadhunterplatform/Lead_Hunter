@@ -8,6 +8,7 @@ import {
 } from '../utils/lead-enrichment.utils';
 import { extractDomainFromUrl } from '../utils/email-pattern.utils';
 import { discoverPhonesFromWebsite } from '../utils/website-phone-discovery.utils';
+import { crawlWebsiteForContacts } from '../utils/website-contact-crawler.utils';
 import { scrapeLinkedInAuthorProfile, type LinkedInProfileData } from './linkedin-profile-enrichment.service';
 
 export type SocialProfileData = LinkedInProfileData & {
@@ -258,11 +259,32 @@ async function scrapeRedditProfile(username: string): Promise<SocialProfileData 
 async function attachWebsiteContacts(profile: SocialProfileData): Promise<SocialProfileData> {
     if (!profile.website || (profile.email && profile.phone)) return profile;
 
-    const phones = await discoverPhonesFromWebsite(profile.website, { maxPages: 4 });
+    let email = profile.email || null;
+    let phone = profile.phone || null;
+
+    try {
+        const crawled = await crawlWebsiteForContacts(profile.website, 6000);
+        if (crawled) {
+            if (!email && crawled.emails.length > 0) {
+                email = crawled.emails[0];
+            }
+            if (!phone && crawled.phones.length > 0) {
+                phone = pickFirstPhone(...crawled.phones);
+            }
+        }
+    } catch {
+        // Fallback to phone discovery
+    }
+
+    if (!phone) {
+        const phones = await discoverPhonesFromWebsite(profile.website, { maxPages: 4 });
+        phone = pickFirstPhone(...phones);
+    }
+
     return {
         ...profile,
-        phone: profile.phone || pickFirstPhone(...phones),
-        email: profile.email || null,
+        phone,
+        email,
     };
 }
 
