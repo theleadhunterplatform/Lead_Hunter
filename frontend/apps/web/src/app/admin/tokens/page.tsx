@@ -641,33 +641,54 @@ export default function AdminTokensPage() {
                   </label>
 
                   {/* Summary badges */}
-                  <div className="flex items-center gap-1.5 text-[11px]">
+                  <div className="flex items-center gap-1.5 text-[11px] flex-wrap">
                     <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-medium">
-                      {tokens.filter(k => k.is_active && !k.error_message).length} Active
+                      {tokens.filter(k => !k.error_message && !(k as any).is_exhausted && k.is_active && k.comments_remaining > 0 && k.usage?.status !== 'exhausted').length} Active
                     </span>
-                    {tokens.some(k => !k.is_active || k.error_message) && (
-                      <span className="px-2 py-0.5 rounded-full bg-red-500/15 border border-red-500/30 text-red-400 font-semibold flex items-center gap-1">
+                    {tokens.some(k => !k.error_message && (Boolean((k as any).is_exhausted) || !k.is_active || k.comments_remaining === 0 || k.usage?.status === 'exhausted')) && (
+                      <span className="px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 font-semibold flex items-center gap-1">
                         <ExclamationTriangleIcon className="w-3 h-3" />
-                        {tokens.filter(k => !k.is_active || k.error_message).length} Flagged / Busted
+                        {tokens.filter(k => !k.error_message && (Boolean((k as any).is_exhausted) || !k.is_active || k.comments_remaining === 0 || k.usage?.status === 'exhausted')).length} Quota Exhausted ($5 limit)
+                      </span>
+                    )}
+                    {tokens.some(k => Boolean(k.error_message)) && (
+                      <span className="px-2 py-0.5 rounded-full bg-red-500/15 border border-red-500/30 text-red-400 font-semibold flex items-center gap-1">
+                        <XCircleIcon className="w-3 h-3" />
+                        {tokens.filter(k => Boolean(k.error_message)).length} Invalid / 401 on Apify
                       </span>
                     )}
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  {tokens.some(k => !k.is_active || k.error_message) && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  {tokens.some(k => Boolean(k.error_message)) && selectedIds.length === 0 && (
                     <button
                       type="button"
                       onClick={() => {
-                        const flaggedIds = tokens
-                          .filter(k => !k.is_active || k.error_message)
+                        const invalidIds = tokens
+                          .filter(k => Boolean(k.error_message))
                           .map(k => k._id || k.id)
                           .filter(Boolean)
-                        setSelectedIds(flaggedIds)
+                        setSelectedIds(invalidIds)
                       }}
                       className="px-2.5 py-1 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 text-[11px] font-semibold transition-all"
                     >
-                      Select Busted Only
+                      Select Invalid Only ({tokens.filter(k => Boolean(k.error_message)).length})
+                    </button>
+                  )}
+                  {tokens.some(k => !k.error_message && (Boolean((k as any).is_exhausted) || !k.is_active || k.comments_remaining === 0 || k.usage?.status === 'exhausted')) && selectedIds.length === 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const exhaustedIds = tokens
+                          .filter(k => !k.error_message && (Boolean((k as any).is_exhausted) || !k.is_active || k.comments_remaining === 0 || k.usage?.status === 'exhausted'))
+                          .map(k => k._id || k.id)
+                          .filter(Boolean)
+                        setSelectedIds(exhaustedIds)
+                      }}
+                      className="px-2.5 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/20 text-[11px] font-semibold transition-all"
+                    >
+                      Select Exhausted Only
                     </button>
                   )}
                   {selectedIds.length > 0 ? (
@@ -717,13 +738,16 @@ export default function AdminTokensPage() {
                 const keyId = k._id || k.id
                 const isDeleting = deletingKeyId === keyId
                 const isSelected = selectedIds.includes(keyId)
-                const hasError = Boolean(k.error_message) || (!k.is_active)
-                const isExhausted = k.comments_remaining === 0 || k.usage?.status === 'exhausted'
+                const isInvalid = Boolean(k.error_message)
+                const isExhausted = !isInvalid && (Boolean((k as any).is_exhausted) || !k.is_active || k.comments_remaining === 0 || k.usage?.status === 'exhausted')
+                const isActive = !isInvalid && !isExhausted
 
                 return (
                   <div key={keyId} className={`flex items-start sm:items-center justify-between rounded-xl p-3.5 sm:px-4 sm:py-3 border transition-all ${
-                    hasError
+                    isInvalid
                       ? 'bg-red-950/20 border-red-500/30 shadow-sm shadow-red-950/20'
+                      : isExhausted
+                      ? 'bg-amber-950/15 border-amber-500/30 shadow-sm shadow-amber-950/10'
                       : isSelected
                       ? 'bg-accent-mint/[0.04] border-accent-mint/30 shadow-sm'
                       : 'bg-surface-elevated/50 border-white/[0.03]'
@@ -742,27 +766,27 @@ export default function AdminTokensPage() {
                       />
 
                       {/* Icon */}
-                      {hasError ? (
-                        <ExclamationTriangleIcon className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5 sm:mt-0" />
-                      ) : k.is_active ? (
-                        <ShieldCheckIcon className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5 sm:mt-0" />
+                      {isInvalid ? (
+                        <XCircleIcon className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5 sm:mt-0" />
+                      ) : isExhausted ? (
+                        <ExclamationTriangleIcon className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5 sm:mt-0" />
                       ) : (
-                        <ShieldExclamationIcon className="w-4 h-4 text-gray-500 flex-shrink-0 mt-0.5 sm:mt-0" />
+                        <ShieldCheckIcon className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5 sm:mt-0" />
                       )}
 
                       {/* Details & prominent Flag in front of the token */}
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           {/* FLAG IN FRONT OF THE TOKEN */}
-                          {hasError ? (
+                          {isInvalid ? (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/20 text-red-300 border border-red-500/40 uppercase tracking-wider">
                               <XCircleIcon className="w-3 h-3" />
-                              Busted Token
+                              401 Invalid Token
                             </span>
                           ) : isExhausted ? (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 uppercase tracking-wider">
                               <ExclamationTriangleIcon className="w-3 h-3" />
-                              Exhausted
+                              Quota Exhausted ($5 limit)
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 uppercase tracking-wider">
@@ -780,14 +804,15 @@ export default function AdminTokensPage() {
                         </div>
 
                         {/* Error explanation if present */}
-                        {k.error_message ? (
+                        {isInvalid ? (
                           <p className="text-[11px] text-red-400 font-medium flex items-center gap-1 mt-1">
-                            <span>Problem:</span>
+                            <span>Apify Auth Error:</span>
                             <span className="font-semibold">{k.error_message}</span>
                           </p>
-                        ) : !k.is_active ? (
-                          <p className="text-[11px] text-zinc-400 mt-1">
-                            Token is deactivated or unverified.
+                        ) : isExhausted ? (
+                          <p className="text-[11px] text-amber-300/90 font-medium flex items-center gap-1 mt-1">
+                            <span>Apify Monthly Limit ($5 USD) reached:</span>
+                            <span className="font-normal text-text-secondary">Free monthly credits are fully spent on this account.</span>
                           </p>
                         ) : (
                           <p className="text-[10px] text-text-secondary mt-0.5">

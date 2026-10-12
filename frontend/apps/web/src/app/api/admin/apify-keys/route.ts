@@ -31,16 +31,24 @@ export async function GET(request: NextRequest) {
     for (const dbKey of dbKeys) {
       seenKeys.add(dbKey.key)
       const ext = extByKey.get(dbKey.key)
+      const isExhausted = Boolean(
+        ext?.platform_usage?.remaining === 0 ||
+        ext?.usage?.status === 'exhausted' ||
+        ext?.comments_remaining === 0 ||
+        (ext && !ext.is_active && !dbKey.error_message)
+      )
+
       merged.push({
         _id: dbKey.id,
         id: dbKey.id,
         key: dbKey.key,
         label: dbKey.label || ext?.label || null,
-        is_active: dbKey.is_active && (ext ? ext.is_active : true),
+        is_active: dbKey.is_active && !isExhausted && (ext ? ext.is_active : true),
+        is_exhausted: isExhausted,
         error_message: dbKey.error_message || ext?.error_message || null,
         comments_used: ext?.comments_used ?? dbKey.comments_used,
         comments_limit: ext?.comments_limit ?? dbKey.comments_limit,
-        comments_remaining: ext?.comments_remaining ?? Math.max(0, (dbKey.comments_limit || 1000) - dbKey.comments_used),
+        comments_remaining: isExhausted ? 0 : (ext?.comments_remaining ?? Math.max(0, (dbKey.comments_limit || 1000) - dbKey.comments_used)),
         assigned_worker: ext?.assigned_worker || null,
         usage: ext?.usage || null,
         platform_usage: ext?.platform_usage || null,
