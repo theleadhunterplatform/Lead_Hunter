@@ -286,12 +286,6 @@ function PipelineLeadCard({
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0 ml-2">
-            <span
-              className="px-1.5 py-0.5 rounded-[5px] text-[10px] font-semibold border border-white/10 bg-white/5 text-text-secondary flex items-center gap-1 select-none"
-              title={`${lead.claimedCount ?? 0} out of 25 members have claimed this lead`}
-            >
-              <span className="text-white font-bold">{lead.claimedCount ?? 0}</span>/25
-            </span>
             {lead.timestamp && (
               <span
                 className={`text-[10px] font-medium tracking-tight opacity-80 ${theme.textMuted}`}
