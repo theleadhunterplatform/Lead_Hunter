@@ -42,4 +42,9 @@ export interface AppLead {
   approvedAt?: string | null
   claimedCount?: number
   creditCost?: number | null
+  engagement?: {
+    likes?: number
+    comments?: number
+    shares?: number
+  }
 }

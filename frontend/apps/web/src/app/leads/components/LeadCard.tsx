@@ -260,6 +260,8 @@ function LeadCard({
       const t = tag.trim()
       const lower = t.toLowerCase()
       if (['linkedin', 'reddit', 'twitter', 'github', 'seed', 'external'].includes(lower)) return false
+      const ALLOWED_BADGES = ['hot lead', 'paid ads', 'web dev', 'web design', 'b2b marketing', 'video editing', 'full stack', 'google ads', 'meta ads', 'international', 'agency', 'freelancer', 'national']
+      if (ALLOWED_BADGES.includes(lower)) return true
       const words = t.split(/\s+/)
       if (words.length >= 2 && words.length <= 3 && words.every((w) => /^[A-Z][a-z]+$/.test(w))) return false
       if (words.length >= 2 && words.length <= 3 && words.every((w) => /^[A-Z]{3,}$/.test(w))) return false

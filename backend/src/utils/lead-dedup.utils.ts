@@ -3,10 +3,8 @@ import LeadPost from '../models/lead-post.model';
 
 export function extractLinkedInActivityId(url?: string | null): string | null {
     if (!url) return null;
-    const activity = url.match(/urn:li:activity:(\d+)/i);
-    if (activity) return activity[1];
-    const share = url.match(/urn:li:share:(\d+)/i);
-    if (share) return share[1];
+    const match = url.match(/(?:activity|share)[:\-](\d+)/i) || url.match(/urn:li:(?:activity|share):(\d+)/i);
+    if (match) return match[1];
     return null;
 }
 
@@ -28,7 +26,7 @@ export function getLeadDedupKey(lead: {
 
     const content = lead.content?.trim();
     if (content && content.length >= 40) {
-        return `${lead.platform}:content:${content}`;
+        return `${lead.platform}:content:${content.slice(0, 100)}`;
     }
 
     return `${lead.platform}:post_id:${lead.post_id}`;
@@ -74,7 +72,7 @@ export async function findExistingLeadPost(options: {
         const byActivity = await prisma.leadPost.findFirst({
             where: {
                 ...base,
-                url: { contains: `activity:${activityId}` },
+                url: { contains: activityId },
             },
         });
         if (byActivity) return byActivity;
@@ -94,6 +92,15 @@ export async function findExistingLeadPost(options: {
             where: { ...base, content: trimmedContent },
         });
         if (byContent) return byContent;
+
+        // Substring / prefix match for first 80 clean characters (avoids duplicate scrape if whitespace changes)
+        const cleanPrefix = trimmedContent.replace(/\s+/g, ' ').slice(0, 80);
+        if (cleanPrefix.length >= 40) {
+            const byPrefix = await prisma.leadPost.findFirst({
+                where: { ...base, content: { contains: cleanPrefix } },
+            });
+            if (byPrefix) return byPrefix;
+        }
     }
 
     return null;

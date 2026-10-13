@@ -46,10 +46,11 @@ export function extractNiches(
       niches.push('Design')
       if (pNiche.includes('web')) niches.push('Web Design')
     } else if (pNiche.includes('paid ads') || pNiche.includes('marketing') || pNiche.includes('growth')) {
+      niches.push('Paid Ads & Marketing')
       niches.push('Marketing')
     } else if (pNiche.includes('seo')) {
       niches.push('SEO')
-      niches.push('Marketing')
+      niches.push('Paid Ads & Marketing')
     } else if (pNiche.includes('copywriting') || pNiche.includes('content')) {
       niches.push('Copywriting')
     } else if (pNiche.includes('sales') || pNiche.includes('consulting') || pNiche.includes('lead gen') || pNiche.includes('strategy')) {
@@ -59,13 +60,78 @@ export function extractNiches(
     }
   }
 
-  // 2. Map based on keyword match
-  if (kw) {
+  // 2. Content & Intelligence Analysis (Content-First: what is the lead actually asking for?)
+  const textSignals = `${c} ${intel}`
+  if (
+    textSignals.includes('seo') ||
+    textSignals.includes('google ads') ||
+    textSignals.includes('meta ads') ||
+    textSignals.includes('facebook ads') ||
+    textSignals.includes('digital marketing') ||
+    textSignals.includes('performance marketing') ||
+    textSignals.includes('lead generation') ||
+    textSignals.includes('media buyer') ||
+    textSignals.includes('ppc')
+  ) {
+    niches.push('Paid Ads & Marketing')
+    if (textSignals.includes('seo')) niches.push('SEO')
+    niches.push('Marketing')
+  } else if (
+    textSignals.includes('ui/ux') ||
+    textSignals.includes('figma') ||
+    textSignals.includes('graphic design') ||
+    textSignals.includes('brand identity') ||
+    textSignals.includes('packaging design') ||
+    textSignals.includes('logo design')
+  ) {
+    niches.push('Design')
+    if (textSignals.includes('web design')) niches.push('Web Design')
+  } else if (
+    textSignals.includes('copywriting') ||
+    textSignals.includes('content writer') ||
+    textSignals.includes('scriptwriter') ||
+    textSignals.includes('newsletter writer')
+  ) {
+    niches.push('Copywriting')
+  } else if (
+    textSignals.includes('video editor') ||
+    textSignals.includes('video editing') ||
+    textSignals.includes('motion graphics') ||
+    textSignals.includes('reels editor')
+  ) {
+    niches.push('Video Editing')
+  } else if (
+    textSignals.includes('web dev') ||
+    textSignals.includes('website dev') ||
+    textSignals.includes('react') ||
+    textSignals.includes('nextjs') ||
+    textSignals.includes('frontend') ||
+    textSignals.includes('backend') ||
+    textSignals.includes('fullstack') ||
+    textSignals.includes('wordpress') ||
+    textSignals.includes('shopify developer') ||
+    textSignals.includes('web developer')
+  ) {
+    niches.push('Web Development')
+    niches.push('Development')
+  } else if (
+    textSignals.includes('ai ') ||
+    textSignals.includes('automation') ||
+    textSignals.includes('n8n') ||
+    textSignals.includes('make.com') ||
+    textSignals.includes('llm') ||
+    textSignals.includes('chatbot')
+  ) {
+    niches.push('AI & Automation')
+  }
+
+  // 3. Fallback to keyword match if content signals didn't determine the niche
+  if (niches.length === 0 && kw) {
     if (kw.includes('development') || kw.includes('coder') || kw.includes('software')) {
       niches.push('Development')
     }
     if (kw.includes('web dev') || kw.includes('frontend') || kw.includes('backend') || kw.includes('fullstack') || kw.includes('nextjs')) {
-      niches.push('Web Dev')
+      niches.push('Web Development')
       niches.push('Development')
     }
     if (kw.includes('design') || kw.includes('ui/ux') || kw.includes('figma') || kw.includes('branding')) {
@@ -76,51 +142,19 @@ export function extractNiches(
       niches.push('Design')
     }
     if (kw.includes('marketing') || kw.includes('advertising') || kw.includes('ads') || kw.includes('ppc')) {
-      niches.push('Marketing')
+      niches.push('Paid Ads & Marketing')
     }
     if (kw.includes('ai') || kw.includes('automation') || kw.includes('gpt') || kw.includes('agent')) {
       niches.push('AI & Automation')
     }
     if (kw.includes('seo') || kw.includes('ranking')) {
       niches.push('SEO')
-      niches.push('Marketing')
+      niches.push('Paid Ads & Marketing')
     }
     if (kw.includes('copywriting') || kw.includes('writing') || kw.includes('content writer')) {
       niches.push('Copywriting')
     }
     if (kw.includes('sales') || kw.includes('revops') || kw.includes('crm') || kw.includes('pipeline')) {
-      niches.push('Sales & RevOps')
-    }
-  }
-
-  // 3. Fallback to keyword matching in content/intel if needed
-  if (niches.length === 0) {
-    if (c.includes('seo') || c.includes('search engine') || c.includes('backlink')) {
-      niches.push('SEO')
-      niches.push('Marketing')
-    }
-    if (c.includes('copywrit') || c.includes('writer') || c.includes('writing') || c.includes('content writ')) {
-      niches.push('Copywriting')
-    }
-    if (c.includes('design') || c.includes('ui/ux') || c.includes('figma') || c.includes('landing page')) {
-      niches.push('Design')
-      if (c.includes('website design') || c.includes('web design')) {
-        niches.push('Web Design')
-      }
-    }
-    if (c.includes('development') || c.includes('developer') || c.includes('software') || c.includes('nextjs') || c.includes('react') || c.includes('website developer')) {
-      niches.push('Development')
-      if (c.includes('web dev') || c.includes('website dev') || c.includes('frontend') || c.includes('backend') || c.includes('website developer')) {
-        niches.push('Web Dev')
-      }
-    }
-    if (c.includes('marketing') || c.includes('ad campaign') || c.includes('ads ') || c.includes('lead gen')) {
-      niches.push('Marketing')
-    }
-    if (c.includes('ai ') || c.includes('artificial intelligence') || c.includes('automation') || c.includes('n8n') || c.includes('make.com') || c.includes('zapier')) {
-      niches.push('AI & Automation')
-    }
-    if (c.includes('sales') || c.includes('crm') || c.includes('revops') || c.includes('consulting')) {
       niches.push('Sales & RevOps')
     }
   }
@@ -226,6 +260,19 @@ export const VALID_SKILL_KEYWORDS: Array<{ key: string; label: string }> = [
   { key: 'branding', label: 'Branding' },
   { key: 'copywriting', label: 'Copywriting' },
   { key: 'consulting', label: 'Consulting' },
+
+  // Audience & Category Badges
+  { key: 'international', label: 'International' },
+  { key: 'national', label: 'National' },
+  { key: 'agency', label: 'Agency' },
+  { key: 'freelancer', label: 'Freelancer' },
+  { key: 'freelance', label: 'Freelancer' },
+  { key: 'hot lead', label: 'Hot Lead' },
+  { key: 'google ads', label: 'Google Ads' },
+  { key: 'meta ads', label: 'Meta Ads' },
+  { key: 'b2b marketing', label: 'B2B Marketing' },
+  { key: 'sem', label: 'SEM' },
+  { key: 'video editing', label: 'Video Editing' },
 ]
 
 export function extractSection(text: string, heading: string): string {
@@ -329,7 +376,7 @@ export function extractLeadBadges(
   const intel = post.intelligence || ''
 
   // 1. Check if AI intelligence provided an explicit Badges section
-  const aiBadgesText = extractSection(intel, 'Badges')
+  const aiBadgesText = extractSection(intel, 'Badges') || extractSection(intel, 'Lead Type & Badges')
   if (aiBadgesText) {
     const parsed = aiBadgesText
       .split(/[,;\n•*]+/)
@@ -341,7 +388,7 @@ export function extractLeadBadges(
     }
   }
 
-  // 2. Scan text corpus against our 50+ technology keywords
+  // 2. Scan text corpus against technology & audience keywords
   const textCorpus = [
     post.keyword || '',
     post.content || '',
@@ -352,6 +399,19 @@ export function extractLeadBadges(
     .toLowerCase()
 
   const matchedTags: string[] = []
+
+  // Check for priority audience badges
+  if (textCorpus.includes('urgent') || textCorpus.includes('asap') || textCorpus.includes('immediate')) {
+    matchedTags.push('Hot Lead')
+  }
+  if (textCorpus.includes('international') || textCorpus.includes('worldwide') || textCorpus.includes('global') || textCorpus.includes('us client') || textCorpus.includes('uk client')) {
+    matchedTags.push('International')
+  }
+  if (textCorpus.includes('agency')) {
+    matchedTags.push('Agency')
+  } else if (textCorpus.includes('freelancer') || textCorpus.includes('freelance') || textCorpus.includes('contractor')) {
+    matchedTags.push('Freelancer')
+  }
 
   for (const { key, label } of VALID_SKILL_KEYWORDS) {
     const regex = new RegExp(`\\b${key.replace('.', '\\.')}\\b`, 'i')
@@ -497,6 +557,8 @@ export function stripPersonAndCompany(text: string): string {
   return text
     // "Beyond/Beneath/On the surface-level request..."
     .replace(/^(?:beyond|beneath|on)(?:\s+the|\s+a)?\s+surface(?:-level)?(?:\s+(?:request|need|ask|inquiry))?(?:,?\s*(?:for\s+[^,]+,?)?)?\s*/i, '')
+    // "Agroloka Commodity seeks/needs/requires/hires/is looking for..." -> "Client seeks "
+    .replace(/^[A-Z][a-zA-Z0-9&.\-']+(?:\s+[A-Z][a-zA-Z0-9&.\-']+){0,3}\s+(?:seeks|requires|needs|wants|hires|is\s+seeking|is\s+looking\s+for|is\s+hiring|is\s+needing)\s+(?:an?\s+)?/i, 'Client seeks ')
     // "John Doe, Esq. / MBA is actively seeking..."
     .replace(/^[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2}(?:,\s*(?:Esq\.?|MBA|PhD|[A-Za-z\s]+))?\s+(?:is\s+)?(?:actively\s+)?(?:seeking|looking\s+for|hiring|needing)\s+(?:an?\s+)?/i, '')
     // "John Doe from/at Acme is actively seeking..."
@@ -507,6 +569,8 @@ export function stripPersonAndCompany(text: string): string {
     .replace(/^[A-Z][a-zA-Z0-9\s]+?\s+is\s+(?:actively\s+)?(?:hiring|looking\s+for|seeking|needing)\s+(?:an?\s+)?/i, '')
     // Possessive person names: "Guna Rajendran's company is likely in a growth phase..." -> "Company in a growth phase..."
     .replace(/^[A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2}'s\s+(company|brand|startup|firm|team|business)\s+(?:is\s+)?(?:likely\s+)?(?:in\s+)?/i, 'Company in ')
+    // Mask specific corporate endings (Commodity, Ventures, Solutions, Agency, etc.)
+    .replace(/\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2}\s+(?:Commodity|Commodities|Ventures|Technologies|Solutions|Enterprises|Studios|Agency|Capital|Media|Group|Labs|Pvt|Ltd|LLC|Inc|Corp)\b/gi, 'a business client')
     // "The client/founder/post is looking for..."
     .replace(/^(?:the\s+)?(?:client|author|user|agency|buyer|company|founder|post)\s+(?:is\s+)?(?:actively\s+)?(?:hiring|looking\s+for|seeking|needs|requires|wants)\s+(?:an?\s+)?/i, '')
     .replace(/^(?:looking\s+for|seeking|needs|requires|wants)\s+(?:an?\s+)?/i, '')

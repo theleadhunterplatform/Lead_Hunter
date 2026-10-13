@@ -167,8 +167,13 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     ])
 
     const isRevealed = userState?.isRevealed || false
-    const totalClaims = Math.max(externalLead.claimed_count || 0, otherRevealedCount)
-    const isClaimedByOther = !isRevealed && (totalClaims >= 25 || externalLead.is_claimed)
+    const approvedOrLiveDate = (externalLead as any).reviewed_at || (externalLead as any).approved_at || externalLead.created_at
+    const isExpired24h = approvedOrLiveDate
+      ? Date.now() - new Date(approvedOrLiveDate).getTime() >= 24 * 60 * 60 * 1000
+      : false
+    const isAutoClaimedAfter24h = isExpired24h && !isRevealed
+    const totalClaims = isAutoClaimedAfter24h ? 25 : Math.max(externalLead.claimed_count || 0, otherRevealedCount)
+    const isClaimedByOther = isAutoClaimedAfter24h || (!isRevealed && (totalClaims >= 25 || externalLead.is_claimed))
     const phone = externalLead.contact_info?.phone_numbers?.[0]?.number || null
     const email = externalLead.email || externalLead.contact_info?.emails?.[0]?.email || ''
     const isClaimable = isClaimedByOther
@@ -225,7 +230,10 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       replyProbability: Math.max(externalLead.ai_score || 0, 60),
       accent: 'mint',
       status: (userState?.status || 'new') as AppLead['status'],
-      timestamp: externalLead.posted_at?.postedAgoShort || formatTimeAgo(externalLead.created_at),
+      timestamp: (() => {
+        const postTs = externalLead.posted_at?.timestamp || (externalLead.posted_at?.date ? new Date(externalLead.posted_at.date).getTime() : new Date(externalLead.created_at).getTime())
+        return !isNaN(postTs) ? formatTimeAgo(new Date(postTs).toISOString()) : (externalLead.posted_at?.postedAgoShort || formatTimeAgo(externalLead.created_at))
+      })(),
       scrapedAt: externalLead.created_at,
       scrapedAgo: formatTimeAgo(externalLead.created_at),
       isSaved: userState?.isSaved || false,
@@ -237,6 +245,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       revealCost: isClaimedByOther ? null : getLeadRevealCost(externalLead),
       phone: isRevealed ? phone : null,
       claimedCount: totalClaims,
+      engagement: (externalLead as any).engagement || { likes: 0, comments: 0 },
     }
 
     return NextResponse.json({ data: lead })

@@ -5,6 +5,7 @@ import { getApifyClient, handleApifyLimitError, recordApifyCommentUsage } from '
 import { enqueueLeadQualification } from '../utils/qualification-queue.utils';
 import { findExistingLeadPost, isDuplicateKeyError } from '../utils/lead-dedup.utils';
 import { isPostOlderThanDays } from '../utils/scraped-item.utils';
+import { extractEmailFromText, extractPhoneFromText } from '../utils/lead-enrichment.utils';
 
 type ProfileCommentItem = {
     id?: string;
@@ -136,6 +137,12 @@ export class TargetScraperService {
             return false;
         }
 
+        // Saturated post filter: Skip posts where competition is oversaturated (>100 comments)
+        if ((post.engagement?.comments || 0) > 100) {
+            console.log(`⏭️ [TargetScraper] Skip post ${post.id} for "${target.name}": oversaturated (${post.engagement?.comments} comments)`);
+            return false;
+        }
+
         const platform = 'linkedin';
         const existingPost = await findExistingLeadPost({
             post_id: post.id,
@@ -147,6 +154,9 @@ export class TargetScraperService {
             return false;
         }
 
+        const rawContent = post.content || '';
+        const emailInContent = extractEmailFromText(rawContent);
+        const phoneInContent = extractPhoneFromText(rawContent);
         const imageUrl = post.postImages?.[0]?.url || null;
 
         try {
@@ -164,6 +174,16 @@ export class TargetScraperService {
                 },
                 posted_at: post.postedAt || {},
                 engagement: post.engagement || { likes: 0, comments: 0, shares: 0 },
+                email: emailInContent || undefined,
+                phone: phoneInContent || undefined,
+                email_source: emailInContent ? 'post_text' : undefined,
+                phone_source: phoneInContent ? 'post_text' : undefined,
+                email_status: emailInContent ? 'verified' : undefined,
+                contact_info: {
+                    ...(emailInContent ? { emails: [{ email: emailInContent, source: 'post_text', status: 'verified' }] } : {}),
+                    ...(phoneInContent ? { phone_numbers: [{ number: phoneInContent, source: 'post_text' }] } : {}),
+                },
+                enrichment_status: emailInContent || phoneInContent ? 'found' : undefined,
                 keyword: `watchlist:${target.name}`,
                 keyword_id: null,
                 status: 'pending',

@@ -114,6 +114,27 @@ function formatScrapedTime(dateStr?: string | null): { relative: string; full: s
   }
 }
 
+function formatDynamicPostedAgo(postedAt?: any, fallbackDate?: string | null): string {
+  if (!postedAt && !fallbackDate) return ''
+  let ts = postedAt?.timestamp
+  if (!ts && postedAt?.date) {
+    const parsed = new Date(postedAt.date).getTime()
+    if (!isNaN(parsed)) ts = parsed
+  }
+  if (!ts && fallbackDate) {
+    const parsed = new Date(fallbackDate).getTime()
+    if (!isNaN(parsed)) ts = parsed
+  }
+  if (ts && !isNaN(ts)) {
+    const diffMs = Date.now() - ts
+    const hours = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60)))
+    if (hours < 1) return `${Math.max(1, Math.floor(diffMs / (1000 * 60)))}m`
+    if (hours < 24) return `${hours}h`
+    return `${Math.floor(hours / 24)}d`
+  }
+  return postedAt?.postedAgoShort || ''
+}
+
 export default function AdminLeadsPage() {
   const [leads, setLeads] = useState<ExternalPost[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -1176,12 +1197,26 @@ export default function AdminLeadsPage() {
                           )
                         })()}
 
-                        {lead.posted_at?.postedAgoShort && (
+                        {(() => {
+                          const dynamicPosted = formatDynamicPostedAgo(lead.posted_at, lead.created_at)
+                          if (!dynamicPosted) return null
+                          return (
+                            <div
+                              className="px-2 py-0.5 bg-surface-elevated border border-white/[0.08] text-zinc-400 text-[8px] font-black uppercase tracking-widest rounded"
+                              title={`Original Post Date: ${lead.posted_at?.date ? new Date(lead.posted_at.date).toLocaleString() : lead.posted_at?.postedAgoText || dynamicPosted}`}
+                            >
+                              Posted: <span className="text-white">{dynamicPosted}</span>
+                            </div>
+                          )
+                        })()}
+
+                        {((lead.engagement?.likes || 0) > 0 || (lead.engagement?.comments || 0) > 0) && (
                           <div
-                            className="px-2 py-0.5 bg-surface-elevated border border-white/[0.08] text-zinc-400 text-[8px] font-black uppercase tracking-widest rounded"
-                            title={`Original Post Date: ${lead.posted_at.postedAgoText || lead.posted_at.postedAgoShort}`}
+                            className="px-2 py-0.5 bg-surface-elevated border border-white/[0.08] text-zinc-400 text-[8px] font-black uppercase tracking-widest rounded flex items-center gap-2 select-none"
+                            title={`Engagement: ${lead.engagement?.likes || 0} Likes, ${lead.engagement?.comments || 0} Comments`}
                           >
-                            Posted: <span className="text-white">{lead.posted_at.postedAgoShort}</span>
+                            <span className="text-rose-400 font-bold">❤️ {lead.engagement?.likes || 0}</span>
+                            <span className="text-sky-400 font-bold">💬 {lead.engagement?.comments || 0}</span>
                           </div>
                         )}
 

@@ -20,7 +20,8 @@ Engagement: ${post.engagement?.likes || 0} likes, ${post.engagement?.comments ||
 
 CRITICAL INSTRUCTIONS:
 - Keep all sections concise, punchy, and direct. Avoid verbose conversational filler, repetitive paragraphs, or long multi-sentence explanations.
-- Never include personal phone numbers, WhatsApp, personal emails, or private candidate info.
+- NEVER include personal phone numbers, WhatsApp, personal emails, or private candidate info.
+- NEVER mention specific company, brand, client or author name in the One-Liner, 2-Line Summary, or 4-Line Summary. Always generalize (e.g. use "A fashion startup", "A B2B commodity firm", "An e-commerce brand", "A healthcare agency").
 - Keep each bullet point to a single short, punchy sentence (under 15 words).
 
 Format the output exactly like this example structure, using professional and high-level strategic language:
@@ -28,16 +29,16 @@ Format the output exactly like this example structure, using professional and hi
 # 🔥 Lead Intelligence: [Brief Catchy Title under 7 words - e.g. "Shopify Theme Store Rebuild"]
 
 ### 🧠 One-Liner
-[Single concise sentence (max 18 words) identifying the exact target role/specialist and core deliverable without filler]
+[Single concise sentence (max 18 words) identifying the exact target role/specialist and core deliverable without filler or company names]
 
 ### 📋 2-Line Summary
-[Two concise sentences: who is looking, what they need built, and key technical context.]
+[Two concise sentences: who is looking (generalized firm/client), what they need built, and key technical context.]
 
 ### 📝 4-Line Summary
 [Four concise sentences: starts with the exact 2 sentences above, followed by 2 sentences detailing specific stack, timeline/budget, and engagement model.]
 
 ### 🏷️ Badges
-[Comma-separated list of 3-5 concise, specific technology tools, platforms, or skills required (1-3 words max per badge, e.g.: Next.js, React, TypeScript, Supabase for dev; Meta Ads, Performance Marketing for marketing; Figma, UI/UX for design).]
+[Comma-separated list of 3-5 badges: Include 1-2 audience tags (from: International, National, Agency, Freelancer, Hot Lead) plus 2-3 specific skills/tools (e.g.: International, Hot Lead, React, Node.js).]
 
 ---
 

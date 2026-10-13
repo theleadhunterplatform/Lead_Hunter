@@ -179,3 +179,21 @@ export function isPostOlderThanDays(item: any, _platform?: string, maxDays = 2):
 
     return false;
 }
+
+export function extractScrapedEngagement(item: any, _platform?: string): { likes: number; comments: number; shares: number } {
+    if (!item) return { likes: 0, comments: 0, shares: 0 };
+    const likes = Number(
+        item.numLikes ?? item.likes ?? item.favorite_count ?? item.reactionCount ?? item.likeCount ?? 0
+    );
+    const comments = Number(
+        item.numComments ?? item.comments ?? item.reply_count ?? item.commentsCount ?? item.commentCount ?? 0
+    );
+    const shares = Number(
+        item.numShares ?? item.shares ?? item.retweet_count ?? item.shareCount ?? 0
+    );
+    return {
+        likes: isNaN(likes) ? 0 : likes,
+        comments: isNaN(comments) ? 0 : comments,
+        shares: isNaN(shares) ? 0 : shares,
+    };
+}

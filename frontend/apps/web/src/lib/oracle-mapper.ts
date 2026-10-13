@@ -57,7 +57,17 @@ export function mapLeadPostToExternal(p: RawLeadPost | LeadPost): ExternalPost {
     shares?: number
   }) || {}
 
-  return {
+    const postTs = postedAt.timestamp || (postedAt.date ? new Date(postedAt.date).getTime() : p.created_at.getTime());
+    let dynamicAgoShort = postedAt.postedAgoShort || '';
+    if (postTs && !isNaN(postTs)) {
+      const diffMs = Date.now() - postTs;
+      const hours = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60)));
+      if (hours < 1) dynamicAgoShort = `${Math.max(1, Math.floor(diffMs / (1000 * 60)))}m`;
+      else if (hours < 24) dynamicAgoShort = `${hours}h`;
+      else dynamicAgoShort = `${Math.floor(hours / 24)}d`;
+    }
+
+    return {
     id: p.id,
     post_id: p.post_id,
     url: p.url,
@@ -72,9 +82,9 @@ export function mapLeadPostToExternal(p: RawLeadPost | LeadPost): ExternalPost {
     },
     posted_at: {
       date: postedAt.date || p.created_at.toISOString(),
-      timestamp: postedAt.timestamp || p.created_at.getTime(),
+      timestamp: postTs,
       postedAgoText: postedAt.postedAgoText || '',
-      postedAgoShort: postedAt.postedAgoShort || '',
+      postedAgoShort: dynamicAgoShort,
     },
     engagement: {
       likes: engagement.likes || 0,

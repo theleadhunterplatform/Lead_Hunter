@@ -102,48 +102,51 @@ function resolveNiche(
   const kw = (keyword || '').toLowerCase().replace(/^watchlist:/, '')
   const c = (content || '').toLowerCase()
   const intel = (intelligence || '').toLowerCase()
-  const text = `${kw} ${c} ${intel}`
+  // Content and AI intelligence are primary truth; kw is only a fallback if content is empty
+  const primaryText = (c || intel) ? `${c} ${intel}` : kw
+  const text = `${primaryText} ${kw}`
 
   // 1. Web Development
   const isWeb =
-    /\b(website|web app|web application|web dev|web developer|web development|frontend|front-end|backend|back-end|fullstack|full-stack|next\.?js|react|react\.?js|vue|angular|node|node\.?js|express|django|flask|laravel|php|wordpress|woocommerce|shopify|webflow|wix|html|css|javascript|typescript|tailwind|mongodb|postgres|postgresql|mysql|prisma|rest api|graphql)\b/i.test(text)
+    /\b(website|web app|web application|web dev|web developer|web development|frontend|front-end|backend|back-end|fullstack|full-stack|next\.?js|react|react\.?js|vue|angular|node|node\.?js|express|django|flask|laravel|php|wordpress|woocommerce|shopify|webflow|wix|html|css|javascript|typescript|tailwind|mongodb|postgres|postgresql|mysql|prisma|rest api|graphql)\b/i.test(primaryText)
 
   // 2. Mobile Development (strictly mobile, avoiding false positives on "web app" or "ios" in "portfolios")
   const isMobile =
-    /\b(mobile app|ios app|android app|react native|flutter|swiftui|swift developer|kotlin|xcode)\b/i.test(text) ||
-    /\b(ios developer|android developer|mobile developer|flutter developer)\b/i.test(text) ||
-    (/\b(ios|android)\b/i.test(text) && /\b(app|mobile|sdk|play store|app store)\b/i.test(text))
+    /\b(mobile app|ios app|android app|react native|flutter|swiftui|swift developer|kotlin|xcode)\b/i.test(primaryText) ||
+    /\b(ios developer|android developer|mobile developer|flutter developer)\b/i.test(primaryText) ||
+    (/\b(ios|android)\b/i.test(primaryText) && /\b(app|mobile|sdk|play store|app store)\b/i.test(primaryText))
 
   // 3. Paid Ads & Performance Marketing
   const isMarketing =
-    /\b(performance marketing|paid ads|facebook ads|meta ads|google ads|media buyer|digital marketing|ad campaign|ppc|sem|roas|social media agency|social media marketing)\b/i.test(text)
+    /\b(performance marketing|paid ads|facebook ads|meta ads|google ads|media buyer|digital marketing|ad campaign|ppc|sem|roas|social media agency|social media marketing)\b/i.test(primaryText)
 
   // 4. UI/UX Design
   const isUiUx =
-    /\b(ui\/ux|ui ux|figma|product design|landing page design|web design|ux design|ui design|wireframe|wireframing|prototype|prototyping)\b/i.test(text)
+    /\b(ui\/ux|ui ux|figma|product design|landing page design|web design|ux design|ui design|wireframe|wireframing|prototype|prototyping)\b/i.test(primaryText)
 
   // 5. Branding & Graphic Design
   const isBranding =
-    /\b(branding|brand identity|graphic design|graphic designer|logo design|magazine design|illustrator|print design|publishing studio)\b/i.test(text)
+    /\b(branding|brand identity|graphic design|graphic designer|logo design|magazine design|illustrator|print design|publishing studio)\b/i.test(primaryText)
 
   // 6. SEO & Organic Growth
   const isSeo =
-    /\b(seo|search engine optimization|organic traffic|backlinks|technical seo|link building)\b/i.test(text)
+    /\b(seo|search engine optimization|organic traffic|backlinks|technical seo|link building)\b/i.test(primaryText)
 
   // 7. Video Production & Editing
   const isVideo =
-    /\b(video edit|video editor|video editing|motion graphics|reels editor|animator|after effects|premiere pro|video production)\b/i.test(text)
+    /\b(video edit|video editor|video editing|motion graphics|reels editor|animator|after effects|premiere pro|video production)\b/i.test(primaryText)
 
   // 8. Content & Copywriting
   const isCopy =
-    /\b(copywriter|copywriting|content writer|content writing|technical writer|newsletter writer|editorial content|ghostwriter)\b/i.test(text)
+    /\b(copywriter|copywriting|content writer|content writing|technical writer|newsletter writer|editorial content|ghostwriter)\b/i.test(primaryText)
 
   // 9. AI & Automation
   const isAi =
-    /\b(ai agent|automation|n8n|zapier|make\.com|chatbot|langchain|rag|workflow automation|ai developer)\b/i.test(text)
+    /\b(ai agent|automation|n8n|zapier|make\.com|chatbot|langchain|rag|workflow automation|ai developer)\b/i.test(primaryText)
 
   // Validate or infer:
   if (isMarketing && !isWeb && !isMobile) return 'Paid Ads & Marketing'
+  if (isMarketing && (text.includes('seo') || text.includes('ads') || text.includes('marketing'))) return 'Paid Ads & Marketing'
   if (isWeb && !isMobile) return 'Web Development'
   if (isMobile && !isWeb) return 'Mobile Development'
   if (isWeb && isMobile) {

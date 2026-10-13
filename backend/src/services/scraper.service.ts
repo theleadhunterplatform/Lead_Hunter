@@ -11,8 +11,10 @@ import {
     extractScrapedPostId,
     extractScrapedUrl,
     extractScrapedPostedAt,
+    extractScrapedEngagement,
     isPostOlderThanDays,
 } from '../utils/scraped-item.utils';
+import { extractEmailFromText, extractPhoneFromText } from '../utils/lead-enrichment.utils';
 
 export class ScraperService {
     static async scrapeKeyword(keywordId: string, platform: string) {
@@ -125,6 +127,13 @@ export class ScraperService {
             return false;
         }
 
+        const engagement = extractScrapedEngagement(item, platform);
+        // Saturated post filter: Skip posts where competition is oversaturated (>100 comments)
+        if (engagement.comments > 100) {
+            console.log(`⏭️ [ScraperService] Skip ${platform}/${post_id}: oversaturated (${engagement.comments} comments)`);
+            return false;
+        }
+
         const url = extractScrapedUrl(item, platform);
         const existingPost = await findExistingLeadPost({
             post_id,
@@ -133,6 +142,9 @@ export class ScraperService {
             content,
         });
         if (existingPost) return false;
+
+        const emailInContent = extractEmailFromText(content);
+        const phoneInContent = extractPhoneFromText(content);
 
         const newPostData: any = {
             post_id,
@@ -143,7 +155,22 @@ export class ScraperService {
             raw_result: item,
             url,
             content,
+            engagement,
             posted_at: extractScrapedPostedAt(item, platform),
+            ...(emailInContent ? {
+                email: emailInContent,
+                email_source: 'post_text',
+                email_status: 'verified',
+            } : {}),
+            ...(phoneInContent ? {
+                phone: phoneInContent,
+                phone_source: 'post_text',
+            } : {}),
+            contact_info: {
+                ...(emailInContent ? { emails: [{ email: emailInContent, source: 'post_text', status: 'verified' }] } : {}),
+                ...(phoneInContent ? { phone_numbers: [{ number: phoneInContent, source: 'post_text' }] } : {}),
+            },
+            ...(emailInContent || phoneInContent ? { enrichment_status: 'found' } : {}),
         };
 
         if (platform === 'linkedin') {
