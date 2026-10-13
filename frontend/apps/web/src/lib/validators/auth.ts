@@ -88,6 +88,8 @@ export const outreachSendSchema = z.object({
 export const updateLeadSchema = z.object({
   status: z.enum(['new', 'saved', 'drafting', 'sent', 'replied', 'follow-up']).optional(),
   isSaved: z.boolean().optional(),
+  followUpCount: z.number().int().min(0).optional(),
+  logFollowUp: z.boolean().optional(),
 })
 
 export const adminNoteSchema = z.object({

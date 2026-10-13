@@ -913,13 +913,17 @@ If you run out, buy top-ups starting at ₹199. Unused credits roll over for 15 
               © 2026 Lead Hunter Club · All rights reserved.
             </div>
             <div className="flex items-center gap-6">
-              {['Privacy Policy', 'Terms of Service', 'Cookie Policy'].map((item) => (
+              {[
+                { label: 'Privacy Policy', href: '/privacy' },
+                { label: 'Terms of Service', href: '/terms' },
+                { label: 'Cookie Policy', href: '/cookies' },
+              ].map((item) => (
                 <a
-                  key={item}
-                  href="#"
+                  key={item.label}
+                  href={item.href}
                   className="inline-flex items-center min-h-[24px] text-11 font-mono text-text-secondary/60 uppercase tracking-[0.12em] hover:text-text-secondary transition-colors duration-300"
                 >
-                  {item}
+                  {item.label}
                 </a>
               ))}
             </div>

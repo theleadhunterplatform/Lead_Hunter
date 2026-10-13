@@ -129,6 +129,22 @@ export default function ComingSoon() {
           className="flex flex-col gap-1.5 border-t border-white/[0.07] py-5 text-[12.5px] text-white/40 sm:flex-row sm:items-center sm:justify-between"
         >
           <span>&copy; 2026 LeadHunterClub</span>
+          <span className="flex items-center gap-3">
+            <Link
+              href="/privacy"
+              className="hover:text-white/70 transition-colors"
+            >
+              Privacy
+            </Link>
+            <span aria-hidden>&middot;</span>
+            <Link href="/terms" className="hover:text-white/70 transition-colors">
+              Terms
+            </Link>
+            <span aria-hidden>&middot;</span>
+            <Link href="/cookies" className="hover:text-white/70 transition-colors">
+              Cookies
+            </Link>
+          </span>
           <span className="font-mono text-[10.5px] uppercase tracking-[0.2em]">
             Verified buyer intent &middot; Sales intelligence
           </span>

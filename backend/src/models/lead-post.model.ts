@@ -119,7 +119,7 @@ const LeadPost = {
         return prisma.leadPost.count({ where: buildWhere(filter) });
     },
 
-    async create(data: any) {
+    async create(data: any, options?: { throwOnDuplicate?: boolean }) {
         const existing = await findExistingLeadPost({
             post_id: data.post_id,
             platform: data.platform || 'linkedin',
@@ -127,6 +127,11 @@ const LeadPost = {
             content: data.content,
         });
         if (existing) {
+            if (options?.throwOnDuplicate) {
+                const err = new Error('Duplicate lead post');
+                (err as any).code = 'P2002';
+                throw err;
+            }
             return existing;
         }
 
@@ -169,6 +174,9 @@ const LeadPost = {
         return mapPost(post);
         } catch (error) {
             if (isDuplicateKeyError(error)) {
+                if (options?.throwOnDuplicate) {
+                    throw error;
+                }
                 const dup = await findExistingLeadPost({
                     post_id: data.post_id,
                     platform: data.platform || 'linkedin',

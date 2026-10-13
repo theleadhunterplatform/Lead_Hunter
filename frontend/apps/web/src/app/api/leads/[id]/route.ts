@@ -300,7 +300,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       )
     }
 
-    const { status, isSaved } = parsed.data
+    const { status, isSaved, followUpCount, logFollowUp } = parsed.data
     const updateData: Record<string, string | boolean> = {}
     if (status !== undefined) updateData.status = status
     if (isSaved !== undefined) updateData.isSaved = isSaved
@@ -309,6 +309,24 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       updateData.status = 'saved'
     } else if (isSaved === false && status === 'saved') {
       updateData.status = 'new'
+    }
+
+    // Handle "Log follow-up" and "Set count" actions with Prisma-specific updates
+    const followUpUpdateData: Record<string, string | boolean | number | Date | { increment: number }> = {}
+    let shouldAutoMoveToFollowUp = false
+
+    if (logFollowUp === true) {
+      followUpUpdateData.followUpCount = { increment: 1 }
+      followUpUpdateData.lastFollowUpAt = new Date()
+      // Auto-move from saved/new to follow-up status
+      const currentStatus = status ?? (isSaved === true ? 'saved' : 'new')
+      if (currentStatus === 'saved' || currentStatus === 'new') {
+        shouldAutoMoveToFollowUp = true
+        updateData.status = 'follow-up'
+      }
+    } else if (followUpCount !== undefined) {
+      followUpUpdateData.followUpCount = followUpCount
+      followUpUpdateData.lastFollowUpAt = new Date()
     }
 
     const ensureLeadRecord = async () => {
@@ -404,13 +422,18 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
           leadId: params.id,
         },
       },
-      update: updateData,
+      update: {
+        ...updateData,
+        ...followUpUpdateData,
+      },
       create: {
         userId,
         leadId: params.id,
         status: (updateData.status as string) || 'new',
         isSaved: (updateData.isSaved as boolean) || false,
-      },
+        followUpCount: followUpUpdateData.followUpCount === undefined ? 0 : (typeof followUpUpdateData.followUpCount === 'number' ? followUpUpdateData.followUpCount : 1),
+        lastFollowUpAt: followUpUpdateData.lastFollowUpAt,
+      } as any,
     })
 
     return NextResponse.json({

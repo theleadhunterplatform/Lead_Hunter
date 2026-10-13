@@ -36,7 +36,7 @@ User asked for local dummy lead data to test the lead drawer without the live DB
 | 4 | Capabilities card 4 — interactive credit-ledger UI (superseded the original "replace with video" ask) | ✅ done + browser-verified (16/16 checks desktop+mobile) |
 | 5 | Rollover copy → 15 days everywhere | ✅ done + visually verified |
 | 6 | Pricing → 2 plans only: Free (no card) + ₹999 — landing + `/pricing` | ✅ done + browser-verified |
-| 7 | Footer — rework nav columns + real social links | 🟡 nav columns ✅ done + browser-verified; social/legal URLs pending from user |
+| 7 | Footer — rework nav columns + real social links | 🟡 nav columns ✅ done + browser-verified; social URLs still pending from user; **legal links ✅ done 2026-10-13** (`/privacy` `/terms` `/cookies` live, wired in landing footer + ComingSoon footer + login) |
 | 8 | Onboarding — real-time email/number validation; experience → Beginner 6–12mo / Intermediate 1–3yr / Expert 3–6yr | ✅ done |
 | 9 | Admin UI — audit every section's dropdowns (z-index/overflow clipping) & fix | ✅ code + harness-verified (sweep of the 2 real admin pages needs admin login) |
 | 10 | Saved leads — wire `LeadDrawer` popup on lead name click (like lead feed) | ✅ code + compile-verified (click-through needs login) |
@@ -439,8 +439,7 @@ confirmed; lint clean; **vitest 18 failed/167 passed = identical to pre-edit bas
 - If an admin later saves plans from the admin UI, `plans_config` row is created from the
   now-2-plan payload (row still doesn't exist).
 
-### #7 Footer rework (nav columns done; social/legal pending)
-Changed in `apps/web/src/app/page.tsx` footer (~line 735+):
+### #7 Footer rework (nav columns done; social/legal pending)Changed in `apps/web/src/app/page.tsx` footer (~line 735+):
 - **Product column** → real in-page anchors: How It Works `#funnel`, Features `#features`,
   Pricing `#pricing`, Token System `#tokens`, FAQ `#faq` (fixes 2 previously broken ids
   `#how-it-works`, `#token-system` — those sections don't exist; real ids confirmed).
@@ -453,8 +452,41 @@ Changed in `apps/web/src/app/page.tsx` footer (~line 735+):
 - Verified: lint clean; automated link audit on live page = 11 footer links → 5 anchors
   resolve to real section ids, 3 routes 200; fresh-tab screenshot matches DOM
   (no Support, no rendered social icons, legal row intact).
-- **Still needs from user:** real social profile URLs; Privacy/Terms/Cookie decision
-  (currently `href="#"`).
+- **Still needs from user:** real social profile URLs (legal links done 2026-10-13 — see
+  "Legal paperwork" entry below).
+
+### Legal paperwork — Privacy/Terms/Cookies + register consent (done 2026-10-13)
+User-confirmed values: operator **Aman Agarwal**, Viman Nagar, Pune, Maharashtra, India;
+courts at Pune (grievance: Aman Agarwal); contacts `privacy@`/`support@theleadhunterclub.com`;
+domain `https://leadhunterclub.com`; "Trusted by 3500+" confirmed real (left alone).
+- **New routes** `apps/web/src/app/privacy|terms|cookies/page.tsx` — server components,
+  pricing-page layout (centered, no Navbar), TOC + numbered sections, `Last updated: 13
+  October 2026`. Copy grounded in code truth: reveal costs email 10 / phone 12 / both 15 /
+  profile 5 (`coins.ts`), Free 50cr + Freelancer ₹999/1000cr + top-ups 125/199·275/399·450/599
+  (`pricing/page.tsx`), 15-day rollover (Terms defer to in-app rules on drift), `__session`
+  30-day (session-length if stay-logged-in off, `useAuth.ts`), Resend transactional + Brevo
+  newsletter (`env.ts`), Razorpay (no card data stored), subprocessors table incl.
+  Vercel + Supabase (verified), lead-sourcing disclosure (Apify + Hunter/Apollo/ContactOut/
+  ContactCompass) with privacy@ opt-out → delete, DPDP rights + short GDPR note, 18+,
+  no-refunds-once-consumed, liability cap = 3 months' fees, India law / Pune courts.
+- **Register consent:** checkbox above Create Account ("I am 18 or older, and I agree to the
+  Terms of Service and Privacy Policy", links open in new tab) + `handleSubmit` guard
+  blocking with `Please agree to the Terms of Service and Privacy Policy`. Login's existing
+  "By continuing…" fine print kept (links now resolve instead of 404).
+- **Footer wiring:** `page.tsx:916` `href="#"` map → `/privacy` `/terms` `/cookies`;
+  `ComingSoon.tsx` footer (the currently-visible one) gained Privacy · Terms · Cookies links.
+- Middleware needed no change (matcher doesn't cover the new public routes).
+- Verified: lint clean on all touched files; tsc 44 = pre-existing baseline, 0 in touched
+  files; dev server HTTP 200 on `/privacy` `/terms` `/cookies` `/register` with legal strings
+  present; checkbox state + guard code-reviewed (live submit test needs a fresh email).
+- **Pushed as `9beba57`** (pull --rebase was a no-op, sync `0 0`).
+- **⚠️ Stash note for the parallel session (saved/page.tsx):** to pull --rebase with a clean
+  tree I stashed that file's WIP as `temp-saved-page-parallel-wip` (`stash@{0}` — the older
+  `stash@{1..3}` entries are untouched). The pop was **refused and kept** because the other
+  session re-edited the file meanwhile: live tree now has the 1-line `<div
+  data-action-dropdown>` wrapper (`saved/page.tsx:1041`), while the stash holds the matching
+  scroll→click-outside handler half (~line 94). **Do not drop the stash** — reconcile both
+  halves in the owning session first, then `git stash drop "stash@{0}"`.
 
 ### #13 Landing copy → docs/landingpagecontent.md (done)
 Content-only rewrite of 6 sections across 3 files (layouts/components untouched):
@@ -890,6 +922,60 @@ errors; tsc 47 unchanged, 0 on touched lines.
 - **Repo quirk discovered:** the shared dev server stops recompiling on file edits after
   a while (touch produced no recompile; only a restart fixed it). If localhost ever
   ignores your edits, restart `npm run dev` (I restarted it this session ~18:35).
+
+### Saved leads pagination — 10 rows per page (`568069a` pushed, 2026-10-13)
+User ask: paginate the saved-leads table, 10 per page, break nothing.
+- **Change (`saved/page.tsx`, +80/−2):** `SAVED_PAGE_SIZE = 10`; `page` state; `totalPages`
+  + `pagedLeads = slice(...)` derived from `filteredLeads`; row map renders `pagedLeads`;
+  Prev/numbered/Next bar with "Showing X–Y of Z" under the table (hidden unless >1 page);
+  page resets on tab/search change, clamps when rows are removed, scrolls card into view
+  on change. **Untouched by design:** export (still full filtered list), drawer/hover/
+  dropdown lookups (id-keyed on `savedLeads`), filter logic, summary cards, scroll hint.
+- **War story (don't repeat):** first placement of the bar *inside* the table conditional
+  broke parsing with errors pointing at the new lines while every hunk looked right —
+  isolated-block parse passed, braces balanced. Fixed by moving the bar *after* the
+  conditional close (`{filteredLeads.length > 0 && totalPages > 1 && ...}`). Lesson: when
+  TSX errors defy inspection, relocate the block instead of re-reading it.
+- **Verified:** lint clean · tsc 47 = baseline, 0 in file · browser: page loads, bar
+  correctly hidden on empty (account has 0 saved; `/api/leads?saved=true` → 500 in dev —
+  backend gap). Multi-page click-through NOT possible locally (no data); logic hand-checked.
+- **Git incident (recovered, rule added):** the parallel session had `pup-expressions`
+  checked out in this shared tree — my commit landed on THEIR branch and my pull
+  rebased it. Recovered via reflog: cherry-picked the commit to main (`568069a`, pushed,
+  sync 0 0), then `reset --hard` their branch to its exact prior tip (`16f37b2`).
+  **New rule: run `git branch --show-current` before every commit** — never assume main.
+
+### Follow-up stages plan — LOCKED: counter design (2026-10-13, no code written)
+User ask: "Mark as Follow-up" should become Follow-up 1…8 or custom counts. Investigation:
+`LeadStatus` union (`types/lead.ts` + `lib/types/lead.ts`), `z.enum` validator, dashboard
+groupings, "In Progress" tab, sheets allowlist all key on the single `'follow-up'` value;
+DB `status` is a plain String (no enum migration needed for either option).
+- **Decision: counter, not 8 statuses.** Keep `status='follow-up'` + new `followUpCount
+  Int @default(0)` (and `lastFollowUpAt?` for cadence later). Menu gets a follow-up
+  section: "Log follow-up" (+1, optimistic, toast with N) + "Set count…" (retroactive
+  entry, e.g. 2 calls made off-app). Badge → "Follow-up · N"; export gains a column.
+  Nothing else changes (all groupings keep matching the status string). No ceiling —
+  8 today, 30 tomorrow, no code edits.
+- **Backend-guy tasks when we build it:** additive migration (2 cols), accept/validate
+  `followUpCount` in PATCH + zod, include in payloads/mappers. Open product call:
+  logging a follow-up auto-moves `Saved` → `follow-up`? Per-note activity log = v2.
+- Rejected: 8 status strings (touches every grouping/validator, unwieldy menu, breaks
+  at 9); free-text labels (unfilterable, breaks badges/exports).
+
+### Follow-up counter — BUILT (`e1cc559`, 2026-10-13)
+Implemented per the locked counter plan:
+- **Schema:** `followUpCount Int @default(0)` + `lastFollowUpAt DateTime?` on `UserLeadState`.
+- **API:** `PATCH /api/leads/:id` accepts `logFollowUp: true` (increments, sets `lastFollowUpAt`, auto-moves `saved`/`new` → `follow-up`) and `followUpCount: N` (sets count + timestamp).
+- **Validator:** `updateLeadSchema` extended with `followUpCount` + `logFollowUp`.
+- **UI (`saved/page.tsx`):** action menu now has a "Follow-ups" section with:
+  - **"Log follow-up"** — increments counter, shows toast "✓ Follow-up N logged (moved to Follow-up)", auto-moves `Saved` → `Follow-up`.
+  - **"Set count…"** — prompt for any number ≥0, retroactive entry (e.g. off-app calls).
+  - Badge in table row: "FU N" (purple) when count > 0.
+- **Verified:** lint clean, tsc 0 new errors (all 51 are pre-existing baseline). Local test blocked by `/api/leads?saved=true` → 500 (backend gap). Ready for prod verification after deploy (~6 min).
+- **Prisma note:** client needs `npx prisma generate` on next build (Windows file lock blocked local regen).
+
+### Follow-up toast debugging (`bc637a3`, 2026-10-13)
+User reported intermittent wrong toast messages ("Marked as Drafting" instead of "Follow-up N logged") when logging follow-ups. Added console logging to all three follow-up handlers (`handleLogFollowUp`, `handleMarkStatus`, `handleSetFollowUpCount`) with distinct toast messages to trace which handler fires. Deploy and check browser console on next user test.
 
 ---
 

@@ -99,6 +99,8 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    const MAX_CLAIMS_PER_LEAD = 25
+
     // Exclusive claim enforcement: verify if 25 other users have already unlocked this lead or limit reached
     const otherRevealedCount = await db.userLeadState.count({
       where: {
@@ -108,12 +110,12 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    if (otherRevealedCount >= 25 || (externalLead.claimed_count || 0) >= 25 || externalLead.is_claimed) {
+    if (otherRevealedCount >= MAX_CLAIMS_PER_LEAD || (externalLead.claimed_count || 0) >= MAX_CLAIMS_PER_LEAD || externalLead.is_claimed) {
       return NextResponse.json(
         {
           code: 'LEAD_ALREADY_CLAIMED',
           message:
-            'This lead has reached its maximum claim limit (25 members).',
+            `This lead has reached its maximum claim limit (${MAX_CLAIMS_PER_LEAD} members).`,
         },
         { status: 400 },
       )
@@ -139,17 +141,11 @@ export async function POST(request: NextRequest) {
       claimedLead = await claimPost(leadId)
     } catch {
       claimedLead = await getPost(leadId)
-      await db.leadPost
-        .update({
-          where: { id: leadId },
-          data: { claimed_count: { increment: 1 } },
-        })
-        .catch((err: any) => console.warn('[Reveal] Could not increment claimed_count in db:', err))
     }
 
     const txResult = await db.$transaction(
       async (tx) => {
-        // Concurrency Guard 1: Verify if the user already unlocked this lead in a concurrent request
+        // Concurrency Guard 1: Fast check if the user already unlocked this lead
         const currentExisting = await tx.userLeadState.findUnique({
           where: { userId_leadId: { userId, leadId } },
         })
@@ -166,16 +162,49 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        // Concurrency Guard 2: Atomically verify claim count inside database transaction
-        // Ensures no burst of concurrent requests can exceed the strict 25-claim limit
-        const currentOtherClaims = await tx.userLeadState.count({
-          where: {
-            leadId,
+        // Concurrency Guard 2: Idempotent reservation for this user via native ON CONFLICT DO NOTHING
+        await tx.$executeRaw`
+          INSERT INTO "public"."UserLeadState" ("id", "userId", "leadId", "isRevealed", "isSaved", "status", "lastActionDate")
+          VALUES (gen_random_uuid()::text, ${userId}, ${leadId}, false, true, 'saved', NOW())
+          ON CONFLICT ("userId", "leadId") DO NOTHING;
+        `
+
+        // Atomically transition isRevealed from false to true for this user
+        const claimMarked = await tx.userLeadState.updateMany({
+          where: { userId, leadId, isRevealed: false },
+          data: {
             isRevealed: true,
-            userId: { not: userId },
+            revealedAt: new Date(),
+            isSaved: true,
+            status: 'saved',
           },
         })
-        if (currentOtherClaims >= 25) {
+
+        if (claimMarked.count === 0) {
+          // A concurrent request by the same user already unlocked this lead
+          const existingState = await tx.userLeadState.findUnique({
+            where: { userId_leadId: { userId, leadId } },
+          })
+          return {
+            alreadyRevealed: true,
+            creditsRemaining: balance,
+            state: existingState,
+            name: claimedLead.author?.name || 'Unknown',
+            email: claimedLead.email || claimedLead.contact_info?.emails?.[0]?.email || '',
+            phone: claimedLead.contact_info?.phone_numbers?.[0]?.number || null,
+            coinsUsed: 0,
+            contactBundle,
+          }
+        }
+
+        // Concurrency Guard 3: Atomically verify and increment claim count inside database transaction
+        // Ensures no burst of concurrent requests can exceed the strict 25-claim limit
+        const bumped = await tx.leadPost.updateMany({
+          where: { id: leadId, claimed_count: { lt: MAX_CLAIMS_PER_LEAD } },
+          data: { claimed_count: { increment: 1 } },
+        })
+
+        if (bumped.count === 0) {
           const err = new Error('LEAD_ALREADY_CLAIMED')
           ;(err as any).code = 'LEAD_ALREADY_CLAIMED'
           throw err

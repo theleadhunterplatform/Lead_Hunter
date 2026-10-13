@@ -38,9 +38,14 @@ const LeadDrawer = dynamic(() => import('../leads/components/LeadDrawer'), {
   ssr: false,
 })
 
+// One page of the saved-leads table. Export always uses the full filtered
+// list — this only controls how many rows render at once.
+const SAVED_PAGE_SIZE = 10
+
 export default function SavedLeadsPage() {
   const [activeTab, setActiveTab] = useState('All Leads')
   const [searchTerm, setSearchTerm] = useState('')
+  const [page, setPage] = useState(1)
   const [savedLeads, setSavedLeads] = useState<AppLead[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null)
@@ -54,6 +59,7 @@ export default function SavedLeadsPage() {
   )
   const actionBtnRefs = useRef(new Map<string, HTMLButtonElement>())
   const mainRef = useRef<HTMLElement | null>(null)
+  const tableCardRef = useRef<HTMLDivElement | null>(null)
   const { addToast } = useToast()
 
   const toggleActionMenu = (leadId: string) => {
@@ -88,11 +94,18 @@ export default function SavedLeadsPage() {
       setOpenActionDropdownId(null)
       setMenuPos(null)
     }
-    window.addEventListener('scroll', close, true)
     window.addEventListener('resize', close)
+    // Use click-outside instead of scroll to avoid closing when scrolling inside dropdown
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement
+      if (!target.closest('[data-action-dropdown]')) {
+        close()
+      }
+    }
+    setTimeout(() => window.addEventListener('click', handleClickOutside), 0)
     return () => {
-      window.removeEventListener('scroll', close, true)
       window.removeEventListener('resize', close)
+      window.removeEventListener('click', handleClickOutside)
     }
   }, [openActionDropdownId])
 
@@ -321,6 +334,7 @@ export default function SavedLeadsPage() {
   ]
 
   const handleMarkStatus = async (leadId: string, status: string, label: string) => {
+    console.log('[handleMarkStatus]', { leadId, status, label })
     // 1. Optimistic UI update (instant response)
     const prevLeads = savedLeads
     setSavedLeads((prev) =>
@@ -346,6 +360,87 @@ export default function SavedLeadsPage() {
     } catch {
       setSavedLeads(prevLeads)
       addToast({ type: 'error', message: 'Failed to update status' })
+    }
+  }
+
+  // --- Follow-up counter actions ---
+  const handleLogFollowUp = async (leadId: string) => {
+    const lead = savedLeads.find((l) => l.id === leadId)
+    if (!lead) return
+    const currentCount = lead.followUpCount ?? 0
+    const newCount = currentCount + 1
+    const wasSaved = lead.status === 'saved' || lead.status === 'new'
+    const newStatus = wasSaved ? 'follow-up' : lead.status
+    const prevLeads = savedLeads
+
+    // Optimistic UI
+    setSavedLeads((prev) =>
+      prev.map((l) =>
+        l.id === leadId
+          ? { ...l, followUpCount: newCount, lastFollowUpAt: new Date().toISOString(), status: newStatus }
+          : l,
+      ),
+    )
+    const msg = `✓ Follow-up ${newCount} logged${wasSaved ? ' (moved to Follow-up)' : ''}`
+    console.log('[handleLogFollowUp]', { leadId, currentCount, newCount, wasSaved, newStatus, msg })
+    addToast({ type: 'success', message: msg })
+
+    // Background sync
+    try {
+      const token = await getFirebaseToken()
+      const res = await fetch(`/api/leads/${leadId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ logFollowUp: true }),
+      })
+      if (!res.ok) {
+        setSavedLeads(prevLeads)
+        addToast({ type: 'error', message: 'Failed to log follow-up on server' })
+      }
+    } catch {
+      setSavedLeads(prevLeads)
+      addToast({ type: 'error', message: 'Failed to log follow-up' })
+    }
+  }
+
+  const handleSetFollowUpCount = async (leadId: string, count: number) => {
+    console.log('[handleSetFollowUpCount]', { leadId, count })
+    if (count < 0) return
+    const lead = savedLeads.find((l) => l.id === leadId)
+    if (!lead) return
+    const prevLeads = savedLeads
+
+    // Optimistic UI
+    setSavedLeads((prev) =>
+      prev.map((l) =>
+        l.id === leadId
+          ? { ...l, followUpCount: count, lastFollowUpAt: new Date().toISOString() }
+          : l,
+      ),
+    )
+    addToast({ type: 'success', message: `✓ Follow-up count set to ${count}` })
+
+    // Background sync
+    try {
+      const token = await getFirebaseToken()
+      const res = await fetch(`/api/leads/${leadId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ followUpCount: count }),
+      })
+      if (!res.ok) {
+        setSavedLeads(prevLeads)
+        addToast({ type: 'error', message: 'Failed to set follow-up count on server' })
+      }
+    } catch {
+      setSavedLeads(prevLeads)
+      addToast({ type: 'error', message: 'Failed to set follow-up count' })
     }
   }
 
@@ -523,6 +618,34 @@ export default function SavedLeadsPage() {
     return true
   })
 
+  // --- Pagination: 10 rows per page. Export/drawer/hover keep using the full
+  // filtered list — only the rendered rows are sliced.
+  const totalPages = Math.max(1, Math.ceil(filteredLeads.length / SAVED_PAGE_SIZE))
+  const pagedLeads = filteredLeads.slice((page - 1) * SAVED_PAGE_SIZE, page * SAVED_PAGE_SIZE)
+  const pageStart = filteredLeads.length === 0 ? 0 : (page - 1) * SAVED_PAGE_SIZE + 1
+  const pageEnd = Math.min(page * SAVED_PAGE_SIZE, filteredLeads.length)
+  const pageNumbers = (() => {
+    const maxButtons = 5
+    const end = Math.min(totalPages, Math.max(page + Math.floor(maxButtons / 2), maxButtons))
+    const start = Math.max(1, end - maxButtons + 1)
+    return Array.from({ length: end - start + 1 }, (_, i) => start + i)
+  })()
+
+  const goToPage = (p: number) => {
+    setPage(Math.min(Math.max(1, p), totalPages))
+    tableCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  // Back to first page whenever the view changes
+  useEffect(() => {
+    setPage(1)
+  }, [activeTab, searchTerm])
+
+  // Clamp when the list shrinks (e.g. removing the last row of the last page)
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages)
+  }, [page, totalPages])
+
   const statusBadgeColor: Record<string, 'mint' | 'purple'> = {
     new: 'mint',
     saved: 'mint',
@@ -676,7 +799,7 @@ export default function SavedLeadsPage() {
         </div>
 
         {/* Pipeline Table */}
-        <div className="metallic-card min-h-[420px] pb-16">
+        <div ref={tableCardRef} className="metallic-card min-h-[420px] pb-16">
           {filteredLeads.length === 0 && !loading && (
             <div className="p-12 text-center">
               <p className="text-text-secondary text-sm">No leads match this view.</p>
@@ -710,7 +833,7 @@ export default function SavedLeadsPage() {
                 </div>
 
                 <div className="divide-y divide-white/[0.03]">
-                  {filteredLeads.map((lead) => {
+                  {pagedLeads.map((lead) => {
                     const isDropdownOpen = openActionDropdownId === lead.id
 
                     return (
@@ -782,7 +905,7 @@ export default function SavedLeadsPage() {
                         </div>
 
                         <div className="col-span-2">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <Badge
                               size="sm"
                               color={
@@ -793,6 +916,11 @@ export default function SavedLeadsPage() {
                             >
                               {lead.urgency}
                             </Badge>
+                            {(lead.followUpCount ?? 0) > 0 && (
+                              <Badge size="sm" color="purple">
+                                FU {lead.followUpCount}
+                              </Badge>
+                            )}
                             {lead.replyProbability > 0 && (
                               <span className="text-xxs text-text-secondary">
                                 {lead.replyProbability}%
@@ -838,18 +966,18 @@ export default function SavedLeadsPage() {
                             })()}
 
                             {isDropdownOpen && menuPos && createPortal(
-                              <>
-                                <div
-                                  className="fixed inset-0 z-50 cursor-default"
-                                  onClick={() => {
-                                    setOpenActionDropdownId(null)
-                                    setMenuPos(null)
-                                  }}
-                                />
+                              <div
+                                className="fixed inset-0 z-50 cursor-default"
+                                onClick={() => {
+                                  setOpenActionDropdownId(null)
+                                  setMenuPos(null)
+                                }}
+                              >
                                 <div
                                   role="menu"
                                   style={{ top: menuPos.top, left: menuPos.left }}
-                                  className="fixed w-52 max-h-[380px] overflow-y-auto rounded-2xl bg-surface-elevated/95 border border-white/10 shadow-2xl shadow-black/80 py-2 z-50 text-left backdrop-blur-xl"
+                                  className="fixed w-52 max-h-[380px] overflow-y-auto scrollbar-hide rounded-2xl bg-surface-elevated/95 border border-white/10 shadow-2xl shadow-black/80 py-2 z-50 text-left backdrop-blur-xl"
+                                  onClick={(e) => e.stopPropagation()}
                                 >
                                 <div className="px-3 pb-1 pt-0.5 text-[10px] font-bold uppercase tracking-wider text-text-secondary/70">
                                   Stage / Status
@@ -918,26 +1046,57 @@ export default function SavedLeadsPage() {
                                   )}
                                 </button>
 
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    handleMarkStatus(lead.id, 'follow-up', 'Follow-up')
-                                    setOpenActionDropdownId(null)
-                                  }}
-                                  className={`w-full flex items-center justify-between px-3 py-2.5 text-xs transition-colors hover:bg-white/5 ${
-                                    lead.status === 'follow-up'
-                                      ? 'text-primary font-semibold bg-primary/10'
-                                      : 'text-text-primary'
-                                  }`}
-                                >
-                                  <span className="flex items-center gap-2">
-                                    <ArrowPathIcon className={`w-3.5 h-3.5 shrink-0 ${lead.status === 'follow-up' ? 'text-primary' : 'text-text-secondary'}`} />
-                                    Mark as Follow-up
-                                  </span>
-                                  {lead.status === 'follow-up' && (
-                                    <CheckIcon className="w-3.5 h-3.5 text-primary" />
-                                  )}
-                                </button>
+                                {(() => {
+                                  const currentCount = lead.followUpCount ?? 0
+                                  return (
+                                    <div data-action-dropdown className="scrollbar-hide max-h-[380px] overflow-y-auto">
+                                      <div className="px-3 pb-1 pt-0.5 text-[10px] font-bold uppercase tracking-wider text-text-secondary/70">
+                                        Follow-ups
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          handleLogFollowUp(lead.id)
+                                          setOpenActionDropdownId(null)
+                                        }}
+                                        className="w-full flex items-center justify-between px-3 py-2.5 text-xs text-text-primary hover:bg-white/5 transition-colors"
+                                      >
+                                        <span className="flex items-center gap-2">
+                                          <ArrowPathIcon className="w-3.5 h-3.5 shrink-0 text-primary" />
+                                          <span>Log follow-up</span>
+                                          {currentCount > 0 && (
+                                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-primary/10 text-primary">
+                                              {currentCount}
+                                            </span>
+                                          )}
+                                        </span>
+                                        <span className="text-[10px] text-text-secondary/50">+1</span>
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const current = lead.followUpCount ?? 0
+                                          const input = prompt(`Set follow-up count (current: ${current}):`, String(current))
+                                          if (input !== null) {
+                                            const n = parseInt(input, 10)
+                                            if (!isNaN(n) && n >= 0) {
+                                              handleSetFollowUpCount(lead.id, n)
+                                            }
+                                          }
+                                          setOpenActionDropdownId(null)
+                                        }}
+                                        className="w-full flex items-center justify-between px-3 py-2.5 text-xs text-text-secondary hover:bg-white/5 transition-colors"
+                                      >
+                                        <span className="flex items-center gap-2">
+                                          <ArrowPathIcon className="w-3.5 h-3.5 shrink-0 text-text-secondary" />
+                                          Set count
+                                        </span>
+                                        <span className="text-[10px] text-text-secondary/50">Custom</span>
+                                      </button>
+<div className="h-px bg-white/[0.08] my-1" />
+                                    </div>
+                                  )
+                                  })()}
 
                                 <button
                                   type="button"
@@ -1008,7 +1167,7 @@ export default function SavedLeadsPage() {
                                   Remove from Saved
                                 </button>
                                 </div>
-                              </>,
+                              </div>,
                               document.body,
                             )}
                           </div>
@@ -1020,6 +1179,50 @@ export default function SavedLeadsPage() {
               </div>
             </div>
           )}
+          {filteredLeads.length > 0 && totalPages > 1 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 sm:px-8 py-5 border-t border-white/[0.05]">
+                <p className="text-xs text-text-secondary">
+                  Showing <span className="font-bold text-text-primary">{pageStart}–{pageEnd}</span>{' '}
+                  of <span className="font-bold text-text-primary">{filteredLeads.length}</span> leads
+                </p>
+                <div className="flex items-center gap-1.5" role="navigation" aria-label="Saved leads pages">
+                  <button
+                    type="button"
+                    onClick={() => goToPage(page - 1)}
+                    disabled={page === 1}
+                    aria-label="Previous page"
+                    className="min-h-[44px] px-4 rounded-xl text-xs font-bold border transition-all bg-white/5 border-white/10 text-text-secondary hover:text-text-primary hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white/5 disabled:hover:text-text-secondary"
+                  >
+                    Prev
+                  </button>
+                  {pageNumbers.map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => goToPage(n)}
+                      aria-label={`Page ${n}`}
+                      aria-current={n === page ? 'page' : undefined}
+                      className={`min-h-[44px] min-w-[44px] px-3 rounded-xl text-xs font-bold border transition-all ${
+                        n === page
+                          ? 'bg-accent-purple text-text-on-accent border-transparent shadow-lg'
+                          : 'bg-white/5 border-white/10 text-text-secondary hover:text-text-primary hover:bg-white/10'
+                      }`}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => goToPage(page + 1)}
+                    disabled={page === totalPages}
+                    aria-label="Next page"
+                    className="min-h-[44px] px-4 rounded-xl text-xs font-bold border transition-all bg-white/5 border-white/10 text-text-secondary hover:text-text-primary hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white/5 disabled:hover:text-text-secondary"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
 
           {loading && <CustomLoader page="saved" />}
           {!loading && savedLeads.length === 0 && (

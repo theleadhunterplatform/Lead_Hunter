@@ -163,14 +163,16 @@ model Lead {
 }
 
 model UserLeadState {
-  id             String    @id @default(uuid())
-  userId         String
-  leadId         String
-  isSaved        Boolean   @default(false)
-  isRevealed     Boolean   @default(false)
-  status         String    @default("new")
-  revealedAt     DateTime?
-  lastActionDate DateTime? @updatedAt
+  id              String    @id @default(uuid())
+  userId          String
+  leadId          String
+  isSaved         Boolean   @default(false)
+  isRevealed      Boolean   @default(false)
+  status          String    @default("new")
+  followUpCount   Int       @default(0)
+  lastFollowUpAt  DateTime?
+  revealedAt      DateTime?
+  lastActionDate  DateTime? @updatedAt
 
   user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   lead           LeadPost  @relation(fields: [leadId], references: [id], onDelete: Cascade)

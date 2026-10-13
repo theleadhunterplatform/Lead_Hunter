@@ -263,10 +263,9 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search')
     const niche = searchParams.get('niche')
     const page = parseInt(searchParams.get('page') || '1', 10)
-    const pageSize = parseInt(searchParams.get('pageSize') || '20', 10)
-
     const isSavedView = saved === 'true'
     const isOutreachView = saved === 'outreach'
+    const pageSize = parseInt(searchParams.get('pageSize') || (isSavedView ? '100' : '20'), 10)
 
     let data: AppLead[]
 
@@ -275,6 +274,7 @@ export async function GET(request: NextRequest) {
         where: isSavedView
           ? { userId, OR: [{ isSaved: true }, { isRevealed: true }, { status: 'saved' }] }
           : { userId, status: { in: ['drafting', 'sent', 'replied', 'follow-up'] } },
+        orderBy: [{ lastActionDate: 'desc' }, { revealedAt: 'desc' }],
         include: { lead: { select: LEAD_POST_SELECT } },
       })
 

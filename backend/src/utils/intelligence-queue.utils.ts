@@ -33,10 +33,10 @@ async function removeStaleIntelJob(postId: string) {
     }
 }
 
-export async function enqueueLeadIntelligence(postId: string, _options?: { force?: boolean }) {
+export async function enqueueLeadIntelligence(postId: string, options?: { force?: boolean }) {
     await removeStaleIntelJob(postId);
 
-    const jobId = `intel-${postId}-${Date.now()}`;
+    const jobId = options?.force ? `intel-${postId}-${Date.now()}` : `intel-${postId}`;
 
     await intelligenceQueue.add(
         jobId,

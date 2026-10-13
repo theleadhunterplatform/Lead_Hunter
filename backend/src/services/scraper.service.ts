@@ -205,7 +205,7 @@ export class ScraperService {
         }
 
         try {
-            const saved = await LeadPost.create(newPostData);
+            const saved = await LeadPost.create(newPostData, { throwOnDuplicate: true });
             if (saved?._id) {
                 await enqueueLeadQualification(saved._id.toString());
             }

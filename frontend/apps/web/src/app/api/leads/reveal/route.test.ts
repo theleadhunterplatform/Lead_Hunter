@@ -20,8 +20,9 @@ vi.mock('@/lib/auth', () => ({
 vi.mock('@/lib/db', () => ({
   db: {
     $transaction: vi.fn((fn: (tx: unknown) => unknown) => fn(fakeTx)),
-    userLeadState: { findUnique: vi.fn() },
+    userLeadState: { findUnique: vi.fn(), count: vi.fn().mockResolvedValue(0) },
     lead: { upsert: vi.fn() },
+    leadPost: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
   },
 }))
 
@@ -91,9 +92,16 @@ beforeEach(() => {
   vi.mocked(rateLimitByKey).mockResolvedValue({ allowed: true, remaining: 29, resetAt: 0 })
   vi.mocked(db.userLeadState.findUnique).mockResolvedValue(null as never)
   fakeTx = {
-    $executeRaw: vi.fn().mockResolvedValue([{}]),
+    $executeRaw: vi.fn().mockResolvedValue(1),
     lead: { upsert: vi.fn().mockResolvedValue({}) },
-    userLeadState: { upsert: vi.fn().mockResolvedValue({}) },
+    userLeadState: {
+      findUnique: vi.fn().mockResolvedValue(null),
+      upsert: vi.fn().mockResolvedValue({}),
+      updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+    },
+    leadPost: {
+      updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+    },
     creditAccount: {
       findUnique: vi.fn().mockResolvedValue({
         subscriptionBalance: 100,

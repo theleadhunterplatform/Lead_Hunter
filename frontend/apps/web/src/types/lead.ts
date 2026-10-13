@@ -42,6 +42,8 @@ export interface AppLead {
   approvedAt?: string | null
   claimedCount?: number
   creditCost?: number | null
+  followUpCount?: number
+  lastFollowUpAt?: string
   engagement?: {
     likes?: number
     comments?: number
