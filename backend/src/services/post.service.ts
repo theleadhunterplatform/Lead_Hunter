@@ -77,11 +77,15 @@ export function buildLeadListFilter(query: {
     }
 
     if (query.search) {
+        const s = query.search.trim();
         filter.$or = [
-            { 'author.name': { $regex: query.search, $options: 'i' } },
-            { 'author.handle': { $regex: query.search, $options: 'i' } },
-            { content: { $regex: query.search, $options: 'i' } },
-            { keyword: { $regex: query.search, $options: 'i' } },
+            { 'author.name': { $regex: s, $options: 'i' } },
+            { 'author.handle': { $regex: s, $options: 'i' } },
+            { content: { $regex: s, $options: 'i' } },
+            { title: { $regex: s, $options: 'i' } },
+            { email: { $regex: s, $options: 'i' } },
+            { url: { $regex: s, $options: 'i' } },
+            { keyword: { $regex: s, $options: 'i' } },
         ];
     }
 
@@ -650,13 +654,17 @@ export const getAllPosts = async (currentUser: any, query: {
         }
     }
 
-    // Search logic (author name, content, or keyword)
+    // Search logic (author name, handle, content, title, email, url, or keyword)
     if (query.search) {
+        const s = query.search.trim();
         filter.$or = [
-            { 'author.name': { $regex: query.search, $options: 'i' } },
-            { 'author.handle': { $regex: query.search, $options: 'i' } },
-            { content: { $regex: query.search, $options: 'i' } },
-            { keyword: { $regex: query.search, $options: 'i' } }
+            { 'author.name': { $regex: s, $options: 'i' } },
+            { 'author.handle': { $regex: s, $options: 'i' } },
+            { content: { $regex: s, $options: 'i' } },
+            { title: { $regex: s, $options: 'i' } },
+            { email: { $regex: s, $options: 'i' } },
+            { url: { $regex: s, $options: 'i' } },
+            { keyword: { $regex: s, $options: 'i' } },
         ];
     }
 

@@ -1101,16 +1101,28 @@ export default function AdminLeadsPage() {
         <div className="h-[1px] flex-1 bg-white/[0.06]" />
       </div>
 
-      <form onSubmit={handleSearch} className="bg-surface/40 backdrop-blur-xl border border-white/[0.06] rounded-2xl p-6 mb-10 flex flex-col md:flex-row gap-6">
-        <div className="flex-1">
+      <form onSubmit={handleSearch} className="bg-surface/40 backdrop-blur-xl border border-white/[0.06] rounded-2xl p-6 mb-10 flex flex-col md:flex-row gap-4">
+        <div className="flex-1 flex items-center gap-2 bg-surface-elevated border border-white/5 rounded-xl px-4 py-1.5 focus-within:ring-1 focus-within:ring-accent-mint/50 transition-all">
           <input
-            placeholder="Search by name, keyword, or content..."
+            placeholder="Search by name, email, title, keyword, or content..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all px-4 py-2.5 text-sm"
+            className="w-full bg-transparent text-white outline-none text-sm placeholder:text-zinc-500"
           />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchQuery('')
+                fetchLeads(1, activeTab, '')
+              }}
+              className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-zinc-300 hover:text-white text-xs font-semibold transition-all flex-shrink-0"
+            >
+              Clear
+            </button>
+          )}
         </div>
-        <button type="submit" className="md:w-32 h-10 rounded-xl bg-accent-mint text-black text-xs font-black uppercase hover:bg-accent-mint/80 transition-all">
+        <button type="submit" className="md:w-32 h-11 rounded-xl bg-accent-mint text-black text-xs font-black uppercase hover:bg-accent-mint/80 transition-all flex-shrink-0">
           Search
         </button>
       </form>
@@ -1121,10 +1133,41 @@ export default function AdminLeadsPage() {
             Loading Posts...
           </div>
         ) : leads.length === 0 ? (
-          <div className="text-center py-20 bg-surface/40 backdrop-blur-xl border border-white/[0.06] rounded-2xl border-dashed">
-            <p className="text-zinc-500 font-bold uppercase tracking-widest">
+          <div className="text-center py-16 bg-surface/40 backdrop-blur-xl border border-white/[0.06] rounded-2xl border-dashed px-4">
+            <p className="text-zinc-400 font-bold uppercase tracking-widest text-sm">
               No posts found matching your criteria.
             </p>
+            {searchQuery && (
+              <p className="text-zinc-500 text-xs mt-1">
+                Searched for &ldquo;{searchQuery}&rdquo; {activeTab !== 'all' ? `in the ${activeTab.toUpperCase()} tab` : ''}
+              </p>
+            )}
+            <div className="flex items-center justify-center gap-3 mt-4 flex-wrap">
+              {searchQuery && activeTab !== 'all' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('all')
+                    fetchLeads(1, 'all', searchQuery)
+                  }}
+                  className="px-4 py-2 rounded-xl bg-accent-mint/15 text-accent-mint border border-accent-mint/30 hover:bg-accent-mint hover:text-black text-xs font-black uppercase transition-all"
+                >
+                  Search across ALL LEADS instead
+                </button>
+              )}
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery('')
+                    fetchLeads(1, activeTab, '')
+                  }}
+                  className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-zinc-300 hover:text-white text-xs font-bold uppercase transition-all"
+                >
+                  Clear Search Filter
+                </button>
+              )}
+            </div>
           </div>
         ) : (
           <AnimatePresence mode="popLayout">

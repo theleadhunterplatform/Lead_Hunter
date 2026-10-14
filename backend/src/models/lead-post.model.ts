@@ -13,6 +13,15 @@ function mapSearchOrClause(clause: any) {
     if (clause.content?.$regex) {
         part.content = { contains: clause.content.$regex, mode: 'insensitive' };
     }
+    if (clause.title?.$regex) {
+        part.title = { contains: clause.title.$regex, mode: 'insensitive' };
+    }
+    if (clause.email?.$regex) {
+        part.email = { contains: clause.email.$regex, mode: 'insensitive' };
+    }
+    if (clause.url?.$regex) {
+        part.url = { contains: clause.url.$regex, mode: 'insensitive' };
+    }
     if (clause.keyword?.$regex) {
         part.keyword = { contains: clause.keyword.$regex, mode: 'insensitive' };
     }
