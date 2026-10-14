@@ -161,7 +161,7 @@ function externalPostToAppLead(
     creditCost: (post as any).credit_cost ?? null,
     revealCost: effectiveClaimedByOther ? null : getLeadRevealCost(post),
     phone: isRevealed ? phone : null,
-    engagement: (post as any).engagement || { likes: 0, comments: 0 },
+    engagement: { likes: 0, comments: 0 },
   }
 }
 

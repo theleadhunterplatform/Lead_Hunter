@@ -66,6 +66,10 @@ export function presentLeadForUser(
         if (redactedPost.source_profile) redactedPost.source_profile = 'locked';
     }
 
+    if (!isInternal) {
+        redactedPost.engagement = { likes: 0, comments: 0, shares: 0 };
+    }
+
     return redactedPost;
 }
 

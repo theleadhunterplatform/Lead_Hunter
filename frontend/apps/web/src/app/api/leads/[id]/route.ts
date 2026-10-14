@@ -245,7 +245,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       revealCost: isClaimedByOther ? null : getLeadRevealCost(externalLead),
       phone: isRevealed ? phone : null,
       claimedCount: totalClaims,
-      engagement: (externalLead as any).engagement || { likes: 0, comments: 0 },
+      engagement: { likes: 0, comments: 0 },
     }
 
     return NextResponse.json({ data: lead })

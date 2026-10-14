@@ -29,6 +29,7 @@ export function sanitizeContactFields(
                     company_name: post.contact_info.company_name,
                     linkedin_public_id: post.contact_info.linkedin_public_id,
                     phone_numbers: post.contact_info.phone_numbers,
+                    profile_url: post.contact_info.profile_url,
                 }
                 : null,
         };

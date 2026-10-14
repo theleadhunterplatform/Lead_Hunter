@@ -902,7 +902,16 @@ export const verifyLeadEmail = async (id: string) => verifyLeadEmailManually(id)
 
 export const setManualLeadContact = async (
     id: string,
-    data: { email?: string; phone?: string; note?: string; credit_cost?: number | null; creditCost?: number | null },
+    data: {
+        email?: string;
+        phone?: string;
+        profile_url?: string;
+        profileUrl?: string;
+        authorUrl?: string;
+        note?: string;
+        credit_cost?: number | null;
+        creditCost?: number | null;
+    },
     actorId: string,
     audit?: { ipAddress?: string; organizationId?: string }
 ) => {
@@ -917,6 +926,7 @@ export const setManualLeadContact = async (
         details: {
             email: data.email?.trim() || null,
             phone: data.phone?.trim() ? '[redacted]' : null,
+            profile_url: (data.profile_url || data.profileUrl || data.authorUrl)?.trim() || null,
             note: data.note?.trim() || null,
             credit_cost: data.credit_cost ?? data.creditCost ?? null,
         },

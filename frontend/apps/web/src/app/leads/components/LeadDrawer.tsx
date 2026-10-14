@@ -417,12 +417,6 @@ export default function LeadDrawer({
                 High win odds
               </span>
             )}
-            {((lead.engagement?.likes || 0) > 0 || (lead.engagement?.comments || 0) > 0) && (
-              <span className="inline-flex items-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.04] px-2.5 py-1 text-text-secondary select-none">
-                {(lead.engagement?.likes || 0) > 0 && <span className="text-rose-400 font-semibold">❤️ {lead.engagement?.likes}</span>}
-                {(lead.engagement?.comments || 0) > 0 && <span className="text-sky-400 font-semibold">💬 {lead.engagement?.comments} comments</span>}
-              </span>
-            )}
           </div>
         </div>
 

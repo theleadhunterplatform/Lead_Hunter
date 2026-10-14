@@ -266,13 +266,14 @@ export const verifyEmailPost = asyncHandler(async (req: Request, res: Response, 
 export const setManualLeadContactPost = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
     const user = req.user as any;
     const orgId = req.headers['x-org-id'] as string | undefined;
-    const { email, phone, note, credit_cost, creditCost } = req.body ?? {};
+    const { email, phone, profile_url, profileUrl, authorUrl, note, credit_cost, creditCost } = req.body ?? {};
 
     const post = await postService.setManualLeadContact(
         req.params.id as string,
         {
             email,
             phone,
+            profile_url: (profile_url || profileUrl || authorUrl)?.trim() || undefined,
             note,
             credit_cost: typeof credit_cost === 'number' ? credit_cost : typeof creditCost === 'number' ? creditCost : (credit_cost === null || creditCost === null ? null : undefined),
         },

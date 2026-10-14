@@ -6,6 +6,7 @@ import {
   XMarkIcon,
   EnvelopeIcon,
   PhoneIcon,
+  LinkIcon,
   DocumentTextIcon,
 } from '@heroicons/react/24/solid'
 import { Loader2, ClipboardPaste } from 'lucide-react'
@@ -28,6 +29,7 @@ export default function ManualContactModal({
 }: ManualContactModalProps) {
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
+  const [profileUrl, setProfileUrl] = useState('')
   const [note, setNote] = useState('Found manually on ContactOut')
   const [creditCost, setCreditCost] = useState<string>('')
   const [isSaving, setIsSaving] = useState(false)
@@ -38,6 +40,7 @@ export default function ManualContactModal({
     if (!isOpen || !lead) return
     setEmail(lead.email || lead.contact_info?.emails?.[0]?.email || '')
     setPhone(lead.contact_info?.phone_numbers?.[0]?.number || '')
+    setProfileUrl(lead.contact_info?.profile_url || lead.author?.url || '')
     setNote('Found manually on ContactOut')
     setCreditCost(
       lead.credit_cost !== null && lead.credit_cost !== undefined
@@ -53,8 +56,9 @@ export default function ManualContactModal({
 
     const trimmedEmail = email.trim()
     const trimmedPhone = phone.trim()
-    if (!trimmedEmail && !trimmedPhone) {
-      setError('Enter at least an email or phone number.')
+    const trimmedProfileUrl = profileUrl.trim()
+    if (!trimmedEmail && !trimmedPhone && !trimmedProfileUrl) {
+      setError('Enter at least an email, phone number, or profile link.')
       return
     }
 
@@ -77,6 +81,7 @@ export default function ManualContactModal({
         body: JSON.stringify({
           email: trimmedEmail || undefined,
           phone: trimmedPhone || undefined,
+          profile_url: trimmedProfileUrl || undefined,
           note: note.trim() || undefined,
           credit_cost: isNaN(parsedCost as number) ? undefined : parsedCost,
         }),
@@ -165,6 +170,20 @@ export default function ManualContactModal({
                 placeholder="+1 555 123 4567"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
+                className="w-full bg-surface-elevated border border-white/10 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all px-3.5 py-2.5 text-sm placeholder:text-zinc-600"
+              />
+            </div>
+
+            <div>
+              <label className="text-[10px] font-bold uppercase tracking-widest text-text-secondary mb-1.5 flex items-center gap-1.5">
+                <LinkIcon className="w-3.5 h-3.5 text-accent-mint" />
+                <span>Profile Link (optional)</span>
+              </label>
+              <input
+                type="url"
+                placeholder="e.g. https://linkedin.com/in/username or https://x.com/handle"
+                value={profileUrl}
+                onChange={(e) => setProfileUrl(e.target.value)}
                 className="w-full bg-surface-elevated border border-white/10 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all px-3.5 py-2.5 text-sm placeholder:text-zinc-600"
               />
             </div>
