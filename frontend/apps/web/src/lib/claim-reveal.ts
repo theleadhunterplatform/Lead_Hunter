@@ -774,25 +774,48 @@ export function extractLeadSpecialty(lead: {
   niche?: string | null
   keyword?: string | null
   buyerType?: string | null
+  signalContext?: string | null
+  content?: string | null
 }): string {
-  const intel = lead.buyerType || ''
+  const intel = (lead.buyerType || '').normalize('NFKD')
   const oneLiner = intel.match(/###\s*🧠\s*One-Liner\s*\n+([^#\n]+)/i)?.[1] || ''
   const match = oneLiner.match(
-    /(?:seeking|looking\s+for|hiring|needs?)\s+(?:an?\s+)?([A-Za-z\s/-]{3,45}?(?:developer|engineer|specialist|agency|partner|expert|designer|freelancer|manager|firm|team))/i,
+    /(?:seeking|looking\s+for|hiring|needs?)\s+(?:an?\s+)?([A-Za-z\s/-]{3,45}?(?:developer|engineer|specialist|agency|partner|expert|designer|freelancer|manager|firm|team|intern))/i,
   )
   if (match) {
     const raw = match[1].trim()
-    if (raw.length >= 3 && raw.length <= 40) {
+    if (raw.length >= 3 && raw.length <= 40 && !raw.toLowerCase().includes('watchlist:')) {
+      return raw.replace(/\b\w/g, (c) => c.toUpperCase())
+    }
+  }
+
+  // Content direct role extraction (matches "We're Hiring: Role" or "Looking for Role")
+  const rawText = ((lead.signalContext || lead.content || '') as string).normalize('NFKD')
+  const contentMatch =
+    rawText.match(
+      /(?:we[’']re\s+hiring|we\s+are\s+hiring|hiring|looking\s+for|seeking)\s*:\s*([A-Za-z0-9\s/|-]{3,40}?(?:developer|engineer|specialist|agency|partner|expert|designer|intern|lead|manager|consultant))/i,
+    ) ||
+    rawText.match(
+      /(?:looking\s+for|seeking|hiring)\s+(?:an?\s+)?([A-Za-z\s/-]{3,35}?(?:developer|engineer|specialist|agency|partner|expert|designer|intern|consultant))/i,
+    )
+  if (contentMatch) {
+    const raw = contentMatch[1].trim().replace(/^[:\s|\-]+|[:\s|\-]+$/g, '').trim()
+    if (raw.length >= 3 && raw.length <= 40 && !raw.toLowerCase().includes('watchlist:')) {
       return raw.replace(/\b\w/g, (c) => c.toUpperCase())
     }
   }
 
   if (lead.role && lead.role.length >= 3 && lead.role.length <= 35 && !/^(general|--)$/i.test(lead.role)) {
-    return lead.role
+    if (!lead.role.toLowerCase().includes('watchlist:')) {
+      return lead.role
+    }
   }
 
   if (lead.category && !/^(general|--)$/i.test(lead.category)) {
-    return lead.category
+    const catLower = lead.category.toLowerCase()
+    if (!catLower.startsWith('watchlist:') && !catLower.includes('needed') && !catLower.includes('wanted')) {
+      return lead.category
+    }
   }
 
   return lead.niche || 'Specialist Partner'

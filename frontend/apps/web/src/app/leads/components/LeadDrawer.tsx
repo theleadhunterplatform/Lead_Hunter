@@ -60,7 +60,7 @@ export default function LeadDrawer({
       const sliceFrom = contextIdx !== -1 ? parsedIntel.slice(contextIdx) : parsedIntel
       return sliceFrom.filter(
         (s) =>
-          !/^(?:lead intelligence|one[\s-]?liner|2[\s-]?line|two[\s-]?line|4[\s-]?line|four[\s-]?line|post summary|summary|badges)$/i.test(
+          !/^(?:lead intelligence|one[\s-]?liner|2[\s-]?line|two[\s-]?line|4[\s-]?line|four[\s-]?line|post summary|summary|badges|niche)$/i.test(
             s.label,
           ),
       )
@@ -367,7 +367,7 @@ export default function LeadDrawer({
               Lead intel
             </span>
             <span className="hidden h-px w-8 bg-gradient-to-r from-primary/40 to-transparent sm:block" aria-hidden />
-            <NicheBadge niche={lead.niche} keyword={lead.category} content={lead.signalContext} />
+            <NicheBadge niche={lead.niche} keyword={lead.category} content={lead.signalContext} intelligence={lead.buyerType} />
             <span
               className="hidden items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-white/[0.06] border border-white/[0.1] text-text-secondary select-none sm:inline-flex"
               title={`${lead.claimedCount ?? 0} out of 25 members have claimed this lead`}

@@ -28,6 +28,9 @@ Format the output exactly like this example structure, using professional and hi
 
 # 🔥 Lead Intelligence: [Brief Catchy Title under 7 words - e.g. "Shopify Theme Store Rebuild"]
 
+### 🎯 Niche
+[Select EXACTLY ONE category from this list that best matches the core requirement: Web Development | Mobile Development | UI/UX Design | Branding & Design | SEO & Organic Growth | Paid Ads & Marketing | Content & Copywriting | Video Production & Editing | AI & Automation | Sales & Lead Gen | Consulting & Strategy]
+
 ### 🧠 One-Liner
 [Single concise sentence (max 18 words) identifying the exact target role/specialist and core deliverable without filler or company names]
 
@@ -284,6 +287,31 @@ function extractTitleFromIntelligence(content: string): string | null {
     return null;
 }
 
+const VALID_NICHES = [
+    'Web Development',
+    'Mobile Development',
+    'UI/UX Design',
+    'Branding & Design',
+    'SEO & Organic Growth',
+    'Paid Ads & Marketing',
+    'Content & Copywriting',
+    'Video Production & Editing',
+    'AI & Automation',
+    'Sales & Lead Gen',
+    'Consulting & Strategy',
+];
+
+function extractNicheFromIntelligence(content: string): string | null {
+    if (!content) return null;
+    const match = content.match(/###\s*(?:🎯)?\s*Niche\s*\n+([^\n\r#]+)/i);
+    if (match && match[1]) {
+        const candidate = match[1].replace(/^[#*_\s]+|[#*_\s]+$/g, '').trim().toLowerCase();
+        const found = VALID_NICHES.find((v) => v.toLowerCase() === candidate || candidate.includes(v.toLowerCase()));
+        if (found) return found;
+    }
+    return null;
+}
+
 /**
  * Generates strategic lead intelligence using a multi-provider fallback chain.
  * Order: OpenRouter → Groq → Gemini (direct)
@@ -298,6 +326,7 @@ export const generateLeadIntelligence = async (post: any) => {
     console.log(`✅ [Intelligence] Report generated via ${provider} for post: ${post.post_id}`);
 
     const extractedTitle = extractTitleFromIntelligence(intelligenceContent);
+    const extractedNiche = extractNicheFromIntelligence(intelligenceContent);
 
     // Store in LeadIntelligence table
     const intelligence = await LeadIntelligence.findOneAndUpdate(
@@ -311,11 +340,16 @@ export const generateLeadIntelligence = async (post: any) => {
     if (extractedTitle) {
         updateData.title = extractedTitle;
     }
+    if (extractedNiche) {
+        updateData.niche = extractedNiche;
+    }
     await LeadPost.updateOne(
         { _id: post._id || post.id },
         updateData,
     );
 
-    console.log(`✅ [Intelligence] Report saved for post: ${post.post_id}${extractedTitle ? ` (Title: "${extractedTitle}")` : ''}`);
+    console.log(
+        `✅ [Intelligence] Report saved for post: ${post.post_id}${extractedTitle ? ` (Title: "${extractedTitle}")` : ''}${extractedNiche ? ` (Niche: "${extractedNiche}")` : ''}`
+    );
     return intelligence;
 };
