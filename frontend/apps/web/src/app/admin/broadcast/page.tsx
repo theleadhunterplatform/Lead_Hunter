@@ -1488,8 +1488,8 @@ export default function AdminBroadcastPage() {
                 {waData?.groups?.length || 0} group(s) found
               </span>
             </div>
-            {waData?.groups && waData.groups.length > 0 ? (
-              <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+{waData?.groups && waData.groups.length > 0 ? (
+                <div className="space-y-1.5 max-h-48 overflow-y-auto scrollbar-hide pr-1">
                 {waData.groups.map((grp) => {
                   const isTarget =
                     Boolean(waData.configuredGroupId) &&
