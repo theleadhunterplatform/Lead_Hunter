@@ -134,8 +134,8 @@ export async function DELETE(request: NextRequest) {
       // 1. Delete all keys in external VPS backend
       try {
         const allRes = await getApifyKeys()
-        const vpsIds = (allRes.data || []).map((k) => k.id).filter(Boolean)
-        await Promise.allSettled(vpsIds.map((id) => deleteApifyKey(id)))
+        const vpsIds = (allRes.data || []).map((k: any) => k.id || k._id).filter(Boolean)
+        await Promise.allSettled(vpsIds.map((id: string) => deleteApifyKey(id)))
       } catch (vpsErr: any) {
         console.warn('[Bulk Apify Keys] External VPS bulk delete notice:', vpsErr.message)
       }
@@ -154,12 +154,59 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ success: true, deletedCount: 0, message: 'No keys to delete' })
     }
 
-    // Delete specific keys in external VPS API (run concurrently)
-    await Promise.allSettled(ids.map((id) => deleteApifyKey(id)))
+    // 1. Resolve all keys in DB to find actual key strings and DB IDs
+    const dbKeys = await db.apifyKey.findMany({
+      where: {
+        OR: [
+          { id: { in: ids } },
+          { key: { in: ids } },
+        ],
+      },
+      select: { id: true, key: true },
+    }).catch(() => [])
 
-    // Hard delete specified keys from Supabase database
+    const keyStrings = new Set<string>()
+    const dbIds = new Set<string>(ids)
+    for (const k of dbKeys) {
+      if (k.key) keyStrings.add(k.key)
+      if (k.id) dbIds.add(k.id)
+    }
+    for (const id of ids) {
+      if (id.startsWith('apify_api_')) keyStrings.add(id)
+    }
+
+    // 2. Fetch external VPS keys and match corresponding VPS IDs
+    const vpsIdsToDelete = new Set<string>(ids)
+    try {
+      const vpsRes = await getApifyKeys()
+      const externalKeys = vpsRes.data || []
+      for (const ext of externalKeys) {
+        const extKey = ext.key
+        const extId = ext.id || (ext as any)._id
+        if (keyStrings.has(extKey) || ids.includes(extId)) {
+          if (extId) vpsIdsToDelete.add(extId)
+          if (extKey) keyStrings.add(extKey)
+        }
+      }
+    } catch (vpsErr: any) {
+      console.warn('[Bulk Apify Keys] Failed to fetch VPS keys for deletion matching:', vpsErr.message)
+    }
+
+    // 3. Delete matching keys from external VPS API
+    await Promise.allSettled(Array.from(vpsIdsToDelete).map((id) => deleteApifyKey(id)))
+
+    // 4. Hard delete from Supabase database matching either DB IDs or key strings
+    const deleteFilters: Array<{ id: { in: string[] } } | { key: { in: string[] } }> = [
+      { id: { in: Array.from(dbIds) } },
+    ]
+    if (keyStrings.size > 0) {
+      deleteFilters.push({ key: { in: Array.from(keyStrings) } })
+    }
+
     const deletedResult = await db.apifyKey.deleteMany({
-      where: { id: { in: ids } },
+      where: {
+        OR: deleteFilters,
+      },
     })
 
     return NextResponse.json({
