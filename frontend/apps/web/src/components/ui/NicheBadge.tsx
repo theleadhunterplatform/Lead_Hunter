@@ -1,8 +1,9 @@
 'use client'
 
 import React from 'react'
+import { detectNiche } from '@/lib/claim-reveal'
 
-interface NicheBadgeProps {
+export interface NicheBadgeProps {
   niche?: string | null
   keyword?: string | null
   content?: string | null
@@ -93,142 +94,13 @@ const DEFAULT_STYLE = {
   icon: '🏷️',
 }
 
-function resolveNiche(
+export function resolveNiche(
   niche?: string | null,
   keyword?: string | null,
   content?: string | null,
   intelligence?: string | null,
 ): string {
-  // 1. If an explicit verified niche exists in NICHE_STYLES, trust it immediately
-  if (niche && niche.trim() && NICHE_STYLES[niche.trim()]) {
-    return niche.trim()
-  }
-
-  const kw = (keyword || '').normalize('NFKD').toLowerCase().replace(/^watchlist:[^\s]+\s*/i, '')
-  const c = (content || '').normalize('NFKD').toLowerCase()
-  const intel = (intelligence || '').normalize('NFKD').toLowerCase()
-
-  // 2. Check if AI Intelligence output has an explicit Niche line
-  const aiNicheMatch = intel.match(/###\s*(?:🎯)?\s*niche\s*\n+([^\n#\r]+)/i)
-  if (aiNicheMatch) {
-    const raw = aiNicheMatch[1].trim()
-    const found = Object.keys(NICHE_STYLES).find(
-      (k) => k.toLowerCase() === raw.toLowerCase() || raw.toLowerCase().includes(k.toLowerCase()),
-    )
-    if (found && found !== 'General') return found
-  }
-
-  const primaryText = `${c} ${intel}`.trim() || kw
-  const fullText = `${kw} ${primaryText}`
-
-  // 3. UI/UX & Product Design (checked early so design roles aren't stolen by web/video keywords)
-  if (
-    /\b(ui\/ux|ui ux|ux\/ui|figma|product design(er| intern)?|ux design(er| intern)?|ui design(er| intern)?|wirefram(e|ing)|mockups?|user experience|user interface|app design(er)?|(web|website|shopify|webflow) design(er|ing)?|website redesign|landing page design(er)?|landing page redesign|redesign (our|the|a) (website|app|platform)|design system|prototyp(e|ing))\b/i.test(
-      fullText,
-    )
-  ) {
-    return 'UI/UX Design'
-  }
-
-  // 4. SEO & Organic Growth
-  if (
-    /\b(seo specialist|seo expert|seo agency|technical seo|on-page seo|off-page seo|backlinks?|search engine optimization|google rank(ing)?|rank on google|organic traffic|serp|link building|geo specialist|ahrefs|semrush|search console)\b/i.test(
-      fullText,
-    )
-  ) {
-    return 'SEO & Organic Growth'
-  }
-
-  // 5. Video Production & Editing
-  if (
-    /\b(video edit(or|ing)?|motion graphics|reels edit(or|ing)?|tiktok edit(or|ing)?|youtube edit(or|ing)?|animator|2d animat(or|ion)|3d animat(or|ion)|character animat(or|ion)|motion designer|premiere pro|after effects|video production|videographer|video creator|ugc video|video thumbnail|thumbnail designer)\b/i.test(
-      fullText,
-    )
-  ) {
-    return 'Video Production & Editing'
-  }
-
-  // 6. Branding & Graphic Design
-  if (
-    /\b(brand identity|branding agency|logo design(er)?|graphic design(er)?|packaging design|brand guidelines|visual identity|illustrat(or|ion)|brochure design|creative director|brand experience)\b/i.test(
-      fullText,
-    )
-  ) {
-    return 'Branding & Design'
-  }
-
-  // 7. Copywriting & Content
-  if (
-    /\b(copywrit(er|ing)|content writ(er|ing)|technical writ(er|ing)|newsletter writ(er|ing)|ghostwrit(er|ing)|scriptwrit(er|ing)|blog writ(er|ing)|email copy(writer)?)\b/i.test(
-      fullText,
-    )
-  ) {
-    return 'Content & Copywriting'
-  }
-
-  // 8. Paid Ads & Performance Marketing
-  if (
-    /\b(performance marketing|paid ads|facebook ads|fb ads|meta ads|google ads|media buyer|ppc specialist|ppc agency|roas|ad campaigns?|social media marketing|smm|d2c marketing|growth marketing|digital marketing|digital marketer|marketing agency|creative marketing agency|brand activation|event activation|influencer (strategist|marketing|campaign|outreach)|creator campaign|creators for an upcoming|brand campaign|ugc agency)\b/i.test(
-      fullText,
-    )
-  ) {
-    return 'Paid Ads & Marketing'
-  }
-
-  // 9. Mobile Development
-  if (
-    /\b(mobile app( developer)?|ios (app|developer)|android (app|apk|developer)|apk developer|react native|flutter( developer)?|swiftui?|swift developer|kotlin developer|xcode|pos development|pos application)\b/i.test(
-      fullText,
-    )
-  ) {
-    return 'Mobile Development'
-  }
-
-  // 10. AI & Workflow Automation
-  if (
-    /\b(ai agent|workflow automation|n8n|zapier|make\.com|chatbot|langchain|rag|ai developer|ai automation|prompt engineer|fine-tuning llm|openai api|ai implementation|ai partners?|ai work|zoho|hubspot|crm implementation|data engineer(ing)?|scraper|scraping|data pipeline)\b/i.test(
-      fullText,
-    )
-  ) {
-    return 'AI & Automation'
-  }
-
-  // 11. Sales & Lead Generation
-  if (
-    /\b(lead gen(eration)?|cold outreach|appointment setter|cold email|b2b sales|b2b leads|sales rep|sdr|bdr|business development rep|lead list|apollo\.io|cold calling|telemarketing|sales executive)\b/i.test(
-      fullText,
-    )
-  ) {
-    return 'Sales & Lead Gen'
-  }
-
-  // 12. Web Development
-  if (
-    /\b(web dev(elop(er|ers|ment)?)?|website dev(elop(er|ers|ment)?)?|frontend( developer| developers)?|front-end|backend( developer| developers)?|back-end|fullstack|full-stack|next\.?js|react\.?js|react developer|vue|angular|node\.?js|express\.?js|django|flask|laravel|php developer|wordpress|elementor|divi|divibuilder|shopify|webflow|wix|squarespace|framer|html\/css|javascript developer|typescript developer|tailwind|prisma|graphql|rest api|mern|software engineer(s)?|software developer(s)?|salesforce developer|web accessibility|ontwikkelaar)\b/i.test(
-      fullText,
-    ) ||
-    (/\b(develop(er|ers|ing)?|devs?|code|coding|build|program(mer|ming)?)\b/i.test(primaryText) &&
-      /\b(website|web app|platform|portal|site|system|application)\b/i.test(primaryText))
-  ) {
-    return 'Web Development'
-  }
-
-  // 13. Consulting & Strategy
-  if (
-    /\b(fractional cmo|fractional cto|business consultant|strategy consultant|advisor|accountant|accounting|bookkeeper|bookkeeping|tax filing|crm system|advisory)\b/i.test(
-      fullText,
-    )
-  ) {
-    return 'Consulting & Strategy'
-  }
-
-  // Fallbacks
-  if (/\b(seo)\b/i.test(fullText)) return 'SEO & Organic Growth'
-  if (/\b(design|creative)\b/i.test(fullText)) return 'UI/UX Design'
-  if (/\b(marketing|agency|advertising|promo)\b/i.test(fullText)) return 'Paid Ads & Marketing'
-  if (/\b(developer|develop|code|programmer|software)\b/i.test(fullText)) return 'Web Development'
-
-  return 'General'
+  return detectNiche({ niche, keyword, content, intelligence })
 }
 
 export function NicheBadge({

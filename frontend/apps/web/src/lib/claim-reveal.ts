@@ -22,6 +22,124 @@ export function applyClaimResponseToLead(
   }
 }
 
+export const VALID_NICHES = [
+  'Web Development',
+  'Mobile Development',
+  'UI/UX Design',
+  'Branding & Design',
+  'SEO & Organic Growth',
+  'Paid Ads & Marketing',
+  'Content & Copywriting',
+  'Video Production & Editing',
+  'AI & Automation',
+  'Sales & Lead Gen',
+  'Consulting & Strategy',
+]
+
+export function detectNiche(input: {
+  niche?: string | null
+  keyword?: string | null
+  content?: string | null
+  intelligence?: string | null
+}): string {
+  const intel = (input.intelligence || '').normalize('NFKD').toLowerCase()
+  const c = (input.content || '').normalize('NFKD').toLowerCase()
+  const kw = (input.keyword || '').normalize('NFKD').toLowerCase().replace(/^watchlist:[^\s]+\s*/i, '')
+  const givenNiche = (input.niche || '').trim()
+
+  // 1. Check AI Intelligence explicit niche match
+  const aiNicheMatch = intel.match(/###\s*(?:🎯)?\s*niche\s*\n+([^\n#\r]+)/i)
+  const candidate = aiNicheMatch && aiNicheMatch[1] ? aiNicheMatch[1].replace(/^[#*_\s]+|[#*_\s]+$/g, '').trim().toLowerCase() : ''
+
+  if (candidate) {
+    const found = VALID_NICHES.find((v) => v.toLowerCase() === candidate || candidate.includes(v.toLowerCase()))
+    if (found) return found
+  }
+
+  // 2. High-precision cluster scan on candidate + intel + content (actual post intent beats scraper keyword!)
+  const primaryText = `${candidate} ${intel} ${c}`
+
+  // Paid Ads & Performance Marketing (High Priority - don't let Web Dev steal ad leads)
+  if (/\b(performance marketing|paid ads|facebook ads|fb ads|meta ads|google ads|media buyer|ppc specialist|ppc agency|roas|ad campaigns?|social media marketing|smm|d2c marketing|growth marketing|digital marketing|digital marketer|marketing agency|creative marketing agency|brand activation|event activation|influencer (strategist|marketing|campaign|outreach)|creator campaign|creators for an upcoming|brand campaign|ugc agency)\b/i.test(primaryText)) {
+    return 'Paid Ads & Marketing'
+  }
+
+  // UI/UX & Product Design
+  if (/\b(ui\/ux|ui ux|ux\/ui|figma|product design(er| intern)?|ux design(er| intern)?|ui design(er| intern)?|wirefram(e|ing)|mockups?|user experience|user interface|app design(er)?|(web|website|shopify|webflow) design(er|ing)?|website redesign|landing page design(er)?|landing page redesign|redesign (our|the|a) (website|app|platform)|design system|prototyp(e|ing))\b/i.test(primaryText)) {
+    return 'UI/UX Design'
+  }
+
+  // SEO & Organic Growth
+  if (/\b(seo specialist|seo expert|seo agency|technical seo|on-page seo|off-page seo|backlinks?|search engine optimization|google rank(ing)?|rank on google|organic traffic|serp|link building|geo specialist|ahrefs|semrush|search console)\b/i.test(primaryText)) {
+    return 'SEO & Organic Growth'
+  }
+
+  // Video Production & Editing
+  if (/\b(video edit(or|ing)?|motion graphics|reels edit(or|ing)?|tiktok edit(or|ing)?|youtube edit(or|ing)?|animator|2d animat(or|ion)|3d animat(or|ion)|character animat(or|ion)|motion designer|premiere pro|after effects|video production|videographer|video creator|ugc video|video thumbnail|thumbnail designer)\b/i.test(primaryText)) {
+    return 'Video Production & Editing'
+  }
+
+  // Branding & Graphic Design
+  if (/\b(brand identity|branding agency|logo design(er)?|graphic design(er)?|packaging design|brand guidelines|visual identity|illustrat(or|ion)|brochure design|creative director|brand experience)\b/i.test(primaryText)) {
+    return 'Branding & Design'
+  }
+
+  // Content & Copywriting
+  if (/\b(copywrit(er|ing)|content writ(er|ing)|technical writ(er|ing)|newsletter writ(er|ing)|ghostwrit(er|ing)|scriptwrit(er|ing)|blog writ(er|ing)|email copy(writer)?)\b/i.test(primaryText)) {
+    return 'Content & Copywriting'
+  }
+
+  // Mobile Development
+  if (/\b(mobile app( developer)?|ios (app|developer)|android (app|apk|developer)|apk developer|react native|flutter( developer)?|swiftui?|swift developer|kotlin developer|xcode|pos development|pos application)\b/i.test(primaryText)) {
+    return 'Mobile Development'
+  }
+
+  // AI & Automation
+  if (/\b(ai agent|workflow automation|n8n|zapier|make\.com|chatbot|langchain|rag|ai developer|ai automation|prompt engineer|fine-tuning llm|openai api|ai implementation|ai partners?|ai work|zoho|hubspot|crm implementation|data engineer(ing)?|scraper|scraping|data pipeline)\b/i.test(primaryText)) {
+    return 'AI & Automation'
+  }
+
+  // Sales & Lead Generation
+  if (/\b(lead gen(eration)?|cold outreach|appointment setter|cold email|b2b sales|b2b leads|sales rep|sdr|bdr|business development rep|lead list|apollo\.io|cold calling|telemarketing|sales executive)\b/i.test(primaryText)) {
+    return 'Sales & Lead Gen'
+  }
+
+  // Web Development
+  if (
+    /\b(web dev(elop(er|ers|ment)?)?|website dev(elop(er|ers|ment)?)?|frontend( developer| developers)?|front-end|backend( developer| developers)?|back-end|fullstack|full-stack|next\.?js|react\.?js|react developer|vue|angular|node\.?js|express\.?js|django|flask|laravel|php developer|wordpress|elementor|divi|divibuilder|shopify|webflow|wix|squarespace|framer|html\/css|javascript developer|typescript developer|tailwind|prisma|graphql|rest api|mern|software engineer(s)?|software developer(s)?|salesforce developer|web accessibility|ontwikkelaar)\b/i.test(primaryText) ||
+    (/\b(develop(er|ers|ing)?|devs?|code|coding|build|program(mer|ming)?)\b/i.test(primaryText) && /\b(website|web app|platform|portal|site|system|application)\b/i.test(primaryText))
+  ) {
+    return 'Web Development'
+  }
+
+  // Consulting & Strategy
+  if (/\b(fractional cmo|fractional cto|business consultant|strategy consultant|advisor|accountant|accounting|bookkeeper|bookkeeping|tax filing|crm system|advisory)\b/i.test(primaryText)) {
+    return 'Consulting & Strategy'
+  }
+
+  // 3. If primary text had no match, check givenNiche if valid
+  if (givenNiche && VALID_NICHES.includes(givenNiche)) {
+    return givenNiche
+  }
+
+  // 4. Keyword fallback
+  if (kw) {
+    if (/\b(performance marketing|paid ads|facebook ads|google ads|meta ads|ppc|marketing|advertising)\b/i.test(kw)) return 'Paid Ads & Marketing'
+    if (/\b(ui\/ux|design|figma)\b/i.test(kw)) return 'UI/UX Design'
+    if (/\b(seo)\b/i.test(kw)) return 'SEO & Organic Growth'
+    if (/\b(video)\b/i.test(kw)) return 'Video Production & Editing'
+    if (/\b(branding|logo)\b/i.test(kw)) return 'Branding & Design'
+    if (/\b(content|copywriting|writer)\b/i.test(kw)) return 'Content & Copywriting'
+    if (/\b(mobile|ios|android|flutter|react native)\b/i.test(kw)) return 'Mobile Development'
+    if (/\b(ai|automation|agent)\b/i.test(kw)) return 'AI & Automation'
+    if (/\b(sales|lead gen|outreach)\b/i.test(kw)) return 'Sales & Lead Gen'
+    if (/\b(web|frontend|backend|developer|dev)\b/i.test(kw)) return 'Web Development'
+    if (/\b(consulting|strategy)\b/i.test(kw)) return 'Consulting & Strategy'
+  }
+
+  return 'General'
+}
+
 export function extractNiches(
   keyword: string | null,
   content: string,
@@ -29,14 +147,17 @@ export function extractNiches(
   primaryNiche?: string | null,
 ): string[] {
   const niches: string[] = []
-  const kw = keyword ? keyword.toLowerCase().replace(/^watchlist:/, '') : ''
-  const c = (content || '').toLowerCase()
-  const intel = (intelligence || '').toLowerCase()
-  const pNiche = (primaryNiche || '').trim().toLowerCase()
+  const detected = detectNiche({
+    niche: primaryNiche,
+    keyword,
+    content,
+    intelligence,
+  })
 
-  // 1. If primaryNiche is provided, map it to relevant niche tokens
-  if (pNiche) {
-    niches.push(primaryNiche!.trim())
+  const effectiveNiche = detected !== 'General' ? detected : (primaryNiche || 'General')
+  if (effectiveNiche && effectiveNiche !== 'General') {
+    niches.push(effectiveNiche)
+    const pNiche = effectiveNiche.toLowerCase()
     if (pNiche.includes('web develop') || pNiche.includes('fullstack') || pNiche.includes('frontend') || pNiche.includes('backend')) {
       niches.push('Web Dev')
       niches.push('Development')
@@ -60,110 +181,11 @@ export function extractNiches(
     }
   }
 
-  // 2. Content & Intelligence Analysis (Content-First: what is the lead actually asking for?)
-  const textSignals = `${c} ${intel}`
-  if (
-    textSignals.includes('seo') ||
-    textSignals.includes('google ads') ||
-    textSignals.includes('meta ads') ||
-    textSignals.includes('facebook ads') ||
-    textSignals.includes('digital marketing') ||
-    textSignals.includes('performance marketing') ||
-    textSignals.includes('lead generation') ||
-    textSignals.includes('media buyer') ||
-    textSignals.includes('ppc')
-  ) {
-    niches.push('Paid Ads & Marketing')
-    if (textSignals.includes('seo')) niches.push('SEO')
-    niches.push('Marketing')
-  } else if (
-    textSignals.includes('ui/ux') ||
-    textSignals.includes('figma') ||
-    textSignals.includes('graphic design') ||
-    textSignals.includes('brand identity') ||
-    textSignals.includes('packaging design') ||
-    textSignals.includes('logo design')
-  ) {
-    niches.push('Design')
-    if (textSignals.includes('web design')) niches.push('Web Design')
-  } else if (
-    textSignals.includes('copywriting') ||
-    textSignals.includes('content writer') ||
-    textSignals.includes('scriptwriter') ||
-    textSignals.includes('newsletter writer')
-  ) {
-    niches.push('Copywriting')
-  } else if (
-    textSignals.includes('video editor') ||
-    textSignals.includes('video editing') ||
-    textSignals.includes('motion graphics') ||
-    textSignals.includes('reels editor')
-  ) {
-    niches.push('Video Editing')
-  } else if (
-    textSignals.includes('web dev') ||
-    textSignals.includes('website dev') ||
-    textSignals.includes('react') ||
-    textSignals.includes('nextjs') ||
-    textSignals.includes('frontend') ||
-    textSignals.includes('backend') ||
-    textSignals.includes('fullstack') ||
-    textSignals.includes('wordpress') ||
-    textSignals.includes('shopify developer') ||
-    textSignals.includes('web developer')
-  ) {
-    niches.push('Web Development')
-    niches.push('Development')
-  } else if (
-    textSignals.includes('ai ') ||
-    textSignals.includes('automation') ||
-    textSignals.includes('n8n') ||
-    textSignals.includes('make.com') ||
-    textSignals.includes('llm') ||
-    textSignals.includes('chatbot')
-  ) {
-    niches.push('AI & Automation')
-  }
-
-  // 3. Fallback to keyword match if content signals didn't determine the niche
-  if (niches.length === 0 && kw) {
-    if (kw.includes('development') || kw.includes('coder') || kw.includes('software')) {
-      niches.push('Development')
-    }
-    if (kw.includes('web dev') || kw.includes('frontend') || kw.includes('backend') || kw.includes('fullstack') || kw.includes('nextjs')) {
-      niches.push('Web Development')
-      niches.push('Development')
-    }
-    if (kw.includes('design') || kw.includes('ui/ux') || kw.includes('figma') || kw.includes('branding')) {
-      niches.push('Design')
-    }
-    if (kw.includes('web design')) {
-      niches.push('Web Design')
-      niches.push('Design')
-    }
-    if (kw.includes('marketing') || kw.includes('advertising') || kw.includes('ads') || kw.includes('ppc')) {
-      niches.push('Paid Ads & Marketing')
-    }
-    if (kw.includes('ai') || kw.includes('automation') || kw.includes('gpt') || kw.includes('agent')) {
-      niches.push('AI & Automation')
-    }
-    if (kw.includes('seo') || kw.includes('ranking')) {
-      niches.push('SEO')
-      niches.push('Paid Ads & Marketing')
-    }
-    if (kw.includes('copywriting') || kw.includes('writing') || kw.includes('content writer')) {
-      niches.push('Copywriting')
-    }
-    if (kw.includes('sales') || kw.includes('revops') || kw.includes('crm') || kw.includes('pipeline')) {
-      niches.push('Sales & RevOps')
-    }
-  }
-
   // Deduplicate and format
   const formatted = Array.from(new Set(niches))
 
   if (formatted.length === 0) {
-    formatted.push(primaryNiche ? primaryNiche.trim() : 'General')
+    formatted.push(effectiveNiche || 'General')
   }
 
   return formatted
@@ -557,6 +579,19 @@ export function stripPersonAndCompany(text: string): string {
   return text
     // "Beyond/Beneath/On the surface-level request..."
     .replace(/^(?:beyond|beneath|on)(?:\s+the|\s+a)?\s+surface(?:-level)?(?:\s+(?:request|need|ask|inquiry))?(?:,?\s*(?:for\s+[^,]+,?)?)?\s*/i, '')
+    // Redact explicit Brand: or Brand name: declarations
+    .replace(/\b(?:brand(?:\s+name)?|company(?:\s+name)?)\s*:\s*[A-Za-z0-9&'._\-]+/gi, '')
+    // "BRAND is a/an/the..." -> "A/an/the..." (e.g. "GLAMSTORY is a women's fashion and footwear brand." -> "A women's fashion and footwear brand.")
+    .replace(/^[A-Z0-9&'._\-]+(?:\s+[A-Z0-9&'._\-]+){0,3}\s+is\s+(an?|the)\s+/i, (m, art) => `${art.charAt(0).toUpperCase() + art.slice(1).toLowerCase()} `)
+    // "BRAND is [verb/gerund]..." -> "A business [verb/gerund]..."
+    .replace(/^[A-Z0-9&'._\-]+(?:\s+[A-Z0-9&'._\-]+){0,3}\s+is\s+(operating|expanding|launching|seeking|building|growing)\b/i, 'A business $1')
+    // "BRAND, an? [description]..." -> "An? [description]..."
+    .replace(/^[A-Z0-9&'._\-]+(?:\s+[A-Z0-9&'._\-]+){0,3},\s+(an?\s+[^,]+)/i, (m, desc) => `${desc.charAt(0).toUpperCase() + desc.slice(1)}`)
+    // "BRAND specializes in / sells / focuses on..." -> "Client specializes in / sells..."
+    .replace(/^[A-Z0-9&'._\-]+(?:\s+[A-Z0-9&'._\-]+){0,3}\s+(specializes\s+in|sells|focuses\s+on|operates\s+in|provides)\b/i, 'Client $1')
+    // Possessive proper nouns: "BRAND's brand / store / platform..." -> "The client's brand / store / platform..."
+    // Excludes articles ("A women's...", "The founder's...") and common gender/role nouns
+    .replace(/^(?!(?:a|an|the|our)\s+)(?!(?:women|men|children|founder|client|customer|user|author|member|everyone)'s\b)[A-Z0-9&'._\-]+(?:\s+[A-Z0-9&'._\-]+){0,2}'s\s+/i, "The client's ")
     // "Agroloka Commodity seeks/needs/requires/hires/is looking for..." -> "Client seeks "
     .replace(/^[A-Z][a-zA-Z0-9&.\-']+(?:\s+[A-Z][a-zA-Z0-9&.\-']+){0,3}\s+(?:seeks|requires|needs|wants|hires|is\s+seeking|is\s+looking\s+for|is\s+hiring|is\s+needing)\s+(?:an?\s+)?/i, 'Client seeks ')
     // "John Doe, Esq. / MBA is actively seeking..."
@@ -577,6 +612,22 @@ export function stripPersonAndCompany(text: string): string {
     .replace(/^(?:we\s+are|we're|i\s+am|i'm)\s+(?:actively\s+)?(?:hiring|looking\s+for|seeking|needing)\s+(?:an?\s+)?/i, '')
     .replace(/^(?:on\s+the\s+surface,?\s*(?:they\s+want\s+)?)/i, '')
     .trim()
+}
+
+export function sanitizeBuyerPersona(text: string): string {
+  if (!text) return ''
+  let s = text.trim()
+  s = s.replace(/^[A-Z0-9&'._\-]+(?:\s+[A-Z0-9&'._\-]+){0,3}\s+is\s+(an?|the)\s+/i, (m, art) => `${art.charAt(0).toUpperCase() + art.slice(1).toLowerCase()} `)
+  s = s.replace(/^[A-Z0-9&'._\-]+(?:\s+[A-Z0-9&'._\-]+){0,3}\s+is\s+(operating|expanding|launching|seeking|building|growing)\b/i, 'A business $1')
+  s = s.replace(/^[A-Z0-9&'._\-]+(?:\s+[A-Z0-9&'._\-]+){0,3},\s+(an?\s+[^,]+)/i, (m, desc) => `${desc.charAt(0).toUpperCase() + desc.slice(1)}`)
+  s = s.replace(/^[A-Z0-9&'._\-]+(?:\s+[A-Z0-9&'._\-]+){0,3}\s+(specializes\s+in|sells|focuses\s+on|operates\s+in|provides)\b/i, 'Client $1')
+  s = s.replace(/^(?!(?:a|an|the|our)\s+)(?!(?:women|men|children|founder|client|customer|user|author|member|everyone)'s\b)[A-Z0-9&'._\-]+(?:\s+[A-Z0-9&'._\-]+){0,2}'s\s+/i, "The client's ")
+  s = s.replace(/\b(?:brand(?:\s+name)?|company(?:\s+name)?)\s*:\s*[A-Za-z0-9&'._\-]+/gi, '')
+  s = stripPersonAndCompany(s)
+  if (s && s.length > 0) {
+    s = s.charAt(0).toUpperCase() + s.slice(1)
+  }
+  return s
 }
 
 /**
@@ -650,9 +701,10 @@ export function extractBuyerPersona(intel: string): string {
     const lines = contextMatch[1].split('\n').map((l) => l.trim()).filter(Boolean)
     for (const line of lines) {
       const clean = line.replace(/^[-*•\s]+/, '').replace(/\*\*([^*]+)\*\*/g, '$1').trim()
-      if (/founder|agency|brand|company|startup|merchant|client|business/i.test(clean)) {
+      if (/founder|agency|brand|company|startup|merchant|client|business|store|retailer/i.test(clean)) {
         if (!/email\s+domain|geographic|location/i.test(clean)) {
-          const sentence = cleanCompleteSentence(clean)
+          const sanitized = sanitizeBuyerPersona(clean)
+          const sentence = cleanCompleteSentence(sanitized)
           if (sentence && sentence.length >= 15) {
             return sentence
           }
@@ -667,11 +719,11 @@ export function extractBuyerPersona(intel: string): string {
     const text = oneLinerMatch[1].trim()
     const founderMatch = text.match(/^(?:a\s+)?(founder|agency|business\s+owner|company|brand|startup)[^,.]*(?:with|seeking|looking|operating)[^,.]*/i)
     if (founderMatch) {
-      return cleanCompleteSentence(founderMatch[0])
+      return sanitizeBuyerPersona(cleanCompleteSentence(founderMatch[0]))
     }
     const agencyMatch = text.match(/([A-Za-z\s]+?(?:agency|firm|network|brand|startup))\s+is\s+(?:actively\s+)?hiring/i)
     if (agencyMatch) {
-      return cleanCompleteSentence(agencyMatch[1] + ' expanding operations')
+      return sanitizeBuyerPersona(cleanCompleteSentence(agencyMatch[1] + ' expanding operations'))
     }
   }
 
@@ -777,14 +829,25 @@ export function extractLeadSpecialty(lead: {
   signalContext?: string | null
   content?: string | null
 }): string {
+  // 1. Clean and check lead.role (handles "Experienced Performance Marketing Freelancer needed.")
+  if (lead.role && !/^(general|--)$/i.test(lead.role.trim())) {
+    const cleanRole = lead.role
+      .replace(/(?:\s+needed|\s+wanted|\s+required|\s+urgent|\s+to\s+join|\s+for\s+startup)[.!]?$/i, '')
+      .replace(/^["'`*#]+|["'`*#]+$/g, '')
+      .trim()
+    if (cleanRole.length >= 3 && cleanRole.length <= 75 && !cleanRole.toLowerCase().includes('watchlist:')) {
+      return cleanRole
+    }
+  }
+
   const intel = (lead.buyerType || '').normalize('NFKD')
   const oneLiner = intel.match(/###\s*🧠\s*One-Liner\s*\n+([^#\n]+)/i)?.[1] || ''
   const match = oneLiner.match(
-    /(?:seeking|looking\s+for|hiring|needs?)\s+(?:an?\s+)?([A-Za-z\s/-]{3,45}?(?:developer|engineer|specialist|agency|partner|expert|designer|freelancer|manager|firm|team|intern))/i,
+    /(?:seeking|looking\s+for|hiring|needs?)\s+(?:an?\s+)?([A-Za-z\s/-]{3,55}?(?:developer|engineer|specialist|agency|partner|expert|designer|freelancer|manager|firm|team|intern|marketer))/i,
   )
   if (match) {
     const raw = match[1].trim()
-    if (raw.length >= 3 && raw.length <= 40 && !raw.toLowerCase().includes('watchlist:')) {
+    if (raw.length >= 3 && raw.length <= 60 && !raw.toLowerCase().includes('watchlist:')) {
       return raw.replace(/\b\w/g, (c) => c.toUpperCase())
     }
   }
@@ -793,22 +856,28 @@ export function extractLeadSpecialty(lead: {
   const rawText = ((lead.signalContext || lead.content || '') as string).normalize('NFKD')
   const contentMatch =
     rawText.match(
-      /(?:we[’']re\s+hiring|we\s+are\s+hiring|hiring|looking\s+for|seeking)\s*:\s*([A-Za-z0-9\s/|-]{3,40}?(?:developer|engineer|specialist|agency|partner|expert|designer|intern|lead|manager|consultant))/i,
+      /(?:we[’']re\s+hiring|we\s+are\s+hiring|hiring|looking\s+for|seeking)\s*:\s*([A-Za-z0-9\s/|-]{3,55}?(?:developer|engineer|specialist|agency|partner|expert|designer|intern|lead|manager|consultant|freelancer|marketer))/i,
     ) ||
     rawText.match(
-      /(?:looking\s+for|seeking|hiring)\s+(?:an?\s+)?([A-Za-z\s/-]{3,35}?(?:developer|engineer|specialist|agency|partner|expert|designer|intern|consultant))/i,
+      /(?:looking\s+for|seeking|hiring)\s+(?:an?\s+)?([A-Za-z\s/-]{3,55}?(?:developer|engineer|specialist|agency|partner|expert|designer|intern|consultant|freelancer|marketer))/i,
     )
   if (contentMatch) {
     const raw = contentMatch[1].trim().replace(/^[:\s|\-]+|[:\s|\-]+$/g, '').trim()
-    if (raw.length >= 3 && raw.length <= 40 && !raw.toLowerCase().includes('watchlist:')) {
+    if (raw.length >= 3 && raw.length <= 60 && !raw.toLowerCase().includes('watchlist:')) {
       return raw.replace(/\b\w/g, (c) => c.toUpperCase())
     }
   }
 
-  if (lead.role && lead.role.length >= 3 && lead.role.length <= 35 && !/^(general|--)$/i.test(lead.role)) {
-    if (!lead.role.toLowerCase().includes('watchlist:')) {
-      return lead.role
-    }
+  // 2. High-precision detected niche fallback to prevent scraper query overriding content
+  const detected = detectNiche({
+    niche: lead.niche,
+    keyword: lead.category,
+    content: lead.signalContext || lead.content,
+    intelligence: lead.buyerType,
+  })
+
+  if (detected && detected !== 'General') {
+    return detected
   }
 
   if (lead.category && !/^(general|--)$/i.test(lead.category)) {

@@ -192,7 +192,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       primaryNiche,
     )
     const cleanTags = extractLeadBadges(externalLead, niches)
-    const resolvedNiche = primaryNiche || niches[0] || 'General'
+    const resolvedNiche = (niches[0] && niches[0] !== 'General') ? niches[0] : (primaryNiche || 'General')
     const cleanTitle =
       externalLead.title?.trim() ||
       sanitizeHeadline(externalLead.author?.info || externalLead.keyword || '', resolvedNiche)

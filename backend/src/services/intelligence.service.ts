@@ -304,11 +304,60 @@ const VALID_NICHES = [
 function extractNicheFromIntelligence(content: string): string | null {
     if (!content) return null;
     const match = content.match(/###\s*(?:🎯)?\s*Niche\s*\n+([^\n\r#]+)/i);
-    if (match && match[1]) {
-        const candidate = match[1].replace(/^[#*_\s]+|[#*_\s]+$/g, '').trim().toLowerCase();
+    const candidate = match && match[1] ? match[1].replace(/^[#*_\s]+|[#*_\s]+$/g, '').trim().toLowerCase() : '';
+
+    if (candidate) {
         const found = VALID_NICHES.find((v) => v.toLowerCase() === candidate || candidate.includes(v.toLowerCase()));
         if (found) return found;
     }
+
+    const textToScan = `${candidate} ${content}`.toLowerCase();
+
+    // High-precision cluster classification
+    if (/\b(performance marketing|paid ads|facebook ads|fb ads|meta ads|google ads|media buyer|ppc specialist|ppc agency|roas|ad campaigns?|social media marketing|smm|d2c marketing|growth marketing|digital marketing|digital marketer|marketing agency|creative marketing agency|brand activation|event activation|influencer (strategist|marketing|campaign|outreach)|creator campaign|creators for an upcoming|brand campaign|ugc agency)\b/i.test(textToScan)) {
+        return 'Paid Ads & Marketing';
+    }
+
+    if (/\b(ui\/ux|ui ux|ux\/ui|figma|product design|ux design|ui design|wirefram|mockups?|user experience|user interface|website design|landing page design|redesign (our|the|a) (website|app)|design system|prototyp)\b/i.test(textToScan)) {
+        return 'UI/UX Design';
+    }
+
+    if (/\b(seo specialist|seo expert|seo agency|technical seo|on-page seo|off-page seo|backlinks?|search engine optimization|google rank|rank on google|organic traffic|serp|link building|ahrefs|semrush)\b/i.test(textToScan)) {
+        return 'SEO & Organic Growth';
+    }
+
+    if (/\b(video edit|motion graphics|reels edit|tiktok edit|youtube edit|animator|premiere pro|after effects|video production|videographer|video creator)\b/i.test(textToScan)) {
+        return 'Video Production & Editing';
+    }
+
+    if (/\b(brand identity|branding agency|logo design|graphic design|packaging design|brand guidelines|visual identity|illustrat|creative director)\b/i.test(textToScan)) {
+        return 'Branding & Design';
+    }
+
+    if (/\b(copywrit|content writ|technical writ|newsletter writ|ghostwrit|scriptwrit|blog writ|email copy)\b/i.test(textToScan)) {
+        return 'Content & Copywriting';
+    }
+
+    if (/\b(mobile app|ios (app|developer)|android (app|apk|developer)|apk developer|react native|flutter|swiftui?|swift developer|kotlin developer|xcode)\b/i.test(textToScan)) {
+        return 'Mobile Development';
+    }
+
+    if (/\b(ai agent|workflow automation|n8n|zapier|make\.com|chatbot|langchain|rag|ai developer|prompt engineer|fine-tuning llm|openai api|crm implementation|scraper|scraping|data pipeline)\b/i.test(textToScan)) {
+        return 'AI & Automation';
+    }
+
+    if (/\b(lead gen|cold outreach|appointment setter|cold email|b2b sales|b2b leads|sales rep|sdr|bdr|cold calling|telemarketing)\b/i.test(textToScan)) {
+        return 'Sales & Lead Gen';
+    }
+
+    if (/\b(fractional cmo|fractional cto|business consultant|strategy consultant|advisor|accountant|accounting|bookkeeper|tax filing)\b/i.test(textToScan)) {
+        return 'Consulting & Strategy';
+    }
+
+    if (/\b(web dev|website dev|frontend|backend|fullstack|next\.?js|react\.?js|vue|angular|node\.?js|express\.?js|django|flask|laravel|php developer|wordpress|elementor|divi|shopify|webflow|wix|framer|html\/css|javascript developer|typescript developer|tailwind|prisma|software engineer|software developer)\b/i.test(textToScan)) {
+        return 'Web Development';
+    }
+
     return null;
 }
 
