@@ -314,7 +314,7 @@ function extractNicheFromIntelligence(content: string): string | null {
     const textToScan = `${candidate} ${content}`.toLowerCase();
 
     // High-precision cluster classification
-    if (/\b(performance marketing|paid ads|facebook ads|fb ads|meta ads|google ads|media buyer|ppc specialist|ppc agency|roas|ad campaigns?|social media marketing|smm|d2c marketing|growth marketing|digital marketing|digital marketer|marketing agency|creative marketing agency|brand activation|event activation|influencer (strategist|marketing|campaign|outreach)|creator campaign|creators for an upcoming|brand campaign|ugc agency)\b/i.test(textToScan)) {
+    if (/\b(performance marketing|paid ads|facebook ads|fb ads|meta ads|google ads|media buyer|ppc specialist|ppc agency|roas|ad campaigns?|social media marketing|social media management|social media manager|social media agency|social media|smm|d2c marketing|growth marketing|digital marketing|digital marketer|marketing agency|creative agency|creative marketing agency|brand activation|event activation|influencer (strategist|marketing|campaign|outreach)|creator campaign|creators for an upcoming|brand campaign|ugc agency)\b/i.test(textToScan)) {
         return 'Paid Ads & Marketing';
     }
 
@@ -326,11 +326,11 @@ function extractNicheFromIntelligence(content: string): string | null {
         return 'SEO & Organic Growth';
     }
 
-    if (/\b(video edit|motion graphics|reels edit|tiktok edit|youtube edit|animator|premiere pro|after effects|video production|videographer|video creator)\b/i.test(textToScan)) {
+    if (/\b(video edit(or|ing)?|motion graphics|reels edit(or|ing)?|reels|tiktok edit(or|ing)?|youtube edit(or|ing)?|animator|2d animat(or|ion)|3d animat(or|ion)|character animat(or|ion)|motion designer|premiere pro|after effects|video production|content production|videographer|video creator|ugc video|video thumbnail|thumbnail designer|product shoots?|photography|photographer|photoshoots?|videography|creative shoots?|scroll-stopping content)\b/i.test(textToScan)) {
         return 'Video Production & Editing';
     }
 
-    if (/\b(brand identity|branding agency|logo design|graphic design|packaging design|brand guidelines|visual identity|illustrat|creative director)\b/i.test(textToScan)) {
+    if (/\b(brand identity|branding agency|logo design|graphic design|packaging design|brand guidelines|visual identity|illustrat|creative director|creative agency|aesthetic photography|product photography)\b/i.test(textToScan)) {
         return 'Branding & Design';
     }
 

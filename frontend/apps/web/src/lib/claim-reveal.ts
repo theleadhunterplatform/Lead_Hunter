@@ -59,8 +59,8 @@ export function detectNiche(input: {
   // 2. High-precision cluster scan on candidate + intel + content (actual post intent beats scraper keyword!)
   const primaryText = `${candidate} ${intel} ${c}`
 
-  // Paid Ads & Performance Marketing (High Priority - don't let Web Dev steal ad leads)
-  if (/\b(performance marketing|paid ads|facebook ads|fb ads|meta ads|google ads|media buyer|ppc specialist|ppc agency|roas|ad campaigns?|social media marketing|smm|d2c marketing|growth marketing|digital marketing|digital marketer|marketing agency|creative marketing agency|brand activation|event activation|influencer (strategist|marketing|campaign|outreach)|creator campaign|creators for an upcoming|brand campaign|ugc agency)\b/i.test(primaryText)) {
+  // Paid Ads & Marketing (High Priority - includes social media management & creative agencies)
+  if (/\b(performance marketing|paid ads|facebook ads|fb ads|meta ads|google ads|media buyer|ppc specialist|ppc agency|roas|ad campaigns?|social media marketing|social media management|social media manager|social media agency|social media|smm|d2c marketing|growth marketing|digital marketing|digital marketer|marketing agency|creative agency|creative marketing agency|brand activation|event activation|influencer (strategist|marketing|campaign|outreach)|creator campaign|creators for an upcoming|brand campaign|ugc agency)\b/i.test(primaryText)) {
     return 'Paid Ads & Marketing'
   }
 
@@ -74,13 +74,13 @@ export function detectNiche(input: {
     return 'SEO & Organic Growth'
   }
 
-  // Video Production & Editing
-  if (/\b(video edit(or|ing)?|motion graphics|reels edit(or|ing)?|tiktok edit(or|ing)?|youtube edit(or|ing)?|animator|2d animat(or|ion)|3d animat(or|ion)|character animat(or|ion)|motion designer|premiere pro|after effects|video production|videographer|video creator|ugc video|video thumbnail|thumbnail designer)\b/i.test(primaryText)) {
+  // Video Production & Editing (includes content production, reels, product shoots, photography)
+  if (/\b(video edit(or|ing)?|motion graphics|reels edit(or|ing)?|reels|tiktok edit(or|ing)?|youtube edit(or|ing)?|animator|2d animat(or|ion)|3d animat(or|ion)|character animat(or|ion)|motion designer|premiere pro|after effects|video production|content production|videographer|video creator|ugc video|video thumbnail|thumbnail designer|product shoots?|photography|photographer|photoshoots?|videography|creative shoots?|scroll-stopping content)\b/i.test(primaryText)) {
     return 'Video Production & Editing'
   }
 
   // Branding & Graphic Design
-  if (/\b(brand identity|branding agency|logo design(er)?|graphic design(er)?|packaging design|brand guidelines|visual identity|illustrat(or|ion)|brochure design|creative director|brand experience)\b/i.test(primaryText)) {
+  if (/\b(brand identity|branding agency|logo design(er)?|graphic design(er)?|packaging design|brand guidelines|visual identity|illustrat(or|ion)|brochure design|creative director|brand experience|creative agency|aesthetic photography|product photography)\b/i.test(primaryText)) {
     return 'Branding & Design'
   }
 
@@ -604,8 +604,8 @@ export function stripPersonAndCompany(text: string): string {
     .replace(/^[A-Z][a-zA-Z0-9\s]+?\s+is\s+(?:actively\s+)?(?:hiring|looking\s+for|seeking|needing)\s+(?:an?\s+)?/i, '')
     // Possessive person names: "Guna Rajendran's company is likely in a growth phase..." -> "Company in a growth phase..."
     .replace(/^[A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2}'s\s+(company|brand|startup|firm|team|business)\s+(?:is\s+)?(?:likely\s+)?(?:in\s+)?/i, 'Company in ')
-    // Mask specific corporate endings (Commodity, Ventures, Solutions, Agency, etc.)
-    .replace(/\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2}\s+(?:Commodity|Commodities|Ventures|Technologies|Solutions|Enterprises|Studios|Agency|Capital|Media|Group|Labs|Pvt|Ltd|LLC|Inc|Corp)\b/gi, 'a business client')
+    // Mask specific corporate legal entity registrations (Pvt Ltd, LLC, Inc, Corp, GmbH, LLP) without touching words like Agency, Media, Solutions, Studios
+    .replace(/\b[A-Z][a-zA-Z0-9&.\-']+(?:\s+[A-Z][a-zA-Z0-9&.\-']+){0,2}\s+(?:Pvt\.?\s*Ltd\.?|Ltd\.?|LLC|Inc\.?|Corp\.?|GmbH|LLP)\b/g, '')
     // "The client/founder/post is looking for..."
     .replace(/^(?:the\s+)?(?:client|author|user|agency|buyer|company|founder|post)\s+(?:is\s+)?(?:actively\s+)?(?:hiring|looking\s+for|seeking|needs|requires|wants)\s+(?:an?\s+)?/i, '')
     .replace(/^(?:looking\s+for|seeking|needs|requires|wants)\s+(?:an?\s+)?/i, '')
