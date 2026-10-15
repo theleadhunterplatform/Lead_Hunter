@@ -3,7 +3,7 @@ import { PrismaClient } from '../frontend/apps/web/node_modules/@prisma/client/i
 const prisma = new PrismaClient({
   datasources: {
     db: {
-      url: "postgresql://postgres.hbhggojqtgwfxnmclcut:theleadhunterbydss@aws-1-ap-south-1.pooler.supabase.com:5432/postgres"
+      url: process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/lead_hunter_dev"
     }
   }
 });
