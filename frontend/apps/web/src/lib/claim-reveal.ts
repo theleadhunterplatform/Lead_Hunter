@@ -318,8 +318,10 @@ export function cleanIntelBody(text: string): string {
     .replace(/__([^_\n]+)__/g, '$1')
     .replace(/\*([^*\n]+)\*/g, '$1')
     .replace(/^\s*#{1,6}\s*/gm, '')
-    .replace(/^\s*---+\s*$/gm, '')
+    .replace(/^\s*[-—–*_]{2,}\s*$/gm, '')
     .replace(/^\s*[-*•]\s+/gm, '')
+    .replace(/(?:\s*[-—–*_]{2,}\s*)+/g, ' ')
+    .replace(/[-—–\s]+$/, '')
     .replace(/\s+/g, ' ')
     .trim()
 }
@@ -362,6 +364,10 @@ export function parseIntelSections(intel: string): IntelSection[] {
   }
 
   for (const line of lines) {
+    // Drop horizontal markdown divider lines entirely
+    if (/^\s*[-—–*_]{2,}\s*$/.test(line.trim())) {
+      continue
+    }
     const match = line.match(/^\s*#{1,6}\s*(.+?)\s*$/)
     if (match && match[1].length <= 80) {
       flush()
@@ -660,8 +666,8 @@ export function cleanCompleteSentence(text: string): string {
   // Strip preambles and person/company prefixes
   cleaned = stripPersonAndCompany(cleaned)
 
-  // Extract first complete sentence ending in . ? or !
-  const match = cleaned.match(/^([^.?!]+[.?!])/)
+  // Extract first complete sentence ending in . ? or ! (avoiding decimal points like 3.5x or abbreviations like e.g.)
+  const match = cleaned.match(/^((?:[^.?!]|\.(?=\d)|\.(?<=\b[A-Za-z]\.))+[.?!])/)
   let sentence = match ? match[1].trim() : cleaned.trim()
 
   // Remove meta commentary or trailing filler clauses
@@ -692,8 +698,8 @@ export function extractIntelTitle(intel: string): string {
   return match ? match[1].trim() : ''
 }
 
-export function extractBuyerPersona(intel: string): string {
-  if (!intel) return 'Client seeking specialized execution partner.'
+export function extractBuyerPersona(intel: string, industryFallback?: string | null): string {
+  if (!intel) return industryFallback ? `${industryFallback} Brand / Client` : 'Client seeking specialized execution partner.'
 
   // 1. Scan Context bullets for persona
   const contextMatch = intel.match(/##\s*🧩\s*Context You Might Miss\s*\n+([\s\S]*?)(?=\n##|---|$)/i)
@@ -701,12 +707,21 @@ export function extractBuyerPersona(intel: string): string {
     const lines = contextMatch[1].split('\n').map((l) => l.trim()).filter(Boolean)
     for (const line of lines) {
       const clean = line.replace(/^[-*•\s]+/, '').replace(/\*\*([^*]+)\*\*/g, '$1').trim()
-      if (/founder|agency|brand|company|startup|merchant|client|business|store|retailer/i.test(clean)) {
+      if (/founder|agency|brand|company|startup|merchant|client|business|store|retailer|manager|owner|lead/i.test(clean)) {
         if (!/email\s+domain|geographic|location/i.test(clean)) {
-          const sanitized = sanitizeBuyerPersona(clean)
-          const sentence = cleanCompleteSentence(sanitized)
-          if (sentence && sentence.length >= 15) {
-            return sentence
+          // Strip meta commentary: "Buyer persona is likely a marketing manager or brand owner" -> "Marketing manager or brand owner"
+          let p = clean
+            .replace(/^(?:buyer\s+)?persona\s+is\s+(?:likely\s+)?(?:an?\s+)?/i, '')
+            .replace(/^(?:the\s+)?buyer\s+is\s+(?:likely\s+)?(?:an?\s+)?/i, '')
+            .replace(/^(?:target\s+)?buyer\s*(?:profile|type)?\s*:\s*/i, '')
+            .replace(/^(?:an?\s+)?likely\s+/i, '')
+            .replace(/[.?!]+$/, '')
+            .trim()
+          if (p.length > 0) {
+            p = p.charAt(0).toUpperCase() + p.slice(1)
+          }
+          if (p.length >= 4) {
+            return p
           }
         }
       }
@@ -727,7 +742,7 @@ export function extractBuyerPersona(intel: string): string {
     }
   }
 
-  return 'Verified company in active growth phase seeking execution partner.'
+  return 'Verified business client in active growth phase'
 }
 
 export function getStructuredLeadDetails(lead: {
@@ -751,50 +766,121 @@ export function getStructuredLeadDetails(lead: {
     return found ? found.body : ''
   }
 
-  // 1. Role: Ideal candidate or one-liner or role (clean complete sentence)
+  // 1. Role: Concise professional role title (NEVER a full sentence starting with "Client seeks...")
   let rawRole =
     findBody(/ideal candidate/i) ||
-    findBody(/one[\s-]?liner/i) ||
     lead.role ||
     ''
-  let role = cleanCompleteSentence(rawRole)
-  if (!role || role.toLowerCase() === 'general' || role.length < 5 || /^[\d\s]+followers$/i.test(role) || role === '--') {
-    const fb = lead.category && lead.category.toLowerCase() !== 'general' ? lead.category : ''
-    role = fb ? `${fb} Specialist` : cleanCompleteSentence(lead.summary || '')
+
+  let role = ''
+  let cleanRole = rawRole.trim()
+    .replace(/^(?:client\s+seeks|client\s+is\s+seeking|seeking|looking\s+for|needs?|requires?|hiring|we\s+need|i\s+need|urgent)\s+(?:an?\s+)?/i, '')
+    .replace(/^[A-Z0-9&'._\-]+(?:\s+[A-Z0-9&'._\-]+){0,3}\s+(?:seeks|is\s+seeking|is\s+looking\s+for|needs)\s+(?:an?\s+)?/i, '')
+    .replace(/(?:\s+needed|\s+wanted|\s+required|\s+urgent|\s+to\s+join|\s+for\s+startup)[.!]?$/i, '')
+    .replace(/[.?!]+$/, '')
+    .trim()
+
+  const forMatch = cleanRole.match(/^([A-Za-z\s/-]{3,30}?)\s+for\s+([A-Za-z\s/-]{3,40})/i)
+  if (forMatch) {
+    const mainRole = forMatch[1].trim().replace(/\b\w/g, (c) => c.toUpperCase())
+    const spec = forMatch[2].trim().replace(/\b\w/g, (c) => c.toUpperCase())
+    role = `${mainRole} (${spec})`
+  } else if (cleanRole.length >= 3 && cleanRole.length <= 50 && !cleanRole.includes('.')) {
+    role = cleanRole.replace(/\b\w/g, (c) => c.toUpperCase())
   }
+
   if (!role) {
-    role = 'Specialized Developer / Growth Partner'
+    const specialty = extractLeadSpecialty(lead)
+    role = (specialty && specialty !== 'OPPORTUNITY' && specialty !== 'GENERAL') ? specialty : (lead.category || 'Specialized Execution Partner')
+  }
+  if (!role || role.toLowerCase() === 'general' || role === '--') {
+    role = 'Specialized Execution Partner'
   }
 
-  // 2. Task: Prefer AI intel title or Core Scope or taskScope (clean title or complete sentence)
+  // 2. Task: Concrete scope of deliverables (NEVER repeating Role or "Client seeks...")
   let task = ''
-  if (intelTitle && intelTitle.length >= 6 && intelTitle.length <= 80) {
-    task = intelTitle
-  } else {
-    let rawTask =
-      findBody(/core scope/i) ||
-      lead.taskScope ||
-      findBody(/2[\s-]?line/i) ||
-      lead.summary ||
-      ''
-    task = cleanCompleteSentence(rawTask)
-  }
-  if (!task) {
-    task = 'Project delivery, system integration & execution'
+  const coreScope = findBody(/core scope/i)
+  const twoLine = findBody(/2[\s-]?line/i)
+  const fourLine = findBody(/4[\s-]?line/i)
+  const textSource = twoLine || fourLine || lead.detailsSummary || lead.taskScope || lead.summary || ''
+
+  const sentences = textSource.split(/(?<=[.?!])\s+/).map((s) => s.trim()).filter(Boolean)
+  let deliverable = ''
+
+  for (const s of sentences) {
+    if (/scope\s+includes|deliverables?\s+include/i.test(s)) {
+      deliverable = s.replace(/^(?:the\s+)?(?:scope|deliverables?)\s+(?:includes?|are|entails?)\s+/i, '')
+      break
+    }
   }
 
-  // 3. Must Have: What They Actually Want or Requirements (clean complete sentence)
-  let rawMustHave =
-    findBody(/what they actually want/i) ||
-    findBody(/requirements/i) ||
-    lead.mustHave ||
-    ''
-  let mustHave = cleanCompleteSentence(rawMustHave)
-  if (!mustHave) {
-    mustHave = 'Proven domain expertise, portfolio, and independent execution.'
+  if (!deliverable && sentences[0]) {
+    deliverable = sentences[0]
+      .replace(/^[A-Z0-9&'._\-]+(?:\s+[A-Z0-9&'._\-]+){0,3}\s+(?:is\s+)?(?:seeking|looking\s+for|hiring|needs?)\s+(?:an?\s+)?[^,.]+?\s+to\s+/i, '')
+      .replace(/^(?:client\s+seeks|seeking|looking\s+for|hiring|needs?)\s+(?:an?\s+)?[^,.]+?\s+to\s+/i, '')
+      .replace(/^(?:client\s+seeks|seeking|looking\s+for|hiring|needs?)\s+(?:an?\s+)?/i, '')
   }
 
-  // 4. Niche: Clean badges / tags list (comma-separated badges)
+  if (sentences[1] && /shoots|photography|reels|testing|roas|design|build|manage|scale|audit|report/i.test(sentences[1])) {
+    const s2Clean = sentences[1].replace(/^(?:the\s+)?(?:scope\s+includes|objective\s+is\s+to)\s+/i, '').replace(/[.?!]+$/, '')
+    if (!deliverable.toLowerCase().includes(s2Clean.toLowerCase().slice(0, 15))) {
+      deliverable = `${deliverable.replace(/[.?!]+$/, '')}, ${s2Clean}`
+    }
+  }
+
+  task = cleanCompleteSentence(deliverable || coreScope || lead.taskScope || 'Project delivery, system integration & execution.')
+
+  // Deduplication check: if task repeats role or title, fall back to core deliverables
+  if (task.toLowerCase().includes(role.toLowerCase()) && task.length < 40) {
+    task = cleanCompleteSentence(coreScope || lead.detailsSummary || lead.taskScope || 'Project delivery, system integration & execution.')
+  }
+
+  // 3. Must Have: Requirements, tools, creative skills, portfolio (NEVER repeating role or task)
+  let mustHave = ''
+  const reqMatch = intel.match(/##\s*🎯\s*What They Actually Want\s*\n+([\s\S]*?)(?=\n##|---|$)/i)
+  if (reqMatch) {
+    const bullets = reqMatch[1]
+      .split(/\n+/)
+      .map((b) => b.replace(/^[-*•\s\d.]+\s*/, '').replace(/\*\*([^*]+)\*\*/g, '$1').trim())
+      .filter((b) => b.length > 5 && !/^[A-Z0-9\s:_-]{1,15}$/.test(b))
+
+    const roleWords = role.toLowerCase().split(/[\s()/]+/).filter((w) => w.length > 3)
+    const uniqueBullet = bullets.find((b) => {
+      const bLower = b.toLowerCase()
+      const matchCount = roleWords.filter((w) => bLower.includes(w)).length
+      return matchCount === 0
+    })
+
+    if (uniqueBullet) {
+      mustHave = uniqueBullet
+    } else if (bullets.length > 1) {
+      mustHave = bullets[1]
+    } else if (bullets.length > 0) {
+      mustHave = bullets[0]
+    }
+  }
+
+  // Fallback to Context nuance or nicheTags if still empty or duplicates role/task
+  const roleLower = role.toLowerCase()
+  const taskLower = task.toLowerCase()
+  if (!mustHave || mustHave.toLowerCase() === roleLower || taskLower.includes(mustHave.toLowerCase())) {
+    const contextBody = intel.match(/##\s*🧩\s*Context You Might Miss\s*\n+([\s\S]*?)(?=\n##|---|$)/i)?.[1] || ''
+    const contextBullets = contextBody
+      .split(/\n+/)
+      .map((b) => b.replace(/^[-*•\s\d.]+\s*/, '').trim())
+      .filter((b) => /nuance|need|requirement|portfolio|experience|skills|creative|track record/i.test(b))
+    if (contextBullets.length > 0) {
+      mustHave = contextBullets[0].replace(/^project\s+nuance\s+is\s+(?:the\s+)?/i, '')
+    } else if (lead.nicheTags && lead.nicheTags.length > 0) {
+      const skills = lead.nicheTags.filter((t) => !['International', 'National', 'Agency', 'Freelancer', 'Hot Lead'].includes(t))
+      if (skills.length > 0) {
+        mustHave = `Expertise in ${skills.slice(0, 4).join(', ')} with proven track record.`
+      }
+    }
+  }
+  mustHave = cleanCompleteSentence(mustHave || lead.mustHave || 'Proven domain expertise, portfolio, and independent execution.')
+
+  // 4. Niche: Clean badges / tags list
   const badges = extractLeadBadges(
     {
       keyword: lead.category,
@@ -805,15 +891,26 @@ export function getStructuredLeadDetails(lead: {
   )
   const niche = badges.length > 0 ? badges.slice(0, 3).join(', ') : 'Development, Growth'
 
-  // 5. Buyer: Target buyer profile (clean complete sentence)
-  let buyer = extractBuyerPersona(intel)
+  // 5. Buyer: Commercial entity & decision maker profile
+  let buyer = extractBuyerPersona(intel, lead.category)
+
+  // Detect industry if not already present in buyer string
+  const indMatch =
+    lead.signalContext?.match(/category:\s*([A-Za-z\s&-]+)/i)?.[1] ||
+    intel.match(/(?:A|An)\s+([A-Za-z0-9\s&-]{3,35}?(?:brand|company|startup|firm|store|retailer|merchant))/i)?.[1] ||
+    lead.summary?.match(/(?:A|An)\s+([A-Za-z0-9\s&-]{3,35}?(?:brand|company|startup|firm|store|retailer|merchant))/i)?.[1]
+
+  if (indMatch && !buyer.toLowerCase().includes(indMatch.toLowerCase().trim())) {
+    const cleanInd = indMatch.trim().replace(/^[a-z]/, (c) => c.toUpperCase())
+    buyer = `${cleanInd} (${buyer})`
+  }
 
   return {
-    role: role || 'Specialized Developer / Agency Partner',
+    role: role || 'Specialized Execution Partner',
     task: task || 'Project delivery, platform setup, and implementation',
     mustHave: mustHave || 'Relevant industry experience, proven execution, portfolio',
     niche: niche || 'General',
-    buyer: buyer || 'Verified client looking for specialized service provider',
+    buyer: buyer || 'Verified commercial client in active growth phase',
   }
 }
 
@@ -831,12 +928,19 @@ export function extractLeadSpecialty(lead: {
 }): string {
   // 1. Clean and check lead.role (handles "Experienced Performance Marketing Freelancer needed.")
   if (lead.role && !/^(general|--)$/i.test(lead.role.trim())) {
-    const cleanRole = lead.role
+    let cleanRole = lead.role
       .replace(/(?:\s+needed|\s+wanted|\s+required|\s+urgent|\s+to\s+join|\s+for\s+startup)[.!]?$/i, '')
+      .replace(/^(?:client\s+seeks|seeking|looking\s+for|hiring|needs?)\s+(?:an?\s+)?/i, '')
       .replace(/^["'`*#]+|["'`*#]+$/g, '')
+      .replace(/[.?!]+$/, '')
       .trim()
-    if (cleanRole.length >= 3 && cleanRole.length <= 75 && !cleanRole.toLowerCase().includes('watchlist:')) {
-      return cleanRole
+    // If it has "for social media management" or "to build...", strip to the core role noun phrase
+    const forMatch = cleanRole.match(/^([A-Za-z\s/-]{3,35}?)\s+(?:for|to)\s+/i)
+    if (forMatch) {
+      cleanRole = forMatch[1].trim()
+    }
+    if (cleanRole.length >= 3 && cleanRole.length <= 45 && !cleanRole.toLowerCase().includes('watchlist:')) {
+      return cleanRole.replace(/\b\w/g, (c) => c.toUpperCase())
     }
   }
 

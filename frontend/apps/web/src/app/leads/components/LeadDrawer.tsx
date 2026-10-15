@@ -737,13 +737,18 @@ export default function LeadDrawer({
 }
 
 function IntelBlock({ label, value }: { label: string; value: string }) {
+  const cleanValue = (value || '')
+    .replace(/(?:\s*[-—–*_]{2,}\s*)+/g, ' ')
+    .replace(/[-—–\s]+$/, '')
+    .trim()
+
   return (
-    <div className="min-w-0">
-      <span className="mb-1.5 block font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-primary/85">
+    <div className="min-w-0 pb-3 mb-3 border-b border-white/[0.04] last:border-b-0 last:pb-0 last:mb-0">
+      <span className="mb-1 block font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-primary/85">
         {label}
       </span>
-      <span className="block break-words text-[13px] font-medium leading-relaxed text-text-primary">
-        {value}
+      <span className="block break-words text-[12.5px] font-medium leading-relaxed text-text-primary">
+        {cleanValue}
       </span>
     </div>
   )
