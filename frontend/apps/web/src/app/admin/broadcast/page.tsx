@@ -842,7 +842,6 @@ export default function AdminBroadcastPage() {
           toEmail: targetEmail,
           testEmail: targetEmail,
           recipientName: targetName,
-          userId: flowTargetMode === 'member' ? selectedMemberId : undefined,
           subject: testFlowType === 'custom' ? subject : undefined,
           message: testFlowType === 'custom' ? message : undefined,
           plan: flowPlanTier,
@@ -866,8 +865,10 @@ export default function AdminBroadcastPage() {
           message: json.message || 'Failed to dispatch test email',
         })
       }
-    } catch {
-      addToast({ type: 'error', message: 'Network error dispatching flow test email' })
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Network error dispatching flow test email'
+      console.error('[BroadcastTest] Dispatch error:', err)
+      addToast({ type: 'error', message: msg })
     } finally {
       setIsDispatchingFlowTest(false)
     }

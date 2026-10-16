@@ -89,7 +89,10 @@ export async function POST(request: NextRequest) {
         if (!recipientName) recipientName = user.name?.trim() || 'Demo Member'
         if (user.plan && !parsed.data.plan) plan = user.plan
         if (user.creditAccount && parsed.data.credits === undefined) {
-          credits = (user.creditAccount.subscriptionBalance || 0) + (user.creditAccount.topupBalance || 0)
+          credits =
+            (user.creditAccount.subscriptionBalance || 0) +
+            (user.creditAccount.bonusBalance || 0) +
+            (user.creditAccount.rolloverBalance || 0)
         }
       }
     } else if (toEmail) {
@@ -101,7 +104,10 @@ export async function POST(request: NextRequest) {
         if (!recipientName) recipientName = user.name?.trim() || 'Demo Member'
         if (user.plan && !parsed.data.plan) plan = user.plan
         if (user.creditAccount && parsed.data.credits === undefined) {
-          credits = (user.creditAccount.subscriptionBalance || 0) + (user.creditAccount.topupBalance || 0)
+          credits =
+            (user.creditAccount.subscriptionBalance || 0) +
+            (user.creditAccount.bonusBalance || 0) +
+            (user.creditAccount.rolloverBalance || 0)
         }
       }
     }
@@ -410,7 +416,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ code: 'INVALID_FLOW', message: 'Unknown flow type' }, { status: 400 })
     }
 
-    if (!result.success || result.id === 'error' || result.id === 'mock-sent') {
+    if (!result.success || result.id === 'error') {
       const failureReason = result.error || `Failed to dispatch email to ${toEmail}.`
       return NextResponse.json(
         { success: false, message: failureReason },
@@ -418,10 +424,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const providerNotice = result.id === 'mock-sent'
+      ? 'Mock Mode - Check SMTP keys'
+      : (health.provider || 'Brevo SMTP')
+
     return NextResponse.json({
       success: true,
       resultId: result.id,
-      message: `Test email (${flowType}) delivered to ${toEmail} via ${health.provider}.`,
+      message: `Test email (${flowType}) delivered to ${toEmail} (${providerNotice}).`,
     })
   } catch (error: unknown) {
     if (error instanceof AuthRequiredError || error instanceof ForbiddenError) {
