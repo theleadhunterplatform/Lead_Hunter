@@ -361,15 +361,19 @@ export default function AdminBroadcastPage() {
   // Preview Mode State
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>('desktop')
 
-  // System Email Flow Sandbox State
+  // System Email Flow Sandbox State - Hardcoded Test Inboxes
+  const HARDCODED_TEST_EMAILS = useMemo(
+    () => [
+      { email: 'yashkaranjule230@gmail.com', name: 'Yash Karanjule' },
+      { email: 'dualsparkstudio@gmail.com', name: 'Dual Spark Studio' },
+      { email: 'yashkaranjule19@gmail.com', name: 'Yash Karanjule (Alt)' },
+    ],
+    []
+  )
+  const [selectedTestEmail, setSelectedTestEmail] = useState<string>('yashkaranjule230@gmail.com')
   const [membersList, setMembersList] = useState<AdminMemberItem[]>([])
   const [isLoadingMembers, setIsLoadingMembers] = useState(false)
   const [testFlowType, setTestFlowType] = useState<string>('lead_drop')
-  const [flowTargetMode, setFlowTargetMode] = useState<'member' | 'custom'>('custom')
-  const [selectedMemberId, setSelectedMemberId] = useState<string>('')
-  const [memberSearchQuery, setMemberSearchQuery] = useState<string>('')
-  const [customTestEmail, setCustomTestEmail] = useState<string>('')
-  const [customTestName, setCustomTestName] = useState<string>('')
 
   // Flow Customization inputs
   const [flowLeadTitle, setFlowLeadTitle] = useState<string>('High-Ticket Next.js & Stripe Platform Redesign')
@@ -756,7 +760,7 @@ export default function AdminBroadcastPage() {
     setIsLoadingMembers(true)
     try {
       const token = await getFirebaseToken()
-      const res = await fetch('/api/admin/users?pageSize=100', {
+      const res = await fetch('/api/admin/users?pageSize=500', {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       })
       const json = await res.json()
@@ -777,29 +781,14 @@ export default function AdminBroadcastPage() {
     fetchMembers()
   }, [fetchData, fetchTemplates, fetchWhatsAppStatus, fetchMembers])
 
-  const handleSelectMember = (memberId: string) => {
-    setSelectedMemberId(memberId)
-    const member = membersList.find((m) => m.id === memberId)
-    if (member) {
-      setCustomTestEmail(member.email)
-      setCustomTestName(member.name || '')
-      if (member.plan) setFlowPlanTier(member.plan)
-    }
-  }
-
-  const handlePreviewFlowInShell = async (overrideFlow?: string) => {
+  const handlePreviewFlowInShell = async (overrideFlow?: string, overrideEmail?: string) => {
     const flow = overrideFlow || testFlowType
     const selectedFlowConfig = TEST_EMAIL_FLOWS.find((f) => f.id === flow) || TEST_EMAIL_FLOWS[0]
 
-    const targetMember = membersList.find((m) => m.id === selectedMemberId)
-    const targetEmail =
-      flowTargetMode === 'member'
-        ? (targetMember?.email || customTestEmail || 'member@domain.com')
-        : (customTestEmail || testEmail || 'recipient@domain.com')
-    const targetName =
-      flowTargetMode === 'member'
-        ? (targetMember?.name || customTestName || 'Alex')
-        : (customTestName || 'Alex')
+    const emailToUse = overrideEmail || selectedTestEmail
+    const targetItem = HARDCODED_TEST_EMAILS.find((i) => i.email === emailToUse) || HARDCODED_TEST_EMAILS[0]
+    const targetEmail = targetItem.email
+    const targetName = targetItem.name
 
     setIsPreviewLoading(true)
     try {
@@ -815,7 +804,6 @@ export default function AdminBroadcastPage() {
           previewOnly: true,
           toEmail: targetEmail,
           recipientName: targetName,
-          userId: flowTargetMode === 'member' ? selectedMemberId : undefined,
           subject: flow === 'custom' ? subject : undefined,
           message: flow === 'custom' ? message : undefined,
           plan: flowPlanTier,
@@ -840,7 +828,7 @@ export default function AdminBroadcastPage() {
         })
         addToast({
           type: 'info',
-          message: `Simulating "${selectedFlowConfig.label}" in the live preview shell`,
+          message: `Simulating "${selectedFlowConfig.label}" for ${targetEmail}`,
         })
       } else {
         addToast({
@@ -857,28 +845,9 @@ export default function AdminBroadcastPage() {
 
   const handleDispatchFlowTest = async () => {
     const selectedFlowConfig = TEST_EMAIL_FLOWS.find((f) => f.id === testFlowType) || TEST_EMAIL_FLOWS[0]
-    const targetMember = membersList.find((m) => m.id === selectedMemberId)
-    const targetEmail = (
-      flowTargetMode === 'member'
-        ? (targetMember?.email || customTestEmail)
-        : (customTestEmail || testEmail)
-    )?.trim()
-
-    if (!targetEmail || !targetEmail.includes('@')) {
-      addToast({
-        type: 'error',
-        message:
-          flowTargetMode === 'member'
-            ? 'Please select a platform member or enter a target destination email'
-            : 'Please enter a valid destination email address for testing',
-      })
-      return
-    }
-
-    const targetName =
-      flowTargetMode === 'member'
-        ? (targetMember?.name || customTestName || 'Alex')
-        : (customTestName || 'Alex')
+    const targetItem = HARDCODED_TEST_EMAILS.find((i) => i.email === selectedTestEmail) || HARDCODED_TEST_EMAILS[0]
+    const targetEmail = targetItem.email
+    const targetName = targetItem.name
 
     setIsDispatchingFlowTest(true)
     try {
@@ -2823,147 +2792,117 @@ export default function AdminBroadcastPage() {
                 </p>
               </div>
 
-              {/* 2. Target Recipient Selection */}
-              <div className="space-y-3">
+              {/* 2. Target Test Email Address */}
+              <div className="space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-text-primary">
-                    2. Target Recipient
+                  <label className="text-xs font-semibold text-text-primary flex items-center gap-1.5">
+                    <EnvelopeIcon className="w-3.5 h-3.5 text-primary" />
+                    <span>2. Select Destination Test Inbox</span>
                   </label>
-                  <div className="flex items-center gap-1 p-0.5 rounded-lg bg-surface-container-low border border-white/5 text-[11px]">
-                    <button
-                      type="button"
-                      onClick={() => setFlowTargetMode('member')}
-                      className={`px-2.5 py-1 rounded-md transition-all font-medium cursor-pointer ${
-                        flowTargetMode === 'member'
-                          ? 'bg-primary text-black font-bold shadow-xs'
-                          : 'text-text-secondary hover:text-white'
-                      }`}
-                    >
-                      Platform Member
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setFlowTargetMode('custom')}
-                      className={`px-2.5 py-1 rounded-md transition-all font-medium cursor-pointer ${
-                        flowTargetMode === 'custom'
-                          ? 'bg-primary text-black font-bold shadow-xs'
-                          : 'text-text-secondary hover:text-white'
-                      }`}
-                    >
-                      Custom Email
-                    </button>
-                  </div>
+                  <span className="text-[10px] text-text-secondary font-mono">
+                    3 Admin Inboxes
+                  </span>
                 </div>
 
-                {/* Mode A: Select Platform Member */}
-                {flowTargetMode === 'member' ? (
-                  <div className="space-y-2">
-                    <div className="relative">
-                      <MagnifyingGlassIcon className="w-3.5 h-3.5 text-text-secondary absolute left-3 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="text"
-                        value={memberSearchQuery}
-                        onChange={(e) => setMemberSearchQuery(e.target.value)}
-                        placeholder="Search member name or email..."
-                        className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-surface-container border border-white/10 text-white placeholder-text-secondary/50 focus:outline-none focus:border-primary/50"
-                      />
-                    </div>
-
-                    <select
-                      value={selectedMemberId}
-                      onChange={(e) => handleSelectMember(e.target.value)}
-                      className="w-full px-3 py-2.5 text-xs rounded-xl bg-surface-container border border-white/10 text-white focus:outline-none focus:border-primary/50 cursor-pointer"
-                    >
-                      <option value="">
-                        {isLoadingMembers
-                          ? 'Loading platform users...'
-                          : `-- Select Member (${filteredMembersList.length} loaded) --`}
-                      </option>
-                      {filteredMembersList.map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.name ? `${m.name} (${m.email})` : m.email} • {m.plan || 'Free'} • {m.creditAccount?.total ?? 0} coins
-                        </option>
-                      ))}
-                    </select>
-
-                    {/* Selected Member Summary Micro-card */}
-                    {selectedMember && (
-                      <div className="p-3 rounded-xl bg-primary/5 border border-primary/20 flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-2 truncate">
-                          <div className="w-7 h-7 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-xs shrink-0">
-                            {(selectedMember.name?.[0] || selectedMember.email[0]).toUpperCase()}
+                <div className="grid grid-cols-1 gap-2">
+                  {HARDCODED_TEST_EMAILS.map((item) => {
+                    const isSelected = selectedTestEmail === item.email
+                    return (
+                      <button
+                        key={item.email}
+                        type="button"
+                        onClick={() => {
+                          setSelectedTestEmail(item.email)
+                          handlePreviewFlowInShell(undefined, item.email)
+                        }}
+                        className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between ${
+                          isSelected
+                            ? 'bg-primary/10 border-primary text-white shadow-sm'
+                            : 'bg-surface-container border-white/10 text-text-secondary hover:text-white hover:border-white/20'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 truncate">
+                          <div
+                            className={`w-7 h-7 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
+                              isSelected ? 'bg-primary text-black' : 'bg-surface-elevated text-text-secondary'
+                            }`}
+                          >
+                            {item.name[0]}
                           </div>
                           <div className="truncate">
-                            <div className="font-semibold text-white truncate">
-                              {selectedMember.name || 'Unnamed Member'}
+                            <div className={`text-xs font-semibold truncate ${isSelected ? 'text-white' : 'text-text-primary'}`}>
+                              {item.name}
                             </div>
-                            <div className="text-[10px] text-text-secondary truncate">
-                              {selectedMember.email}
+                            <div className="text-[11px] font-mono text-text-secondary truncate">
+                              {item.email}
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-1.5 shrink-0 text-[10px]">
-                          <span className="px-2 py-0.5 rounded-full bg-surface border border-white/10 text-text-secondary font-medium">
-                            {selectedMember.plan || 'Free'}
-                          </span>
-                          <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-semibold font-mono">
-                            ⚡ {selectedMember.creditAccount?.total ?? 0}
+
+                        <div className="shrink-0 pl-2">
+                          <span
+                            className={`w-4 h-4 rounded-full border flex items-center justify-center ${
+                              isSelected ? 'border-primary bg-primary' : 'border-white/20'
+                            }`}
+                          >
+                            {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-black" />}
                           </span>
                         </div>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  /* Mode B: Direct Custom Recipient */
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    <div className="space-y-1">
-                      <label className="text-[11px] text-text-secondary">Destination Email</label>
-                      <input
-                        type="email"
-                        value={customTestEmail}
-                        onChange={(e) => setCustomTestEmail(e.target.value)}
-                        placeholder="e.g., yourname@domain.com"
-                        className="w-full px-3 py-2 text-xs rounded-xl bg-surface-container border border-white/10 text-white placeholder-text-secondary/50 focus:outline-none focus:border-primary/50"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[11px] text-text-secondary">Recipient Name (Optional)</label>
-                      <input
-                        type="text"
-                        value={customTestName}
-                        onChange={(e) => setCustomTestName(e.target.value)}
-                        placeholder="e.g., Alex Johnson"
-                        className="w-full px-3 py-2 text-xs rounded-xl bg-surface-container border border-white/10 text-white placeholder-text-secondary/50 focus:outline-none focus:border-primary/50"
-                      />
-                    </div>
-                  </div>
-                )}
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
 
               {/* 3. Contextual Flow Parameters Tuning */}
               {testFlowType === 'lead_drop' && (
-                <div className="p-3 rounded-xl bg-surface-container-low border border-white/5 space-y-2">
-                  <span className="text-[11px] font-semibold text-amber-400 flex items-center gap-1">
-                    <BoltIcon className="w-3.5 h-3.5" /> Sample Lead Mock Data
-                  </span>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="p-3.5 rounded-2xl bg-surface-container-low border border-amber-500/20 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-[11px] font-bold text-amber-400 flex items-center gap-1.5">
+                      <BoltIcon className="w-3.5 h-3.5" /> Sample Lead Mock Data
+                    </span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-300 font-mono">
+                      Lead Drop Alert
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-text-secondary leading-relaxed">
+                    When new client projects drop, members receive an alert with the opportunity headline and niche category so they can claim it.
+                  </p>
+
+                  <div className="space-y-2">
                     <div>
-                      <label className="text-[10px] text-text-secondary">Lead Title</label>
+                      <label className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider">
+                        Lead Title (Project Opportunity Headline)
+                      </label>
                       <input
                         type="text"
                         value={flowLeadTitle}
                         onChange={(e) => setFlowLeadTitle(e.target.value)}
-                        className="w-full px-2.5 py-1.5 text-xs rounded-lg bg-surface border border-white/10 text-white"
+                        placeholder="e.g. Senior Next.js & Stripe Developer for SaaS Platform"
+                        className="w-full px-2.5 py-1.5 text-xs rounded-lg bg-surface border border-white/10 text-white placeholder-text-secondary/40 focus:outline-none focus:border-primary/50"
                       />
                     </div>
                     <div>
-                      <label className="text-[10px] text-text-secondary">Niche Category</label>
-                      <input
-                        type="text"
+                      <label className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider">
+                        Niche Category (Hunters filter leads by this)
+                      </label>
+                      <select
                         value={flowLeadNiche}
                         onChange={(e) => setFlowLeadNiche(e.target.value)}
-                        className="w-full px-2.5 py-1.5 text-xs rounded-lg bg-surface border border-white/10 text-white"
-                      />
+                        className="w-full px-2.5 py-1.5 text-xs rounded-lg bg-surface border border-white/10 text-white focus:outline-none focus:border-primary/50 cursor-pointer"
+                      >
+                        <option value="Web Development">Web Development</option>
+                        <option value="Mobile Development">Mobile Development</option>
+                        <option value="UI/UX Design">UI/UX Design</option>
+                        <option value="Branding & Design">Branding & Design</option>
+                        <option value="Paid Ads & Marketing">Paid Ads & Marketing</option>
+                        <option value="Video Production & Editing">Video Production & Editing</option>
+                        <option value="AI & Automation">AI & Automation</option>
+                        <option value="Sales & Lead Gen">Sales & Lead Gen</option>
+                        <option value="SEO & Organic Growth">SEO & Organic Growth</option>
+                        <option value="Content & Copywriting">Content & Copywriting</option>
+                        <option value="Consulting & Strategy">Consulting & Strategy</option>
+                      </select>
                     </div>
                   </div>
                 </div>
@@ -3070,8 +3009,8 @@ export default function AdminBroadcastPage() {
                   <span className="w-2 h-2 rounded-full bg-accent-mint animate-pulse" />
                   <span>Delivered via Brevo SMTP &bull; port 587</span>
                 </span>
-                <span className="font-mono text-[10px]">
-                  Target: {flowTargetMode === 'member' ? (selectedMember?.name || selectedMember?.email || 'None') : (customTestEmail || 'Custom')}
+                <span className="font-mono text-[10px] truncate max-w-[220px]">
+                  Target: {selectedTestEmail}
                 </span>
               </div>
             </div>
