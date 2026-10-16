@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import Link from 'next/link'
 import {
   ArrowLeftIcon,
   PaperAirplaneIcon,
@@ -155,29 +154,15 @@ export default function AdminSupportThreadPage() {
                 <Badge size="sm" color={statusColor[ticket.status] || 'purple'}>
                   {ticket.status.replace('_', ' ')}
                 </Badge>
-<<<<<<< HEAD
                 <span className="text-xxs text-text-secondary">·</span>
                 <Link
-                  href={`/admin/users?search=${encodeURIComponent(ticket.user.email)}`}
+                  href={ticket.userId ? `/admin/users/${ticket.userId}` : `/admin/users?search=${encodeURIComponent(ticket.user.email)}`}
                   className="text-xxs text-accent-mint hover:underline font-medium inline-flex items-center gap-1 transition-colors"
                   title={`View ${ticket.user.name}'s profile in Admin`}
                 >
                   {ticket.user.name} ({ticket.user.email})
                   <ArrowTopRightOnSquareIcon className="w-3 h-3" />
                 </Link>
-=======
-                <span className="text-xxs text-text-secondary">
-                  ·{' '}
-                  <Link
-                    href={`/admin/users/${ticket.userId}`}
-                    title="Open user details"
-                    className="hover:text-accent-mint hover:underline transition-colors"
-                  >
-                    {ticket.user.name}
-                  </Link>{' '}
-                  ({ticket.user.email})
-                </span>
->>>>>>> 8d585420e1943b814cf020356cf1f728dceee702
               </div>
             </div>
             <div className="flex items-center gap-2">

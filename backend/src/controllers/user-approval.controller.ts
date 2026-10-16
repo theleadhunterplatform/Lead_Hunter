@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import asyncHandler from '../middleware/async';
 import * as userApprovalService from '../services/user-approval.service';
+import { sendTestLeadAlertEmail } from '../services/lead-alert-email.service';
 
 // @desc    List users awaiting signup approval
 // @route   GET /api/admin/users/pending
@@ -50,3 +51,30 @@ export const rejectSignupUser = asyncHandler(async (req: Request, res: Response,
         data: user,
     });
 });
+
+// @desc    Send a test lead alert email
+// @route   POST /api/admin/email/test-lead-alert
+// @access  Platform admin
+export const sendTestLeadAlertHandler = asyncHandler(
+    async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
+        const actor = req.user as any;
+        const targetEmail = req.body?.email || actor?.email;
+
+        if (!targetEmail) {
+            res.status(400).json({
+                success: false,
+                message: 'No recipient email specified and user has no email',
+            });
+            return;
+        }
+
+        await sendTestLeadAlertEmail(targetEmail);
+
+        res.status(200).json({
+            success: true,
+            message: `Test lead drop alert email sent to ${targetEmail}`,
+        });
+    }
+);
+
+

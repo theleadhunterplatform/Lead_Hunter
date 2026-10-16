@@ -246,6 +246,20 @@ model Setting {
   @@map("settings")
 }
 
+model EmailLog {
+  id        String   @id @default(uuid())
+  to        String
+  subject   String
+  type      String
+  sentAt    DateTime @default(now())
+  status    String   @default("SENT") // SENT | FAILED | SKIPPED
+  error     String?
+
+  @@index([sentAt(sort: Desc)])
+  @@map("email_logs")
+}
+
+
 model AuditLog {
   id             String   @id @default(uuid())
   actorId        String

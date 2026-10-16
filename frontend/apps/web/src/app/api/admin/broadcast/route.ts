@@ -38,6 +38,7 @@ export async function GET(request: NextRequest) {
       onboarding_emails_enabled: true,
       plan_change_emails_enabled: true,
       topup_emails_enabled: true,
+      lead_drop_emails_enabled: true,
       ...((automationSetting?.value as Record<string, any>) || {}),
     }
 

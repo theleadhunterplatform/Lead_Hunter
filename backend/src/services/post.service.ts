@@ -22,6 +22,7 @@ import {
 } from '../utils/lead-enrichment.utils';
 import { assertCanClaimLead } from './plan.service';
 import { queueLeadDropNotification } from './whatsapp.service';
+import { queueLeadDropEmailAlert } from './lead-alert-email.service';
 import { currentPlanMonth } from '../utils/plan.utils';
 import Organization from '../models/organization.model';
 import { Prisma } from '@prisma/client';
@@ -294,9 +295,17 @@ export const approveLeadReview = async (
         },
     });
 
-    // Trigger automated WhatsApp lead drop alert to the community group
+    // Trigger automated WhatsApp and Email lead drop alerts
     const nicheOrKeyword = (post as any).niche || (post as any).keyword;
     queueLeadDropNotification(1, nicheOrKeyword);
+    queueLeadDropEmailAlert({
+        id: (post as any).id || (post as any)._id?.toString?.() || String((post as any)._id),
+        title: (post as any).title,
+        niche: nicheOrKeyword,
+        platform: post.platform,
+        content: post.content,
+        keyword: post.keyword,
+    });
 
     return updated;
 };
@@ -423,12 +432,22 @@ export const bulkApproveLeadReviews = async (
         details: { count: approved, skipped, filters: query },
     });
 
-    // Trigger automated WhatsApp lead drop alert to the community group
+    // Trigger automated WhatsApp and Email lead drop alerts
     if (approved > 0) {
         const niches = withContact
             .map((p) => (p as any).niche || (p as any).keyword)
             .filter(Boolean);
         queueLeadDropNotification(approved, niches);
+        queueLeadDropEmailAlert(
+            withContact.map((p) => ({
+                id: (p as any).id || (p as any)._id?.toString?.() || String((p as any)._id),
+                title: (p as any).title,
+                niche: (p as any).niche || (p as any).keyword,
+                platform: (p as any).platform || 'linkedin',
+                content: (p as any).content || '',
+                keyword: (p as any).keyword,
+            }))
+        );
     }
 
     const skipNote = skipped > 0 ? ` ${skipped} skipped (no contact details).` : '';
@@ -499,12 +518,22 @@ export const bulkApproveLeadReviewsByIds = async (
         details: { count: withContact.length, skipped, ids: approveIds },
     });
 
-    // Trigger automated WhatsApp lead drop alert to the community group
+    // Trigger automated WhatsApp and Email lead drop alerts
     if (withContact.length > 0) {
         const niches = withContact
             .map((p) => (p as any).niche || (p as any).keyword)
             .filter(Boolean);
         queueLeadDropNotification(withContact.length, niches);
+        queueLeadDropEmailAlert(
+            withContact.map((p) => ({
+                id: (p as any).id || (p as any)._id?.toString?.() || String((p as any)._id),
+                title: (p as any).title,
+                niche: (p as any).niche || (p as any).keyword,
+                platform: (p as any).platform || 'linkedin',
+                content: (p as any).content || '',
+                keyword: (p as any).keyword,
+            }))
+        );
     }
 
     const skipNote = skipped > 0 ? ` ${skipped} skipped (not awaiting approval or missing contact).` : '';

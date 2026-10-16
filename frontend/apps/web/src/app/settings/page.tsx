@@ -265,57 +265,6 @@ export default function SettingsPage() {
         setPhoneError(json?.message || 'Failed to save phone number')
         return
       }
-<<<<<<< HEAD
-      const fullPhone = `${phoneCountryCode}${phoneFormPhone.trim()}`
-      const normalized = normalizePhone(fullPhone)
-      const result = await signInWithPhoneNumber(auth, normalized, verifier)
-      setPhoneConfirmationResult(result)
-      setPhoneStep('verify')
-      setOtpCountdown(60)
-    } catch {
-      setPhoneError('Failed to send OTP. Check the phone number and try again.')
-    } finally {
-      setPhoneLoading(false)
-    }
-  }
-
-  const handlePhoneVerifyOtp = async () => {
-    if (!phoneVerificationCode.trim() || !phoneConfirmationResult) return
-    setPhoneLoading(true)
-    setPhoneError('')
-    try {
-      const cred = PhoneAuthProvider.credential(
-        phoneConfirmationResult.verificationId,
-        phoneVerificationCode.trim(),
-      )
-      await linkWithCredential(auth.currentUser!, cred)
-
-      const fullPhone = `${phoneCountryCode}${phoneFormPhone.trim()}`
-      const normalized = normalizePhone(fullPhone)
-
-      const token = await auth.currentUser?.getIdToken().catch(() => null)
-      if (token) {
-        const patchRes = await fetch('/api/auth/me', {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ phone: normalized }),
-        })
-        const patchJson = await patchRes.json().catch(() => null)
-        if (!patchRes.ok) {
-          setPhoneError(patchJson?.message || 'Failed to update phone number.')
-          setPhoneLoading(false)
-          return
-        }
-      }
-
-      setPhoneStep('idle')
-      setPhoneFormPhone('')
-      setPhoneVerificationCode('')
-=======
->>>>>>> 8d585420e1943b814cf020356cf1f728dceee702
       window.location.reload()
     } catch {
       setPhoneError('Failed to save phone number. Please try again.')

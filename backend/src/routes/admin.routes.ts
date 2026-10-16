@@ -5,6 +5,7 @@ import {
     listPendingSignupUsers,
     approveSignupUser,
     rejectSignupUser,
+    sendTestLeadAlertHandler,
 } from '../controllers/user-approval.controller';
 import { adminGrantTokens, adminSetUserPlan } from '../controllers/plan.controller';
 
@@ -17,5 +18,7 @@ router.post('/users/:id/approve', approveSignupUser);
 router.post('/users/:id/reject', rejectSignupUser);
 router.patch('/users/:id/plan', adminSetUserPlan);
 router.post('/users/:id/tokens', adminGrantTokens);
+router.post('/email/test-lead-alert', sendTestLeadAlertHandler);
 
 export default router;
+

@@ -24,6 +24,31 @@ const createTemplateSchema = z.object({
 
 const DEFAULT_LIFECYCLE_TEMPLATES = [
   {
+    id: 'tpl-auto-lead-drop',
+    name: '🔥 When New Leads Drop & Are Approved (Lead Drop Alert Email)',
+    subject: '🔥 New Lead Alert: {{leadTitle}} | Lead Hunter',
+    category: 'automated',
+    body: `Hi {{name}},
+
+New strategic client requirements matching active market demand have just been reviewed and approved on Lead Hunter.
+
+Lead Title: {{leadTitle}}
+Niche: {{niche}}
+Platform: {{platform}}
+
+Summary:
+{{snippet}}
+
+👉 Claim before competitors reach out:
+{{leadUrl}}
+
+Explore All Strategic Leads on Platform:
+{{appUrl}}/leads
+
+Happy Hunting,
+The Lead Hunter Team`,
+  },
+  {
     id: 'tpl-auto-account-approved',
     name: '⚡ When User Account is Approved (Welcome Email)',
     subject: 'Your application was approved. Read your initiation deck and enter the grounds.',

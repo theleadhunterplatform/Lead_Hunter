@@ -76,6 +76,7 @@ interface BroadcastData {
     onboarding_emails_enabled: boolean
     plan_change_emails_enabled?: boolean
     topup_emails_enabled?: boolean
+    lead_drop_emails_enabled?: boolean
   }
   recentLogs: EmailLogItem[]
 }
@@ -102,6 +103,7 @@ const TEMPLATE_CATEGORIES = [
 ]
 
 const AUTOMATED_TRIGGER_OPTIONS = [
+  { id: 'tpl-auto-lead-drop', label: '🔥 When New Leads Drop & Are Approved (Lead Drop Alert Email)' },
   { id: 'tpl-auto-account-approved', label: '⚡ When User Account is Approved (Welcome Email)' },
   { id: 'tpl-auto-plan-upgrade', label: '🚀 When User Upgrades Plan' },
   { id: 'tpl-auto-plan-downgrade', label: '🔻 When User Downgrades Plan' },
@@ -1327,6 +1329,25 @@ export default function AdminBroadcastPage() {
               }`}
             >
               {data?.automationSettings?.topup_emails_enabled !== false && data?.automationSettings?.auto_email_enabled ? 'ON' : 'OFF'}
+            </button>
+          </div>
+
+          {/* 6. Lead Drop Alerts */}
+          <div className="flex items-center justify-between p-3.5 rounded-xl bg-surface-elevated/40 border border-white/[0.04]">
+            <div className="space-y-0.5 pr-2">
+              <span className="text-xs font-semibold text-white block">Lead Drop Alerts</span>
+              <span className="text-[10px] text-text-secondary block">Instant alerts when leads are approved</span>
+            </div>
+            <button
+              onClick={() => handleToggleAutomation('lead_drop_emails_enabled')}
+              disabled={automationSaving === 'lead_drop_emails_enabled' || !data?.automationSettings?.auto_email_enabled}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-40 ${
+                data?.automationSettings?.lead_drop_emails_enabled !== false && data?.automationSettings?.auto_email_enabled
+                  ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                  : 'bg-white/5 text-text-secondary border border-white/10'
+              }`}
+            >
+              {data?.automationSettings?.lead_drop_emails_enabled !== false && data?.automationSettings?.auto_email_enabled ? 'ON' : 'OFF'}
             </button>
           </div>
         </div>

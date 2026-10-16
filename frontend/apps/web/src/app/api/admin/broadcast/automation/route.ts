@@ -11,6 +11,7 @@ export const DEFAULT_EMAIL_AUTOMATION_CONFIG = {
   onboarding_emails_enabled: true,
   plan_change_emails_enabled: true,
   topup_emails_enabled: true,
+  lead_drop_emails_enabled: true,
 }
 
 export type EmailAutomationConfig = typeof DEFAULT_EMAIL_AUTOMATION_CONFIG
