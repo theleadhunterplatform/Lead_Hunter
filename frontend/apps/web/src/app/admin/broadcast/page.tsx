@@ -371,8 +371,6 @@ export default function AdminBroadcastPage() {
     []
   )
   const [selectedTestEmail, setSelectedTestEmail] = useState<string>('yashkaranjule230@gmail.com')
-  const [membersList, setMembersList] = useState<AdminMemberItem[]>([])
-  const [isLoadingMembers, setIsLoadingMembers] = useState(false)
   const [testFlowType, setTestFlowType] = useState<string>('lead_drop')
 
   // Flow Customization inputs
@@ -756,30 +754,11 @@ export default function AdminBroadcastPage() {
     }
   }, [addToast])
 
-  const fetchMembers = useCallback(async () => {
-    setIsLoadingMembers(true)
-    try {
-      const token = await getFirebaseToken()
-      const res = await fetch('/api/admin/users?pageSize=500', {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      })
-      const json = await res.json()
-      if (res.ok && json.data) {
-        setMembersList(json.data)
-      }
-    } catch {
-      console.warn('[Broadcast] Failed to load members list for testing')
-    } finally {
-      setIsLoadingMembers(false)
-    }
-  }, [])
-
   useEffect(() => {
     fetchData()
     fetchTemplates()
     fetchWhatsAppStatus()
-    fetchMembers()
-  }, [fetchData, fetchTemplates, fetchWhatsAppStatus, fetchMembers])
+  }, [fetchData, fetchTemplates, fetchWhatsAppStatus])
 
   const handlePreviewFlowInShell = async (overrideFlow?: string, overrideEmail?: string) => {
     const flow = overrideFlow || testFlowType
@@ -1323,22 +1302,6 @@ export default function AdminBroadcastPage() {
       return matchesCategory && matchesSearch
     })
   }, [templates, debouncedTemplateSearch, templateCategoryFilter])
-
-  // Computed Filtered Members for Sandbox
-  const filteredMembersList = useMemo(() => {
-    const q = memberSearchQuery.toLowerCase().trim()
-    if (!q) return membersList
-    return membersList.filter(
-      (m) =>
-        m.name?.toLowerCase().includes(q) ||
-        m.email.toLowerCase().includes(q) ||
-        m.plan?.toLowerCase().includes(q)
-    )
-  }, [membersList, memberSearchQuery])
-
-  const selectedMember = useMemo(() => {
-    return membersList.find((m) => m.id === selectedMemberId)
-  }, [membersList, selectedMemberId])
 
   const selectedFlowConfig = useMemo(() => {
     return TEST_EMAIL_FLOWS.find((f) => f.id === testFlowType) || TEST_EMAIL_FLOWS[0]
