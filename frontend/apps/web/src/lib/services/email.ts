@@ -16,6 +16,7 @@ import {
   renderPlanChange,
   renderCreditTopup,
   renderOnboardingReminder,
+  renderLeadDropAlert,
 } from '@/lib/email-templates'
 
 interface SendOptions {
@@ -418,6 +419,22 @@ export const emailService = {
       appUrl: APP_URL,
     })
     return send('email_verification', user.email, subject, text, { html })
+  },
+
+  async sendLeadDropAlert(
+    user: { name?: string; email: string },
+    lead: { title: string; niche?: string; platform?: string; snippet?: string; leadUrl?: string },
+  ) {
+    const { subject, text, html } = await renderLeadDropAlert({
+      name: user.name || 'Hunter',
+      leadTitle: lead.title,
+      niche: lead.niche,
+      platform: lead.platform,
+      snippet: lead.snippet,
+      leadUrl: lead.leadUrl,
+      appUrl: APP_URL,
+    })
+    return send('lead_drop', user.email, subject, text, { html })
   },
 
   async notifyAdmin(type: string, data: Record<string, unknown>) {

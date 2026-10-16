@@ -30,11 +30,191 @@ import {
   QrCodeIcon,
   ClipboardDocumentIcon,
   ClipboardDocumentCheckIcon,
+  EyeIcon,
+  UserIcon,
+  UserGroupIcon,
 } from '@heroicons/react/24/solid'
 import { useToast } from '@/components/ui/Toast'
 import { getFirebaseToken } from '@/lib/firebase'
 import { CustomLoader } from '@/components/ui/CustomLoader'
 import { useDebounce } from '@/hooks/useDebounce'
+
+interface AdminMemberItem {
+  id: string
+  name: string
+  email: string
+  plan?: string
+  status?: string
+  creditAccount?: {
+    total?: number
+    subscriptionBalance?: number
+    topupBalance?: number
+  }
+}
+
+interface TestFlowOption {
+  id: string
+  label: string
+  category: 'lead' | 'lifecycle' | 'billing' | 'support' | 'custom'
+  categoryLabel: string
+  description: string
+  defaultSubject: string
+  defaultBadge: string
+  defaultCta: string
+}
+
+const TEST_EMAIL_FLOWS: TestFlowOption[] = [
+  {
+    id: 'lead_drop',
+    label: '🔥 Lead Drop Alert',
+    category: 'lead',
+    categoryLabel: 'Lead Generation',
+    description: 'Instant notification dispatched when fresh high-intent leads are verified and published.',
+    defaultSubject: '🔥 Fresh High-Ticket Client Leads Just Dropped',
+    defaultBadge: 'LEAD ALERT',
+    defaultCta: 'View New Leads Now',
+  },
+  {
+    id: 'approved',
+    label: '⚡ Account Approved (Welcome)',
+    category: 'lifecycle',
+    categoryLabel: 'Lifecycle & Onboarding',
+    description: 'Application approved notification with dashboard login and tier entitlement details.',
+    defaultSubject: 'Welcome to Lead Hunter — Your Account Has Been Approved!',
+    defaultBadge: 'APPLICATION APPROVED',
+    defaultCta: 'Access Member Portal',
+  },
+  {
+    id: 'application_received',
+    label: '📝 Application Submitted',
+    category: 'lifecycle',
+    categoryLabel: 'Lifecycle & Onboarding',
+    description: 'Confirmation email sent right after a user completes the initial signup/application form.',
+    defaultSubject: 'Application Received — Lead Hunter Club',
+    defaultBadge: 'APPLICATION RECEIVED',
+    defaultCta: 'Review Application Status',
+  },
+  {
+    id: 'onboarding_complete',
+    label: '🎯 Onboarding Survey Finished',
+    category: 'lifecycle',
+    categoryLabel: 'Lifecycle & Onboarding',
+    description: 'Sent when the user finalizes their niche, target roles, and company preferences survey.',
+    defaultSubject: 'Onboarding Complete — Welcome to the Club!',
+    defaultBadge: 'ONBOARDING COMPLETE',
+    defaultCta: 'Go to Your Leads Feed',
+  },
+  {
+    id: 'onboarding_reminder',
+    label: '👋 Incomplete Onboarding Nudge',
+    category: 'lifecycle',
+    categoryLabel: 'Lifecycle & Onboarding',
+    description: 'Automated nudge to users who signed up but have not yet finalized their profile onboarding.',
+    defaultSubject: 'Complete Your Lead Hunter Onboarding',
+    defaultBadge: 'ACTION REQUIRED',
+    defaultCta: 'Resume Application',
+  },
+  {
+    id: 'rejected',
+    label: '❌ Application Declined',
+    category: 'lifecycle',
+    categoryLabel: 'Lifecycle & Onboarding',
+    description: 'Polite decline notification when an application does not meet club criteria.',
+    defaultSubject: 'Update on Your Lead Hunter Club Application',
+    defaultBadge: 'STATUS UPDATE',
+    defaultCta: 'Contact Membership Team',
+  },
+  {
+    id: 'suspended',
+    label: '🚫 Account Suspended',
+    category: 'lifecycle',
+    categoryLabel: 'Lifecycle & Onboarding',
+    description: 'Notification to user that their account access has been temporarily or permanently restricted.',
+    defaultSubject: 'Important Notice: Lead Hunter Account Suspended',
+    defaultBadge: 'ACCOUNT SUSPENDED',
+    defaultCta: 'Contact Support Helpdesk',
+  },
+  {
+    id: 'low_credits',
+    label: '📉 Low Credits Warning (<= 2)',
+    category: 'billing',
+    categoryLabel: 'Billing & Credits',
+    description: "Triggered automatically when a member's remaining balance drops to 2 or fewer coins.",
+    defaultSubject: 'Your Lead Hunter Credits Are Running Low (Action Needed)',
+    defaultBadge: 'LOW CREDITS WARNING',
+    defaultCta: 'Refill Credits Now',
+  },
+  {
+    id: 'credit_topup',
+    label: '💰 Credit Topup / Recharge',
+    category: 'billing',
+    categoryLabel: 'Billing & Credits',
+    description: 'Receipt and confirmation dispatched immediately after credits are topped up or granted.',
+    defaultSubject: 'Credits Added to Your Lead Hunter Account',
+    defaultBadge: 'CREDITS TOPPED UP',
+    defaultCta: 'View Balance & Leads',
+  },
+  {
+    id: 'plan_upgrade',
+    label: '🚀 Plan Upgraded',
+    category: 'billing',
+    categoryLabel: 'Billing & Credits',
+    description: 'Welcome and thank-you confirmation sent when a user switches to a higher subscription tier.',
+    defaultSubject: 'You’ve Upgraded Your Lead Hunter Membership!',
+    defaultBadge: 'PLAN UPGRADED',
+    defaultCta: 'Explore Pro Features',
+  },
+  {
+    id: 'plan_downgrade',
+    label: '🔻 Plan Downgraded',
+    category: 'billing',
+    categoryLabel: 'Billing & Credits',
+    description: 'Confirmation notice sent when a subscription is reduced to a lower tier.',
+    defaultSubject: 'Your Lead Hunter Plan Has Been Updated',
+    defaultBadge: 'PLAN UPDATED',
+    defaultCta: 'Manage Subscription',
+  },
+  {
+    id: 'plan_change',
+    label: '🔄 Plan Changed (General)',
+    category: 'billing',
+    categoryLabel: 'Billing & Credits',
+    description: 'General notification for tier adjustment or billing interval modifications.',
+    defaultSubject: 'Lead Hunter Subscription Plan Updated',
+    defaultBadge: 'PLAN CHANGE',
+    defaultCta: 'View Account Details',
+  },
+  {
+    id: 'renewal_reminder',
+    label: '📅 Subscription Renewal (3 Days)',
+    category: 'billing',
+    categoryLabel: 'Billing & Credits',
+    description: 'Dispatched 72 hours before recurring subscription renews to ensure transparency.',
+    defaultSubject: 'Upcoming Renewal Reminder — Lead Hunter Club',
+    defaultBadge: 'RENEWAL NOTICE',
+    defaultCta: 'Manage Membership & Invoices',
+  },
+  {
+    id: 'ticket_reply',
+    label: '💬 Support Ticket Staff Reply',
+    category: 'support',
+    categoryLabel: 'Support & Assistance',
+    description: 'Notification to member when an administrator responds to their support inquiry.',
+    defaultSubject: 'New Staff Reply: [Ticket Inquiry]',
+    defaultBadge: 'SUPPORT REPLY',
+    defaultCta: 'View Ticket Thread',
+  },
+  {
+    id: 'custom',
+    label: '📢 Broadcast Announcement Draft',
+    category: 'custom',
+    categoryLabel: 'Composer Draft',
+    description: 'Uses the exact subject line and body copy currently written in the Broadcast Announcement composer.',
+    defaultSubject: 'Platform Announcement',
+    defaultBadge: 'ANNOUNCEMENT',
+    defaultCta: 'Open Lead Hunter Dashboard',
+  },
+]
 
 interface BroadcastTemplateItem {
   id: string
@@ -180,6 +360,38 @@ export default function AdminBroadcastPage() {
 
   // Preview Mode State
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>('desktop')
+
+  // System Email Flow Sandbox State
+  const [membersList, setMembersList] = useState<AdminMemberItem[]>([])
+  const [isLoadingMembers, setIsLoadingMembers] = useState(false)
+  const [testFlowType, setTestFlowType] = useState<string>('lead_drop')
+  const [flowTargetMode, setFlowTargetMode] = useState<'member' | 'custom'>('custom')
+  const [selectedMemberId, setSelectedMemberId] = useState<string>('')
+  const [memberSearchQuery, setMemberSearchQuery] = useState<string>('')
+  const [customTestEmail, setCustomTestEmail] = useState<string>('')
+  const [customTestName, setCustomTestName] = useState<string>('')
+
+  // Flow Customization inputs
+  const [flowLeadTitle, setFlowLeadTitle] = useState<string>('High-Ticket Next.js & Stripe Platform Redesign')
+  const [flowLeadNiche, setFlowLeadNiche] = useState<string>('Web & App Development')
+  const [flowPlanTier, setFlowPlanTier] = useState<string>('Freelancer Pro')
+  const [flowCreditsAdded, setFlowCreditsAdded] = useState<number>(250)
+  const [flowTicketSubject, setFlowTicketSubject] = useState<string>('Payment query & lead unlock question')
+  const [flowTicketReply, setFlowTicketReply] = useState<string>('Hello! We have reviewed your account and updated your monthly lead quota.')
+
+  // Live Preview Override & Execution State
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false)
+  const [isDispatchingFlowTest, setIsDispatchingFlowTest] = useState(false)
+  const [activePreviewOverride, setActivePreviewOverride] = useState<{
+    flowType: string
+    flowTitle: string
+    toEmail: string
+    recipientName: string
+    subject: string
+    body: string
+    badgeLabel: string
+    ctaText: string
+  } | null>(null)
 
   // Templates Management State
   const [templates, setTemplates] = useState<BroadcastTemplateItem[]>([])
@@ -540,11 +752,178 @@ export default function AdminBroadcastPage() {
     }
   }, [addToast])
 
+  const fetchMembers = useCallback(async () => {
+    setIsLoadingMembers(true)
+    try {
+      const token = await getFirebaseToken()
+      const res = await fetch('/api/admin/users?pageSize=100', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      const json = await res.json()
+      if (res.ok && json.data) {
+        setMembersList(json.data)
+      }
+    } catch {
+      console.warn('[Broadcast] Failed to load members list for testing')
+    } finally {
+      setIsLoadingMembers(false)
+    }
+  }, [])
+
   useEffect(() => {
     fetchData()
     fetchTemplates()
     fetchWhatsAppStatus()
-  }, [fetchData, fetchTemplates, fetchWhatsAppStatus])
+    fetchMembers()
+  }, [fetchData, fetchTemplates, fetchWhatsAppStatus, fetchMembers])
+
+  const handleSelectMember = (memberId: string) => {
+    setSelectedMemberId(memberId)
+    const member = membersList.find((m) => m.id === memberId)
+    if (member) {
+      setCustomTestEmail(member.email)
+      setCustomTestName(member.name || '')
+      if (member.plan) setFlowPlanTier(member.plan)
+    }
+  }
+
+  const handlePreviewFlowInShell = async (overrideFlow?: string) => {
+    const flow = overrideFlow || testFlowType
+    const selectedFlowConfig = TEST_EMAIL_FLOWS.find((f) => f.id === flow) || TEST_EMAIL_FLOWS[0]
+
+    const targetMember = membersList.find((m) => m.id === selectedMemberId)
+    const targetEmail =
+      flowTargetMode === 'member'
+        ? (targetMember?.email || customTestEmail || 'member@domain.com')
+        : (customTestEmail || testEmail || 'recipient@domain.com')
+    const targetName =
+      flowTargetMode === 'member'
+        ? (targetMember?.name || customTestName || 'Alex')
+        : (customTestName || 'Alex')
+
+    setIsPreviewLoading(true)
+    try {
+      const token = await getFirebaseToken()
+      const res = await fetch('/api/admin/broadcast/test', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          flowType: flow,
+          previewOnly: true,
+          toEmail: targetEmail,
+          recipientName: targetName,
+          userId: flowTargetMode === 'member' ? selectedMemberId : undefined,
+          subject: flow === 'custom' ? subject : undefined,
+          message: flow === 'custom' ? message : undefined,
+          plan: flowPlanTier,
+          creditsAdded: flowCreditsAdded,
+          ticketSubject: flowTicketSubject,
+          replyBody: flowTicketReply,
+          leadTitle: flowLeadTitle,
+          leadNiche: flowLeadNiche,
+        }),
+      })
+      const json = await res.json()
+      if (res.ok && json.success) {
+        setActivePreviewOverride({
+          flowType: flow,
+          flowTitle: selectedFlowConfig.label,
+          toEmail: targetEmail,
+          recipientName: targetName,
+          subject: json.subject || selectedFlowConfig.defaultSubject,
+          body: json.text || json.html || '',
+          badgeLabel: selectedFlowConfig.defaultBadge,
+          ctaText: selectedFlowConfig.defaultCta,
+        })
+        addToast({
+          type: 'info',
+          message: `Simulating "${selectedFlowConfig.label}" in the live preview shell`,
+        })
+      } else {
+        addToast({
+          type: 'error',
+          message: json.message || 'Failed to generate preview simulation',
+        })
+      }
+    } catch {
+      addToast({ type: 'error', message: 'Network error generating preview simulation' })
+    } finally {
+      setIsPreviewLoading(false)
+    }
+  }
+
+  const handleDispatchFlowTest = async () => {
+    const selectedFlowConfig = TEST_EMAIL_FLOWS.find((f) => f.id === testFlowType) || TEST_EMAIL_FLOWS[0]
+    const targetMember = membersList.find((m) => m.id === selectedMemberId)
+    const targetEmail = (
+      flowTargetMode === 'member'
+        ? (targetMember?.email || customTestEmail)
+        : (customTestEmail || testEmail)
+    )?.trim()
+
+    if (!targetEmail || !targetEmail.includes('@')) {
+      addToast({
+        type: 'error',
+        message:
+          flowTargetMode === 'member'
+            ? 'Please select a platform member or enter a target destination email'
+            : 'Please enter a valid destination email address for testing',
+      })
+      return
+    }
+
+    const targetName =
+      flowTargetMode === 'member'
+        ? (targetMember?.name || customTestName || 'Alex')
+        : (customTestName || 'Alex')
+
+    setIsDispatchingFlowTest(true)
+    try {
+      const token = await getFirebaseToken()
+      const res = await fetch('/api/admin/broadcast/test', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          flowType: testFlowType,
+          toEmail: targetEmail,
+          testEmail: targetEmail,
+          recipientName: targetName,
+          userId: flowTargetMode === 'member' ? selectedMemberId : undefined,
+          subject: testFlowType === 'custom' ? subject : undefined,
+          message: testFlowType === 'custom' ? message : undefined,
+          plan: flowPlanTier,
+          creditsAdded: flowCreditsAdded,
+          ticketSubject: flowTicketSubject,
+          replyBody: flowTicketReply,
+          leadTitle: flowLeadTitle,
+          leadNiche: flowLeadNiche,
+        }),
+      })
+      const json = await res.json()
+      if (res.ok && json.success) {
+        addToast({
+          type: 'success',
+          message: json.message || `Test email (${selectedFlowConfig.label}) dispatched to ${targetEmail}!`,
+        })
+        fetchData()
+      } else {
+        addToast({
+          type: 'error',
+          message: json.message || 'Failed to dispatch test email',
+        })
+      }
+    } catch {
+      addToast({ type: 'error', message: 'Network error dispatching flow test email' })
+    } finally {
+      setIsDispatchingFlowTest(false)
+    }
+  }
 
   const handleRefreshDiagnostics = async () => {
     setIsRefreshingDiagnostics(true)
@@ -975,6 +1354,26 @@ export default function AdminBroadcastPage() {
       return matchesCategory && matchesSearch
     })
   }, [templates, debouncedTemplateSearch, templateCategoryFilter])
+
+  // Computed Filtered Members for Sandbox
+  const filteredMembersList = useMemo(() => {
+    const q = memberSearchQuery.toLowerCase().trim()
+    if (!q) return membersList
+    return membersList.filter(
+      (m) =>
+        m.name?.toLowerCase().includes(q) ||
+        m.email.toLowerCase().includes(q) ||
+        m.plan?.toLowerCase().includes(q)
+    )
+  }, [membersList, memberSearchQuery])
+
+  const selectedMember = useMemo(() => {
+    return membersList.find((m) => m.id === selectedMemberId)
+  }, [membersList, selectedMemberId])
+
+  const selectedFlowConfig = useMemo(() => {
+    return TEST_EMAIL_FLOWS.find((f) => f.id === testFlowType) || TEST_EMAIL_FLOWS[0]
+  }, [testFlowType])
 
   // Computed Delivery Logs
   const filteredLogs = useMemo(() => {
@@ -2137,116 +2536,177 @@ export default function AdminBroadcastPage() {
             </div>
           </div>
 
-          {/* Right Column: Live Email Preview */}
-          <div className="lg:col-span-5 space-y-4 lg:sticky lg:top-8">
-            <div className="flex items-center justify-between px-1">
-              <div className="flex items-center gap-2 text-xs font-bold text-white uppercase tracking-wider">
-                <EnvelopeIcon className="w-4 h-4 text-primary" />
-                <span>Live Email Preview</span>
-              </div>
-
-              {/* Viewport switcher */}
-              <div className="flex items-center gap-1 p-1 rounded-xl bg-surface-elevated border border-white/10">
-                <button
-                  type="button"
-                  onClick={() => setPreviewDevice('desktop')}
-                  className={`p-1.5 rounded-lg transition-all cursor-pointer ${
-                    previewDevice === 'desktop'
-                      ? 'bg-primary text-black font-bold shadow-xs'
-                      : 'text-text-secondary hover:text-white'
-                  }`}
-                  title="Desktop View"
-                >
-                  <ComputerDesktopIcon className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPreviewDevice('mobile')}
-                  className={`p-1.5 rounded-lg transition-all cursor-pointer ${
-                    previewDevice === 'mobile'
-                      ? 'bg-primary text-black font-bold shadow-xs'
-                      : 'text-text-secondary hover:text-white'
-                  }`}
-                  title="Smartphone View"
-                >
-                  <DevicePhoneMobileIcon className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-
-            {/* Email Client Shell */}
-            <div
-              className={`transition-all duration-300 ${
-                previewDevice === 'mobile' ? 'max-w-[360px] mx-auto' : 'w-full'
-              }`}
-            >
-              <div className="rounded-3xl border border-white/10 bg-surface-container-lowest shadow-2xl overflow-hidden font-sans">
-                {/* Simulated Window Top Bar */}
-                <div className="px-4 py-3 bg-surface-container-low border-b border-white/5 flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#FF5F57]" />
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#FEBC2E]" />
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#28C840]" />
-                  </div>
-                  <span className="text-[10px] text-text-secondary font-mono">
-                    {previewDevice === 'mobile' ? 'iPhone Viewport' : 'Email Client Desktop'}
-                  </span>
-                  <span className="w-4" />
+          {/* Right Column: Live Email Preview & Testing Sandbox */}
+          <div className="lg:col-span-5 space-y-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between px-1">
+                <div className="flex items-center gap-2 text-xs font-bold text-white uppercase tracking-wider">
+                  <EnvelopeIcon className="w-4 h-4 text-primary" />
+                  <span>Live Email Preview</span>
+                  {activePreviewOverride && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-normal">
+                      Flow Simulation
+                    </span>
+                  )}
                 </div>
 
-                {/* Email Header Info */}
-                <div className="p-4 bg-surface-container-low border-b border-white/5 space-y-1.5 text-xs text-left">
-                  <div className="flex items-center justify-between text-[11px]">
-                    <span className="text-text-secondary">From:</span>
-                    <span className="font-semibold text-white">
-                      Lead Hunter Club &lt;noreply@theleadhunterclub.com&gt;
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-[11px]">
-                    <span className="text-text-secondary">To:</span>
-                    <span className="text-text-secondary">
-                      Recipient &lt;member@domain.com&gt;
-                    </span>
-                  </div>
-                  <div className="pt-1 text-sm font-bold text-white border-t border-white/5 mt-2 truncate">
-                    {subject.trim() ? subject : 'Subject: Platform Announcement'}
-                  </div>
+                {/* Viewport switcher */}
+                <div className="flex items-center gap-1 p-1 rounded-xl bg-surface-elevated border border-white/10">
+                  <button
+                    type="button"
+                    onClick={() => setPreviewDevice('desktop')}
+                    className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                      previewDevice === 'desktop'
+                        ? 'bg-primary text-black font-bold shadow-xs'
+                        : 'text-text-secondary hover:text-white'
+                    }`}
+                    title="Desktop View"
+                  >
+                    <ComputerDesktopIcon className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewDevice('mobile')}
+                    className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                      previewDevice === 'mobile'
+                        ? 'bg-primary text-black font-bold shadow-xs'
+                        : 'text-text-secondary hover:text-white'
+                    }`}
+                    title="Smartphone View"
+                  >
+                    <DevicePhoneMobileIcon className="w-3.5 h-3.5" />
+                  </button>
                 </div>
+              </div>
 
-                {/* Email Interior Canvas */}
-                <div className="p-5 sm:p-6 bg-surface-container-lowest space-y-5 text-left">
-                  {/* Branded Logo Bar */}
-                  <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-xl bg-primary text-black flex items-center justify-center font-extrabold text-xs shadow-md">
-                        LH
+              {/* Email Client Shell */}
+              <div
+                className={`transition-all duration-300 ${
+                  previewDevice === 'mobile' ? 'max-w-[360px] mx-auto' : 'w-full'
+                }`}
+              >
+                <div className="rounded-3xl border border-white/10 bg-surface-container-lowest shadow-2xl overflow-hidden font-sans">
+                  {/* Simulated Window Top Bar */}
+                  <div className="px-4 py-3 bg-surface-container-low border-b border-white/5 flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#FF5F57]" />
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#FEBC2E]" />
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#28C840]" />
+                    </div>
+                    <span className="text-[10px] text-text-secondary font-mono">
+                      {previewDevice === 'mobile' ? 'iPhone Viewport' : 'Email Client Desktop'}
+                    </span>
+                    <span className="w-4" />
+                  </div>
+
+                  {/* Flow Simulation Notice Bar (Active when testing an automated flow) */}
+                  {activePreviewOverride && (
+                    <div className="px-4 py-2 bg-amber-500/15 border-b border-amber-500/30 flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-1.5 text-amber-300 font-semibold truncate">
+                        <BoltIcon className="w-3.5 h-3.5 shrink-0 text-amber-400" />
+                        <span className="truncate">Simulating: {activePreviewOverride.flowTitle}</span>
                       </div>
-                      <span className="text-sm font-extrabold text-white tracking-tight">
-                        Lead Hunter Club
+                      <button
+                        type="button"
+                        onClick={() => setActivePreviewOverride(null)}
+                        className="text-[11px] text-text-secondary hover:text-white underline cursor-pointer shrink-0 ml-2"
+                      >
+                        Reset to Draft
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Email Header Info */}
+                  <div className="p-4 bg-surface-container-low border-b border-white/5 space-y-1.5 text-xs text-left">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-text-secondary">From:</span>
+                      <span className="font-semibold text-white">
+                        Lead Hunter Club &lt;noreply@theleadhunterclub.com&gt;
                       </span>
                     </div>
-                    <span className="text-[10px] uppercase font-bold tracking-widest text-text-secondary">
-                      Announcement
-                    </span>
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-text-secondary">To:</span>
+                      <span className="text-text-secondary truncate max-w-[280px]">
+                        {activePreviewOverride
+                          ? `${activePreviewOverride.recipientName} <${activePreviewOverride.toEmail}>`
+                          : 'Recipient <member@domain.com>'}
+                      </span>
+                    </div>
+                    <div className="pt-1 text-sm font-bold text-white border-t border-white/5 mt-2 truncate">
+                      {activePreviewOverride
+                        ? activePreviewOverride.subject
+                        : subject.trim()
+                        ? subject
+                        : 'Subject: Platform Announcement'}
+                    </div>
                   </div>
 
-                  {/* Body Content */}
-                  <div className="p-5 rounded-2xl bg-surface-container border border-white/5 space-y-4">
-                    <div className="text-xs sm:text-sm text-text-primary leading-relaxed whitespace-pre-line break-words">
-                      {formattedPreviewMessage ? (
-                        (() => {
-                          const mdRegex = /\[([^\]]+)\]\s*\((https?:\/\/[^\s\)]+)\)/g
-                          const parts: React.ReactNode[] = []
-                          let lastIndex = 0
-                          let match: RegExpExecArray | null
+                  {/* Email Interior Canvas */}
+                  <div className="p-5 sm:p-6 bg-surface-container-lowest space-y-5 text-left">
+                    {/* Branded Logo Bar */}
+                    <div className="flex items-center justify-between border-b border-white/10 pb-4">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-xl bg-primary text-black flex items-center justify-center font-extrabold text-xs shadow-md">
+                          LH
+                        </div>
+                        <span className="text-sm font-extrabold text-white tracking-tight">
+                          Lead Hunter Club
+                        </span>
+                      </div>
+                      <span className="text-[10px] uppercase font-bold tracking-widest text-text-secondary">
+                        {activePreviewOverride?.badgeLabel || 'Announcement'}
+                      </span>
+                    </div>
 
-                          while ((match = mdRegex.exec(formattedPreviewMessage)) !== null) {
-                            if (match.index > lastIndex) {
-                              const textSegment = formattedPreviewMessage.substring(lastIndex, match.index)
+                    {/* Body Content */}
+                    <div className="p-5 rounded-2xl bg-surface-container border border-white/5 space-y-4">
+                      <div className="text-xs sm:text-sm text-text-primary leading-relaxed whitespace-pre-line break-words max-h-[300px] overflow-y-auto">
+                        {activePreviewOverride ? (
+                          activePreviewOverride.body
+                        ) : formattedPreviewMessage ? (
+                          (() => {
+                            const mdRegex = /\[([^\]]+)\]\s*\((https?:\/\/[^\s\)]+)\)/g
+                            const parts: React.ReactNode[] = []
+                            let lastIndex = 0
+                            let match: RegExpExecArray | null
+
+                            while ((match = mdRegex.exec(formattedPreviewMessage)) !== null) {
+                              if (match.index > lastIndex) {
+                                const textSegment = formattedPreviewMessage.substring(lastIndex, match.index)
+                                textSegment.split(/(https?:\/\/[^\s<]+)/g).forEach((subPart, subIdx) => {
+                                  if (subPart.startsWith('http')) {
+                                    parts.push(
+                                      <a key={`bare-${lastIndex}-${subIdx}`} href={subPart} target="_blank" rel="noopener noreferrer" className="text-primary underline font-medium">
+                                        {subPart}
+                                      </a>
+                                    )
+                                  } else if (subPart) {
+                                    parts.push(subPart)
+                                  }
+                                })
+                              }
+
+                              const [, label, url] = match
+                              parts.push(
+                                <a
+                                  key={`md-${match.index}`}
+                                  href={url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-primary underline font-semibold"
+                                >
+                                  {label}
+                                </a>
+                              )
+                              lastIndex = mdRegex.lastIndex
+                            }
+
+                            if (lastIndex < formattedPreviewMessage.length) {
+                              const textSegment = formattedPreviewMessage.substring(lastIndex)
                               textSegment.split(/(https?:\/\/[^\s<]+)/g).forEach((subPart, subIdx) => {
                                 if (subPart.startsWith('http')) {
                                   parts.push(
-                                    <a key={`bare-${lastIndex}-${subIdx}`} href={subPart} target="_blank" rel="noopener noreferrer" className="text-primary underline font-medium">
+                                    <a key={`bare-end-${subIdx}`} href={subPart} target="_blank" rel="noopener noreferrer" className="text-primary underline font-medium">
                                       {subPart}
                                     </a>
                                   )
@@ -2256,63 +2716,363 @@ export default function AdminBroadcastPage() {
                               })
                             }
 
-                            const [, label, url] = match
-                            parts.push(
-                              <a
-                                key={`md-${match.index}`}
-                                href={url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-primary underline font-semibold"
-                              >
-                                {label}
-                              </a>
-                            )
-                            lastIndex = mdRegex.lastIndex
-                          }
+                            return parts
+                          })()
+                        ) : (
+                          <span className="text-text-secondary/50 italic">
+                            Type your announcement in the composer. Your formatted text, links, and line breaks
+                            will render here in real time...
+                          </span>
+                        )}
+                      </div>
 
-                          if (lastIndex < formattedPreviewMessage.length) {
-                            const textSegment = formattedPreviewMessage.substring(lastIndex)
-                            textSegment.split(/(https?:\/\/[^\s<]+)/g).forEach((subPart, subIdx) => {
-                              if (subPart.startsWith('http')) {
-                                parts.push(
-                                  <a key={`bare-end-${subIdx}`} href={subPart} target="_blank" rel="noopener noreferrer" className="text-primary underline font-medium">
-                                    {subPart}
-                                  </a>
-                                )
-                              } else if (subPart) {
-                                parts.push(subPart)
-                              }
-                            })
-                          }
-
-                          return parts
-                        })()
-                      ) : (
-                        <span className="text-text-secondary/50 italic">
-                          Type your announcement in the composer. Your formatted text, links, and line breaks
-                          will render here in real time...
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Action CTA Button */}
-                    <div className="pt-2">
-                      <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-black text-xs font-bold shadow-[0_2px_12px_rgba(var(--rgb-primary),0.3)] cursor-default">
-                        <span>{previewCtaText}</span>
-                        <ArrowTopRightOnSquareIcon className="w-3.5 h-3.5" />
+                      {/* Action CTA Button */}
+                      <div className="pt-2">
+                        <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-black text-xs font-bold shadow-[0_2px_12px_rgba(var(--rgb-primary),0.3)] cursor-default">
+                          <span>{activePreviewOverride?.ctaText || previewCtaText}</span>
+                          <ArrowTopRightOnSquareIcon className="w-3.5 h-3.5" />
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Footer */}
-                  <div className="text-[11px] text-text-secondary/60 text-center space-y-1 pt-2 border-t border-white/5">
-                    <p>Lead Hunter Club &bull; High-intent client discovery &amp; closing engine</p>
-                    <p className="text-[10px]">
-                      You are receiving this notification because you are a registered member.
+                    {/* Footer */}
+                    <div className="text-[11px] text-text-secondary/60 text-center space-y-1 pt-2 border-t border-white/5">
+                      <p>Lead Hunter Club &bull; High-intent client discovery &amp; closing engine</p>
+                      <p className="text-[10px]">
+                        You are receiving this notification because you are a registered member.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Email Flow Testing Sandbox Card */}
+            <div className="p-6 rounded-3xl bg-surface/50 border border-white/[0.08] backdrop-blur-xl shadow-xl space-y-5">
+              {/* Card Header */}
+              <div className="flex items-center justify-between border-b border-white/10 pb-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-amber-500/15 text-amber-400">
+                    <SparklesIcon className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                      Email Flow Testing Sandbox
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/20 text-primary font-mono font-medium">
+                        15 Flows
+                      </span>
+                    </h3>
+                    <p className="text-[11px] text-text-secondary">
+                      Test automated lifecycle triggers or simulate any email flow on-demand
                     </p>
                   </div>
                 </div>
+              </div>
+
+              {/* 1. Select Email Flow / Trigger Type */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-text-primary">
+                    1. Select Email Type / Trigger
+                  </label>
+                  <span className="text-[10px] text-text-secondary uppercase tracking-wider font-mono">
+                    {selectedFlowConfig.categoryLabel}
+                  </span>
+                </div>
+                <select
+                  value={testFlowType}
+                  onChange={(e) => {
+                    const newFlow = e.target.value
+                    setTestFlowType(newFlow)
+                    handlePreviewFlowInShell(newFlow)
+                  }}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-surface-container border border-white/10 text-white text-xs font-medium focus:outline-none focus:border-primary/50 transition-colors cursor-pointer"
+                >
+                  <optgroup label="🔥 Lead Generation Alerts">
+                    {TEST_EMAIL_FLOWS.filter((f) => f.category === 'lead').map((flow) => (
+                      <option key={flow.id} value={flow.id}>
+                        {flow.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="⚡ Account & Onboarding Lifecycle">
+                    {TEST_EMAIL_FLOWS.filter((f) => f.category === 'lifecycle').map((flow) => (
+                      <option key={flow.id} value={flow.id}>
+                        {flow.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="💳 Billing, Credits & Subscriptions">
+                    {TEST_EMAIL_FLOWS.filter((f) => f.category === 'billing').map((flow) => (
+                      <option key={flow.id} value={flow.id}>
+                        {flow.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="💬 Support & Composer">
+                    {TEST_EMAIL_FLOWS.filter((f) => f.category === 'support' || f.category === 'custom').map((flow) => (
+                      <option key={flow.id} value={flow.id}>
+                        {flow.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                </select>
+                <p className="text-[11px] text-text-secondary/80 leading-relaxed bg-white/[0.02] p-2.5 rounded-lg border border-white/5">
+                  <span className="text-primary font-semibold">Trigger Condition: </span>
+                  {selectedFlowConfig.description}
+                </p>
+              </div>
+
+              {/* 2. Target Recipient Selection */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-text-primary">
+                    2. Target Recipient
+                  </label>
+                  <div className="flex items-center gap-1 p-0.5 rounded-lg bg-surface-container-low border border-white/5 text-[11px]">
+                    <button
+                      type="button"
+                      onClick={() => setFlowTargetMode('member')}
+                      className={`px-2.5 py-1 rounded-md transition-all font-medium cursor-pointer ${
+                        flowTargetMode === 'member'
+                          ? 'bg-primary text-black font-bold shadow-xs'
+                          : 'text-text-secondary hover:text-white'
+                      }`}
+                    >
+                      Platform Member
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFlowTargetMode('custom')}
+                      className={`px-2.5 py-1 rounded-md transition-all font-medium cursor-pointer ${
+                        flowTargetMode === 'custom'
+                          ? 'bg-primary text-black font-bold shadow-xs'
+                          : 'text-text-secondary hover:text-white'
+                      }`}
+                    >
+                      Custom Email
+                    </button>
+                  </div>
+                </div>
+
+                {/* Mode A: Select Platform Member */}
+                {flowTargetMode === 'member' ? (
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <MagnifyingGlassIcon className="w-3.5 h-3.5 text-text-secondary absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        value={memberSearchQuery}
+                        onChange={(e) => setMemberSearchQuery(e.target.value)}
+                        placeholder="Search member name or email..."
+                        className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-surface-container border border-white/10 text-white placeholder-text-secondary/50 focus:outline-none focus:border-primary/50"
+                      />
+                    </div>
+
+                    <select
+                      value={selectedMemberId}
+                      onChange={(e) => handleSelectMember(e.target.value)}
+                      className="w-full px-3 py-2.5 text-xs rounded-xl bg-surface-container border border-white/10 text-white focus:outline-none focus:border-primary/50 cursor-pointer"
+                    >
+                      <option value="">
+                        {isLoadingMembers
+                          ? 'Loading platform users...'
+                          : `-- Select Member (${filteredMembersList.length} loaded) --`}
+                      </option>
+                      {filteredMembersList.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.name ? `${m.name} (${m.email})` : m.email} • {m.plan || 'Free'} • {m.creditAccount?.total ?? 0} coins
+                        </option>
+                      ))}
+                    </select>
+
+                    {/* Selected Member Summary Micro-card */}
+                    {selectedMember && (
+                      <div className="p-3 rounded-xl bg-primary/5 border border-primary/20 flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2 truncate">
+                          <div className="w-7 h-7 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-xs shrink-0">
+                            {(selectedMember.name?.[0] || selectedMember.email[0]).toUpperCase()}
+                          </div>
+                          <div className="truncate">
+                            <div className="font-semibold text-white truncate">
+                              {selectedMember.name || 'Unnamed Member'}
+                            </div>
+                            <div className="text-[10px] text-text-secondary truncate">
+                              {selectedMember.email}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0 text-[10px]">
+                          <span className="px-2 py-0.5 rounded-full bg-surface border border-white/10 text-text-secondary font-medium">
+                            {selectedMember.plan || 'Free'}
+                          </span>
+                          <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-semibold font-mono">
+                            ⚡ {selectedMember.creditAccount?.total ?? 0}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  /* Mode B: Direct Custom Recipient */
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div className="space-y-1">
+                      <label className="text-[11px] text-text-secondary">Destination Email</label>
+                      <input
+                        type="email"
+                        value={customTestEmail}
+                        onChange={(e) => setCustomTestEmail(e.target.value)}
+                        placeholder="e.g., yourname@domain.com"
+                        className="w-full px-3 py-2 text-xs rounded-xl bg-surface-container border border-white/10 text-white placeholder-text-secondary/50 focus:outline-none focus:border-primary/50"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[11px] text-text-secondary">Recipient Name (Optional)</label>
+                      <input
+                        type="text"
+                        value={customTestName}
+                        onChange={(e) => setCustomTestName(e.target.value)}
+                        placeholder="e.g., Alex Johnson"
+                        className="w-full px-3 py-2 text-xs rounded-xl bg-surface-container border border-white/10 text-white placeholder-text-secondary/50 focus:outline-none focus:border-primary/50"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 3. Contextual Flow Parameters Tuning */}
+              {testFlowType === 'lead_drop' && (
+                <div className="p-3 rounded-xl bg-surface-container-low border border-white/5 space-y-2">
+                  <span className="text-[11px] font-semibold text-amber-400 flex items-center gap-1">
+                    <BoltIcon className="w-3.5 h-3.5" /> Sample Lead Mock Data
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] text-text-secondary">Lead Title</label>
+                      <input
+                        type="text"
+                        value={flowLeadTitle}
+                        onChange={(e) => setFlowLeadTitle(e.target.value)}
+                        className="w-full px-2.5 py-1.5 text-xs rounded-lg bg-surface border border-white/10 text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-text-secondary">Niche Category</label>
+                      <input
+                        type="text"
+                        value={flowLeadNiche}
+                        onChange={(e) => setFlowLeadNiche(e.target.value)}
+                        className="w-full px-2.5 py-1.5 text-xs rounded-lg bg-surface border border-white/10 text-white"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {testFlowType === 'credit_topup' && (
+                <div className="p-3 rounded-xl bg-surface-container-low border border-white/5 space-y-2">
+                  <span className="text-[11px] font-semibold text-amber-400 flex items-center gap-1">
+                    <BoltIcon className="w-3.5 h-3.5" /> Topup Simulation Amount
+                  </span>
+                  <div>
+                    <label className="text-[10px] text-text-secondary">Credits Added</label>
+                    <input
+                      type="number"
+                      value={flowCreditsAdded}
+                      onChange={(e) => setFlowCreditsAdded(parseInt(e.target.value) || 0)}
+                      className="w-full px-2.5 py-1.5 text-xs rounded-lg bg-surface border border-white/10 text-white font-mono"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {(testFlowType === 'plan_upgrade' || testFlowType === 'plan_downgrade' || testFlowType === 'plan_change') && (
+                <div className="p-3 rounded-xl bg-surface-container-low border border-white/5 space-y-2">
+                  <span className="text-[11px] font-semibold text-amber-400 flex items-center gap-1">
+                    <BoltIcon className="w-3.5 h-3.5" /> Target Tier Parameter
+                  </span>
+                  <div>
+                    <label className="text-[10px] text-text-secondary">Plan Name</label>
+                    <input
+                      type="text"
+                      value={flowPlanTier}
+                      onChange={(e) => setFlowPlanTier(e.target.value)}
+                      placeholder="e.g., Freelancer Pro ($49/mo)"
+                      className="w-full px-2.5 py-1.5 text-xs rounded-lg bg-surface border border-white/10 text-white"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {testFlowType === 'ticket_reply' && (
+                <div className="p-3 rounded-xl bg-surface-container-low border border-white/5 space-y-2">
+                  <span className="text-[11px] font-semibold text-amber-400 flex items-center gap-1">
+                    <BoltIcon className="w-3.5 h-3.5" /> Support Response Mock Content
+                  </span>
+                  <div className="space-y-1.5">
+                    <div>
+                      <label className="text-[10px] text-text-secondary">Ticket Subject</label>
+                      <input
+                        type="text"
+                        value={flowTicketSubject}
+                        onChange={(e) => setFlowTicketSubject(e.target.value)}
+                        className="w-full px-2.5 py-1.5 text-xs rounded-lg bg-surface border border-white/10 text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-text-secondary">Staff Reply Body</label>
+                      <textarea
+                        value={flowTicketReply}
+                        onChange={(e) => setFlowTicketReply(e.target.value)}
+                        rows={2}
+                        className="w-full px-2.5 py-1.5 text-xs rounded-lg bg-surface border border-white/10 text-white resize-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 4. Action Buttons */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => handlePreviewFlowInShell()}
+                  disabled={isPreviewLoading}
+                  className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-white/15 bg-surface-elevated hover:bg-surface-elevated/80 text-white text-xs font-semibold transition-all cursor-pointer disabled:opacity-50 shadow-sm"
+                >
+                  <EyeIcon className="w-4 h-4 text-primary" />
+                  <span>{isPreviewLoading ? 'Rendering...' : 'Preview in Shell'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleDispatchFlowTest}
+                  disabled={isDispatchingFlowTest}
+                  className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary hover:brightness-110 text-black text-xs font-bold transition-all shadow-md cursor-pointer disabled:opacity-50"
+                >
+                  {isDispatchingFlowTest ? (
+                    <>
+                      <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                      <span>Sending Test...</span>
+                    </>
+                  ) : (
+                    <>
+                      <PaperAirplaneIcon className="w-4 h-4" />
+                      <span>Send Live Test</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Status Footer */}
+              <div className="flex items-center justify-between text-[11px] text-text-secondary/70 pt-2 border-t border-white/5">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-accent-mint animate-pulse" />
+                  <span>Delivered via Brevo SMTP &bull; port 587</span>
+                </span>
+                <span className="font-mono text-[10px]">
+                  Target: {flowTargetMode === 'member' ? (selectedMember?.name || selectedMember?.email || 'None') : (customTestEmail || 'Custom')}
+                </span>
               </div>
             </div>
           </div>

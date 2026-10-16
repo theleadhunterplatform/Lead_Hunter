@@ -37,6 +37,10 @@ export async function POST(request: NextRequest) {
         ? body.creditCost
         : undefined
 
+    const profileLink = (body as any).authorUrl?.trim() || (body as any).profileUrl?.trim() || undefined
+    const contactEmail = body.contactEmail?.trim() || undefined
+    const contactPhone = body.contactPhone?.trim() || undefined
+
     // Step 1 — create the manual lead post
     const createRes = await fetchApi<{ success: boolean; data?: ExternalPost; message?: string }>(
       '/posts/manual',
@@ -46,8 +50,11 @@ export async function POST(request: NextRequest) {
           content: body.content.trim(),
           keyword: body.keyword.trim(),
           authorName: body.contactName?.trim() || body.authorName?.trim() || 'Manual Entry',
+          authorUrl: profileLink,
           platform: body.platform || 'manual',
           credit_cost: assignedCreditCost,
+          email: contactEmail,
+          phone: contactPhone,
         }),
       },
     )
@@ -58,14 +65,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Step 2 — if contact details provided, save them immediately (skips enrichment APIs)
-    const hasContact = body.contactEmail?.trim() || body.contactPhone?.trim()
+    const hasContact = contactEmail || contactPhone || profileLink
     if (hasContact) {
       try {
         await fetchApi(`/posts/${post.id}/manual-contact`, {
           method: 'PUT',
           body: JSON.stringify({
-            email: body.contactEmail?.trim() || undefined,
-            phone: body.contactPhone?.trim() || undefined,
+            email: contactEmail,
+            phone: contactPhone,
+            profile_url: profileLink,
+            credit_cost: assignedCreditCost,
             note: body.contactName?.trim()
               ? `Manually added — ${body.contactName.trim()}${body.contactCompany ? ` @ ${body.contactCompany}` : ''}`
               : undefined,

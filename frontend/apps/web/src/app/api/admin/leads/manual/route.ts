@@ -39,7 +39,11 @@ export async function POST(request: NextRequest) {
         ? body.creditCost
         : undefined
 
-    // Step 1 — create the manual lead post
+    const profileLink = body.authorUrl?.trim() || body.profileUrl?.trim() || undefined
+    const contactEmail = body.contactEmail?.trim() || undefined
+    const contactPhone = body.contactPhone?.trim() || undefined
+
+    // Step 1 — create the manual lead post (with contact info pre-attached)
     const createRes = await fetchApi<{ success: boolean; data?: ExternalPost; message?: string }>(
       '/posts/manual',
       {
@@ -48,9 +52,11 @@ export async function POST(request: NextRequest) {
           content: body.content.trim(),
           keyword: body.keyword.trim(),
           authorName: body.contactName?.trim() || body.authorName?.trim() || 'Manual Entry',
-          authorUrl: body.authorUrl?.trim() || body.profileUrl?.trim() || undefined,
+          authorUrl: profileLink,
           platform: body.platform || 'manual',
           credit_cost: assignedCreditCost,
+          email: contactEmail,
+          phone: contactPhone,
         }),
       },
     )
@@ -60,16 +66,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: createRes.message || 'Failed to create lead' }, { status: 500 })
     }
 
-    // Step 2 — if contact details provided, save them immediately (skips enrichment APIs)
-    const profileLink = body.authorUrl?.trim() || body.profileUrl?.trim()
-    const hasContact = body.contactEmail?.trim() || body.contactPhone?.trim() || profileLink
+    // Step 2 — also ensure contact details are set via manual-contact endpoint
+    const hasContact = contactEmail || contactPhone || profileLink
     if (hasContact) {
       try {
         await fetchApi(`/posts/${post.id}/manual-contact`, {
           method: 'PUT',
           body: JSON.stringify({
-            email: body.contactEmail?.trim() || undefined,
-            phone: body.contactPhone?.trim() || undefined,
+            email: contactEmail,
+            phone: contactPhone,
+            profile_url: profileLink,
+            credit_cost: assignedCreditCost,
             note: body.contactName?.trim()
               ? `Manually added — ${body.contactName.trim()}${body.contactCompany ? ` @ ${body.contactCompany}` : ''}`
               : undefined,

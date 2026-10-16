@@ -480,7 +480,7 @@ export const getClaimedPosts = asyncHandler(async (req: Request, res: Response, 
 // @route   POST /api/posts/manual
 // @access  Private (lead:hunt)
 export const createManualLeadPost = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
-    const { content, keyword, authorName, authorUrl, profileUrl, platform, credit_cost, creditCost } = req.body ?? {};
+    const { content, keyword, authorName, authorUrl, profileUrl, platform, credit_cost, creditCost, email, contactEmail, phone, contactPhone } = req.body ?? {};
 
     if (!content?.trim()) {
         return res.status(400).json({ success: false, message: 'content is required' });
@@ -489,13 +489,19 @@ export const createManualLeadPost = asyncHandler(async (req: Request, res: Respo
         return res.status(400).json({ success: false, message: 'keyword is required' });
     }
 
+    const resolvedEmail = (email || contactEmail)?.trim() || undefined;
+    const resolvedPhone = (phone || contactPhone)?.trim() || undefined;
+    const resolvedUrl = (authorUrl || profileUrl)?.trim() || undefined;
+
     const post = await postService.createManualPost({
         content: content.trim(),
         keyword: keyword.trim(),
         authorName: authorName?.trim() || 'Manual Entry',
-        authorUrl: (authorUrl || profileUrl)?.trim() || undefined,
+        authorUrl: resolvedUrl,
         platform: platform || 'manual',
         credit_cost: typeof credit_cost === 'number' ? credit_cost : typeof creditCost === 'number' ? creditCost : undefined,
+        email: resolvedEmail,
+        phone: resolvedPhone,
     });
 
     return res.status(201).json({

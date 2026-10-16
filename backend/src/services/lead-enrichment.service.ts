@@ -475,8 +475,8 @@ export async function applyManualLeadContact(
         throw new ErrorResponse('Lead not found', 404);
     }
 
-    if (lead.status !== 'relevant') {
-        throw new ErrorResponse('Manual contact can only be added to relevant leads.', 400);
+    if (lead.status !== 'relevant' && lead.status !== 'pending') {
+        throw new ErrorResponse('Manual contact can only be added to pending or relevant leads.', 400);
     }
 
     const findNote = note || 'Manually entered by admin (no API lookup).';

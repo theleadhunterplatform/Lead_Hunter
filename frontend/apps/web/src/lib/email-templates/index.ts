@@ -711,3 +711,54 @@ The Lead Hunter Club Team`,
     },
   })
 }
+
+// 15. Lead Drop Alert
+export interface LeadDropAlertData {
+  name: string
+  leadTitle: string
+  niche?: string
+  platform?: string
+  snippet?: string
+  leadUrl?: string
+  appUrl: string
+}
+
+export async function renderLeadDropAlert(data: LeadDropAlertData) {
+  const leadUrl = data.leadUrl || `${data.appUrl}/leads`
+  return resolveDynamicTemplate({
+    templateId: 'tpl-auto-lead-drop',
+    fallbackSubject: `🔥 New Lead Alert: {{leadTitle}} | Lead Hunter`,
+    fallbackBody: `Hi {{name}},
+
+New strategic client requirements matching active market demand have just been reviewed and approved on Lead Hunter.
+
+Lead Title: {{leadTitle}}
+Niche: {{niche}}
+Platform: {{platform}}
+
+Summary:
+{{snippet}}
+
+👉 Claim before competitors reach out:
+{{leadUrl}}
+
+Explore All Strategic Leads on Platform:
+{{appUrl}}/leads
+
+Happy Hunting,
+The Lead Hunter Team`,
+    variables: {
+      name: data.name,
+      leadTitle: data.leadTitle,
+      niche: data.niche || 'High-Intent Demand',
+      platform: data.platform || 'LinkedIn',
+      snippet: data.snippet || 'Verified service demand opportunity. Immediate outreach recommended.',
+      leadUrl,
+      appUrl: data.appUrl,
+    },
+    cta: {
+      text: 'View & Claim Lead',
+      url: leadUrl,
+    },
+  })
+}
