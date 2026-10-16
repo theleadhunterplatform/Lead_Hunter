@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import type { Lead } from '@prisma/client'
 import {
   requireFullyAuthorized,
+  handleAuthApiError,
   AuthRequiredError,
   InactiveUserError,
   EmailNotVerifiedError,
@@ -506,30 +507,8 @@ export async function GET(request: NextRequest) {
       { headers: { 'Cache-Control': 'private, no-cache, stale-while-revalidate=15' } },
     )
   } catch (error: unknown) {
-    if (error instanceof AuthRequiredError) {
-      return NextResponse.json(
-        { code: 'UNAUTHORIZED', message: 'Authentication required' },
-        { status: 401 },
-      )
-    }
-    if (error instanceof EmailNotVerifiedError) {
-      return NextResponse.json(
-        { code: 'EMAIL_NOT_VERIFIED', message: 'Please verify your email before continuing' },
-        { status: 403 },
-      )
-    }
-    if (error instanceof OnboardingRequiredError) {
-      return NextResponse.json(
-        { code: 'ONBOARDING_REQUIRED', message: 'Please complete onboarding first' },
-        { status: 403 },
-      )
-    }
-    if (error instanceof InactiveUserError) {
-      return NextResponse.json(
-        { code: 'INACTIVE', message: 'Your account is not active' },
-        { status: 403 },
-      )
-    }
+    const authError = handleAuthApiError(error)
+    if (authError) return authError
     console.error('[Leads API] GET error:', error)
     return NextResponse.json(
       { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to retrieve leads' },

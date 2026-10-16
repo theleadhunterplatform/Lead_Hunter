@@ -63,6 +63,46 @@ export async function GET(request: NextRequest) {
       },
     })
 
+    if (!user && email) {
+      const cleanEmail = email.trim().toLowerCase()
+      const existingByEmail = await db.user.findFirst({
+        where: { email: { equals: cleanEmail, mode: 'insensitive' } },
+        include: {
+          creditAccount: {
+            select: {
+              subscriptionBalance: true,
+              bonusBalance: true,
+              rolloverBalance: true,
+              rolloverExpiresAt: true,
+              renewalDate: true,
+            },
+          },
+        },
+      })
+      if (existingByEmail) {
+        try {
+          user = await db.user.update({
+            where: { id: existingByEmail.id },
+            data: { id: uid },
+            include: {
+              creditAccount: {
+                select: {
+                  subscriptionBalance: true,
+                  bonusBalance: true,
+                  rolloverBalance: true,
+                  rolloverExpiresAt: true,
+                  renewalDate: true,
+                },
+              },
+            },
+          })
+        } catch (err) {
+          console.warn('[auth/me] Failed to update user id to uid:', err)
+          user = existingByEmail
+        }
+      }
+    }
+
     if (!user) {
       const limit = getPlanCredits('FREE')
       const renewalDate = new Date()
@@ -305,6 +345,24 @@ export async function PATCH(request: NextRequest) {
         )
       }
       Object.assign(updateData, profileData)
+    }
+
+    if (authUser.email) {
+      const cleanEmail = authUser.email.trim().toLowerCase()
+      const existing = await db.user.findFirst({
+        where: { email: { equals: cleanEmail, mode: 'insensitive' } },
+        select: { id: true },
+      })
+      if (existing && existing.id !== authUser.uid) {
+        try {
+          await db.user.update({
+            where: { id: existing.id },
+            data: { id: authUser.uid },
+          })
+        } catch (err) {
+          console.warn('[auth/me PATCH] Failed to re-link id:', err)
+        }
+      }
     }
 
     const user = await db.user.upsert({

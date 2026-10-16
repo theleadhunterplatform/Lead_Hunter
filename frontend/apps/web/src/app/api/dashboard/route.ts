@@ -187,37 +187,6 @@ export async function GET(request: NextRequest) {
     const authResponse = handleAuthApiError(error)
     if (authResponse) return authResponse
 
-    const errName = (error as any)?.name || (error instanceof Error ? error.constructor.name : '')
-    if (error instanceof AuthRequiredError || errName === 'AuthRequiredError') {
-      return NextResponse.json(
-        { code: 'UNAUTHORIZED', message: 'Authentication required' },
-        { status: 401 },
-      )
-    }
-    if (error instanceof InactiveUserError || errName === 'InactiveUserError') {
-      return NextResponse.json(
-        { code: 'INACTIVE', message: (error as Error)?.message || 'Your account is not active' },
-        { status: 403 },
-      )
-    }
-    if (error instanceof PendingApprovalError || errName === 'PendingApprovalError') {
-      return NextResponse.json(
-        { code: 'PENDING_APPROVAL', message: 'Your application is under review' },
-        { status: 403 },
-      )
-    }
-    if (error instanceof EmailNotVerifiedError || errName === 'EmailNotVerifiedError') {
-      return NextResponse.json(
-        { code: 'EMAIL_NOT_VERIFIED', message: 'Please verify your email address first' },
-        { status: 403 },
-      )
-    }
-    if (error instanceof OnboardingRequiredError || errName === 'OnboardingRequiredError') {
-      return NextResponse.json(
-        { code: 'ONBOARDING_REQUIRED', message: 'Please complete onboarding first' },
-        { status: 403 },
-      )
-    }
 
     console.error('[Dashboard API] GET error:', error)
     return NextResponse.json(

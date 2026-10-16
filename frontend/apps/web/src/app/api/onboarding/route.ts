@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireEmailVerified, AuthRequiredError, EmailNotVerifiedError } from '@/lib/auth'
+import { requireEmailVerified, getDbUser, AuthRequiredError, EmailNotVerifiedError } from '@/lib/auth'
 import { onboardingSchema } from '@/lib/validators/auth'
 import { emailService } from '@/lib/services/email'
 import { normalizePhone } from '@/lib/phone'
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const existingUser = await db.user.findUnique({ where: { id: authUser.uid } })
+    const existingUser = await getDbUser(authUser)
     if (!existingUser) {
       return NextResponse.json(
         { code: 'NOT_FOUND', message: 'User not found. Create an account first.' },

@@ -189,14 +189,44 @@ export async function requireEmailVerified(request: Request): Promise<AuthUser> 
   return user
 }
 
+export async function getDbUser(authUser: AuthUser, selectOrInclude?: any): Promise<any> {
+  const queryArgs = selectOrInclude ? selectOrInclude : {}
+  let dbUser = await db.user.findUnique({
+    where: { id: authUser.uid },
+    ...queryArgs,
+  })
+
+  if (!dbUser && authUser.email) {
+    const cleanEmail = authUser.email.trim().toLowerCase()
+    const existing = await db.user.findFirst({
+      where: { email: { equals: cleanEmail, mode: 'insensitive' } },
+      ...queryArgs,
+    })
+
+    if (existing) {
+      try {
+        await db.user.update({
+          where: { id: existing.id },
+          data: { id: authUser.uid },
+        })
+        existing.id = authUser.uid
+      } catch (err) {
+        console.warn('[auth] Could not re-link user UID to email profile:', err)
+      }
+      dbUser = existing
+    }
+  }
+
+  return dbUser
+}
+
 export async function requireAdmin(request: Request): Promise<AuthUser> {
   const user = await getAuthUser(request)
   if (!user) {
     throw new AuthRequiredError()
   }
 
-  const dbUser = await db.user.findUnique({
-    where: { id: user.uid },
+  const dbUser = await getDbUser(user, {
     select: { role: true },
   })
 
@@ -217,8 +247,7 @@ export async function requireActiveUser(request: Request): Promise<AuthUser> {
     throw new EmailNotVerifiedError()
   }
 
-  const dbUser = await db.user.findUnique({
-    where: { id: user.uid },
+  const dbUser = await getDbUser(user, {
     select: { status: true },
   })
 
@@ -262,8 +291,7 @@ export async function requireFullyAuthorized(request: Request): Promise<AuthUser
     throw new AuthRequiredError()
   }
 
-  const dbUser = await db.user.findUnique({
-    where: { id: user.uid },
+  const dbUser = await getDbUser(user, {
     select: {
       role: true,
       status: true,
@@ -320,8 +348,7 @@ export async function requireActiveAdmin(request: Request): Promise<AuthUser> {
     throw new AuthRequiredError()
   }
 
-  const dbUser = await db.user.findUnique({
-    where: { id: user.uid },
+  const dbUser = await getDbUser(user, {
     select: { role: true, status: true },
   })
 
@@ -335,3 +362,4 @@ export async function requireActiveAdmin(request: Request): Promise<AuthUser> {
 
   return user
 }
+

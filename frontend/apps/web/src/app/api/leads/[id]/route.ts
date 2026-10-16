@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import {
   requireFullyAuthorized,
+  handleAuthApiError,
   AuthRequiredError,
   InactiveUserError,
   EmailNotVerifiedError,
@@ -250,30 +251,8 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
     return NextResponse.json({ data: lead })
   } catch (error: unknown) {
-    if (error instanceof AuthRequiredError) {
-      return NextResponse.json(
-        { code: 'UNAUTHORIZED', message: 'Authentication required' },
-        { status: 401 },
-      )
-    }
-    if (error instanceof InactiveUserError) {
-      return NextResponse.json(
-        { code: 'INACTIVE', message: 'Your account is not active' },
-        { status: 403 },
-      )
-    }
-    if (error instanceof EmailNotVerifiedError) {
-      return NextResponse.json(
-        { code: 'EMAIL_NOT_VERIFIED', message: 'Please verify your email address first' },
-        { status: 403 },
-      )
-    }
-    if (error instanceof OnboardingRequiredError) {
-      return NextResponse.json(
-        { code: 'ONBOARDING_REQUIRED', message: 'Please complete onboarding first' },
-        { status: 403 },
-      )
-    }
+    const authError = handleAuthApiError(error)
+    if (authError) return authError
     console.error('[Lead GET API] Error:', error)
     return NextResponse.json(
       { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to retrieve lead details' },
@@ -445,30 +424,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       },
     })
   } catch (error: unknown) {
-    if (error instanceof AuthRequiredError) {
-      return NextResponse.json(
-        { code: 'UNAUTHORIZED', message: 'Authentication required' },
-        { status: 401 },
-      )
-    }
-    if (error instanceof InactiveUserError) {
-      return NextResponse.json(
-        { code: 'INACTIVE', message: 'Your account is not active' },
-        { status: 403 },
-      )
-    }
-    if (error instanceof EmailNotVerifiedError) {
-      return NextResponse.json(
-        { code: 'EMAIL_NOT_VERIFIED', message: 'Please verify your email address first' },
-        { status: 403 },
-      )
-    }
-    if (error instanceof OnboardingRequiredError) {
-      return NextResponse.json(
-        { code: 'ONBOARDING_REQUIRED', message: 'Please complete onboarding first' },
-        { status: 403 },
-      )
-    }
+    const authError = handleAuthApiError(error)
+    if (authError) return authError
     console.error('[Lead PATCH API] Error:', error)
     return NextResponse.json(
       { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to update lead status' },
@@ -491,30 +448,8 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
 
     return new NextResponse(null, { status: 204 })
   } catch (error: unknown) {
-    if (error instanceof AuthRequiredError) {
-      return NextResponse.json(
-        { code: 'UNAUTHORIZED', message: 'Authentication required' },
-        { status: 401 },
-      )
-    }
-    if (error instanceof InactiveUserError) {
-      return NextResponse.json(
-        { code: 'INACTIVE', message: 'Your account is not active' },
-        { status: 403 },
-      )
-    }
-    if (error instanceof EmailNotVerifiedError) {
-      return NextResponse.json(
-        { code: 'EMAIL_NOT_VERIFIED', message: 'Please verify your email address first' },
-        { status: 403 },
-      )
-    }
-    if (error instanceof OnboardingRequiredError) {
-      return NextResponse.json(
-        { code: 'ONBOARDING_REQUIRED', message: 'Please complete onboarding first' },
-        { status: 403 },
-      )
-    }
+    const authError = handleAuthApiError(error)
+    if (authError) return authError
     console.error('[Lead DELETE API] Error:', error)
     return NextResponse.json(
       { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to delete lead' },
