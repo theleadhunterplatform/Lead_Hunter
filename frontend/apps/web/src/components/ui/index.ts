@@ -10,4 +10,5 @@ export { Modal } from './Modal'
 export { UpgradeNudgePopup, type UpgradeNudgeVariant } from './UpgradeNudgePopup'
 export { CommunityWinPopup, type CommunityPopupPost } from './CommunityWinPopup'
 export { CustomLoader } from './CustomLoader'
+export { CreditExhaustedModal } from './CreditExhaustedModal'
 

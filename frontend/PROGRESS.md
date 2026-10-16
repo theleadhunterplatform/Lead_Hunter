@@ -977,6 +977,83 @@ Implemented per the locked counter plan:
 ### Follow-up toast debugging (`bc637a3`, 2026-10-13)
 User reported intermittent wrong toast messages ("Marked as Drafting" instead of "Follow-up N logged") when logging follow-ups. Added console logging to all three follow-up handlers (`handleLogFollowUp`, `handleMarkStatus`, `handleSetFollowUpCount`) with distinct toast messages to trace which handler fires. Deploy and check browser console on next user test.
 
+### Admin page wheel-scroll (Lenis hijack) — FIXED (`d5387c9` + `3628c47`, 2026-10-15, pushed)
+User report: WhatsApp group panel in `/admin/broadcast` won't scroll with a mouse (works
+partly on trackpad). **Root cause = Lenis smooth-scroll was mounted on every `/admin/*`
+page.** `ClientLayout` gated it on `const isLanding = !isAppRoute`, but `appRoutes` =
+dashboard/leads/saved/analytics/settings/support/referrals/rewards/community — **no
+`/admin`**, so the gate evaluated true there. Lenis v1.3.23 attaches a **non-passive
+`wheel` listener on `window`** and, walking `composedPath()` target→body, only skips
+`preventDefault()` when it finds `data-lenis-prevent` / a `prevent` callback /
+`allowNestedScroll` (defaults **false**, never passed). The group list
+(`max-h-48 overflow-y-auto scrollbar-hide`) had no opt-out → wheel input consumed to
+smooth-scroll `window`. **Mouse vs trackpad asymmetry:** Lenis gates on
+`if (event.cancelable)`; discrete mouse notches are always cancelable → swallowed every
+time, while trackpad/momentum streams aren't always → native scroll slipped through.
+- **Why tabs/tables on the same page were fine:** `useHorizontalWheelScroll` attaches its
+  own non-passive listener and calls `stopPropagation()`, so Lenis never sees those events
+  (the "Lenis-safe" note at line 872 is exactly this). The group list is *vertical* and so
+  never got the hook — correct, once Lenis stops intercepting.
+- **Fix 1 (root cause, `ClientLayout.tsx`):** `const isLanding = !isAppRoute && !isAdminRoute`
+  + dep array now `[isAppRoute, isAdminRoute]`. Native wheel scroll restored for all admin
+  routes (panel, sidebar nav, filter pills, dropdowns).
+- **Fix 2 (defense in depth, `admin/broadcast/page.tsx`):** `data-lenis-prevent` +
+  `overscroll-contain` on the group list so it survives if smooth-scroll is ever re-enabled
+  for admin, and end-of-list doesn't chain into the page. (First attempt used a JSX
+  `{/* */}` comment in ternary expression position → TS1005 parse errors; must be a JS
+  `/* */` comment there. Reverted to that.)
+- **Verified (stash-compare, not eyeballed):** tsc **55 with / 55 without** my diff (0 added);
+  vitest **4 failed files / 15 failed / 210 passed both ways** (all pre-existing: reveal
+  coins, credits mocks, verify-session, coins fixtures); `next lint --file` on both files →
+  only pre-existing broadcast:1474 unescaped-quote errors + ClientLayout:150/262
+  exhaustive-deps warnings. Only the 2 intended files staged and committed.
+- **Pushed:** `d5387c9` + this log entry `3628c47` are on `origin/main` (verified via
+  `git ls-remote` SHA match + `merge-base --is-ancestor`, sync `0 0`).
+- **Open (needs user):** (b) **no browser verification** — `/admin` has
+  no test credentials in this session, so the fix is source+tooling-verified only. Confirm on
+  live/after deploy with a real mouse; (c) **design fork left open** — `data-lenis-prevent`
+  already exists on dashboard/leads/saved/analytics, where Lenis *never* mounts, which hints
+  smooth-scroll was intended site-wide. If you want Lenis on admin instead, revert fix 1 and
+  put `data-lenis-prevent` on the admin `<main>`/`<aside>` scroll containers (say the word).
+- **Pre-existing noise seen this session (NOT ours):** `settings/page.tsx` briefly carried 12
+  tsc JSX parse errors from another session's WIP; that file is back to clean in the tree now.
+  Repo-wide tsc baseline is **55 errors**, not the 47 recorded earlier.
+
+### Settings: OTP phone verification removed (`bbe4579` pushed, 2026-10-15)
+User report (screenshot): settings showed "Phone Verification / Secure your account with
+SMS / Not Verified" + "Send OTP" + 6-digit code box + "Failed to send OTP" error. We send
+no OTPs anywhere — phone is contact info only. Removed the whole Firebase phone-auth flow
+from `settings/page.tsx` (−241/+68): `signInWithPhoneNumber`, `PhoneAuthProvider`,
+`RecaptchaVerifier`, `ConfirmationResult`, `phoneStep`/`otpCountdown`/`phoneVerificationCode`
+state, verifier effects, send/verify handlers, recaptcha container, OTP UI. Replaced with
+a plain number entry + "Save Phone Number" via the existing `PATCH /api/auth/me` (already
+accepts `phone`). Saved numbers show a "Verified" badge (means on-file, not OTP-proven).
+- **Verified:** 0 OTP/`phoneStep`/recaptcha references left in file · lint clean · tsc 0 in
+  file (repo baseline 55) · pushed, sync `0 0`. Not browser-verified (needs login session).
+- Note: onboarding Step 1 phone intake never had visible OTP text (only disabled helper
+  functions + one `otp` alternative in a `guideCopy` error regex) — left as-is per scope.
+
+### Settings phone header wording (`d551f27` pushed, 2026-10-15)
+Follow-up screenshot showed the card header I had missed: "Phone Verification / Secure
+your account with SMS / Not Verified" still promised SMS verification above the new plain
+input. Renamed: title → "Phone Number", sub → "How we reach you about your account and
+leads", header badge → Saved/Required, body badge → Saved (was "Verified" — implies
+OTP-proof). File now has zero verification/SMS/OTP references (swept, incl. comments).
+Save path itself was already correct (`PATCH /api/auth/me` accepts phone-only).
+
+### Admin support: reporter links to user details (`a810502` pushed, 2026-10-15)
+User ask: on the admin support ticket page, clicking the reporter name/icon should open
+that user's page in admin/users. Done frontend-only, no API change: both ticket payloads
+already ship the `userId` scalar (`findUnique`/`findMany` without `select`), so only the
+interfaces gained `userId: string` and the names became Links to `/admin/users/[id]`:
+queue reporter cell + thread header reporter (with hover underline + title). Message-level
+author labels left plain (same destination, would be visual noise).
+- **Verified live (shared admin session):** queue link renders ("dualsparkstudio" →
+  `/admin/users/42sb3…`), thread header link renders, and the user detail page loads for
+  that id (no bounce) · lint clean both files · tsc 55 = baseline, 0 in touched files.
+- Also deleted my leftover temp scripts (`add_followup_counter.sql`, `fix-settings*.cjs`,
+  `run-migration.mjs`) from `apps/web/`.
+
 ---
 
 ## 3. Blocked — waiting on user input

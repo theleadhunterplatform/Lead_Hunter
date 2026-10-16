@@ -6,6 +6,7 @@ import { getPlanCredits } from '@/lib/config/plans'
 import { referralService } from '@/lib/services/referral'
 import { getAdminAuthInstance } from '@/lib/firebase-admin'
 import { parseProfilePatch, findDuplicateSocialLink, profilePayload } from '@/lib/profile'
+import { normalizePhone } from '@/lib/phone'
 
 export const dynamic = 'force-dynamic'
 
@@ -145,6 +146,31 @@ export async function GET(request: NextRequest) {
       })
     }
 
+    if (user && !user.creditAccount) {
+      const limit = getPlanCredits(user.plan || 'FREE')
+      const renewalDate = new Date()
+      renewalDate.setDate(renewalDate.getDate() + 30)
+
+      const fallbackCreditAccount = await db.creditAccount.upsert({
+        where: { userId: uid },
+        update: {},
+        create: {
+          userId: uid,
+          subscriptionBalance: limit,
+          bonusBalance: 0,
+          renewalDate,
+        },
+        select: {
+          subscriptionBalance: true,
+          bonusBalance: true,
+          rolloverBalance: true,
+          rolloverExpiresAt: true,
+          renewalDate: true,
+        },
+      })
+      user = { ...user, creditAccount: fallbackCreditAccount }
+    }
+
     // Admins bypass the onboarding requirement (mirrors requireFullyAuthorized,
     // lib/auth.ts:299) so approved admin accounts are never bounced to /onboarding.
     const hasCompletedOnboarding =
@@ -237,7 +263,23 @@ export async function PATCH(request: NextRequest) {
       updateData.city = city.trim()
     }
     if (typeof phone === 'string' && phone.trim()) {
-      updateData.phone = phone.trim()
+      const normalizedPhone = normalizePhone(phone.trim()) || phone.trim()
+      const duplicatePhone = await db.user.findFirst({
+        where: {
+          phone: normalizedPhone,
+          id: { not: authUser.uid },
+        },
+      })
+      if (duplicatePhone) {
+        return NextResponse.json(
+          {
+            code: 'PHONE_IN_USE',
+            message: 'This phone number is already linked to another Lead Hunter account.',
+          },
+          { status: 400 },
+        )
+      }
+      updateData.phone = normalizedPhone
     }
 
     // Profile & socials (settings editor): validated subset of the onboarding
@@ -308,8 +350,10 @@ export async function PATCH(request: NextRequest) {
     })
   } catch (error) {
     console.error('[Auth Me PATCH] Error:', error)
+    const message =
+      error instanceof Error ? error.message : 'Failed to update profile'
     return NextResponse.json(
-      { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to update profile' },
+      { code: 'INTERNAL_SERVER_ERROR', message },
       { status: 500 },
     )
   }

@@ -26,7 +26,7 @@ import {
 } from '@heroicons/react/24/solid'
 import Link from 'next/link'
 import { AppLead } from '@/types/lead'
-import { Badge, Button, CustomLoader } from '@/components/ui'
+import { Badge, Button, CustomLoader, CreditExhaustedModal } from '@/components/ui'
 import { useToast } from '@/components/ui/Toast'
 import { getFirebaseToken } from '@/lib/firebase'
 import { buildLeadIntelText } from '@/lib/intel'
@@ -555,7 +555,7 @@ export default function SavedLeadsPage() {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ isSaved: false, status: 'new' }),
+        body: JSON.stringify({ isSaved: false, status: 'dismissed' }),
       })
       if (!res.ok) {
         setSavedLeads(prevLeads)
@@ -1402,6 +1402,7 @@ export default function SavedLeadsPage() {
           </motion.div>
         )}
       </AnimatePresence>
+      <CreditExhaustedModal />
     </main>
   )
 }

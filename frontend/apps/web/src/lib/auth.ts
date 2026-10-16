@@ -262,15 +262,12 @@ export async function requireFullyAuthorized(request: Request): Promise<AuthUser
     throw new AuthRequiredError()
   }
 
-  if (user.emailVerified !== true) {
-    throw new EmailNotVerifiedError()
-  }
-
   const dbUser = await db.user.findUnique({
     where: { id: user.uid },
     select: {
       role: true,
       status: true,
+      emailVerified: true,
       phone: true,
       portfolio: true,
       website: true,
@@ -293,6 +290,18 @@ export async function requireFullyAuthorized(request: Request): Promise<AuthUser
 
   if (dbUser.status !== 'ACTIVE') {
     throw new InactiveUserError('User account is not active')
+  }
+
+  // Active approved members or admins have been vetted by admin.
+  // Only block if email is unverified AND user is not yet approved/active.
+  const isVerified =
+    user.emailVerified === true ||
+    Boolean(dbUser.emailVerified) ||
+    dbUser.status === 'ACTIVE' ||
+    dbUser.role === 'admin'
+
+  if (!isVerified) {
+    throw new EmailNotVerifiedError()
   }
 
   // Admins bypass onboarding requirement

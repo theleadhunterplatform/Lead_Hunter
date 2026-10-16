@@ -17,6 +17,7 @@ interface AdminTicket {
   createdAt: string
   updatedAt: string
   resolvedAt: string | null
+  userId: string
   user: { name: string; email: string; plan: string }
   _count: { messages: number }
 }
@@ -159,7 +160,13 @@ export default function AdminSupportPage() {
                   </Link>
                 </div>
                 <div className="col-span-3">
-                  <div className="text-sm font-medium text-text-primary">{ticket.user.name}</div>
+                  <Link
+                    href={`/admin/users/${ticket.userId}`}
+                    title="Open user details"
+                    className="text-sm font-medium text-text-primary hover:text-accent-mint hover:underline transition-colors"
+                  >
+                    {ticket.user.name}
+                  </Link>
                   <div className="text-xxs text-text-secondary">{ticket.user.email}</div>
                 </div>
                 <div className="col-span-1">

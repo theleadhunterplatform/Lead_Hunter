@@ -902,8 +902,13 @@ export function getStructuredLeadDetails(lead: {
 
   if (indMatch && !buyer.toLowerCase().includes(indMatch.toLowerCase().trim())) {
     const cleanInd = indMatch.trim().replace(/^[a-z]/, (c) => c.toUpperCase())
-    buyer = `${cleanInd} (${buyer})`
+    if (!/^(?:a\s+)?(?:business|client|company|store|brand)(?:\s+(?:client|business))?$/i.test(cleanInd)) {
+      buyer = `${cleanInd} (${buyer})`
+    }
   }
+
+  // Deduplicate any repeated consecutive words or phrases in buyer (e.g. "A business client a business client")
+  buyer = buyer.replace(/\b([A-Za-z\s]{3,25}?)\s+\1\b/gi, '$1').trim()
 
   return {
     role: role || 'Specialized Execution Partner',

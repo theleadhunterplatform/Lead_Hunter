@@ -310,7 +310,15 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   ])
 
   useEffect(() => {
-    const isLanding = !isAppRoute
+    // Smooth-scroll is for the marketing/landing surfaces only.
+    // `/admin` is NOT in `appRoutes`, so `!isAppRoute` alone evaluated true here and
+    // mounted Lenis on every admin page. Lenis attaches a non-passive `wheel` listener
+    // on `window` and calls `preventDefault()` on any wheel event that does NOT come
+    // from inside a `[data-lenis-prevent]` element (its `allowNestedScroll` option
+    // defaults to false). That silently killed native wheel scrolling in nested admin
+    // panels — e.g. the broadcast page's WhatsApp group list (`max-h-48 overflow-y-auto`)
+    // — because the input was consumed to smooth-scroll `window` instead.
+    const isLanding = !isAppRoute && !isAdminRoute
     if (!isLanding) return
 
     // Skip smooth scroll on touch / small screens — native scroll is faster there
@@ -349,7 +357,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         lenisInstance.destroy()
       }
     }
-  }, [isAppRoute])
+  }, [isAppRoute, isAdminRoute])
 
   if (loading && isProtectedRoute && !isAdminRoute) {
     let detectedPage: LoaderPageType = 'default'

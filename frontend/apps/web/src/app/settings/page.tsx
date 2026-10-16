@@ -1,21 +1,17 @@
 'use client'
 
-import { useState, useMemo, useEffect, useRef } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import {
   auth,
-  signInWithPhoneNumber,
-  PhoneAuthProvider,
-  RecaptchaVerifier,
   linkWithCredential,
   EmailAuthProvider,
   updateProfile,
   updatePassword,
   reauthenticateWithCredential,
   sendPasswordResetEmail,
-  type ConfirmationResult,
 } from '@/lib/firebase'
 import { normalizePhone } from '@/lib/phone'
 import { PhoneInputWithCountry } from '@/components/ui/PhoneInputWithCountry'
@@ -105,16 +101,10 @@ export default function SettingsPage() {
     return diff
   }, [user?.creditAccount?.renewalDate])
 
-  const [phoneVerificationCode, setPhoneVerificationCode] = useState('')
-  const [phoneConfirmationResult, setPhoneConfirmationResult] = useState<ConfirmationResult | null>(
-    null,
-  )
   const [phoneCountryCode, setPhoneCountryCode] = useState('+91')
   const [phoneFormPhone, setPhoneFormPhone] = useState('')
   const [phoneError, setPhoneError] = useState('')
   const [phoneLoading, setPhoneLoading] = useState(false)
-  const [phoneStep, setPhoneStep] = useState<'idle' | 'send' | 'verify'>('idle')
-  const [otpCountdown, setOtpCountdown] = useState(0)
 
   const selectedPhoneCountry = useMemo(
     () => findCountryByDialCode(phoneCountryCode) || DEFAULT_COUNTRY,
@@ -239,12 +229,6 @@ export default function SettingsPage() {
   }, [])
 
   useEffect(() => {
-    if (otpCountdown <= 0) return
-    const id = setInterval(() => setOtpCountdown((c) => c - 1), 1000)
-    return () => clearInterval(id)
-  }, [otpCountdown])
-
-  useEffect(() => {
     if (resetEmailCountdown <= 0) return
     const id = setInterval(() => setResetEmailCountdown((c) => c - 1), 1000)
     return () => clearInterval(id)
@@ -257,44 +241,7 @@ export default function SettingsPage() {
     return hasGoogle && !hasPassword
   }, [firebaseUser])
 
-  const verifierRef = useRef<RecaptchaVerifier | null>(null)
-
-  useEffect(() => {
-    if (phoneStep !== 'send') {
-      if (verifierRef.current) {
-        try {
-          verifierRef.current.clear()
-        } catch {}
-        verifierRef.current = null
-      }
-      return
-    }
-
-    const initVerifier = async () => {
-      for (let i = 0; i < 20; i++) {
-        const el = document.getElementById('settings-recaptcha-container')
-        if (el) {
-          verifierRef.current = new RecaptchaVerifier(auth, 'settings-recaptcha-container', {
-            size: 'invisible',
-          })
-          return
-        }
-        await new Promise((r) => setTimeout(r, 100))
-      }
-    }
-    initVerifier()
-
-    return () => {
-      if (verifierRef.current) {
-        try {
-          verifierRef.current.clear()
-        } catch {}
-        verifierRef.current = null
-      }
-    }
-  }, [phoneStep])
-
-  const handlePhoneSendOtp = async () => {
+  const handleSavePhone = async () => {
     if (!phoneValidation.valid) {
       setPhoneError(phoneValidation.message || 'Please enter a valid phone number')
       return
@@ -302,11 +249,23 @@ export default function SettingsPage() {
     setPhoneLoading(true)
     setPhoneError('')
     try {
-      const verifier = verifierRef.current
-      if (!verifier) {
-        setPhoneError('Could not initialize verification. Please try again.')
+      const fullPhone = `${phoneCountryCode}${phoneFormPhone.trim()}`
+      const normalized = normalizePhone(fullPhone)
+      const token = await getFirebaseToken()
+      const res = await fetch('/api/auth/me', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ phone: normalized }),
+      })
+      if (!res.ok) {
+        const json = await res.json().catch(() => null)
+        setPhoneError(json?.message || 'Failed to save phone number')
         return
       }
+<<<<<<< HEAD
       const fullPhone = `${phoneCountryCode}${phoneFormPhone.trim()}`
       const normalized = normalizePhone(fullPhone)
       const result = await signInWithPhoneNumber(auth, normalized, verifier)
@@ -336,22 +295,30 @@ export default function SettingsPage() {
 
       const token = await auth.currentUser?.getIdToken().catch(() => null)
       if (token) {
-        await fetch('/api/auth/me', {
+        const patchRes = await fetch('/api/auth/me', {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({ phone: normalized }),
-        }).catch(() => {})
+        })
+        const patchJson = await patchRes.json().catch(() => null)
+        if (!patchRes.ok) {
+          setPhoneError(patchJson?.message || 'Failed to update phone number.')
+          setPhoneLoading(false)
+          return
+        }
       }
 
       setPhoneStep('idle')
       setPhoneFormPhone('')
       setPhoneVerificationCode('')
+=======
+>>>>>>> 8d585420e1943b814cf020356cf1f728dceee702
       window.location.reload()
     } catch {
-      setPhoneError('Invalid verification code. Please try again.')
+      setPhoneError('Failed to save phone number. Please try again.')
     } finally {
       setPhoneLoading(false)
     }
@@ -1179,7 +1146,7 @@ export default function SettingsPage() {
             )}
           </motion.div>
 
-          {/* Phone Verification */}
+          {/* Phone Number */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1192,8 +1159,8 @@ export default function SettingsPage() {
                   <PhoneIcon className="w-6 h-6 text-text-secondary" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-text-primary">Phone Verification</h2>
-                  <p className="text-sm text-text-secondary">Secure your account with SMS</p>
+                  <h2 className="text-lg font-bold text-text-primary">Phone Number</h2>
+                  <p className="text-sm text-text-secondary">How we reach you about your account and leads</p>
                 </div>
               </div>
               <span
@@ -1203,162 +1170,73 @@ export default function SettingsPage() {
                     : 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'
                 }`}
               >
-                {user?.phone ? 'Verified' : 'Not Verified'}
+                  {user?.phone ? 'Saved' : 'Required'}
               </span>
             </div>
 
             {user?.phone ? (
-              <p className="text-sm text-text-secondary">Phone: {user.phone}</p>
-            ) : phoneStep === 'idle' ? (
-              <button
-                onClick={() => setPhoneStep('send')}
-                className="px-5 py-2.5 rounded-xl bg-accent-mint/10 border border-accent-mint/20 text-accent-mint text-sm font-medium hover:bg-accent-mint/20 transition-all"
-              >
-                Add Phone Number
-              </button>
+              <div className="flex items-center justify-between gap-4">
+                <p className="text-sm text-text-secondary">Phone: {user.phone}</p>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-accent-mint/10 text-accent-mint border border-accent-mint/20">
+                  Saved
+                </span>
+              </div>
             ) : (
               <div className="space-y-4">
-                <div id="settings-recaptcha-container" />
+                <div className="flex flex-col gap-1.5 max-w-sm">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
+                      Phone number
+                    </label>
+                    <span className="text-[11px] text-text-secondary/70">
+                      {selectedPhoneCountry.name} ({selectedPhoneCountry.digits ? `${selectedPhoneCountry.digits} digits` : `${selectedPhoneCountry.minDigits}-${selectedPhoneCountry.maxDigits} digits`})
+                    </span>
+                  </div>
 
-                {phoneStep === 'send' && (
-                  <>
-                    <div className="flex flex-col gap-1.5 max-w-sm">
-                      <div className="flex items-center justify-between">
-                        <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
-                          Phone number
-                        </label>
-                        <span className="text-[11px] text-text-secondary/70">
-                          {selectedPhoneCountry.name} ({selectedPhoneCountry.digits ? `${selectedPhoneCountry.digits} digits` : `${selectedPhoneCountry.minDigits}-${selectedPhoneCountry.maxDigits} digits`})
-                        </span>
-                      </div>
+                  <PhoneInputWithCountry
+                    countryCode={phoneCountryCode}
+                    onCountryCodeChange={(code) => {
+                      setPhoneCountryCode(code)
+                      setPhoneError('')
+                    }}
+                    phoneNumber={phoneFormPhone}
+                    onPhoneNumberChange={(num) => {
+                      setPhoneFormPhone(num)
+                      setPhoneError('')
+                    }}
+                    error={phoneError}
+                  />
 
-                      <PhoneInputWithCountry
-                        countryCode={phoneCountryCode}
-                        onCountryCodeChange={(code) => {
-                          setPhoneCountryCode(code)
-                          setPhoneError('')
-                        }}
-                        phoneNumber={phoneFormPhone}
-                        onPhoneNumberChange={(num) => {
-                          setPhoneFormPhone(num)
-                          setPhoneError('')
-                        }}
-                        error={phoneError}
-                      />
-
-                      {phoneFormPhone.trim().length > 0 && (
-                        <p
-                          className={`text-xs mt-0.5 flex items-center gap-1 ${
-                            phoneValidation.valid ? 'text-accent-mint' : 'text-red-400'
-                          }`}
-                        >
-                          {phoneValidation.valid ? (
-                            <>
-                              <span aria-hidden>✓</span> Valid {selectedPhoneCountry.name} phone number
-                            </>
-                          ) : (
-                            phoneValidation.message
-                          )}
-                        </p>
+                  {phoneFormPhone.trim().length > 0 && (
+                    <p className={`text-xs mt-0.5 flex items-center gap-1 ${phoneValidation.valid ? 'text-accent-mint' : 'text-red-400'}`}>
+                      {phoneValidation.valid ? (
+                        <>
+                          <span aria-hidden>✓</span> Valid {selectedPhoneCountry.name} phone number
+                        </>
+                      ) : (
+                        phoneValidation.message
                       )}
+                    </p>
+                  )}
+
+                  {phoneError && (
+                    <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-400">
+                      {phoneError}
                     </div>
+                  )}
 
-                    {phoneError && (
-                      <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-400">
-                        {phoneError}
-                      </div>
-                    )}
-
-                    <div className="flex gap-2">
-                      <button
-                        onClick={handlePhoneSendOtp}
-                        disabled={phoneLoading || !phoneFormPhone.trim()}
-                        className="px-5 py-2.5 rounded-xl bg-accent-mint/10 border border-accent-mint/20 text-accent-mint text-sm font-medium hover:bg-accent-mint/20 transition-all disabled:opacity-50 flex items-center gap-2"
-                      >
-                        {phoneLoading ? (
-                          <div className="w-4 h-4 rounded-full border-2 border-white/20 border-t-white animate-spin" />
-                        ) : (
-                          'Send OTP'
-                        )}
-                      </button>
-                      <button
-                        onClick={() => {
-                          setPhoneStep('idle')
-                          setPhoneError('')
-                        }}
-                        className="px-5 py-2.5 rounded-xl bg-white/5 text-text-secondary text-sm font-medium hover:text-text-primary transition-all"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </>
-                )}
-
-                {phoneStep === 'verify' && (
-                  <>
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
-                        6-digit code
-                      </label>
-                      <input
-                        value={phoneVerificationCode}
-                        onChange={(e) => setPhoneVerificationCode(e.target.value)}
-                        type="text"
-                        inputMode="numeric"
-                        placeholder="000000"
-                        maxLength={6}
-                        className="bg-surface-elevated border border-white/5 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all px-4 py-3 text-center text-lg tracking-ultra max-w-[200px]"
-                      />
-                    </div>
-
-                    {phoneError && (
-                      <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-400">
-                        {phoneError}
-                      </div>
-                    )}
-
-                    <div className="flex gap-2">
-                      <button
-                        onClick={handlePhoneVerifyOtp}
-                        disabled={phoneLoading || phoneVerificationCode.length < 6}
-                        className="px-5 py-2.5 rounded-xl bg-accent-mint/10 border border-accent-mint/20 text-accent-mint text-sm font-medium hover:bg-accent-mint/20 transition-all disabled:opacity-50 flex items-center gap-2"
-                      >
-                        {phoneLoading ? (
-                          <div className="w-4 h-4 rounded-full border-2 border-white/20 border-t-white animate-spin" />
-                        ) : (
-                          'Verify'
-                        )}
-                      </button>
-                      <button
-                        onClick={() => {
-                          setPhoneStep('idle')
-                          setPhoneError('')
-                        }}
-                        className="px-5 py-2.5 rounded-xl bg-white/5 text-text-secondary text-sm font-medium hover:text-text-primary transition-all"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-
-                    {otpCountdown > 0 ? (
-                      <p className="text-xs text-text-secondary/60">
-                        Resend code in {otpCountdown}s
-                      </p>
+                  <button
+                    onClick={handleSavePhone}
+                    disabled={phoneLoading || !phoneValidation.valid}
+                    className="px-5 py-2.5 rounded-xl bg-accent-mint/10 border border-accent-mint/20 text-accent-mint text-sm font-medium hover:bg-accent-mint/20 transition-all disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {phoneLoading ? (
+                      <div className="w-4 h-4 rounded-full border-2 border-white/20 border-t-white animate-spin" />
                     ) : (
-                      <button
-                        onClick={() => {
-                          setPhoneStep('send')
-                          setPhoneVerificationCode('')
-                          setPhoneError('')
-                        }}
-                        className="text-xs text-accent-mint hover:text-accent-mint/80 transition-colors flex items-center gap-1"
-                      >
-                        <ArrowPathIcon className="w-3 h-3" />
-                        Resend code
-                      </button>
+                      'Save Phone Number'
                     )}
-                  </>
-                )}
+                  </button>
+                </div>
               </div>
             )}
           </motion.div>

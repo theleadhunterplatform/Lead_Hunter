@@ -220,6 +220,9 @@ function LeadCard({
 
       const json = await res.json()
       if (!res.ok) {
+        if (json.code === 'INSUFFICIENT_CREDITS' || res.status === 402) {
+          window.dispatchEvent(new CustomEvent('open-credit-exhausted-modal'))
+        }
         addToast({
           type: 'error',
           message: json.message || json.code || 'Failed to reveal lead',

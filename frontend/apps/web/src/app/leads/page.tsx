@@ -21,7 +21,7 @@ import {
   ArrowPathIcon,
 } from '@heroicons/react/24/solid'
 import type { AppLead } from '@/types/lead'
-import { Select } from '@/components/ui'
+import { Select, CreditExhaustedModal } from '@/components/ui'
 import { getFirebaseToken } from '@/lib/firebase'
 import { useAuth } from '@/hooks/useAuth'
 
@@ -921,6 +921,7 @@ export default function LeadsPage() {
               </motion.div>
             )}
           </AnimatePresence>
+      <CreditExhaustedModal />
     </main>
   )
 }

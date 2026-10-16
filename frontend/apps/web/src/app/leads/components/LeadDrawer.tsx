@@ -302,6 +302,9 @@ export default function LeadDrawer({
         }
         window.dispatchEvent(new Event('user-refetch'))
       } else {
+        if (json.code === 'INSUFFICIENT_CREDITS' || res.status === 402) {
+          window.dispatchEvent(new CustomEvent('open-credit-exhausted-modal'))
+        }
         setErrorMsg(json.message || 'Failed to unlock lead')
       }
     } catch {

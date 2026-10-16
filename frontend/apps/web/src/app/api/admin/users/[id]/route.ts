@@ -169,12 +169,24 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       }
 
       const newStatus = statusMap[body.action]
+      const shouldMarkVerified = body.action === 'APPROVE' || body.action === 'ACTIVATE'
+
       await db.user.update({
         where: { id: targetUserId },
-        data: { status: newStatus },
+        data: {
+          status: newStatus,
+          ...(shouldMarkVerified ? { emailVerified: user.emailVerified || new Date() } : {}),
+        },
       })
 
       if (body.action === 'APPROVE' || body.action === 'ACTIVATE') {
+        try {
+          const adminAuth = getAdminAuthInstance()
+          await adminAuth.updateUser(targetUserId, { emailVerified: true })
+        } catch (authErr) {
+          console.warn('[Admin User Action] Failed to sync emailVerified in Firebase Auth:', authErr)
+        }
+
         const planId = body.plan || 'FREE'
         const customRenewalDate = body.renewalDate ? new Date(body.renewalDate) : undefined
         await creditService.assignPlan(targetUserId, planId, {

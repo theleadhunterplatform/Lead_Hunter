@@ -119,7 +119,7 @@ export default function AdminUsersPage() {
   }, [])
 
   const isOnboardingComplete = (u: AdminUser) =>
-    Boolean(u.linkedin && (u.servicesOffered?.length ?? 0) > 0)
+    Boolean(u.phone && u.linkedin && (u.servicesOffered?.length ?? 0) > 0)
 
   const handleSendReminder = async (userId: string, email: string) => {
     setActionLoading(`${userId}-REMIND`)
@@ -198,6 +198,14 @@ export default function AdminUsersPage() {
   }, [fetchUsers])
 
   const handleAction = async (userId: string, action: string, plan?: string) => {
+    const targetUser = users.find((u) => u.id === userId)
+    if (action === 'APPROVE' && targetUser && !isOnboardingComplete(targetUser)) {
+      const proceed = confirm(
+        `⚠️ ONBOARDING INCOMPLETE\n\n"${targetUser.name}" has not completed their onboarding form (phone, services, or profile link is missing).\n\nDo you still want to approve this user?`,
+      )
+      if (!proceed) return
+    }
+
     setActionLoading(`${userId}-${action}`)
     const token = await getFirebaseToken()
     await fetch(`/api/admin/users/${userId}`, {
@@ -422,11 +430,21 @@ export default function AdminUsersPage() {
                         )}
                       </td>
                       <td className="px-6 py-4">
-                        <span
-                          className={`inline-flex text-xs font-medium px-2.5 py-1 rounded-full ${STATUS_COLORS[u.status] || 'text-text-secondary bg-white/5'}`}
-                        >
-                          {u.status}
-                        </span>
+                        {u.status === 'PENDING' && !isOnboardingComplete(u) ? (
+                          <span
+                            className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full text-amber-400 bg-amber-500/10 border border-amber-500/20"
+                            title="User has registered but not yet submitted the onboarding profile"
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                            Awaiting Form
+                          </span>
+                        ) : (
+                          <span
+                            className={`inline-flex text-xs font-medium px-2.5 py-1 rounded-full ${STATUS_COLORS[u.status] || 'text-text-secondary bg-white/5'}`}
+                          >
+                            {u.status}
+                          </span>
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         <span

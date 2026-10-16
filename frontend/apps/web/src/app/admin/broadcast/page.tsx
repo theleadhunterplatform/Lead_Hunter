@@ -1489,7 +1489,17 @@ export default function AdminBroadcastPage() {
               </span>
             </div>
 {waData?.groups && waData.groups.length > 0 ? (
-                <div className="space-y-1.5 max-h-48 overflow-y-auto scrollbar-hide pr-1">
+                /*
+                 * data-lenis-prevent: opts this nested scroller out of Lenis wheel
+                 * interception (only matters if smooth-scroll is ever re-enabled for
+                 * /admin — without it the wheel is consumed and this list can't scroll).
+                 * overscroll-contain: reaching the end of the list must not chain into
+                 * the page.
+                 */
+                <div
+                  data-lenis-prevent
+                  className="space-y-1.5 max-h-48 overflow-y-auto overscroll-contain scrollbar-hide pr-1"
+                >
                 {waData.groups.map((grp) => {
                   const isTarget =
                     Boolean(waData.configuredGroupId) &&
