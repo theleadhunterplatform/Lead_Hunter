@@ -192,11 +192,15 @@ export function leadHasDiscoverableContact(lead: {
     contact_info?: {
         emails?: Array<{ email?: string }>;
         phone_numbers?: Array<{ number?: string }>;
+        profile_url?: string;
     } | null;
+    author?: { url?: string } | null;
 }): boolean {
     if (lead.email?.trim()) return true;
     if (lead.contact_info?.emails?.some((entry) => entry.email?.trim())) return true;
     if (leadHasPhone(lead)) return true;
+    if ((lead.contact_info as any)?.profile_url?.trim()) return true;
+    if ((lead as any).author?.url?.trim()) return true;
     return false;
 }
 

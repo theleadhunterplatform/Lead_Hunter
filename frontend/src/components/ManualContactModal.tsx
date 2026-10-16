@@ -31,6 +31,7 @@ export default function ManualContactModal({
 }: ManualContactModalProps) {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [profileUrl, setProfileUrl] = useState("");
   const [note, setNote] = useState("Found manually on ContactOut");
   const [isSaving, setIsSaving] = useState(false);
 
@@ -38,6 +39,7 @@ export default function ManualContactModal({
     if (!isOpen || !lead) return;
     setEmail(lead.email || "");
     setPhone(lead.contact_info?.phone_numbers?.[0]?.number || "");
+    setProfileUrl(lead.author?.url || (lead.contact_info as any)?.profile_url || "");
     setNote("Found manually on ContactOut");
   }, [isOpen, lead]);
 
@@ -47,8 +49,9 @@ export default function ManualContactModal({
 
     const trimmedEmail = email.trim();
     const trimmedPhone = phone.trim();
-    if (!trimmedEmail && !trimmedPhone) {
-      toast.error("Enter at least an email or phone number.");
+    const trimmedProfileUrl = profileUrl.trim();
+    if (!trimmedEmail && !trimmedPhone && !trimmedProfileUrl) {
+      toast.error("Enter at least an email, phone number, or profile link.");
       return;
     }
 
@@ -57,6 +60,7 @@ export default function ManualContactModal({
       const response = await api.put(`/posts/${lead._id}/manual-contact`, {
         email: trimmedEmail || undefined,
         phone: trimmedPhone || undefined,
+        profile_url: trimmedProfileUrl || undefined,
         note: note.trim() || undefined,
       });
       toast.success(response.data.message || "Contact saved.");
@@ -135,6 +139,18 @@ export default function ManualContactModal({
                   placeholder="+1 555 123 4567"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2 block">
+                  Profile Link (optional)
+                </label>
+                <Input
+                  type="url"
+                  placeholder="https://linkedin.com/in/username"
+                  value={profileUrl}
+                  onChange={(e) => setProfileUrl(e.target.value)}
                 />
               </div>
 

@@ -268,7 +268,7 @@ export const approveLeadReview = async (
 
     if (!leadHasContactDetails(post)) {
         throw new ErrorResponse(
-            'Cannot approve: no contact details found yet. Run enrichment and wait for an email or phone before approving.',
+            'Cannot approve: no contact details found yet. Run enrichment or provide an email, phone, or profile link before approving.',
             400
         );
     }
