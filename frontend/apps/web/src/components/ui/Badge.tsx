@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react'
 
-type BadgeColor = 'mint' | 'purple'
+type BadgeColor = 'mint' | 'purple' | 'cyan' | 'pink'
 type BadgeSize = 'sm' | 'md'
 
 interface BadgeProps {
@@ -15,6 +15,8 @@ interface BadgeProps {
 const colorStyles: Record<BadgeColor, string> = {
   mint: 'bg-accent-orange/10 border border-accent-orange/20 text-accent-orange',
   purple: 'bg-accent-orange/10 border border-accent-orange/20 text-accent-orange',
+  cyan: 'bg-accent-cyan/10 border border-accent-cyan/20 text-accent-cyan',
+  pink: 'bg-accent-pink/10 border border-accent-pink/20 text-accent-pink',
 }
 
 const sizeStyles: Record<BadgeSize, string> = {

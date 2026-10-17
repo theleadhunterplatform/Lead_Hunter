@@ -597,6 +597,8 @@ export default function LeadDrawer({
                   <span className="truncate text-sm font-bold text-white">{lead.name}</span>
                   <a
                     href={`mailto:${lead.email}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="flex items-center gap-1 truncate text-xs font-medium text-secondary hover:underline"
                   >
                     <EnvelopeIcon className="h-3 w-3 shrink-0" />

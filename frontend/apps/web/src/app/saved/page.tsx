@@ -646,10 +646,10 @@ export default function SavedLeadsPage() {
     if (page > totalPages) setPage(totalPages)
   }, [page, totalPages])
 
-  const statusBadgeColor: Record<string, 'mint' | 'purple'> = {
+  const statusBadgeColor: Record<string, 'mint' | 'purple' | 'cyan'> = {
     new: 'mint',
     saved: 'mint',
-    drafting: 'mint',
+    drafting: 'cyan',
     sent: 'purple',
     replied: 'purple',
     'follow-up': 'purple',
@@ -657,14 +657,14 @@ export default function SavedLeadsPage() {
 
   const statusActionConfig: Record<
     string,
-    { label: string; icon: typeof BookmarkIcon }
+    { label: string; icon: typeof BookmarkIcon; iconColor?: string }
   > = {
-    saved: { label: 'Mark as Saved', icon: BookmarkIcon },
-    new: { label: 'Mark as Saved', icon: BookmarkIcon },
-    drafting: { label: 'Mark as Drafting', icon: PencilSquareIcon },
-    sent: { label: 'Mark as Sent', icon: PaperAirplaneIcon },
-    'follow-up': { label: 'Mark as Follow-up', icon: ArrowPathIcon },
-    replied: { label: 'Mark as Replied', icon: ChatBubbleLeftRightIcon },
+    saved: { label: 'Mark as Saved', icon: BookmarkIcon, iconColor: 'text-accent-mint' },
+    new: { label: 'Mark as Saved', icon: BookmarkIcon, iconColor: 'text-accent-mint' },
+    drafting: { label: 'Mark as Drafting', icon: PencilSquareIcon, iconColor: 'text-accent-cyan' },
+    sent: { label: 'Mark as Sent', icon: PaperAirplaneIcon, iconColor: 'text-primary' },
+    'follow-up': { label: 'Mark as Follow-up', icon: ArrowPathIcon, iconColor: 'text-primary' },
+    replied: { label: 'Mark as Replied', icon: ChatBubbleLeftRightIcon, iconColor: 'text-accent-mint' },
   }
 
   const selectedLead =
@@ -846,9 +846,11 @@ export default function SavedLeadsPage() {
                         <div className="col-span-1 sticky left-0 z-10 -ml-6 pl-6 sm:-ml-8 sm:pl-8 bg-surface border-r border-white/5 flex items-center self-stretch py-4">
                           <div
                             className={`w-2.5 h-2.5 rounded-full ${
-                              lead.status === 'replied'
-                                ? 'bg-accent-purple'
-                                : lead.status === 'sent' || lead.status === 'follow-up'
+                              lead.status === 'drafting'
+                                ? 'bg-accent-cyan'
+                                : lead.status === 'replied' ||
+                                    lead.status === 'sent' ||
+                                    lead.status === 'follow-up'
                                   ? 'bg-accent-purple'
                                   : 'bg-accent-mint'
                             } ${lead.isActionable ? 'animate-pulse ring-4 ring-accent-purple/20' : ''}`}
@@ -954,7 +956,7 @@ export default function SavedLeadsPage() {
                                   aria-expanded={isDropdownOpen}
                                   aria-haspopup="true"
                                 >
-                                  <ActionIcon className="w-3.5 h-3.5 text-primary shrink-0" />
+                                  <ActionIcon className={`w-3.5 h-3.5 shrink-0 ${currentAction.iconColor ?? 'text-primary'}`} />
                                   <span>{currentAction.label}</span>
                                   <ChevronDownIcon
                                     className={`w-3.5 h-3.5 transition-transform duration-200 ${

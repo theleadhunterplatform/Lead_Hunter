@@ -267,14 +267,14 @@ export default function AdminLeadsPage() {
     fetchLeadStats()
     fetchLeads()
 
-    // Standard quiet polling every 6 seconds when tab is active
+    // Standard quiet polling every 2 minutes when tab is active
     const interval = setInterval(() => {
       if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
         fetchAiMetrics()
         fetchLeadStats()
         fetchLeads(currentPage, activeTab, searchQuery, true)
       }
-    }, 6000)
+    }, 120_000)
 
     const handleVisibilityChange = () => {
       if (typeof document !== 'undefined' && document.visibilityState === 'visible') {

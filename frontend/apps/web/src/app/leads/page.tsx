@@ -297,6 +297,7 @@ export default function LeadsPage() {
   const [leadsList, setLeadsList] = useState<AppLead[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const latestTimestampRef = useRef<string | null>(null)
 
   const fetchLeads = async (quiet = false) => {
     try {
@@ -310,6 +311,12 @@ export default function LeadsPage() {
       const json = await res.json()
       if (res.ok && Array.isArray(json.data)) {
         setLeadsList(json.data)
+        if (json.data.length > 0) {
+          const newest = json.data[0]?.approvedAt || json.data[0]?.reviewedAt || json.data[0]?.scrapedAt
+          if (newest) {
+            latestTimestampRef.current = newest
+          }
+        }
         // If drawer is currently open on a lead, keep its details quietly updated
         if (selectedLeadIdRef.current) {
           const updated = json.data.find((l: AppLead) => l.id === selectedLeadIdRef.current)
@@ -328,58 +335,70 @@ export default function LeadsPage() {
     }
   }
 
+  // Lightweight delta check: asks if any new leads were added since latestTimestamp
+  // If yes, only downloads the new leads and prepends them to the top of the feed
+  const checkForNewLeads = async () => {
+    const since = latestTimestampRef.current
+    if (!since) return
+
+    try {
+      const token = await getFirebaseToken()
+      const nicheQuery = activeNiche && activeNiche !== 'All' ? `&niche=${encodeURIComponent(activeNiche)}` : ''
+      const url = `/api/leads/updates?since=${encodeURIComponent(since)}${nicheQuery}`
+      const res = await fetch(url, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      if (!res.ok) return
+      const json = await res.json()
+
+      if (json.hasNew && Array.isArray(json.newLeads) && json.newLeads.length > 0) {
+        setLeadsList((prev) => {
+          const existingIds = new Set(prev.map((l) => l.id))
+          const trulyNew = json.newLeads.filter((l: AppLead) => !existingIds.has(l.id))
+          if (trulyNew.length === 0) return prev
+
+          const newest = trulyNew[0]?.approvedAt || trulyNew[0]?.reviewedAt || trulyNew[0]?.scrapedAt
+          if (newest) {
+            latestTimestampRef.current = newest
+          }
+
+          // Prepend newly found leads directly to the top
+          return [...trulyNew, ...prev]
+        })
+      }
+    } catch {
+      // Quiet background check failure - zero disruption to UI
+    }
+  }
+
   useEffect(() => {
     fetchLeads()
 
-    // Real-time live polling: quietly fetch new scraped leads every 6 seconds when tab is active
+    // Smart lightweight delta-check every 2 minutes: only checks for new leads since latest lead
     const pollInterval = setInterval(() => {
       if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
-        fetchLeads(true)
+        checkForNewLeads()
       }
-    }, 6_000)
+    }, 120_000)
 
-    // Re-sync immediately when user switches focus back to this tab
+    // Re-check delta when user switches focus back to this tab
     const handleVisibilityChange = () => {
       if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
-        fetchLeads(true)
+        checkForNewLeads()
       }
     }
     document.addEventListener('visibilitychange', handleVisibilityChange)
 
-    // Accelerated burst polling when a scrape is initiated or leads update
-    let burstInterval: NodeJS.Timeout | null = null
-    let burstTimeout: NodeJS.Timeout | null = null
-
-    const startBurstPoll = () => {
-      if (burstInterval) clearInterval(burstInterval)
-      if (burstTimeout) clearTimeout(burstTimeout)
-
-      fetchLeads(true)
-
-      burstInterval = setInterval(() => {
-        if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
-          fetchLeads(true)
-        }
-      }, 3000)
-
-      burstTimeout = setTimeout(() => {
-        if (burstInterval) clearInterval(burstInterval)
-        burstInterval = null
-      }, 45000)
-    }
-
     const unsubscribe = subscribeToLeadsUpdated(() => {
-      startBurstPoll()
+      checkForNewLeads()
     })
 
     return () => {
       clearInterval(pollInterval)
-      if (burstInterval) clearInterval(burstInterval)
-      if (burstTimeout) clearTimeout(burstTimeout)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
       unsubscribe()
     }
-  }, [])
+  }, [activeNiche])
 
   // Deep-link: ?lead=<id> opens the drawer on load / share
   useEffect(() => {

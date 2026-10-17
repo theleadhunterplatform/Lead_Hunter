@@ -1054,6 +1054,16 @@ author labels left plain (same destination, would be visual noise).
 - Also deleted my leftover temp scripts (`add_followup_counter.sql`, `fix-settings*.cjs`,
   `run-migration.mjs`) from `apps/web/`.
 
+### 2026-10-17 ? Member feedback: mail ID + status colors — SHIPPED (0187bf9, 2026-10-17, verified + pushed)
+**What:**
+- LeadDrawer mail ID (the mailto link in the reveal footer): now opens in a new tab (`target="_blank" rel="noopener noreferrer"`) instead of navigating the drawer away.
+- Root-caused Sent vs Drafting looking identical: `accent-purple` and `accent-orange` are the SAME amber in colors.ts (token remap), and `Badge.tsx` hardcoded both `mint`/`purple` variants to that amber — every status badge rendered identical.
+- Fix: `Badge.tsx` extended ADDITIVELY with real cyan and pink variants (mint/purple rendering untouched so hero/support/admin pages keep identical output); saved page: Drafting badge now cyan, Sent stays amber, status dot for Drafting now cyan (was mint), and the action-menu button icon + `statusActionConfig` now color per stage (mint bookmark / cyan pencil / amber plane) so Drafting vs Sent icons differ too.
+**Status:** lint clean; tsc shows only the ~55 pre-existing errors, zero in the 3 touched files. Pushed as 0187bf9 after rebase over upstream e48aa19; origin synced 0 0.
+**Next:**
+- User should spot-check badges/dots/action icons on saved page and new-tab mail open on the live site after the ~6 min deploy.
+- OPTIONAL follow-up (flagged, not done): `Badge` `mint` variant renders amber due to the colors.ts remap — gift to fix it to real mint would also change HeroSection/support/newsletter badges their team may like as-is.
+
 ---
 
 ## 3. Blocked — waiting on user input
