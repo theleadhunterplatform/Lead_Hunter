@@ -1033,13 +1033,29 @@ export const createManualPost = async (data: {
         email: data.email || null,
         contact_info: hasContact ? {
             email: data.email || undefined,
+            emails: data.email ? [{
+                email: data.email,
+                found_by: [],
+                email_status: 'unverified',
+                email_source: 'manual',
+                find_note: 'Manually added by admin',
+                verification_note: 'Not API-verified — manually pasted.',
+                verified_by: [],
+                is_primary: true,
+            }] : [],
             phone: data.phone || undefined,
-            email_source: data.email ? 'post_text' : undefined,
-            phone_source: data.phone ? 'post_text' : undefined,
+            phone_numbers: data.phone ? [{
+                number: data.phone,
+                type: 'unknown',
+                source: 'manual',
+                is_primary: true,
+            }] : [],
             profile_url: data.authorUrl || undefined,
+            email_source: data.email ? 'manual' : undefined,
+            phone_source: data.phone ? 'manual' : undefined,
         } : {},
         enrichment_status: hasContact ? 'found' : undefined,
-        enrichment_message: hasContact ? (data.email || data.phone ? 'Contact detected in post content.' : 'Profile link attached.') : undefined,
+        enrichment_message: hasContact ? (data.email || data.phone ? 'Contact details added manually.' : 'Profile link attached.') : undefined,
     });
 
     if (post?._id) {

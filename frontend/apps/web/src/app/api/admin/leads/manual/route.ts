@@ -39,9 +39,16 @@ export async function POST(request: NextRequest) {
         ? body.creditCost
         : undefined
 
-    const profileLink = body.authorUrl?.trim() || body.profileUrl?.trim() || undefined
-    const contactEmail = body.contactEmail?.trim() || undefined
-    const contactPhone = body.contactPhone?.trim() || undefined
+    const rawProfileLink = body.authorUrl?.trim() || body.profileUrl?.trim() || undefined
+    const profileLink = rawProfileLink && !/^https?:\/\//i.test(rawProfileLink)
+      ? `https://${rawProfileLink}`
+      : rawProfileLink
+
+    const EMAIL_REGEX = /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/
+    const PHONE_REGEX = /(\+?\d[\d\s\-()\/.]{7,}\d)/
+
+    const contactEmail = body.contactEmail?.trim() || (body.content.match(EMAIL_REGEX)?.[0] || undefined)
+    const contactPhone = body.contactPhone?.trim() || (body.content.match(PHONE_REGEX)?.[0] || undefined)
 
     // Step 1 — create the manual lead post (with contact info pre-attached)
     const createRes = await fetchApi<{ success: boolean; data?: ExternalPost; message?: string }>(
@@ -62,7 +69,8 @@ export async function POST(request: NextRequest) {
     )
 
     const post = createRes.data
-    if (!post?.id) {
+    const postId = post?.id || (post as any)?._id
+    if (!postId) {
       return NextResponse.json({ success: false, message: createRes.message || 'Failed to create lead' }, { status: 500 })
     }
 
@@ -70,7 +78,7 @@ export async function POST(request: NextRequest) {
     const hasContact = contactEmail || contactPhone || profileLink
     if (hasContact) {
       try {
-        await fetchApi(`/posts/${post.id}/manual-contact`, {
+        await fetchApi(`/posts/${postId}/manual-contact`, {
           method: 'PUT',
           body: JSON.stringify({
             email: contactEmail,
@@ -83,7 +91,6 @@ export async function POST(request: NextRequest) {
           }),
         })
       } catch (contactErr) {
-        // Contact save failed but lead was created — don't fail the whole request
         console.warn('[Manual Lead] Contact details save failed:', contactErr)
       }
     }

@@ -451,8 +451,12 @@ export async function applyManualLeadContact(
 ) {
     const email = input.email?.trim().toLowerCase() || '';
     const phone = input.phone?.trim() || '';
-    const profileUrl = (input.profile_url || input.profileUrl || input.authorUrl)?.trim() || '';
+    let profileUrl = (input.profile_url || input.profileUrl || input.authorUrl)?.trim() || '';
     const note = input.note?.trim();
+
+    if (profileUrl && !/^https?:\/\//i.test(profileUrl)) {
+        profileUrl = `https://${profileUrl}`;
+    }
 
     if (!email && !phone && !profileUrl) {
         throw new ErrorResponse('Provide at least an email, phone number, or profile link.', 400);
@@ -466,17 +470,9 @@ export async function applyManualLeadContact(
         throw new ErrorResponse('Invalid phone number.', 400);
     }
 
-    if (profileUrl && !/^https?:\/\//i.test(profileUrl)) {
-        throw new ErrorResponse('Profile link must start with http:// or https://', 400);
-    }
-
     const lead = await LeadPost.findById(leadId);
     if (!lead) {
         throw new ErrorResponse('Lead not found', 404);
-    }
-
-    if (lead.status !== 'relevant' && lead.status !== 'pending') {
-        throw new ErrorResponse('Manual contact can only be added to pending or relevant leads.', 400);
     }
 
     const findNote = note || 'Manually entered by admin (no API lookup).';

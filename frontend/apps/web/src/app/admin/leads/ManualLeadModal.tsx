@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   XMarkIcon, ArrowUpTrayIcon, PhotoIcon, CheckCircleIcon,
   ExclamationTriangleIcon, DocumentTextIcon, UserIcon, TagIcon,
-  EnvelopeIcon, PhoneIcon, LinkIcon,
+  EnvelopeIcon, PhoneIcon, LinkIcon, ClipboardDocumentCheckIcon,
 } from '@heroicons/react/24/solid'
 import { getFirebaseToken } from '@/lib/firebase'
 import { useToast } from '@/components/ui/Toast'
@@ -32,7 +32,7 @@ const PLATFORMS = [
 ]
 
 export default function ManualLeadModal({ isOpen, onClose, onSuccess }: ManualLeadModalProps) {
-  const [mode, setMode] = useState<'upload' | 'text'>('upload')
+  const [mode, setMode] = useState<'upload' | 'text'>('text')
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [previews, setPreviews] = useState<string[]>([])
   const [keyword, setKeyword] = useState('')
@@ -68,6 +68,40 @@ export default function ManualLeadModal({ isOpen, onClose, onSuccess }: ManualLe
     URL.revokeObjectURL(previews[index])
     setSelectedFiles(prev => prev.filter((_, i) => i !== index))
     setPreviews(prev => prev.filter((_, i) => i !== index))
+  }
+
+  const handleContentChange = (val: string) => {
+    setTextContent(val)
+
+    // Auto-detect email if contactEmail is empty
+    const emailMatch = val.match(/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/)
+    if (emailMatch && !contactEmail) {
+      setContactEmail(emailMatch[0])
+    }
+
+    // Auto-detect phone if contactPhone is empty
+    const phoneMatch = val.match(/(?:\+?\d{1,4}[ -]?)?(?:\(?\d{2,4}\)?[ -]?)?\d{3,5}[ -]?\d{4,5}/)
+    if (phoneMatch && !contactPhone && phoneMatch[0].replace(/\D/g, '').length >= 7) {
+      setContactPhone(phoneMatch[0].trim())
+    }
+
+    // Auto-detect profile link if profileUrl is empty
+    const urlMatch = val.match(/https?:\/\/(?:www\.)?(?:linkedin\.com\/in\/|x\.com\/|twitter\.com\/)[^\s]+/i)
+    if (urlMatch && !profileUrl) {
+      setProfileUrl(urlMatch[0])
+    }
+  }
+
+  const handlePasteFromClipboard = async () => {
+    try {
+      const text = await navigator.clipboard.readText()
+      if (text) {
+        handleContentChange(text)
+        addToast({ type: 'success', message: '✓ Content pasted & contact info auto-detected' })
+      }
+    } catch {
+      addToast({ type: 'info', message: 'Paste directly into the box with Ctrl+V' })
+    }
   }
 
   const handleUpload = async () => {
@@ -299,14 +333,23 @@ export default function ManualLeadModal({ isOpen, onClose, onSuccess }: ManualLe
                   ) : (
                     <div className="space-y-4">
                       <div className="space-y-2">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-text-secondary flex items-center gap-2">
-                          <DocumentTextIcon className="w-3.5 h-3.5 text-accent-mint" /> Lead Post Content (Required)
-                        </label>
+                        <div className="flex items-center justify-between">
+                          <label className="text-[10px] font-bold uppercase tracking-widest text-text-secondary flex items-center gap-2">
+                            <DocumentTextIcon className="w-3.5 h-3.5 text-accent-mint" /> Lead Post Content (Required)
+                          </label>
+                          <button
+                            type="button"
+                            onClick={handlePasteFromClipboard}
+                            className="text-[9px] font-bold uppercase tracking-wider text-accent-mint hover:underline flex items-center gap-1 bg-accent-mint/10 px-2 py-0.5 rounded-md border border-accent-mint/30 transition-all"
+                          >
+                            <ClipboardDocumentCheckIcon className="w-3 h-3" /> Paste &amp; Auto-Detect
+                          </button>
+                        </div>
                         <textarea
                           rows={4}
-                          placeholder="Paste or type the lead post text here..."
+                          placeholder="Paste the lead post or text here. Emails, phones, and profile links are automatically detected..."
                           value={textContent}
-                          onChange={(e) => setTextContent(e.target.value)}
+                          onChange={(e) => handleContentChange(e.target.value)}
                           className="w-full bg-white/5 border border-white/10 text-white rounded-xl outline-none focus:ring-1 focus:ring-accent-mint/50 transition-all p-3 text-sm resize-none"
                         />
                       </div>
