@@ -383,12 +383,14 @@ export function parseIntelSections(intel: string): IntelSection[] {
 
 export function cleanLeadSummary(text: string): string {
   if (!text) return ''
-  return sanitizePublicText(text)
+  const sanitized = sanitizePublicText(text)
     .replace(/^#+\s*.*$/gm, '')
     .replace(/^\s*[-*•]\s+/gm, '')
     .replace(/^(?:hello everyone|hey all|hi all|we're hiring:?|hiring:?|looking for:?|#hiring)\s*/i, '')
     .replace(/\s{2,}/g, ' ')
     .trim()
+
+  return stripPersonAndCompany(sanitized)
 }
 
 export function extractLeadBadges(
@@ -540,9 +542,19 @@ export function extractLeadSummaries(post: {
 // Backward-compatible alias for existing imports
 export const extractCleanNicheTags = extractLeadBadges
 
+const PROTECTED_HEADLINE_WORDS = new Set([
+  'DIGITAL', 'WEB', 'MOBILE', 'FREELANCE', 'SENIOR', 'LEAD', 'EXPERT',
+  'URGENT', 'CREATIVE', 'FULL', 'STACK', 'FULL-STACK', 'AGENCY', 'PARTNER',
+  'TEAM', 'HIGH', 'TICKET', 'FRONTEND', 'BACKEND', 'UI', 'UX', 'UI/UX',
+  'PAID', 'ADS', 'SEO', 'CONTENT', 'VIDEO', 'AI', 'AUTOMATION', 'WORDPRESS',
+  'SHOPIFY', 'REACT', 'NEXT.JS', 'APP', 'WEBSITE', 'DESIGN', 'DEVELOPMENT',
+  'LAST', 'MILE', 'DELIVERY', 'SAAS', 'ECOMMERCE', 'B2B', 'COLLABORATION',
+  'URGENTLY', 'ASAP', 'NEEDED', 'SPECIALIST', 'DEVELOPER', 'DESIGNER'
+])
+
 export function sanitizeHeadline(rawTitle: string, primaryNiche?: string): string {
   if (!rawTitle || rawTitle === '--' || rawTitle === '-') {
-    return `${(primaryNiche || 'SERVICE').toUpperCase()} FOR —`
+    return (primaryNiche || 'SERVICE OPPORTUNITY').toUpperCase()
   }
 
   let cleaned = sanitizePublicText(rawTitle)
@@ -556,17 +568,25 @@ export function sanitizeHeadline(rawTitle: string, primaryNiche?: string): strin
     cleaned = cleaned.split('|')[0].trim()
   }
 
+  // Strip trailing "FOR —", "FOR -", "FOR", "—", "-"
+  cleaned = cleaned.replace(/\s*(?:FOR\s*[—–-]|FOR|[—–-])$/i, '').trim()
+
   // Remove person name patterns
   const words = cleaned.split(/\s+/).filter(Boolean)
   const looksLikePersonName =
     words.length >= 2 && words.length <= 3 && words.every((w) => /^[A-Z][a-z]+$/.test(w))
 
-  if (cleaned.length < 3 || looksLikePersonName) {
-    return `${(primaryNiche || 'OPPORTUNITY').toUpperCase()} FOR —`
+  // If the first word looks like an arbitrary company/brand name (e.g. PROBIZZMD), strip it unless protected
+  const firstWordMatch = cleaned.match(/^([A-Za-z0-9&.\-']+)\s+(.+)$/)
+  if (firstWordMatch) {
+    const firstWord = firstWordMatch[1].toUpperCase()
+    if (!PROTECTED_HEADLINE_WORDS.has(firstWord) && !/^(?:HOW|NEED|SEEK|WANT|LOOK|HIRE)/i.test(firstWord)) {
+      cleaned = firstWordMatch[2]
+    }
   }
 
-  if (!cleaned.toUpperCase().includes('FOR —') && !cleaned.toUpperCase().includes('FOR -')) {
-    cleaned = `${cleaned.trim()} FOR —`
+  if (cleaned.length < 3 || looksLikePersonName) {
+    return (primaryNiche || 'VERIFIED OPPORTUNITY').toUpperCase()
   }
 
   return cleaned.toUpperCase()
@@ -582,11 +602,39 @@ export interface StructuredLeadDetails {
 
 export function stripPersonAndCompany(text: string): string {
   if (!text) return ''
-  return text
+  let s = text
     // "Beyond/Beneath/On the surface-level request..."
     .replace(/^(?:beyond|beneath|on)(?:\s+the|\s+a)?\s+surface(?:-level)?(?:\s+(?:request|need|ask|inquiry))?(?:,?\s*(?:for\s+[^,]+,?)?)?\s*/i, '')
     // Redact explicit Brand: or Brand name: declarations
     .replace(/\b(?:brand(?:\s+name)?|company(?:\s+name)?)\s*:\s*[A-Za-z0-9&'._\-]+/gi, '')
+
+  // 1. Education Institutions (School, University, College, Academy)
+  s = s.replace(/^[A-Z][a-zA-Z0-9&.\-']+(?:\s+[A-Z][a-zA-Z0-9&.\-']+){0,3}\s+(?:World\s+School|School|University|College|Institute|Academy)\s+(?:seeks?|is\s+seeking|needs?|is\s+looking\s+for|is\s+hiring|requires?)\s+(?:an?\s+)?/i, 'An educational institution seeks ')
+
+  // 2. Founder / Executive: "Nikhil, founder of Dcatzoon, needs..."
+  s = s.replace(/^[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?,\s*(?:co-)?(?:founder|ceo|owner|director|head|lead|manager)\s+of\s+[A-Z0-9&.\-']+(?:\s+[A-Z0-9&.\-']+)?,\s*(?:needs?|seeks?|is\s+looking\s+for|is\s+seeking|requires?)\s+(?:an?\s+)?/i, 'A startup founder needs ')
+
+  // 3. Person Name: "Thouseef Iqbal is looking for..."
+  s = s.replace(/^[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2}\s+(?:is\s+looking\s+for|is\s+seeking|is\s+hiring)\s+(?:an?\s+)?/i, 'A business founder is looking for ')
+  s = s.replace(/^[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2}\s+(?:seeks?|needs?|requires?|wants?)\s+(?:an?\s+)?/i, 'A business client seeks ')
+
+  // 4. App / Product / Brand with descriptor: "SARO, a womenswear label, needs..."
+  s = s.replace(/^[A-Z0-9&.\-']+(?:\s+[A-Z0-9&.\-']+){0,2},\s*(an?|the)\s+([a-zA-Z0-9\s\-]+?),\s*(?:needs?|seeks?|is\s+looking\s+for|is\s+seeking|requires?)\s+(?:an?\s+)?/i, (m, art, desc) => {
+    return `${art.charAt(0).toUpperCase() + art.slice(1).toLowerCase()} ${desc} needs `
+  })
+
+  // 5. Tech/AI entity: "DPRS AI seeks...", "ProBizzMD is looking for..."
+  s = s.replace(/^[A-Z0-9&.\-']+(?:\s+AI)?\s+(?:is\s+looking\s+for|is\s+seeking)\s+(?:an?\s+)?/i, 'A digital platform is looking for ')
+  s = s.replace(/^[A-Z0-9&.\-']+(?:\s+AI)?\s+(?:seeks?|needs?|requires?)\s+(?:an?\s+)?/i, 'A business client seeks ')
+
+  // 6. Generic Company / Entity: "Happy Traveller seeks..."
+  s = s.replace(/^[A-Z][a-zA-Z0-9&.\-']+(?:\s+[A-Z][a-zA-Z0-9&.\-']+){0,2}\s+(?:seeks?|needs?|requires?)\s+(?:an?\s+)?/i, 'A business client seeks ')
+  s = s.replace(/^[A-Z][a-zA-Z0-9&.\-']+(?:\s+[A-Z][a-zA-Z0-9&.\-']+){0,2}\s+(?:is\s+looking\s+for|is\s+seeking)\s+(?:an?\s+)?/i, 'A business client is looking for ')
+
+  // Secondary product mention: e.g. "OneApp requires a design system"
+  s = s.replace(/\bOneApp\s+requires\b/gi, 'The platform requires')
+
+  return s
     // "BRAND is a/an/the..." -> "A/an/the..." (e.g. "GLAMSTORY is a women's fashion and footwear brand." -> "A women's fashion and footwear brand.")
     .replace(/^[A-Z0-9&'._\-]+(?:\s+[A-Z0-9&'._\-]+){0,3}\s+is\s+(an?|the)\s+/i, (m, art) => `${art.charAt(0).toUpperCase() + art.slice(1).toLowerCase()} `)
     // "BRAND is [verb/gerund]..." -> "A business [verb/gerund]..."
@@ -596,7 +644,6 @@ export function stripPersonAndCompany(text: string): string {
     // "BRAND specializes in / sells / focuses on..." -> "Client specializes in / sells..."
     .replace(/^[A-Z0-9&'._\-]+(?:\s+[A-Z0-9&'._\-]+){0,3}\s+(specializes\s+in|sells|focuses\s+on|operates\s+in|provides)\b/i, 'Client $1')
     // Possessive proper nouns: "BRAND's brand / store / platform..." -> "The client's brand / store / platform..."
-    // Excludes articles ("A women's...", "The founder's...") and common gender/role nouns
     .replace(/^(?!(?:a|an|the|our)\s+)(?!(?:women|men|children|founder|client|customer|user|author|member|everyone)'s\b)[A-Z0-9&'._\-]+(?:\s+[A-Z0-9&'._\-]+){0,2}'s\s+/i, "The client's ")
     // "Agroloka Commodity seeks/needs/requires/hires/is looking for..." -> "Client seeks "
     .replace(/^[A-Z][a-zA-Z0-9&.\-']+(?:\s+[A-Z][a-zA-Z0-9&.\-']+){0,3}\s+(?:seeks|requires|needs|wants|hires|is\s+seeking|is\s+looking\s+for|is\s+hiring|is\s+needing)\s+(?:an?\s+)?/i, 'Client seeks ')

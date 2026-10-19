@@ -21,12 +21,13 @@ Engagement: ${post.engagement?.likes || 0} likes, ${post.engagement?.comments ||
 CRITICAL INSTRUCTIONS:
 - Keep all sections concise, punchy, and direct. Avoid verbose conversational filler, repetitive paragraphs, or long multi-sentence explanations.
 - NEVER include personal phone numbers, WhatsApp, personal emails, or private candidate info.
-- NEVER mention specific company, brand, client or author name in the One-Liner, 2-Line Summary, or 4-Line Summary. Always generalize (e.g. use "A fashion startup", "A B2B commodity firm", "An e-commerce brand", "A healthcare agency").
+- In the Title, NEVER include specific company, brand, client, school, university, startup, or author names (e.g. do NOT write "KK Modi University Agency Needed" or "Sherringwood World School Web Developer", write "Digital Marketing Agency Partner Needed" or "Freelance Web Developer Needed Urgently").
+- NEVER mention specific company, brand, client, school, university, startup, organization, or author names in the Title, One-Liner, 2-Line Summary, or 4-Line Summary. Always generalize using high-level industry terms (e.g. use "An educational institution", "A private university", "A fashion startup", "A B2B commodity firm", "An e-commerce brand", "A healthcare agency").
 - Keep each bullet point to a single short, punchy sentence (under 15 words).
 
 Format the output exactly like this example structure, using professional and high-level strategic language:
 
-# 🔥 Lead Intelligence: [Brief Catchy Title under 7 words - e.g. "Shopify Theme Store Rebuild"]
+# 🔥 Lead Intelligence: [Brief Catchy Title under 7 words strictly without company/brand names - e.g. "Shopify Theme Store Rebuild"]
 
 ### 🎯 Niche
 [Select EXACTLY ONE category from this list that best matches the core requirement: Web Development | Mobile Development | UI/UX Design | Branding & Design | SEO & Organic Growth | Paid Ads & Marketing | Content & Copywriting | Video Production & Editing | AI & Automation | Sales & Lead Gen | Consulting & Strategy]

@@ -6,7 +6,7 @@ import { Lock, Coins, Mail, Phone, Loader2 } from 'lucide-react'
 import { AppLead } from '@/types/lead'
 import { useToast } from '@/components/ui/Toast'
 import { getFirebaseToken } from '@/lib/firebase'
-import { sanitizePublicText, sanitizeHeadline, getStructuredLeadDetails } from '@/lib/claim-reveal'
+import { sanitizePublicText, sanitizeHeadline, stripPersonAndCompany, getStructuredLeadDetails } from '@/lib/claim-reveal'
 import { triggerUnlockConfetti } from '@/lib/confetti'
 
 const themeMap = {
@@ -150,7 +150,9 @@ function LeadCard({
         ? lead.category
         : 'Verified service demand opportunity.'
 
-  const quoteContent = sanitizePublicText(rawQuote)
+  const quoteContent = !isRevealed
+    ? stripPersonAndCompany(sanitizePublicText(rawQuote))
+    : sanitizePublicText(rawQuote)
   const structuredDetails = getStructuredLeadDetails(lead)
 
   const handleSave = (e: React.MouseEvent) => {

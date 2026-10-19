@@ -20,6 +20,8 @@ import { getFirebaseToken } from '@/lib/firebase'
 
 import {
   sanitizePublicText,
+  sanitizeHeadline,
+  stripPersonAndCompany,
   parseIntelSections,
   getStructuredLeadDetails,
   extractLeadSpecialty,
@@ -99,17 +101,17 @@ export default function LeadDrawer({
   }, [copyMenuOpen])
 
   const displayTitle = !lead.isRevealed
-    ? lead.title || 'OPPORTUNITY FOR —'
+    ? sanitizeHeadline(lead.title || 'OPPORTUNITY')
     : lead.title && lead.title !== '--' && lead.title !== '-'
       ? lead.title.replace(/FOR —|FOR -/i, `FOR ${lead.company || lead.name}`)
       : lead.company || lead.name || 'Lead Signal'
 
-  const taskScopeDisplay = lead.isRevealed ? lead.taskScope : sanitizePublicText(lead.taskScope || '')
+  const taskScopeDisplay = lead.isRevealed ? lead.taskScope : stripPersonAndCompany(sanitizePublicText(lead.taskScope || ''))
   const detailsSummaryDisplay =
     lead.detailsSummary && lead.detailsSummary.trim() !== ''
-      ? (lead.isRevealed ? lead.detailsSummary : sanitizePublicText(lead.detailsSummary))
+      ? (lead.isRevealed ? lead.detailsSummary : stripPersonAndCompany(sanitizePublicText(lead.detailsSummary)))
       : lead.summary && lead.summary.trim() !== ''
-        ? (lead.isRevealed ? lead.summary : sanitizePublicText(lead.summary))
+        ? (lead.isRevealed ? lead.summary : stripPersonAndCompany(sanitizePublicText(lead.summary)))
         : taskScopeDisplay
 
   const copyText = useCallback(async (text: string) => {
