@@ -143,7 +143,7 @@ export async function dispatchLeadAlertEmails(leads: LeadAlertEmailItem[]): Prom
  */
 export function queueLeadDropEmailAlert(
     items: LeadAlertEmailItem | LeadAlertEmailItem[],
-    delayMs: number = 5000
+    delayMs: number = 60000
 ): void {
     const list = Array.isArray(items) ? items : [items];
     for (const item of list) {

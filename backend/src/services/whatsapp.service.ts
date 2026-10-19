@@ -532,7 +532,7 @@ export async function dispatchLeadDropAlert(
 export function queueLeadDropNotification(
     leadsCount: number = 1,
     category?: string | string[],
-    delayMs: number = 5_000
+    delayMs: number = 60_000
 ): void {
     if (!config.whatsapp.enabled) return;
 
