@@ -13,6 +13,7 @@ import {
 } from '@/lib/external-api/client'
 import { db } from '@/lib/db'
 import { oracleDb } from '@/lib/oracle-db'
+import { emailService } from '@/lib/services/email'
 
 export const dynamic = 'force-dynamic'
 
@@ -45,13 +46,34 @@ export async function POST(request: NextRequest) {
     const { action, ids, filters } = body ?? {}
 
     switch (action) {
-      case 'bulk-approve':
-        if (ids && Array.isArray(ids)) {
+      case 'bulk-approve': {
+        if (ids && Array.isArray(ids) && ids.length > 0) {
           const result = await bulkApproveByIds(ids)
+          try {
+            const approvedPosts = await oracleDb.leadPost.findMany({
+              where: { id: { in: ids } },
+              select: { id: true, title: true, niche: true, platform: true, content: true },
+            })
+            if (approvedPosts.length > 0) {
+              await emailService.broadcastLeadDropAlert(
+                approvedPosts.map((p) => ({
+                  id: p.id,
+                  title: p.title,
+                  niche: p.niche,
+                  platform: p.platform,
+                  snippet: p.content ? p.content.replace(/\s+/g, ' ').trim().slice(0, 160) : undefined,
+                  content: p.content,
+                })),
+              )
+            }
+          } catch (emailErr) {
+            console.error('[Admin Leads] Bulk approve email alert error:', emailErr)
+          }
           return NextResponse.json(result)
         }
         const approveResult = await bulkApprove(filters)
         return NextResponse.json(approveResult)
+      }
 
       case 'bulk-reject':
         const rejectResult = await bulkReject(filters)

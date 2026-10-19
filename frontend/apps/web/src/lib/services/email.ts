@@ -17,6 +17,7 @@ import {
   renderCreditTopup,
   renderOnboardingReminder,
   renderLeadDropAlert,
+  renderMultiLeadDropAlert,
 } from '@/lib/email-templates'
 
 interface SendOptions {
@@ -230,7 +231,8 @@ export async function isEmailAutomationEnabled(
     | 'low_credits_nudge_enabled'
     | 'onboarding_emails_enabled'
     | 'plan_change_emails_enabled'
-    | 'topup_emails_enabled',
+    | 'topup_emails_enabled'
+    | 'lead_drop_emails_enabled',
 ): Promise<boolean> {
   try {
     const setting = await db.setting.findUnique({
@@ -435,6 +437,108 @@ export const emailService = {
       appUrl: APP_URL,
     })
     return send('lead_drop', user.email, subject, text, { html })
+  },
+
+  /**
+   * Broadcasts lead drop alerts to all active platform members.
+   * Works identically to all other system emails, using the primary SMTP transport.
+   */
+  async broadcastLeadDropAlert(
+    leads: Array<{
+      id: string
+      title?: string | null
+      niche?: string | null
+      platform?: string | null
+      snippet?: string | null
+      content?: string | null
+    }>,
+  ): Promise<{ sent: number; failed: number; skipped?: boolean }> {
+    if (!leads || leads.length === 0) {
+      return { sent: 0, failed: 0 }
+    }
+
+    if (!(await isEmailAutomationEnabled('lead_drop_emails_enabled'))) {
+      logDev('Lead drop email broadcast skipped: lead_drop_emails_enabled is false')
+      return { sent: 0, failed: 0, skipped: true }
+    }
+
+    const users = await db.user.findMany({
+      where: {
+        status: { in: ['ACTIVE', 'active'] },
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+      },
+    })
+
+    const validUsers = users.filter((u) => u.email && u.email.trim().includes('@'))
+    if (validUsers.length === 0) {
+      logDev('No active users found to receive lead drop alert')
+      return { sent: 0, failed: 0 }
+    }
+
+    let sent = 0
+    let failed = 0
+    const CHUNK_SIZE = 10
+
+    for (let i = 0; i < validUsers.length; i += CHUNK_SIZE) {
+      const chunk = validUsers.slice(i, i + CHUNK_SIZE)
+      const results = await Promise.all(
+        chunk.map(async (user) => {
+          try {
+            const userName = user.name?.trim() || 'Hunter'
+            let emailContent: { subject: string; text: string; html: string }
+
+            if (leads.length === 1) {
+              const lead = leads[0]
+              const cleanContent = lead.content ? lead.content.replace(/\s+/g, ' ').trim() : ''
+              const snippet =
+                lead.snippet ||
+                (cleanContent
+                  ? cleanContent.slice(0, 160)
+                  : 'Verified service demand opportunity. Immediate outreach recommended.')
+              emailContent = await renderLeadDropAlert({
+                name: userName,
+                leadTitle: lead.title?.trim() || (lead.niche ? `${lead.niche} Lead` : 'New Strategic Opportunity'),
+                niche: lead.niche || 'High-Intent Demand',
+                platform: lead.platform || 'LinkedIn',
+                snippet,
+                leadUrl: `${APP_URL}/leads?lead=${encodeURIComponent(lead.id)}`,
+                appUrl: APP_URL,
+              })
+            } else {
+              emailContent = await renderMultiLeadDropAlert({
+                name: userName,
+                leads,
+                appUrl: APP_URL,
+              })
+            }
+
+            return await send('lead_drop', user.email.trim(), emailContent.subject, emailContent.text, {
+              html: emailContent.html,
+            })
+          } catch (err) {
+            const errMsg = err instanceof Error ? err.message : String(err)
+            console.error(`[Email Service] Failed lead drop alert dispatch for ${user.email}:`, errMsg)
+            await logEmail('lead_drop', user.email, 'Lead Drop Alert', 'FAILED', errMsg)
+            return { id: 'error', success: false, error: errMsg }
+          }
+        }),
+      )
+
+      for (const res of results) {
+        if (res.success) {
+          sent++
+        } else {
+          failed++
+        }
+      }
+    }
+
+    logDev(`Lead drop email broadcast completed: ${sent} sent, ${failed} failed out of ${validUsers.length} users.`)
+    return { sent, failed }
   },
 
   async notifyAdmin(type: string, data: Record<string, unknown>) {

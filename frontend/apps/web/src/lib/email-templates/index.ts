@@ -762,3 +762,98 @@ The Lead Hunter Team`,
     },
   })
 }
+
+export interface MultiLeadDropAlertData {
+  name: string
+  leads: Array<{
+    id: string
+    title?: string | null
+    niche?: string | null
+    platform?: string | null
+    snippet?: string | null
+    content?: string | null
+  }>
+  appUrl: string
+}
+
+export async function renderMultiLeadDropAlert(data: MultiLeadDropAlertData) {
+  if (data.leads.length === 1) {
+    const l = data.leads[0]
+    return renderLeadDropAlert({
+      name: data.name,
+      leadTitle: l.title?.trim() || (l.niche ? `${l.niche} Lead` : 'New Strategic Opportunity'),
+      niche: l.niche || 'High-Intent Demand',
+      platform: l.platform || 'LinkedIn',
+      snippet: l.snippet || (l.content ? l.content.replace(/\s+/g, ' ').trim().slice(0, 160) : undefined),
+      leadUrl: `${data.appUrl}/leads?lead=${encodeURIComponent(l.id)}`,
+      appUrl: data.appUrl,
+    })
+  }
+
+  const count = data.leads.length
+  const subject = `🔥 ${count} New Verified Leads Just Approved | Lead Hunter`
+
+  const leadCardsHtml = data.leads
+    .map((lead) => {
+      const displayTitle = lead.title?.trim() || (lead.niche ? `${lead.niche} Opportunity` : 'Strategic Client Lead')
+      const snippet = (lead.snippet || (lead.content ? lead.content.replace(/\s+/g, ' ').trim().slice(0, 160) : '')).trim()
+      const leadUrl = `${data.appUrl}/leads?lead=${encodeURIComponent(lead.id)}`
+      const niche = lead.niche || 'High-Intent Demand'
+      const platform = lead.platform || 'LinkedIn'
+
+      return `
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:16px;background:#18181b;border:1px solid rgba(255,255,255,0.08);border-radius:12px;overflow:hidden">
+          <tr>
+            <td style="padding:18px 20px">
+              <div style="margin-bottom:8px">
+                <span style="display:inline-block;background:rgba(255,184,0,0.15);color:#FFB800;border:1px solid rgba(255,184,0,0.3);font-size:11px;font-weight:700;padding:2px 8px;border-radius:4px;text-transform:uppercase;margin-right:6px">
+                  ${escapeHtml(niche)}
+                </span>
+                <span style="display:inline-block;background:#27272a;color:#a1a1aa;font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px;text-transform:uppercase">
+                  ${escapeHtml(platform)}
+                </span>
+              </div>
+              <h3 style="color:#ffffff;font-size:16px;font-weight:700;margin:0 0 8px;line-height:1.4">
+                ${escapeHtml(displayTitle)}
+              </h3>
+              ${snippet ? `<p style="color:#a1a1aa;font-size:13px;line-height:1.55;margin:0 0 14px">${escapeHtml(snippet)}...</p>` : ''}
+              <a href="${leadUrl}" target="_blank" style="display:inline-block;background:#FFB800;color:#0a0a0a;text-decoration:none;font-size:12px;font-weight:800;padding:8px 18px;border-radius:8px;text-transform:uppercase;letter-spacing:0.5px">
+                View &amp; Claim Lead &rarr;
+              </a>
+            </td>
+          </tr>
+        </table>
+      `
+    })
+    .join('')
+
+  const textLines = data.leads
+    .map((l, idx) => {
+      const title = l.title || 'Verified Lead'
+      const niche = l.niche || 'General'
+      const url = `${data.appUrl}/leads?lead=${encodeURIComponent(l.id)}`
+      return `${idx + 1}. ${title} [${niche}]\nClaim: ${url}`
+    })
+    .join('\n\n')
+
+  const text = `Hi ${data.name},\n\n${count} new client requirements matching active market demand have just been reviewed and approved on Lead Hunter.\n\n${textLines}\n\nExplore all strategic leads:\n${data.appUrl}/leads\n\nHappy Hunting,\nThe Lead Hunter Team`
+
+  const html = wrapHtml(`
+    <p style="margin:16px 0;font-size:15px;color:#ccc;line-height:1.6">Hi ${escapeHtml(data.name)},</p>
+    <p style="margin:16px 0;font-size:15px;color:#ccc;line-height:1.6"><strong style="color:#fff">${count} new client requirements</strong> matching active market demand have just been reviewed and approved on Lead Hunter. Claim before competitors reach out.</p>
+    <div style="margin:20px 0">
+      ${leadCardsHtml}
+    </div>
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0 16px;width:100%">
+      <tr>
+        <td align="center">
+          <a href="${data.appUrl}/leads" target="_blank" style="display:inline-block;padding:12px 28px;background:#ffffff;color:#0a0a0a;border-radius:10px;text-decoration:none;font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px">
+            Open Lead Hunter Feed &rarr;
+          </a>
+        </td>
+      </tr>
+    </table>
+  `)
+
+  return { subject, text, html }
+}

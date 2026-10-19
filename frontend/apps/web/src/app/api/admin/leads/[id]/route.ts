@@ -16,6 +16,7 @@ import {
 } from '@/lib/external-api/client'
 import { oracleDb } from '@/lib/oracle-db'
 import { clearFeedCache } from '@/lib/feed-cache'
+import { emailService } from '@/lib/services/email'
 
 export const dynamic = 'force-dynamic'
 
@@ -83,6 +84,29 @@ export async function POST(
         }
 
         const approved = await approvePost(id)
+
+        // Dispatch lead alert email to active platform members (same as all other emails)
+        try {
+          const leadTitle = approved.title || post.title || 'New Verified Lead'
+          const leadNiche = approved.niche || post.niche || undefined
+          const leadPlatform = approved.platform || post.platform || 'LinkedIn'
+          const leadContent = approved.content || post.content || ''
+          const leadSnippet = leadContent ? leadContent.replace(/\s+/g, ' ').trim().slice(0, 160) : undefined
+
+          await emailService.broadcastLeadDropAlert([
+            {
+              id: approved.id || id,
+              title: leadTitle,
+              niche: leadNiche,
+              platform: leadPlatform,
+              snippet: leadSnippet,
+              content: leadContent,
+            },
+          ])
+        } catch (emailErr) {
+          console.error('[Admin Leads] Failed to broadcast lead alert email:', emailErr)
+        }
+
         return NextResponse.json({ success: true, data: approved, mode: intelResult.mode, message: 'Lead approved and released to the feed with intelligence report.' })
       }
       case 'reject': {
