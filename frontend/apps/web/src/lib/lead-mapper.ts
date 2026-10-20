@@ -83,7 +83,7 @@ export function externalPostToAppLead(
   const primaryNiche = post.niche || null
 
   const niches = extractNiches(post.keyword, post.content || '', post.intelligence, primaryNiche)
-  const cleanTags = extractLeadBadges(post, niches)
+  const cleanTags = extractLeadBadges({ ...post, claimed_count: effectiveClaimedCount }, niches)
   const resolvedNiche = niches[0] && niches[0] !== 'General' ? niches[0] : primaryNiche || 'General'
   const cleanTitle = post.title?.trim() || sanitizeHeadline(post.author?.info || post.keyword || '', resolvedNiche)
   const { summary, detailsSummary } = extractLeadSummaries(post)

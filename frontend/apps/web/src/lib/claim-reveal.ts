@@ -393,6 +393,25 @@ export function cleanLeadSummary(text: string): string {
   return stripPersonAndCompany(sanitized)
 }
 
+export const KNOWN_LOCATIONS: Array<{ regex: RegExp; label: string }> = [
+  { regex: /\bindore\s*\((?:hybrid|onsite|remote)\)|\bindore\b/i, label: 'Indore' },
+  { regex: /\bahmedabad\b/i, label: 'Ahmedabad' },
+  { regex: /\bmumbai\b/i, label: 'Mumbai' },
+  { regex: /\b(?:bangalore|bengaluru)\b/i, label: 'Bangalore' },
+  { regex: /\b(?:delhi\s*ncr|delhi|gurgaon|gurugram|noida)\b/i, label: 'Delhi NCR' },
+  { regex: /\bpune\b/i, label: 'Pune' },
+  { regex: /\bhyderabad\b/i, label: 'Hyderabad' },
+  { regex: /\bchennai\b/i, label: 'Chennai' },
+  { regex: /\bjaipur\b/i, label: 'Jaipur' },
+  { regex: /\bkolkata\b/i, label: 'Kolkata' },
+  { regex: /\bsurat\b/i, label: 'Surat' },
+  { regex: /\b(?:dubai|uae)\b/i, label: 'Dubai' },
+  { regex: /\b(?:usa|us\s+client|united\s+states)\b/i, label: 'USA' },
+  { regex: /\b(?:uk\s+client|united\s+kingdom|london)\b/i, label: 'UK' },
+  { regex: /\beurope\b|\beu\b/i, label: 'Europe' },
+  { regex: /\bremote\b/i, label: 'Remote' },
+]
+
 export function extractLeadBadges(
   post: {
     keyword?: string | null
@@ -400,58 +419,80 @@ export function extractLeadBadges(
     intelligence?: string | null
     author?: { name?: string; info?: string } | null
     platform?: string | null
+    claimed_count?: number | null
+    title?: string | null
   },
   leadNiches?: string[]
 ): string[] {
   const intel = post.intelligence || ''
-
-  // 1. Check if AI intelligence provided an explicit Badges section
-  const aiBadgesText = extractSection(intel, 'Badges') || extractSection(intel, 'Lead Type & Badges')
-  if (aiBadgesText) {
-    const parsed = aiBadgesText
-      .split(/[,;\n•*]+/)
-      .map((t) => t.trim().replace(/^[-*•\s]+|[-*•\s]+$/g, ''))
-      .filter((t) => t.length >= 2 && t.length <= 25 && !t.toLowerCase().includes('badge'))
-
-    if (parsed.length > 0) {
-      return Array.from(new Set(parsed)).slice(0, 4)
-    }
-  }
-
-  // 2. Scan text corpus against technology & audience keywords
   const textCorpus = [
     post.keyword || '',
     post.content || '',
     post.intelligence || '',
     post.author?.info || '',
+    post.title || '',
   ]
     .join(' ')
     .toLowerCase()
 
   const matchedTags: string[] = []
 
-  // Check for priority audience badges
-  if (textCorpus.includes('urgent') || textCorpus.includes('asap') || textCorpus.includes('immediate')) {
-    matchedTags.push('Hot Lead')
-  }
-  if (textCorpus.includes('international') || textCorpus.includes('worldwide') || textCorpus.includes('global') || textCorpus.includes('us client') || textCorpus.includes('uk client')) {
-    matchedTags.push('International')
-  }
-  if (textCorpus.includes('agency')) {
+  // 1. Audience Badge: Agency vs Freelance (Key differentiator from Content cards)
+  if (/\bagenc(?:y|ies)\b|\bfirm\b|\bpartner(?:ship)?\b/i.test(textCorpus) && !/\bfreelanc(?:e|er)\b/i.test(post.title || '')) {
     matchedTags.push('Agency')
-  } else if (textCorpus.includes('freelancer') || textCorpus.includes('freelance') || textCorpus.includes('contractor')) {
-    matchedTags.push('Freelancer')
+  } else if (/\bfreelanc(?:e|er)\b|\bcontractor\b|\bindividual\b/i.test(textCorpus)) {
+    matchedTags.push('Freelance')
   }
 
+  // 2. Claim Urgency: Few Seats Left vs Hot Lead
+  const claimed = post.claimed_count ?? 0
+  if (claimed >= 18 && claimed < 25) {
+    matchedTags.push('Few Seats Left')
+  } else if (/\b(?:urgent|asap|immediate|urgently|actively\s+hiring|hiring\s+urgently|ready\s+to\s+start)\b/i.test(textCorpus)) {
+    matchedTags.push('Hot Lead')
+  }
+
+  // 3. Location / Area-Specific Badge
+  for (const loc of KNOWN_LOCATIONS) {
+    if (loc.regex.test(textCorpus)) {
+      matchedTags.push(loc.label)
+      break
+    }
+  }
+
+  // 4. International Badge
+  if (/\b(?:international|worldwide|global|us\s+client|uk\s+client|eu\s+markets|foreign|foreign\s+client)\b/i.test(textCorpus)) {
+    if (!matchedTags.includes('International')) {
+      matchedTags.push('International')
+    }
+  }
+
+  // 5. Explicit Badges from AI report if present
+  const aiBadgesText = extractSection(intel, 'Badges') || extractSection(intel, 'Lead Type & Badges')
+  if (aiBadgesText) {
+    const parsed = aiBadgesText
+      .split(/[,;\n•*]+/)
+      .map((t) => t.trim().replace(/^[-*•\s#]+|[-*•\s]+$/g, ''))
+      .filter((t) => t.length >= 2 && t.length <= 25 && !/^(?:badge|lead|national)/i.test(t))
+
+    for (const tag of parsed) {
+      if (!matchedTags.some((existing) => existing.toLowerCase() === tag.toLowerCase())) {
+        matchedTags.push(tag)
+      }
+      if (matchedTags.length >= 4) break
+    }
+  }
+
+  // 6. Technology & skill keywords fallback
   for (const { key, label } of VALID_SKILL_KEYWORDS) {
     const regex = new RegExp(`\\b${key.replace('.', '\\.')}\\b`, 'i')
-    if (regex.test(textCorpus) && !matchedTags.includes(label)) {
+    if (regex.test(textCorpus) && !matchedTags.some((t) => t.toLowerCase() === label.toLowerCase())) {
       matchedTags.push(label)
     }
     if (matchedTags.length >= 4) break
   }
 
-  // 3. Fallback to lead niches if tech tags are empty
+  // 7. Fallback to lead niches if tech tags are empty
   if (matchedTags.length === 0 && leadNiches && leadNiches.length > 0) {
     for (const niche of leadNiches) {
       if (!matchedTags.includes(niche)) matchedTags.push(niche)

@@ -260,15 +260,10 @@ function PipelineLeadCard({
       if (!tag) return false
       const t = tag.trim()
       const lower = t.toLowerCase()
-      if (['linkedin', 'reddit', 'twitter', 'github', 'seed', 'external'].includes(lower)) return false
-      const ALLOWED_BADGES = ['hot lead', 'paid ads', 'web dev', 'web design', 'b2b marketing', 'video editing', 'full stack', 'google ads', 'meta ads', 'international', 'agency', 'freelancer', 'national']
-      if (ALLOWED_BADGES.includes(lower)) return true
-      const words = t.split(/\s+/)
-      if (words.length >= 2 && words.length <= 3 && words.every((w) => /^[A-Z][a-z]+$/.test(w))) return false
-      if (words.length >= 2 && words.length <= 3 && words.every((w) => /^[A-Z]{3,}$/.test(w))) return false
+      if (['linkedin', 'reddit', 'twitter', 'github', 'seed', 'external', 'badge', 'lead signal'].includes(lower)) return false
       return true
     })
-    .slice(0, 3)
+    .slice(0, 4)
 
   return (
     <motion.div
@@ -281,7 +276,7 @@ function PipelineLeadCard({
     >
       {/* Top & Content Section */}
       <div className="flex flex-col flex-1 min-h-0">
-        {/* Header: Clean Niche Category without Intent Score */}
+        {/* Header: Clean Niche Category + Few Seats Indicator */}
         <div className="flex items-center justify-between mb-2 w-full select-none shrink-0 h-[18px]">
           <div className="flex items-center gap-1.5 min-w-0">
             <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${theme.accentDot}`} />
@@ -291,6 +286,11 @@ function PipelineLeadCard({
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0 ml-2">
+            {(lead.claimedCount ?? 0) >= 18 && !lead.isClaimedByOther && (
+              <span className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-rose-500/15 border border-rose-500/30 text-rose-500 animate-pulse whitespace-nowrap">
+                ⚡ FEW SEATS
+              </span>
+            )}
             {lead.timestamp && (
               <span
                 className={`text-[10px] font-medium tracking-tight opacity-80 ${theme.textMuted}`}
@@ -314,16 +314,36 @@ function PipelineLeadCard({
           </p>
         </div>
 
-        {/* Clean Tags Row without match score badge */}
+        {/* Dynamic Badges Row */}
         <div className="flex items-center gap-1.5 mb-2.5 shrink-0 select-none overflow-hidden flex-wrap sm:flex-nowrap h-auto sm:h-[22px]">
-          {visibleTags.map((tag, i) => (
-            <span
-              key={tag}
-              className={`px-2 py-0.5 text-[10px] font-semibold rounded-md border backdrop-blur-sm shrink-0 whitespace-nowrap ${i === 0 ? theme.pill : theme.tagBg}`}
-            >
-              {tag}
-            </span>
-          ))}
+          {visibleTags.map((tag) => {
+            const isHot = /hot lead|few seats/i.test(tag)
+            const isIntl = /international/i.test(tag)
+            const isLoc = /indore|ahmedabad|mumbai|bangalore|delhi|pune|hyderabad|chennai|jaipur|kolkata|surat|remote|usa|uk|dubai|europe/i.test(tag)
+            const isAudience = /agency|freelanc/i.test(tag)
+
+            const badgeStyle = isHot
+              ? 'bg-amber-500/15 border-amber-500/30 text-amber-500 font-bold'
+              : isIntl
+                ? 'bg-sky-500/15 border-sky-500/30 text-sky-400 font-semibold'
+                : isLoc
+                  ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400 font-semibold'
+                  : isAudience
+                    ? 'bg-violet-500/15 border-violet-500/30 text-violet-400 font-semibold'
+                    : `${theme.tagBg} ${theme.textMuted}`
+
+            return (
+              <span
+                key={tag}
+                className={`px-2 py-0.5 text-[10px] rounded-md border backdrop-blur-sm shrink-0 whitespace-nowrap flex items-center gap-1 ${badgeStyle}`}
+              >
+                {isLoc && <span className="text-[9px]">📍</span>}
+                {isIntl && <span className="text-[9px]">🌍</span>}
+                {isHot && <span className="text-[9px]">🔥</span>}
+                {tag}
+              </span>
+            )
+          })}
         </div>
       </div>
 

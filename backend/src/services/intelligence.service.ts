@@ -42,7 +42,7 @@ Format the output exactly like this example structure, using professional and hi
 [Four concise sentences: starts with the exact 2 sentences above, followed by 2 sentences detailing specific stack, timeline/budget, and engagement model.]
 
 ### 🏷️ Badges
-[Comma-separated list of 3-5 badges: Include 1-2 audience tags (from: International, National, Agency, Freelancer, Hot Lead) plus 2-3 specific skills/tools (e.g.: International, Hot Lead, React, Node.js).]
+[Comma-separated list of 3-5 tags matching Lead Hunter Club format: Include audience (Agency or Freelance), urgency if high (Hot Lead), location if mentioned (e.g.: Ahmedabad, Indore, Mumbai, Bangalore, Remote, International), plus 2-3 core skills/deliverables (e.g.: Agency, Hot Lead, Ahmedabad, React Native, MVP Build).]
 
 ---
 
