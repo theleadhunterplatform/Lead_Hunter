@@ -338,7 +338,6 @@ export async function GET(request: NextRequest) {
               where,
               select: LEAD_POST_SELECT,
               orderBy: [
-                { claimed_count: 'asc' },
                 { reviewed_at: 'desc' },
                 { updated_at: 'desc' },
                 { created_at: 'desc' },
