@@ -1,6 +1,23 @@
 import express from 'express';
 import { protect, authorize } from '../middleware/auth';
-import { updateToken, getToken, updateHunterKey, getHunterKey, updateContactOutToken, getContactOutToken, updateApolloKey, getApolloKey, updateOpenRouterKey, getOpenRouterKey } from '../controllers/contact.controller';
+import {
+    updateToken,
+    getToken,
+    updateHunterKey,
+    getHunterKey,
+    updateContactOutToken,
+    getContactOutToken,
+    updateApolloKey,
+    getApolloKey,
+    updateOpenRouterKey,
+    getOpenRouterKey,
+    updateScrapedogKey,
+    getScrapedogKey,
+    updateCrawlbaseToken,
+    getCrawlbaseToken,
+    getScraperEngineSettings,
+    updateScraperEngineSettings,
+} from '../controllers/contact.controller';
 import { getAutomationSettings, updateAutomationSettings, getIntelligenceSettings, getEmailSettings } from '../controllers/automation.controller';
 
 const router = express.Router();
@@ -22,5 +39,12 @@ router.post('/apollo-api-key', authorize('scraping:manage'), updateApolloKey);
 router.get('/apollo-api-key', authorize('scraping:manage'), getApolloKey);
 router.post('/openrouter-api-key', authorize('scraping:manage'), updateOpenRouterKey);
 router.get('/openrouter-api-key', authorize('scraping:manage'), getOpenRouterKey);
+
+router.post('/scrapedog-api-key', authorize('scraping:manage'), updateScrapedogKey);
+router.get('/scrapedog-api-key', authorize('scraping:manage'), getScrapedogKey);
+router.post('/crawlbase-token', authorize('scraping:manage'), updateCrawlbaseToken);
+router.get('/crawlbase-token', authorize('scraping:manage'), getCrawlbaseToken);
+router.get('/scraper-engines', authorize('scraping:manage'), getScraperEngineSettings);
+router.post('/scraper-engines', authorize('scraping:manage'), updateScraperEngineSettings);
 
 export default router;

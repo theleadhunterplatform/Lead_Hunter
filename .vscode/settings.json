@@ -1,0 +1,13 @@
+{
+  "git.autoRepositoryDetection": "all",
+  "git.repositoryScanMaxDepth": 3,
+  "git.scanRepositories": [
+    "frontend",
+    "c:/work/Lead_Hunter/frontend",
+    "C:\\work\\Lead_Hunter\\frontend"
+  ],
+  "git.openRepositoryInParentFolders": "always",
+  "files.exclude": {
+    "frontend": true
+  }
+}

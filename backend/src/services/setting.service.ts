@@ -10,6 +10,12 @@ const SENSITIVE_SETTING_KEYS = new Set([
     'contactout_api_token',
     'hunter_api_key',
     'apollo_api_key',
+    'scrapedog_api_key',
+    'scrapingdog_api_key',
+    'crawlbase_token',
+    'scrapedog_keys',
+    'scrapingdog_keys',
+    'crawlbase_keys',
 ]);
 
 function isSensitiveSettingKey(key: string): boolean {

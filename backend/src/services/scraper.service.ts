@@ -16,6 +16,10 @@ import {
 } from '../utils/scraped-item.utils';
 import { extractEmailFromText, extractPhoneFromText } from '../utils/lead-enrichment.utils';
 
+import { ScrapedogScraperService } from './scrapedog-scraper.service';
+import { CrawlbaseScraperService } from './crawlbase-scraper.service';
+import * as settingService from './setting.service';
+
 export class ScraperService {
     static async scrapeKeyword(keywordId: string, platform: string) {
         const kw = await Keyword.findById(keywordId);
@@ -33,62 +37,127 @@ export class ScraperService {
             );
         }
 
-        const { client, activeKey } = await getApifyClient();
+        for (const phrase of phrases) {
+            await this.scrapePhrase(platform, phrase, kw);
+        }
+    }
+
+    private static async resolveEnginePlan(): Promise<string[]> {
+        let primary = config.scraper?.primaryEngine || 'apify';
+        let fallbacks = config.scraper?.fallbackEngines ? [...config.scraper.fallbackEngines] : ['scrapedog', 'crawlbase'];
 
         try {
-            for (const phrase of phrases) {
-                await this.scrapePhrase(client, platform, phrase, kw);
+            const dbPrimary = await settingService.getSetting('primary_scraper_engine');
+            if (dbPrimary && typeof dbPrimary === 'string' && dbPrimary.trim()) {
+                primary = dbPrimary.trim().toLowerCase();
             }
+            const dbFallbacks = await settingService.getSetting('fallback_scraper_engines');
+            if (Array.isArray(dbFallbacks) && dbFallbacks.length > 0) {
+                fallbacks = dbFallbacks.map((f: any) => String(f).trim().toLowerCase()).filter(Boolean);
+            }
+        } catch {
+            // keep config defaults
+        }
+
+        const plan = [primary, ...fallbacks.filter((f) => f !== primary)];
+        return Array.from(new Set(plan));
+    }
+
+    private static async scrapeWithApify(platform: string, phrase: string): Promise<any[]> {
+        const { client, activeKey } = await getApifyClient();
+        try {
+            if (platform === 'linkedin') {
+                const run = await client.actor(config.apify.linkedinActor).call({
+                    maxPosts: 20,
+                    postedLimit: '24h',
+                    searchQueries: [phrase],
+                    sortBy: 'date',
+                });
+                const result = await client.dataset(run.defaultDatasetId).listItems();
+                return result.items || [];
+            } else if (platform === 'twitter') {
+                const run = await client.actor('watcher.data/search-x-by-keywords').call({
+                    keywords: [phrase],
+                    maxItemsPerKeyword: 20,
+                    searchType: 'tweets',
+                    sortBy: 'latest',
+                });
+                const result = await client.dataset(run.defaultDatasetId).listItems();
+                return result.items || [];
+            } else if (platform === 'reddit') {
+                const run = await client.actor('practicaltools/apify-reddit-api').call({
+                    maxItems: 20,
+                    searches: [phrase],
+                    sort: 'new',
+                    time: 'day',
+                });
+                const result = await client.dataset(run.defaultDatasetId).listItems();
+                return result.items || [];
+            } else if (platform === 'threads') {
+                const run = await client.actor('watcher.data/search-threads-by-keywords').call({
+                    keywords: [phrase],
+                    maxItemsPerKeyword: 20,
+                    sortBy: 'latest',
+                });
+                const result = await client.dataset(run.defaultDatasetId).listItems();
+                return result.items || [];
+            }
+            return [];
         } catch (error: any) {
             await handleApifyLimitError(error, activeKey);
-            console.error(`❌ Error in ScraperService (${platform}):`, error.message);
             throw error;
         }
     }
 
-    private static async scrapePhrase(client: any, platform: string, phrase: string, kw: any) {
+    private static async scrapePhrase(platform: string, phrase: string, kw: any) {
         console.log(`🚀 [ScraperService] Processing ${platform} for keyword: "${phrase}"`);
 
+        const engines = await this.resolveEnginePlan();
         let items: any[] = [];
+        let successEngine = '';
+        const errors: string[] = [];
 
-        if (platform === 'linkedin') {
-            const run = await client.actor(config.apify.linkedinActor).call({
-                maxPosts: 20,
-                postedLimit: '24h',
-                searchQueries: [phrase],
-                sortBy: 'date',
-            });
-            const result = await client.dataset(run.defaultDatasetId).listItems();
-            items = result.items;
-        } else if (platform === 'twitter') {
-            const run = await client.actor('watcher.data/search-x-by-keywords').call({
-                keywords: [phrase],
-                maxItemsPerKeyword: 20,
-                searchType: 'tweets',
-                sortBy: 'latest',
-            });
-            const result = await client.dataset(run.defaultDatasetId).listItems();
-            items = result.items;
-        } else if (platform === 'reddit') {
-            const run = await client.actor('practicaltools/apify-reddit-api').call({
-                maxItems: 20,
-                searches: [phrase],
-                sort: 'new',
-                time: 'day',
-            });
-            const result = await client.dataset(run.defaultDatasetId).listItems();
-            items = result.items;
-        } else if (platform === 'threads') {
-            const run = await client.actor('watcher.data/search-threads-by-keywords').call({
-                keywords: [phrase],
-                maxItemsPerKeyword: 20,
-                sortBy: 'latest',
-            });
-            const result = await client.dataset(run.defaultDatasetId).listItems();
-            items = result.items;
+        for (const engine of engines) {
+            try {
+                if (engine === 'apify') {
+                    console.log(`[ScraperService] Attempting Apify for "${phrase}" on ${platform}...`);
+                    items = await this.scrapeWithApify(platform, phrase);
+                    successEngine = 'apify';
+                } else if (engine === 'scrapedog') {
+                    const isConfigured = await ScrapedogScraperService.isConfigured();
+                    if (!isConfigured) {
+                        console.log(`[ScraperService] Scrapedog not configured, skipping.`);
+                        continue;
+                    }
+                    console.log(`[ScraperService] Attempting Scrapedog for "${phrase}" on ${platform}...`);
+                    items = await ScrapedogScraperService.scrapeKeyword(platform, phrase);
+                    successEngine = 'scrapedog';
+                } else if (engine === 'crawlbase') {
+                    const isConfigured = await CrawlbaseScraperService.isConfigured();
+                    if (!isConfigured) {
+                        console.log(`[ScraperService] Crawlbase not configured, skipping.`);
+                        continue;
+                    }
+                    console.log(`[ScraperService] Attempting Crawlbase for "${phrase}" on ${platform}...`);
+                    items = await CrawlbaseScraperService.scrapeKeyword(platform, phrase);
+                    successEngine = 'crawlbase';
+                }
+
+                if (items && items.length >= 0) {
+                    console.log(`✔ [ScraperService] Successfully retrieved ${items.length} items via ${successEngine}`);
+                    break;
+                }
+            } catch (err: any) {
+                console.warn(`⚠️ [ScraperService] Engine "${engine}" failed for "${phrase}" on ${platform}: ${err.message}`);
+                errors.push(`${engine}: ${err.message}`);
+            }
         }
 
-        console.log(`[ScraperService] Found ${items.length} items for ${platform}: "${phrase}"`);
+        if (!successEngine && errors.length > 0) {
+            throw new Error(`All scraper engines failed for ${platform} "${phrase}": ${errors.join(' | ')}`);
+        }
+
+        console.log(`[ScraperService] Found ${items.length} items for ${platform}: "${phrase}" (via ${successEngine || 'none'})`);
 
         let skipped = 0;
         let saved = 0;

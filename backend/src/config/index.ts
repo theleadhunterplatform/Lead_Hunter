@@ -55,6 +55,19 @@ const config = {
         twitterProfileActor: process.env.APIFY_TWITTER_PROFILE_ACTOR || 'apidojo/twitter-user-scraper',
         monthlyCommentLimit: parseInt(process.env.APIFY_MONTHLY_COMMENT_LIMIT || '2500', 10),
     },
+    scraper: {
+        primaryEngine: (process.env.PRIMARY_SCRAPER_ENGINE || 'apify').toLowerCase(),
+        fallbackEngines: (process.env.FALLBACK_SCRAPER_ENGINES || 'scrapedog,crawlbase')
+            .split(',')
+            .map((s) => s.trim().toLowerCase())
+            .filter(Boolean),
+    },
+    scrapedog: {
+        apiKey: process.env.SCRAPEDOG_API_KEY || '',
+    },
+    crawlbase: {
+        token: process.env.CRAWLBASE_TOKEN || '',
+    },
     targetScraper: {
         maxItems: parseInt(process.env.TARGET_SCRAPE_MAX_ITEMS || '20', 10),
         postedLimit: process.env.TARGET_SCRAPE_POSTED_LIMIT || '24h',

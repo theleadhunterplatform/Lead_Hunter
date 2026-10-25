@@ -197,3 +197,104 @@ export const getOpenRouterKey = asyncHandler(async (_req: Request, res: Response
         },
     });
 });
+
+// @desc    Update Scrapedog API Key
+// @route   POST /api/settings/scrapedog-api-key
+// @access  Private
+export const updateScrapedogKey = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+    const { api_key } = req.body;
+    if (!api_key) {
+        return res.status(400).json({ success: false, message: 'API key is required' });
+    }
+    await settingService.updateSetting('scrapedog_api_key', api_key, 'Scrapedog API Key for keyword post scraping');
+    return res.status(200).json({
+        success: true,
+        message: 'Scrapedog API key updated successfully',
+    });
+});
+
+// @desc    Get Scrapedog API Key (Masked)
+// @route   GET /api/settings/scrapedog-api-key
+// @access  Private
+export const getScrapedogKey = asyncHandler(async (_req: Request, res: Response, _next: NextFunction) => {
+    const dbKey = await settingService.getSetting('scrapedog_api_key');
+    const envKey = process.env.SCRAPEDOG_API_KEY;
+    const activeKey = dbKey || envKey;
+
+    return res.status(200).json({
+        success: true,
+        data: {
+            api_key: activeKey ? `${activeKey.substring(0, 4)}...${activeKey.substring(activeKey.length - 4)}` : null,
+            is_configured: !!activeKey,
+            source: dbKey ? 'database' : (envKey ? 'env' : 'none'),
+        },
+    });
+});
+
+// @desc    Update Crawlbase Token
+// @route   POST /api/settings/crawlbase-token
+// @access  Private
+export const updateCrawlbaseToken = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+    const { token } = req.body;
+    if (!token) {
+        return res.status(400).json({ success: false, message: 'Token is required' });
+    }
+    await settingService.updateSetting('crawlbase_token', token, 'Crawlbase Token for keyword post scraping');
+    return res.status(200).json({
+        success: true,
+        message: 'Crawlbase token updated successfully',
+    });
+});
+
+// @desc    Get Crawlbase Token (Masked)
+// @route   GET /api/settings/crawlbase-token
+// @access  Private
+export const getCrawlbaseToken = asyncHandler(async (_req: Request, res: Response, _next: NextFunction) => {
+    const dbToken = await settingService.getSetting('crawlbase_token');
+    const envToken = process.env.CRAWLBASE_TOKEN;
+    const activeToken = dbToken || envToken;
+
+    return res.status(200).json({
+        success: true,
+        data: {
+            token: activeToken ? `${activeToken.substring(0, 4)}...${activeToken.substring(activeToken.length - 4)}` : null,
+            is_configured: !!activeToken,
+            source: dbToken ? 'database' : (envToken ? 'env' : 'none'),
+        },
+    });
+});
+
+// @desc    Get Scraper Engine Settings
+// @route   GET /api/settings/scraper-engines
+// @access  Private
+export const getScraperEngineSettings = asyncHandler(async (_req: Request, res: Response, _next: NextFunction) => {
+    const dbPrimary = await settingService.getSetting('primary_scraper_engine');
+    const dbFallbacks = await settingService.getSetting('fallback_scraper_engines');
+
+    return res.status(200).json({
+        success: true,
+        data: {
+            primary_engine: dbPrimary || process.env.PRIMARY_SCRAPER_ENGINE || 'apify',
+            fallback_engines: dbFallbacks || (process.env.FALLBACK_SCRAPER_ENGINES || 'scrapedog,crawlbase').split(',').map((s) => s.trim()),
+        },
+    });
+});
+
+// @desc    Update Scraper Engine Settings
+// @route   POST /api/settings/scraper-engines
+// @access  Private
+export const updateScraperEngineSettings = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+    const { primary_engine, fallback_engines } = req.body;
+
+    if (primary_engine) {
+        await settingService.updateSetting('primary_scraper_engine', String(primary_engine).toLowerCase(), 'Primary scraping engine');
+    }
+    if (Array.isArray(fallback_engines)) {
+        await settingService.updateSetting('fallback_scraper_engines', fallback_engines.map((e: any) => String(e).toLowerCase()), 'Fallback scraping engines');
+    }
+
+    return res.status(200).json({
+        success: true,
+        message: 'Scraper engine settings updated successfully',
+    });
+});

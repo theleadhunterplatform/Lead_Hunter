@@ -1,0 +1,19 @@
+﻿{
+  "folders": [
+    {
+      "name": "Lead_Hunter (Root & Backend)",
+      "path": "."
+    },
+    {
+      "name": "frontend",
+      "path": "frontend"
+    }
+  ],
+  "settings": {
+    "git.autoRepositoryDetection": "all",
+    "git.openRepositoryInParentFolders": "always",
+    "files.exclude": {
+      "frontend": true
+    }
+  }
+}
