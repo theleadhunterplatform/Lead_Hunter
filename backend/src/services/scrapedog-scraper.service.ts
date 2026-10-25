@@ -74,9 +74,11 @@ export class ScrapedogScraperService {
                     case 'reddit':
                         return await this.scrapeReddit(activeKey.key, phrase);
                     case 'linkedin':
+                        return await this.scrapeLinkedIn(activeKey.key, phrase);
                     case 'twitter':
+                        return await this.scrapeTwitter(activeKey.key, phrase);
                     case 'threads':
-                        return await this.scrapeGoogleSerp(activeKey.key, platform, phrase);
+                        return await this.scrapeThreads(activeKey.key, phrase);
                     default:
                         throw new Error(`Platform "${platform}" not supported by Scrapedog scraper.`);
                 }

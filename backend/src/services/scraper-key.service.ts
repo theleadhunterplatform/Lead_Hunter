@@ -2,7 +2,6 @@ import crypto from 'crypto';
 import axios from 'axios';
 import { getSetting, updateSetting } from './setting.service';
 import config from '../config';
-import logger from '../utils/logger';
 
 export interface ScraperKeyItem {
     id: string;
