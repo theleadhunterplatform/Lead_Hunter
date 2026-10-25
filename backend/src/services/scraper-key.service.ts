@@ -257,9 +257,9 @@ export async function markScraperKeyExhausted(
         target.is_exhausted = true;
         target.error_message = reason;
         await updateSetting(getSettingKey(engine), currentKeys);
-        logger.warn(`[ScraperKey] Engine '${engine}' key (${target.label || target.key.slice(0, 10)}) marked EXHAUSTED: ${reason}`);
+        console.warn(`[ScraperKey] Engine '${engine}' key (${target.label || target.key.slice(0, 10)}) marked EXHAUSTED: ${reason}`);
     } else {
-        logger.warn(`[ScraperKey] Engine '${engine}' key (${keyOrId.slice(0, 10)}) exhausted: ${reason} (not in pool)`);
+        console.warn(`[ScraperKey] Engine '${engine}' key (${keyOrId.slice(0, 10)}) exhausted: ${reason} (not in pool)`);
     }
 }
 
