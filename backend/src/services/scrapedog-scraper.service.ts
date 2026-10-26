@@ -283,4 +283,32 @@ export class ScrapedogScraperService {
         }
         return { name: title };
     }
+
+    public static extractSlugFromProfileUrl(url: string): string | null {
+        try {
+            const match = url.match(/linkedin\.com\/(?:in|company)\/([^/?#]+)/);
+            if (match) return match[1];
+        } catch {
+            return null;
+        }
+        return null;
+    }
+
+    /**
+     * Scrapes watchlist target profile recent posts and discussions using Scrapedog Google SERP with past 24h filter.
+     */
+    public static async scrapeTargetProfile(target: { id: string; name: string; url: string; platform: string }): Promise<NormalizedScrapedItem[]> {
+        const activeKey = await this.getApiKey();
+        if (!activeKey || !activeKey.key) {
+            throw new Error('Scrapedog API key is not configured or all pool keys are exhausted.');
+        }
+
+        const slug = this.extractSlugFromProfileUrl(target.url);
+        const query = slug
+            ? `site:linkedin.com/posts inurl:${slug}`
+            : `site:linkedin.com/posts "${target.name}"`;
+
+        console.log(`🐶 [Scrapedog] Scraping watchlist target "${target.name}" (query: ${query})`);
+        return this.scrapeGoogleSerp(activeKey.key, query, 'linkedin');
+    }
 }

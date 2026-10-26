@@ -270,4 +270,27 @@ export class CrawlbaseScraperService {
         }
         return { name: title };
     }
+
+    /**
+     * Scrapes watchlist target profile recent posts and discussions using Crawlbase Google SERP with past 24h filter.
+     */
+    public static async scrapeTargetProfile(target: { id: string; name: string; url: string; platform: string }): Promise<NormalizedScrapedItem[]> {
+        const activeToken = await this.getToken();
+        if (!activeToken || !activeToken.key) {
+            throw new Error('Crawlbase token is not configured or all pool tokens are exhausted.');
+        }
+
+        let slug: string | null = null;
+        try {
+            const match = target.url.match(/linkedin\.com\/(?:in|company)\/([^/?#]+)/);
+            if (match) slug = match[1];
+        } catch {}
+
+        const query = slug
+            ? `site:linkedin.com/posts inurl:${slug}`
+            : `site:linkedin.com/posts "${target.name}"`;
+
+        console.log(`🕷️ [Crawlbase] Scraping watchlist target "${target.name}" (query: ${query})`);
+        return this.scrapeGoogleSerp(activeToken.key, query, 'linkedin');
+    }
 }
