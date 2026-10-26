@@ -66,7 +66,24 @@ interface EmailCandidate {
     message: string;
 }
 
+export async function isEnrichmentProviderPaused(provider: string): Promise<boolean> {
+    try {
+        const paused = await getSetting('paused_enrichment_providers');
+        if (Array.isArray(paused)) {
+            const normalized = paused.map((p: any) => String(p).toLowerCase().replace(/[-_]/g, ''));
+            const target = provider.toLowerCase().replace(/[-_]/g, '');
+            return normalized.includes(target);
+        }
+    } catch {}
+    return false;
+}
+
 async function tryHunterEmailDiscovery(lead: any, profileData?: SocialProfileData | null) {
+    if (await isEnrichmentProviderPaused('hunter')) {
+        console.log('[Enrichment] Hunter.io is paused by admin, skipping.');
+        return { lead, applied: false, message: null };
+    }
+
     const personName = parsePersonName(
         profileData?.name || lead.contact_info?.name || lead.author?.name
     );
@@ -99,6 +116,11 @@ async function tryHunterEmailDiscovery(lead: any, profileData?: SocialProfileDat
 }
 
 async function lookupContactCompass(publicId: string) {
+    if (await isEnrichmentProviderPaused('contact_compass')) {
+        console.log('[Enrichment] Contact Compass is paused by admin, skipping.');
+        return null;
+    }
+
     const token = await getSetting('contact_compass_token');
     if (!token) return null;
 
@@ -294,20 +316,21 @@ async function collectDualFindCandidates(options: {
     const domain = profileData?.company_domain || lead.contact_info?.company_domain;
     const company = profileData?.company_name || lead.contact_info?.company_name;
 
+    const isHunterPaused = await isEnrichmentProviderPaused('hunter');
     const [compassPerson, hunterFound] = await Promise.all([
         publicId ? lookupContactCompass(publicId).catch((error: any) => {
             console.error('Contact Compass API Error:', error.response?.data || error.message);
             if (error.response?.status === 401) throw new ErrorResponse('Invalid Contact Compass API token', 401);
             return null;
         }) : Promise.resolve(null),
-        findEmailWithHunterMulti({
+        !isHunterPaused ? findEmailWithHunterMulti({
             linkedinHandle: publicId || undefined,
             domain: domain || undefined,
             company: !domain ? company || undefined : undefined,
             firstName: personName?.first,
             lastName: personName?.last,
             fullName: personName ? undefined : profileData?.name || lead.contact_info?.name,
-        }),
+        }) : Promise.resolve(null),
     ]);
 
     if (compassPerson?.email) {
@@ -639,28 +662,38 @@ async function tryPaidPhoneLookup(
     }
 
     if (paidLookupsUsed.count < MAX_PAID_PHONE_LOOKUPS) {
-        const apollo = await findPhonesWithApollo(linkedinUrl);
-        paidLookupsUsed.count += 1;
-        if (apollo?.phones?.length || apollo?.emails?.length) {
-            return {
-                phone: pickFirstPhone(...apollo.phones),
-                email: apollo.emails[0] || null,
-                source: 'apollo',
-                contactInfo: apollo.contactInfo,
-            };
+        const isApolloPaused = await isEnrichmentProviderPaused('apollo');
+        if (!isApolloPaused) {
+            const apollo = await findPhonesWithApollo(linkedinUrl);
+            paidLookupsUsed.count += 1;
+            if (apollo?.phones?.length || apollo?.emails?.length) {
+                return {
+                    phone: pickFirstPhone(...apollo.phones),
+                    email: apollo.emails[0] || null,
+                    source: 'apollo',
+                    contactInfo: apollo.contactInfo,
+                };
+            }
+        } else {
+            console.log('[Enrichment] Apollo.io is paused by admin, skipping.');
         }
     }
 
     if (paidLookupsUsed.count < MAX_PAID_PHONE_LOOKUPS) {
-        const contactOut = await findPhonesWithContactOut(linkedinUrl);
-        paidLookupsUsed.count += 1;
-        if (contactOut?.phones?.length || contactOut?.emails?.length) {
-            return {
-                phone: pickFirstPhone(...contactOut.phones),
-                email: contactOut.emails[0] || null,
-                source: 'contactout',
-                contactInfo: contactOut.contactInfo,
-            };
+        const isContactOutPaused = await isEnrichmentProviderPaused('contactout');
+        if (!isContactOutPaused) {
+            const contactOut = await findPhonesWithContactOut(linkedinUrl);
+            paidLookupsUsed.count += 1;
+            if (contactOut?.phones?.length || contactOut?.emails?.length) {
+                return {
+                    phone: pickFirstPhone(...contactOut.phones),
+                    email: contactOut.emails[0] || null,
+                    source: 'contactout',
+                    contactInfo: contactOut.contactInfo,
+                };
+            }
+        } else {
+            console.log('[Enrichment] ContactOut is paused by admin, skipping.');
         }
     }
 

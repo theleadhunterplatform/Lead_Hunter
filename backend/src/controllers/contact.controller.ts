@@ -270,12 +270,14 @@ export const getCrawlbaseToken = asyncHandler(async (_req: Request, res: Respons
 export const getScraperEngineSettings = asyncHandler(async (_req: Request, res: Response, _next: NextFunction) => {
     const dbPrimary = await settingService.getSetting('primary_scraper_engine');
     const dbFallbacks = await settingService.getSetting('fallback_scraper_engines');
+    const dbPaused = await settingService.getSetting('paused_scraper_engines');
 
     return res.status(200).json({
         success: true,
         data: {
             primary_engine: dbPrimary || process.env.PRIMARY_SCRAPER_ENGINE || 'apify',
             fallback_engines: dbFallbacks || (process.env.FALLBACK_SCRAPER_ENGINES || 'scrapedog,crawlbase').split(',').map((s) => s.trim()),
+            paused_engines: Array.isArray(dbPaused) ? dbPaused : [],
         },
     });
 });
@@ -284,7 +286,7 @@ export const getScraperEngineSettings = asyncHandler(async (_req: Request, res: 
 // @route   POST /api/settings/scraper-engines
 // @access  Private
 export const updateScraperEngineSettings = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
-    const { primary_engine, fallback_engines } = req.body;
+    const { primary_engine, fallback_engines, paused_engines } = req.body;
 
     if (primary_engine) {
         await settingService.updateSetting('primary_scraper_engine', String(primary_engine).toLowerCase(), 'Primary scraping engine');
@@ -292,9 +294,91 @@ export const updateScraperEngineSettings = asyncHandler(async (req: Request, res
     if (Array.isArray(fallback_engines)) {
         await settingService.updateSetting('fallback_scraper_engines', fallback_engines.map((e: any) => String(e).toLowerCase()), 'Fallback scraping engines');
     }
+    if (Array.isArray(paused_engines)) {
+        await settingService.updateSetting('paused_scraper_engines', paused_engines.map((e: any) => String(e).toLowerCase()), 'Paused scraping engines');
+    }
 
     return res.status(200).json({
         success: true,
         message: 'Scraper engine settings updated successfully',
+    });
+});
+
+// @desc    Toggle Scraper Engine Paused State
+// @route   POST /api/settings/scraper-engines/toggle-pause
+// @access  Private
+export const toggleScraperEnginePause = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+    const { engine, paused } = req.body;
+    if (!engine) {
+        return res.status(400).json({ success: false, message: 'Engine name is required' });
+    }
+    const engineKey = String(engine).toLowerCase().trim();
+    const dbPaused = (await settingService.getSetting('paused_scraper_engines')) || [];
+    let pausedEngines: string[] = Array.isArray(dbPaused) ? [...dbPaused] : [];
+
+    const shouldPause = typeof paused === 'boolean' ? paused : !pausedEngines.includes(engineKey);
+
+    if (shouldPause && !pausedEngines.includes(engineKey)) {
+        pausedEngines.push(engineKey);
+    } else if (!shouldPause) {
+        pausedEngines = pausedEngines.filter((e) => e !== engineKey);
+    }
+
+    await settingService.updateSetting('paused_scraper_engines', pausedEngines, 'Paused scraping engines');
+
+    return res.status(200).json({
+        success: true,
+        data: {
+            engine: engineKey,
+            is_paused: shouldPause,
+            paused_engines: pausedEngines,
+        },
+        message: `Scraper engine "${engineKey}" is now ${shouldPause ? 'paused' : 'active'}`,
+    });
+});
+
+// @desc    Get Paused Enrichment Providers
+// @route   GET /api/settings/enrichment-providers/paused
+// @access  Private
+export const getEnrichmentProviderSettings = asyncHandler(async (_req: Request, res: Response, _next: NextFunction) => {
+    const dbPaused = (await settingService.getSetting('paused_enrichment_providers')) || [];
+    return res.status(200).json({
+        success: true,
+        data: {
+            paused_providers: Array.isArray(dbPaused) ? dbPaused : [],
+        },
+    });
+});
+
+// @desc    Toggle Enrichment Provider Paused State
+// @route   POST /api/settings/enrichment-providers/toggle-pause
+// @access  Private
+export const toggleEnrichmentProviderPause = asyncHandler(async (req: Request, res: Response, _next: NextFunction) => {
+    const { provider, paused } = req.body;
+    if (!provider) {
+        return res.status(400).json({ success: false, message: 'Provider name is required' });
+    }
+    const providerKey = String(provider).toLowerCase().trim();
+    const dbPaused = (await settingService.getSetting('paused_enrichment_providers')) || [];
+    let pausedProviders: string[] = Array.isArray(dbPaused) ? [...dbPaused] : [];
+
+    const shouldPause = typeof paused === 'boolean' ? paused : !pausedProviders.includes(providerKey);
+
+    if (shouldPause && !pausedProviders.includes(providerKey)) {
+        pausedProviders.push(providerKey);
+    } else if (!shouldPause) {
+        pausedProviders = pausedProviders.filter((p) => p !== providerKey);
+    }
+
+    await settingService.updateSetting('paused_enrichment_providers', pausedProviders, 'Paused enrichment providers');
+
+    return res.status(200).json({
+        success: true,
+        data: {
+            provider: providerKey,
+            is_paused: shouldPause,
+            paused_providers: pausedProviders,
+        },
+        message: `Enrichment provider "${providerKey}" is now ${shouldPause ? 'paused' : 'active'}`,
     });
 });

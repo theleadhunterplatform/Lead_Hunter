@@ -45,6 +45,7 @@ export class ScraperService {
     private static async resolveEnginePlan(): Promise<string[]> {
         let primary = config.scraper?.primaryEngine || 'apify';
         let fallbacks = config.scraper?.fallbackEngines ? [...config.scraper.fallbackEngines] : ['scrapedog', 'crawlbase'];
+        let paused: string[] = [];
 
         try {
             const dbPrimary = await settingService.getSetting('primary_scraper_engine');
@@ -55,12 +56,23 @@ export class ScraperService {
             if (Array.isArray(dbFallbacks) && dbFallbacks.length > 0) {
                 fallbacks = dbFallbacks.map((f: any) => String(f).trim().toLowerCase()).filter(Boolean);
             }
+            const dbPaused = await settingService.getSetting('paused_scraper_engines');
+            if (Array.isArray(dbPaused)) {
+                paused = dbPaused.map((p: any) => String(p).trim().toLowerCase()).filter(Boolean);
+            }
         } catch {
             // keep config defaults
         }
 
         const plan = [primary, ...fallbacks.filter((f) => f !== primary)];
-        return Array.from(new Set(plan));
+        const uniquePlan = Array.from(new Set(plan));
+        const activePlan = uniquePlan.filter((engine) => !paused.includes(engine));
+
+        if (activePlan.length === 0 && paused.length > 0) {
+            console.warn(`⚠️ [ScraperService] All configured scraping engines are currently paused: [${paused.join(', ')}]`);
+        }
+
+        return activePlan;
     }
 
     private static async scrapeWithApify(platform: string, phrase: string): Promise<any[]> {

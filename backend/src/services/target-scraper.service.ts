@@ -1,6 +1,7 @@
 import prisma from '../lib/prisma';
 import LeadPost from '../models/lead-post.model';
 import config from '../config';
+import { getSetting } from './setting.service';
 import { getApifyClient, handleApifyLimitError, recordApifyCommentUsage } from '../utils/apify-client.utils';
 import { enqueueLeadQualification } from '../utils/qualification-queue.utils';
 import { findExistingLeadPost, isDuplicateKeyError } from '../utils/lead-dedup.utils';
@@ -70,6 +71,12 @@ export class TargetScraperService {
                 );
                 return { saved: 0, skipped: 0, deferred: true };
             }
+        }
+
+        const pausedEngines = (await getSetting('paused_scraper_engines')) || [];
+        if (Array.isArray(pausedEngines) && pausedEngines.includes('apify')) {
+            console.log(`⏸️ [TargetScraper] Apify scraper engine is paused by admin, skipping watchlist target: ${target.name}`);
+            return { saved: 0, skipped: 0, paused: true };
         }
 
         const { client, activeKey } = await getApifyClient();
