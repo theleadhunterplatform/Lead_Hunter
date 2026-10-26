@@ -128,7 +128,10 @@ export async function getLatestScrapeMetrics(): Promise<LastScrapeMetrics> {
     try {
         const [latestLead, latestProfile] = await Promise.all([
             prisma.leadPost.findFirst({
-                where: { is_deleted: false },
+                where: {
+                    is_deleted: false,
+                    source: { notIn: ['manual', 'seed'] },
+                },
                 orderBy: { created_at: 'desc' },
                 select: {
                     created_at: true,
