@@ -183,7 +183,7 @@ export class ZenRowsScraperService {
                 }
             }
 
-            const timestamp = extractTimestampFromUrlOrSnippet(url, rawTitle);
+            const timing = extractTimestampFromUrlOrSnippet(url, platform, rawTitle);
 
             results.push({
                 id: Buffer.from(url).toString('base64url').slice(0, 36),
@@ -195,7 +195,10 @@ export class ZenRowsScraperService {
                     handle: authorHandle,
                     url: authorUrl || url,
                 },
-                postedAt: timestamp ? { timestamp, date: new Date(timestamp).toISOString() } : undefined,
+                postedAt: timing?.timestamp ? {
+                    timestamp: timing.timestamp,
+                    date: timing.date || new Date(timing.timestamp).toISOString(),
+                } : undefined,
                 engagement: { likes: 0, comments: 0, shares: 0 },
                 raw_result: { title: rawTitle, url },
             });

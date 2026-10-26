@@ -173,7 +173,7 @@ export class ScrapingBeeScraperService {
             }
 
             const snippet = item.description || item.snippet || '';
-            const timestamp = extractTimestampFromUrlOrSnippet(url, snippet);
+            const timing = extractTimestampFromUrlOrSnippet(url, platform, snippet);
 
             results.push({
                 id: Buffer.from(url).toString('base64url').slice(0, 36),
@@ -185,7 +185,10 @@ export class ScrapingBeeScraperService {
                     handle: authorHandle,
                     url: authorUrl || url,
                 },
-                postedAt: timestamp ? { timestamp, date: new Date(timestamp).toISOString() } : undefined,
+                postedAt: timing?.timestamp ? {
+                    timestamp: timing.timestamp,
+                    date: timing.date || new Date(timing.timestamp).toISOString(),
+                } : undefined,
                 engagement: { likes: 0, comments: 0, shares: 0 },
                 raw_result: item,
             });
