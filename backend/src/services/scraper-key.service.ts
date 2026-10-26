@@ -14,24 +14,36 @@ export interface ScraperKeyItem {
     last_used_at?: string | null;
 }
 
-export type ScraperEngine = 'scrapedog' | 'crawlbase';
+export type ScraperEngine = 'scrapedog' | 'crawlbase' | 'scrapingbee' | 'zenrows' | 'zyte';
 
 export function normalizeEngine(engine: string): ScraperEngine {
     const lower = (engine || '').trim().toLowerCase();
     if (lower === 'scrapedog' || lower === 'scrapingdog') return 'scrapedog';
     if (lower === 'crawlbase') return 'crawlbase';
-    throw new Error(`Unsupported scraper engine: ${engine}. Supported engines: scrapedog, crawlbase`);
+    if (lower === 'scrapingbee' || lower === 'scraping_bee') return 'scrapingbee';
+    if (lower === 'zenrows' || lower === 'zen_rows') return 'zenrows';
+    if (lower === 'zyte' || lower === 'zyte_api') return 'zyte';
+    throw new Error(`Unsupported scraper engine: ${engine}. Supported engines: scrapedog, crawlbase, scrapingbee, zenrows, zyte`);
 }
 
 function getSettingKey(engine: ScraperEngine): string {
-    return engine === 'scrapedog' ? 'scrapedog_keys' : 'crawlbase_keys';
+    switch (engine) {
+        case 'scrapedog': return 'scrapedog_keys';
+        case 'crawlbase': return 'crawlbase_keys';
+        case 'scrapingbee': return 'scrapingbee_keys';
+        case 'zenrows': return 'zenrows_keys';
+        case 'zyte': return 'zyte_keys';
+    }
 }
 
 function getLegacySingleKey(engine: ScraperEngine): string | null {
-    if (engine === 'scrapedog') {
-        return config.scrapedog.apiKey || null;
+    switch (engine) {
+        case 'scrapedog': return config.scrapedog.apiKey || null;
+        case 'crawlbase': return config.crawlbase.token || null;
+        case 'scrapingbee': return config.scrapingbee.apiKey || null;
+        case 'zenrows': return config.zenrows.apiKey || null;
+        case 'zyte': return config.zyte.apiKey || null;
     }
-    return config.crawlbase.token || null;
 }
 
 /**
@@ -294,6 +306,68 @@ export async function testScraperKey(
             return {
                 valid: false,
                 message: status === 401 ? 'Invalid API Key (401 Unauthorized)' : `Check failed (${status || 'error'}): ${dataMsg}`,
+            };
+        }
+    } else if (engine === 'scrapingbee') {
+        try {
+            const res = await axios.get(`https://app.scrapingbee.com/api/v1/usage?api_key=${encodeURIComponent(key)}`, {
+                timeout: 15000,
+            });
+            const remaining = (res.data?.max_api_credit || 0) - (res.data?.used_api_credit || 0);
+            return {
+                valid: true,
+                message: `Valid! ScrapingBee active. Remaining credits: ${remaining}`,
+                credits: remaining,
+            };
+        } catch (err: any) {
+            const status = err.response?.status;
+            return {
+                valid: false,
+                message: status === 401 ? 'Invalid API Key (401 Unauthorized)' : `ScrapingBee check failed: ${err.message}`,
+            };
+        }
+    } else if (engine === 'zenrows') {
+        try {
+            const res = await axios.get(`https://api.zenrows.com/v1/?apikey=${encodeURIComponent(key)}&url=https://httpbin.io/ip`, {
+                timeout: 20000,
+            });
+            if (res.status === 200) {
+                return {
+                    valid: true,
+                    message: 'Valid! Successfully authenticated with ZenRows API.',
+                };
+            }
+            return { valid: false, message: `ZenRows returned HTTP ${res.status}` };
+        } catch (err: any) {
+            const status = err.response?.status;
+            return {
+                valid: false,
+                message: status === 401 ? 'Invalid API Key (401 Unauthorized)' : `ZenRows check failed: ${err.message}`,
+            };
+        }
+    } else if (engine === 'zyte') {
+        try {
+            const res = await axios.post(
+                'https://api.zyte.com/v1/extract',
+                { url: 'https://toscrape.com', httpResponseBody: true },
+                {
+                    auth: { username: key, password: '' },
+                    headers: { 'Content-Type': 'application/json' },
+                    timeout: 25000,
+                }
+            );
+            if (res.status === 200) {
+                return {
+                    valid: true,
+                    message: 'Valid! Successfully authenticated with Zyte API.',
+                };
+            }
+            return { valid: false, message: `Zyte returned HTTP ${res.status}` };
+        } catch (err: any) {
+            const status = err.response?.status;
+            return {
+                valid: false,
+                message: status === 401 ? 'Invalid API Key (401 Unauthorized)' : `Zyte check failed: ${err.message}`,
             };
         }
     } else {

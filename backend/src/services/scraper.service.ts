@@ -18,6 +18,9 @@ import { extractEmailFromText, extractPhoneFromText } from '../utils/lead-enrich
 
 import { ScrapedogScraperService } from './scrapedog-scraper.service';
 import { CrawlbaseScraperService } from './crawlbase-scraper.service';
+import { ScrapingBeeScraperService } from './scrapingbee-scraper.service';
+import { ZenRowsScraperService } from './zenrows-scraper.service';
+import { ZyteScraperService } from './zyte-scraper.service';
 import * as settingService from './setting.service';
 import { recordScrapeExecution, getLatestScrapeMetrics } from '../utils/scraper-tool.utils';
 
@@ -163,6 +166,33 @@ export class ScraperService {
                     console.log(`[ScraperService] Attempting Crawlbase for "${phrase}" on ${platform}...`);
                     items = await CrawlbaseScraperService.scrapeKeyword(platform, phrase);
                     successEngine = 'crawlbase';
+                } else if (engine === 'scrapingbee') {
+                    const isConfigured = await ScrapingBeeScraperService.isConfigured();
+                    if (!isConfigured) {
+                        console.log(`[ScraperService] ScrapingBee not configured, skipping.`);
+                        continue;
+                    }
+                    console.log(`[ScraperService] Attempting ScrapingBee for "${phrase}" on ${platform}...`);
+                    items = await ScrapingBeeScraperService.scrapeKeyword(platform, phrase);
+                    successEngine = 'scrapingbee';
+                } else if (engine === 'zenrows') {
+                    const isConfigured = await ZenRowsScraperService.isConfigured();
+                    if (!isConfigured) {
+                        console.log(`[ScraperService] ZenRows not configured, skipping.`);
+                        continue;
+                    }
+                    console.log(`[ScraperService] Attempting ZenRows for "${phrase}" on ${platform}...`);
+                    items = await ZenRowsScraperService.scrapeKeyword(platform, phrase);
+                    successEngine = 'zenrows';
+                } else if (engine === 'zyte') {
+                    const isConfigured = await ZyteScraperService.isConfigured();
+                    if (!isConfigured) {
+                        console.log(`[ScraperService] Zyte not configured, skipping.`);
+                        continue;
+                    }
+                    console.log(`[ScraperService] Attempting Zyte for "${phrase}" on ${platform}...`);
+                    items = await ZyteScraperService.scrapeKeyword(platform, phrase);
+                    successEngine = 'zyte';
                 }
 
                 if (items && items.length >= 0) {

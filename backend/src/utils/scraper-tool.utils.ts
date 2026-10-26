@@ -19,6 +19,10 @@ export interface LastScrapeMetrics {
         apify: EngineScrapeMetric;
         scrapedog: EngineScrapeMetric;
         crawlbase: EngineScrapeMetric;
+        scrapingbee?: EngineScrapeMetric;
+        zenrows?: EngineScrapeMetric;
+        zyte?: EngineScrapeMetric;
+        [key: string]: EngineScrapeMetric | undefined;
     };
 }
 
@@ -35,6 +39,9 @@ export function resolveScraperEngine(post: any): string {
     if (post.source_type === 'watchlist' || post.source_profile) return 'apify';
     if (post.raw_result?.source === 'scrapedog' || post.raw_result?.engine === 'scrapedog') return 'scrapedog';
     if (post.raw_result?.source === 'crawlbase' || post.raw_result?.engine === 'crawlbase') return 'crawlbase';
+    if (post.raw_result?.source === 'scrapingbee' || post.raw_result?.engine === 'scrapingbee') return 'scrapingbee';
+    if (post.raw_result?.source === 'zenrows' || post.raw_result?.engine === 'zenrows') return 'zenrows';
+    if (post.raw_result?.source === 'zyte' || post.raw_result?.engine === 'zyte') return 'zyte';
     if (post.source === 'manual') return 'manual';
     if (post.source === 'seed') return 'mock';
     return 'apify';
@@ -82,6 +89,12 @@ export async function recordScrapeExecution(
             engineMap.scrapedog = updatedMetric;
         } else if (normalizedEngine === 'crawlbase') {
             engineMap.crawlbase = updatedMetric;
+        } else if (normalizedEngine === 'scrapingbee') {
+            engineMap.scrapingbee = updatedMetric;
+        } else if (normalizedEngine === 'zenrows') {
+            engineMap.zenrows = updatedMetric;
+        } else if (normalizedEngine === 'zyte') {
+            engineMap.zyte = updatedMetric;
         } else {
             engineMap.apify = updatedMetric;
         }

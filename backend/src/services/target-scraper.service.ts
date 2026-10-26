@@ -10,6 +10,9 @@ import { isPostOlderThanDays } from '../utils/scraped-item.utils';
 import { extractEmailFromText, extractPhoneFromText } from '../utils/lead-enrichment.utils';
 import { ScrapedogScraperService, NormalizedScrapedItem } from './scrapedog-scraper.service';
 import { CrawlbaseScraperService } from './crawlbase-scraper.service';
+import { ScrapingBeeScraperService } from './scrapingbee-scraper.service';
+import { ZenRowsScraperService } from './zenrows-scraper.service';
+import { ZyteScraperService } from './zyte-scraper.service';
 
 type ProfileCommentItem = {
     id?: string;
@@ -123,6 +126,45 @@ export class TargetScraperService {
                     }
                     itemsFound = items.length;
                     successEngine = 'crawlbase';
+                    break;
+                } else if (engine === 'scrapingbee') {
+                    const isConfigured = await ScrapingBeeScraperService.isConfigured();
+                    if (!isConfigured) continue;
+                    console.log(`[TargetScraper] Scraping "${target.name}" via ScrapingBee...`);
+                    const items = await ScrapingBeeScraperService.scrapeTargetProfile(target);
+                    for (const item of items) {
+                        const wasSaved = await this.processNormalizedTargetItem(item, target, 'scrapingbee');
+                        if (wasSaved) saved++;
+                        else skipped++;
+                    }
+                    itemsFound = items.length;
+                    successEngine = 'scrapingbee';
+                    break;
+                } else if (engine === 'zenrows') {
+                    const isConfigured = await ZenRowsScraperService.isConfigured();
+                    if (!isConfigured) continue;
+                    console.log(`[TargetScraper] Scraping "${target.name}" via ZenRows...`);
+                    const items = await ZenRowsScraperService.scrapeTargetProfile(target);
+                    for (const item of items) {
+                        const wasSaved = await this.processNormalizedTargetItem(item, target, 'zenrows');
+                        if (wasSaved) saved++;
+                        else skipped++;
+                    }
+                    itemsFound = items.length;
+                    successEngine = 'zenrows';
+                    break;
+                } else if (engine === 'zyte') {
+                    const isConfigured = await ZyteScraperService.isConfigured();
+                    if (!isConfigured) continue;
+                    console.log(`[TargetScraper] Scraping "${target.name}" via Zyte...`);
+                    const items = await ZyteScraperService.scrapeTargetProfile(target);
+                    for (const item of items) {
+                        const wasSaved = await this.processNormalizedTargetItem(item, target, 'zyte');
+                        if (wasSaved) saved++;
+                        else skipped++;
+                    }
+                    itemsFound = items.length;
+                    successEngine = 'zyte';
                     break;
                 }
             } catch (err: any) {

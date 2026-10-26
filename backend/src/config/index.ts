@@ -68,6 +68,21 @@ const config = {
     crawlbase: {
         token: process.env.CRAWLBASE_TOKEN || '',
     },
+    scrapingbee: {
+        apiKey: process.env.SCRAPINGBEE_API_KEY || '',
+    },
+    zenrows: {
+        apiKey: process.env.ZENROWS_API_KEY || '',
+    },
+    zyte: {
+        apiKey: process.env.ZYTE_API_KEY || '',
+    },
+    automation: {
+        quietHoursEnabled: process.env.AUTOMATION_QUIET_HOURS_ENABLED !== 'false',
+        quietHoursStart: parseInt(process.env.AUTOMATION_QUIET_HOURS_START || '19', 10), // 7 PM
+        quietHoursEnd: parseInt(process.env.AUTOMATION_QUIET_HOURS_END || '10', 10),     // 10 AM
+        timezone: process.env.AUTOMATION_TIMEZONE || 'Asia/Kolkata',
+    },
     targetScraper: {
         maxItems: parseInt(process.env.TARGET_SCRAPE_MAX_ITEMS || '20', 10),
         postedLimit: process.env.TARGET_SCRAPE_POSTED_LIMIT || '24h',

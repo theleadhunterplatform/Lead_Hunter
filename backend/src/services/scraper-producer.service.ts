@@ -1,9 +1,18 @@
 import Keyword from '../models/keyword.model';
 import prisma from '../lib/prisma';
 import { scraperQueue } from '../queues';
+import { checkAutomationQuietHours } from '../utils/quiet-hours.utils';
 
 /** Enqueue keyword + watchlist scrape jobs (used by cron and automation toggle). */
-export async function runScraperProducerJob(): Promise<{ keywords: number; targets: number }> {
+export async function runScraperProducerJob(options?: { force?: boolean }): Promise<{ keywords: number; targets: number }> {
+    if (!options?.force) {
+        const quietHours = await checkAutomationQuietHours();
+        if (quietHours.isSuspended) {
+            console.log(quietHours.message);
+            return { keywords: 0, targets: 0 };
+        }
+    }
+
     console.log('📡 [KeywordScrape] Auto-scrape producer started — uses each keyword\'s enabled platforms');
 
     const activeKeywords = await Keyword.find({
