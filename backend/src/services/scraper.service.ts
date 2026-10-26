@@ -19,8 +19,13 @@ import { extractEmailFromText, extractPhoneFromText } from '../utils/lead-enrich
 import { ScrapedogScraperService } from './scrapedog-scraper.service';
 import { CrawlbaseScraperService } from './crawlbase-scraper.service';
 import * as settingService from './setting.service';
+import { recordScrapeExecution, getLatestScrapeMetrics } from '../utils/scraper-tool.utils';
 
 export class ScraperService {
+    static async getLastScrapeMetrics() {
+        return getLatestScrapeMetrics();
+    }
+
     static async scrapeKeyword(keywordId: string, platform: string) {
         const kw = await Keyword.findById(keywordId);
         if (!kw) throw new Error(`Keyword ${keywordId} not found`);
@@ -166,15 +171,19 @@ export class ScraperService {
         }
 
         if (!successEngine && errors.length > 0) {
+            await recordScrapeExecution(engines[0] || 'apify', platform, phrase, 0, 'error', errors.join(' | '));
             throw new Error(`All scraper engines failed for ${platform} "${phrase}": ${errors.join(' | ')}`);
         }
 
-        console.log(`[ScraperService] Found ${items.length} items for ${platform}: "${phrase}" (via ${successEngine || 'none'})`);
+        const activeEngine = successEngine || 'apify';
+        await recordScrapeExecution(activeEngine, platform, phrase, items.length, 'success');
+
+        console.log(`[ScraperService] Found ${items.length} items for ${platform}: "${phrase}" (via ${activeEngine})`);
 
         let skipped = 0;
         let saved = 0;
         for (const item of items) {
-            const ingested = await this.processScrapedItem(item, platform, kw, phrase);
+            const ingested = await this.processScrapedItem(item, platform, kw, phrase, activeEngine);
             if (!ingested) skipped += 1;
             else saved += 1;
         }
@@ -190,7 +199,8 @@ export class ScraperService {
         item: any,
         platform: string,
         kw: any,
-        phrase: string
+        phrase: string,
+        engine = 'apify'
     ): Promise<boolean> {
         const post_id = extractScrapedPostId(item, platform);
         if (!post_id) return false;
@@ -227,13 +237,19 @@ export class ScraperService {
         const emailInContent = extractEmailFromText(content);
         const phoneInContent = extractPhoneFromText(content);
 
+        const raw_result = {
+            ...(item || {}),
+            _scraper_engine: engine,
+        };
+
         const newPostData: any = {
             post_id,
             platform,
             keyword: phrase,
             keyword_id: kw._id,
             status: 'pending',
-            raw_result: item,
+            raw_result,
+            scraper_engine: engine,
             url,
             content,
             engagement,
@@ -248,6 +264,7 @@ export class ScraperService {
                 phone_source: 'post_text',
             } : {}),
             contact_info: {
+                scraper_engine: engine,
                 ...(emailInContent ? { emails: [{ email: emailInContent, source: 'post_text', status: 'verified' }] } : {}),
                 ...(phoneInContent ? { phone_numbers: [{ number: phoneInContent, source: 'post_text' }] } : {}),
             },

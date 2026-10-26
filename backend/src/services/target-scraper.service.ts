@@ -2,6 +2,7 @@ import prisma from '../lib/prisma';
 import LeadPost from '../models/lead-post.model';
 import config from '../config';
 import { getSetting } from './setting.service';
+import { recordScrapeExecution } from '../utils/scraper-tool.utils';
 import { getApifyClient, handleApifyLimitError, recordApifyCommentUsage } from '../utils/apify-client.utils';
 import { enqueueLeadQualification } from '../utils/qualification-queue.utils';
 import { findExistingLeadPost, isDuplicateKeyError } from '../utils/lead-dedup.utils';
@@ -119,6 +120,7 @@ export class TargetScraperService {
             });
 
             await recordApifyCommentUsage(activeKey, commentsFound);
+            await recordScrapeExecution('apify', 'linkedin-watchlist', target.name, saved, 'success');
 
             console.log(`✅ [TargetScraper] "${target.name}": ${saved} new posts, ${skipped} skipped`);
             return { saved, skipped };
@@ -187,6 +189,7 @@ export class TargetScraperService {
                 phone_source: phoneInContent ? 'post_text' : undefined,
                 email_status: emailInContent ? 'verified' : undefined,
                 contact_info: {
+                    scraper_engine: 'apify',
                     ...(emailInContent ? { emails: [{ email: emailInContent, source: 'post_text', status: 'verified' }] } : {}),
                     ...(phoneInContent ? { phone_numbers: [{ number: phoneInContent, source: 'post_text' }] } : {}),
                 },
@@ -195,10 +198,12 @@ export class TargetScraperService {
                 keyword_id: null,
                 status: 'pending',
                 source: 'scraped',
+                scraper_engine: 'apify',
                 source_type: 'profile_activity',
                 source_profile: target.url,
                 image_url: imageUrl,
                 raw_result: {
+                    _scraper_engine: 'apify',
                     comment: {
                         id: item.id,
                         text: item.commentary,

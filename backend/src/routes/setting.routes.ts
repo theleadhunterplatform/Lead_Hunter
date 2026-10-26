@@ -18,6 +18,7 @@ import {
     getScraperEngineSettings,
     updateScraperEngineSettings,
     toggleScraperEnginePause,
+    getLastScrapeStatus,
     getEnrichmentProviderSettings,
     toggleEnrichmentProviderPause,
 } from '../controllers/contact.controller';
@@ -50,6 +51,7 @@ router.get('/crawlbase-token', authorize('scraping:manage'), getCrawlbaseToken);
 router.get('/scraper-engines', authorize('scraping:manage'), getScraperEngineSettings);
 router.post('/scraper-engines', authorize('scraping:manage'), updateScraperEngineSettings);
 router.post('/scraper-engines/toggle-pause', authorize('scraping:manage'), toggleScraperEnginePause);
+router.get('/last-scrape', authorize('scraping:manage'), getLastScrapeStatus);
 router.get('/enrichment-providers/paused', authorize('scraping:manage'), getEnrichmentProviderSettings);
 router.post('/enrichment-providers/toggle-pause', authorize('scraping:manage'), toggleEnrichmentProviderPause);
 

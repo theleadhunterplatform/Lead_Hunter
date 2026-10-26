@@ -6,6 +6,7 @@ import { getContactCompassUsage } from '../utils/contact-compass-usage.utils';
 import { getHunterUsage } from '../utils/hunter-usage.utils';
 import { getContactOutUsage } from '../utils/contactout-usage.utils';
 import { getApolloUsage } from '../utils/apollo-usage.utils';
+import { getLatestScrapeMetrics } from '../utils/scraper-tool.utils';
 
 // @desc    Find lead email using Contact Compass
 // @route   POST /api/leads/:id/find-email
@@ -271,6 +272,7 @@ export const getScraperEngineSettings = asyncHandler(async (_req: Request, res: 
     const dbPrimary = await settingService.getSetting('primary_scraper_engine');
     const dbFallbacks = await settingService.getSetting('fallback_scraper_engines');
     const dbPaused = await settingService.getSetting('paused_scraper_engines');
+    const lastScrape = await getLatestScrapeMetrics();
 
     return res.status(200).json({
         success: true,
@@ -278,7 +280,19 @@ export const getScraperEngineSettings = asyncHandler(async (_req: Request, res: 
             primary_engine: dbPrimary || process.env.PRIMARY_SCRAPER_ENGINE || 'apify',
             fallback_engines: dbFallbacks || (process.env.FALLBACK_SCRAPER_ENGINES || 'scrapedog,crawlbase').split(',').map((s) => s.trim()),
             paused_engines: Array.isArray(dbPaused) ? dbPaused : [],
+            last_scrape: lastScrape,
         },
+    });
+});
+
+// @desc    Get Last Scrape Timing & Status
+// @route   GET /api/settings/last-scrape
+// @access  Private
+export const getLastScrapeStatus = asyncHandler(async (_req: Request, res: Response, _next: NextFunction) => {
+    const lastScrape = await getLatestScrapeMetrics();
+    return res.status(200).json({
+        success: true,
+        data: lastScrape,
     });
 });
 

@@ -1,4 +1,5 @@
 import { sanitizeContactFields } from './contact-redaction.utils';
+import { resolveScraperEngine } from './scraper-tool.utils';
 
 export const LOCKED_INTELLIGENCE_TEASER =
     'Strategic intelligence report ready. Claim this lead to unlock the full analysis.';
@@ -59,6 +60,7 @@ export function presentLeadForUser(
             : hasIntelligence
               ? LOCKED_INTELLIGENCE_TEASER
               : post.intelligence ?? null,
+        scraper_engine: resolveScraperEngine(post),
     };
 
     if (!shouldShowSensitive) {
