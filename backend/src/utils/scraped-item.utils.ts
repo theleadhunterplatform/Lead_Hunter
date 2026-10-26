@@ -66,7 +66,7 @@ export function extractScrapedUrl(item: any, platform: string): string {
  * Decodes precise publication timestamps from social platform snowflake IDs and snippet prefixes.
  * LinkedIn activity IDs and Twitter status IDs embed millisecond-accurate timestamps in their IDs.
  */
-export function extractTimestampFromUrlOrSnippet(url?: string, platform?: string, snippet?: string): { timestamp?: number; date?: string; postedAgoText?: string } {
+export function extractTimestampFromUrlOrSnippet(url?: string, _platform?: string, snippet?: string): { timestamp?: number; date?: string; postedAgoText?: string } {
     const rawUrl = (url || '').toString();
 
     // 1. LinkedIn Activity Snowflake ID (e.g. activity-7378326367752511488)
