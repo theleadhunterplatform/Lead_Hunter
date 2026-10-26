@@ -1,9 +1,23 @@
 import prisma from '../lib/prisma';
 import LeadPost from '../models/lead-post.model';
 
-export function extractLinkedInActivityId(url?: string | null): string | null {
-    if (!url) return null;
-    const match = url.match(/(?:activity|share)[:\-](\d+)/i) || url.match(/urn:li:(?:activity|share):(\d+)/i);
+export function extractLinkedInActivityId(str?: string | null): string | null {
+    if (!str) return null;
+    const match = str.match(/(?:activity|share)[:\-](\d+)/i) || str.match(/urn:li:(?:activity|share):(\d+)/i) || str.match(/^(\d{18,20})$/);
+    if (match) return match[1];
+    return null;
+}
+
+export function extractTwitterTweetId(str?: string | null): string | null {
+    if (!str) return null;
+    const match = str.match(/status\/(\d+)/i) || str.match(/^(\d{15,22})$/);
+    if (match) return match[1];
+    return null;
+}
+
+export function extractRedditPostId(str?: string | null): string | null {
+    if (!str) return null;
+    const match = str.match(/\/comments\/([a-zA-Z0-9]+)/i) || str.match(/^([a-zA-Z0-9]{5,10})$/);
     if (match) return match[1];
     return null;
 }
@@ -14,9 +28,19 @@ export function getLeadDedupKey(lead: {
     url: string;
     content: string;
 }): string {
-    const activityId = extractLinkedInActivityId(lead.url);
+    const activityId = extractLinkedInActivityId(lead.url) || extractLinkedInActivityId(lead.post_id);
     if (activityId) {
         return `${lead.platform}:activity:${activityId}`;
+    }
+
+    const tweetId = extractTwitterTweetId(lead.url) || extractTwitterTweetId(lead.post_id);
+    if (tweetId) {
+        return `${lead.platform}:tweet:${tweetId}`;
+    }
+
+    const redditId = extractRedditPostId(lead.url) || extractRedditPostId(lead.post_id);
+    if (redditId) {
+        return `${lead.platform}:reddit:${redditId}`;
     }
 
     const url = lead.url?.trim();
@@ -67,15 +91,50 @@ export async function findExistingLeadPost(options: {
         if (byPhone) return byPhone;
     }
 
-    const activityId = extractLinkedInActivityId(url);
-    if (activityId) {
-        const byActivity = await prisma.leadPost.findFirst({
-            where: {
-                ...base,
-                url: { contains: activityId },
-            },
-        });
-        if (byActivity) return byActivity;
+    // Platform-specific universal identifier matching (Cross-Tool Deduplication)
+    // Ensures if Tool A (e.g. Apify) scraped Post A, Tool B (e.g. Scrapingdog/Crawlbase) cannot duplicate it
+    if (platform === 'linkedin') {
+        const activityId = extractLinkedInActivityId(url) || extractLinkedInActivityId(post_id);
+        if (activityId) {
+            const byActivity = await prisma.leadPost.findFirst({
+                where: {
+                    ...base,
+                    OR: [
+                        { url: { contains: activityId } },
+                        { post_id: { contains: activityId } },
+                    ],
+                },
+            });
+            if (byActivity) return byActivity;
+        }
+    } else if (platform === 'twitter') {
+        const tweetId = extractTwitterTweetId(url) || extractTwitterTweetId(post_id);
+        if (tweetId) {
+            const byTweet = await prisma.leadPost.findFirst({
+                where: {
+                    ...base,
+                    OR: [
+                        { url: { contains: tweetId } },
+                        { post_id: tweetId },
+                    ],
+                },
+            });
+            if (byTweet) return byTweet;
+        }
+    } else if (platform === 'reddit') {
+        const redditId = extractRedditPostId(url) || extractRedditPostId(post_id);
+        if (redditId) {
+            const byReddit = await prisma.leadPost.findFirst({
+                where: {
+                    ...base,
+                    OR: [
+                        { url: { contains: redditId } },
+                        { post_id: redditId },
+                    ],
+                },
+            });
+            if (byReddit) return byReddit;
+        }
     }
 
     const normalizedUrl = url?.trim();
