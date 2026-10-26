@@ -1,5 +1,5 @@
 import prisma from '../lib/prisma';
-import settingService from '../services/setting.service';
+import * as settingService from '../services/setting.service';
 
 export interface EngineScrapeMetric {
     last_scraped_at: string | null;
