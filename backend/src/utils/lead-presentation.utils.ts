@@ -39,6 +39,29 @@ export function presentLeadForUser(
         ? post.content
         : LOCKED_CONTENT_TEASER;
 
+    const safeAuthor = (() => {
+        if (!shouldShowSensitive) {
+            return {
+                name: `Strategic Lead [${String(post.platform || 'social').toUpperCase()}]`,
+                handle: 'locked',
+                url: '#',
+                avatar: { url: '' },
+            };
+        }
+        const a = post.author;
+        if (!a || typeof a !== 'object') {
+            return { name: typeof a === 'string' && a ? a : 'Unknown' };
+        }
+        let authorName = a.name;
+        if (typeof authorName === 'object' && authorName !== null) {
+            authorName = authorName.name || authorName.handle || 'Unknown';
+        }
+        return {
+            ...a,
+            name: typeof authorName === 'string' && authorName.trim() ? authorName : 'Unknown',
+        };
+    })();
+
     const redactedPost: any = {
         ...post,
         is_claimed: isClaimed,
@@ -46,14 +69,7 @@ export function presentLeadForUser(
         content: safeContent,
         email: contact.email,
         contact_info: contact.contact_info,
-        author: shouldShowSensitive
-            ? post.author
-            : {
-                  name: `Strategic Lead [${String(post.platform || 'social').toUpperCase()}]`,
-                  handle: 'locked',
-                  url: '#',
-                  avatar: { url: '' },
-              },
+        author: safeAuthor,
         url: shouldShowSensitive ? post.url : '#',
         intelligence: shouldShowSensitive
             ? post.intelligence

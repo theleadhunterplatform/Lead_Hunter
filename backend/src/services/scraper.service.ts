@@ -1,7 +1,7 @@
 import LeadPost from '../models/lead-post.model';
 import Keyword from '../models/keyword.model';
 import config from '../config';
-import { getApifyClient, handleApifyLimitError } from '../utils/apify-client.utils';
+import { getApifyClient, handleApifyLimitError, recordApifyCommentUsage } from '../utils/apify-client.utils';
 import { enqueueLeadQualification } from '../utils/qualification-queue.utils';
 import { findExistingLeadPost, isDuplicateKeyError } from '../utils/lead-dedup.utils';
 import { shouldIngestScrapedPost } from '../utils/scraped-post-gate.utils';
@@ -83,6 +83,7 @@ export class ScraperService {
     private static async scrapeWithApify(platform: string, phrase: string): Promise<any[]> {
         const { client, activeKey } = await getApifyClient();
         try {
+            let items: any[] = [];
             if (platform === 'linkedin') {
                 const run = await client.actor(config.apify.linkedinActor).call({
                     maxPosts: 20,
@@ -91,7 +92,7 @@ export class ScraperService {
                     sortBy: 'date',
                 });
                 const result = await client.dataset(run.defaultDatasetId).listItems();
-                return result.items || [];
+                items = result.items || [];
             } else if (platform === 'twitter') {
                 const run = await client.actor('watcher.data/search-x-by-keywords').call({
                     keywords: [phrase],
@@ -100,7 +101,7 @@ export class ScraperService {
                     sortBy: 'latest',
                 });
                 const result = await client.dataset(run.defaultDatasetId).listItems();
-                return result.items || [];
+                items = result.items || [];
             } else if (platform === 'reddit') {
                 const run = await client.actor('practicaltools/apify-reddit-api').call({
                     maxItems: 20,
@@ -109,7 +110,7 @@ export class ScraperService {
                     time: 'day',
                 });
                 const result = await client.dataset(run.defaultDatasetId).listItems();
-                return result.items || [];
+                items = result.items || [];
             } else if (platform === 'threads') {
                 const run = await client.actor('watcher.data/search-threads-by-keywords').call({
                     keywords: [phrase],
@@ -117,9 +118,13 @@ export class ScraperService {
                     sortBy: 'latest',
                 });
                 const result = await client.dataset(run.defaultDatasetId).listItems();
-                return result.items || [];
+                items = result.items || [];
             }
-            return [];
+
+            if (items.length > 0 && activeKey) {
+                await recordApifyCommentUsage(activeKey, items.length);
+            }
+            return items;
         } catch (error: any) {
             await handleApifyLimitError(error, activeKey);
             throw error;
@@ -272,33 +277,51 @@ export class ScraperService {
         };
 
         if (platform === 'linkedin') {
+            const authorObj = typeof item.author === 'object' && item.author !== null ? item.author : {};
+            const rawName = authorObj.name || (typeof item.author === 'string' ? item.author : undefined);
+            const finalName = typeof rawName === 'object' && rawName !== null ? (rawName.name || 'Unknown') : (rawName || 'Unknown');
             newPostData.author = {
-                name: item.author?.name,
-                url: item.author?.linkedinUrl,
-                publicIdentifier: item.author?.publicIdentifier,
-                info: item.author?.info,
-                website: item.author?.website,
+                name: String(finalName || 'Unknown'),
+                url: authorObj.linkedinUrl || item.authorUrl,
+                publicIdentifier: authorObj.publicIdentifier,
+                info: authorObj.info,
+                website: authorObj.website,
             };
         } else if (platform === 'twitter') {
-            const handle = (item.author || item.authorUsername || item.userName || '').replace(/^@/, '');
+            const rawAuthor = item.author;
+            const authorName = typeof rawAuthor === 'object' && rawAuthor !== null
+                ? (rawAuthor.name || rawAuthor.handle || '')
+                : (item.author_name || item.authorName || rawAuthor || '');
+            const rawHandle = item.authorUsername || item.userName || (typeof rawAuthor === 'object' ? rawAuthor?.handle : rawAuthor) || '';
+            const handle = typeof rawHandle === 'string' ? rawHandle.replace(/^@/, '') : '';
+            const finalName = typeof authorName === 'object' && authorName !== null ? (authorName.name || 'Unknown') : (authorName || 'Unknown');
             newPostData.author = {
-                name: item.author_name || item.authorName || item.author?.name || item.author,
-                handle: item.author || item.authorUsername || item.userName,
-                url: handle ? `https://x.com/${handle}` : undefined,
+                name: String(finalName || 'Unknown'),
+                handle: handle || undefined,
+                url: handle ? `https://x.com/${handle}` : (typeof rawAuthor === 'object' ? rawAuthor?.url : undefined),
             };
         } else if (platform === 'reddit') {
-            const username = item.username || item.author;
+            const rawAuthor = item.author;
+            const authorName = typeof rawAuthor === 'object' && rawAuthor !== null
+                ? (rawAuthor.name || rawAuthor.handle || '')
+                : (item.username || rawAuthor || '');
+            const finalName = typeof authorName === 'object' && authorName !== null ? (authorName.name || 'Unknown') : (authorName || 'Unknown');
             newPostData.author = {
-                name: username,
-                handle: username,
-                url: username ? `https://www.reddit.com/user/${username}` : undefined,
+                name: String(finalName || 'Unknown'),
+                handle: String(finalName || 'Unknown'),
+                url: finalName && finalName !== 'Unknown' ? `https://www.reddit.com/user/${finalName}` : (typeof rawAuthor === 'object' ? rawAuthor?.url : undefined),
             };
         } else if (platform === 'threads') {
-            const handle = item.author_username;
+            const rawAuthor = item.author;
+            const handle = item.author_username || (typeof rawAuthor === 'object' ? rawAuthor?.handle : undefined);
+            const authorName = typeof rawAuthor === 'object' && rawAuthor !== null
+                ? (rawAuthor.name || handle || '')
+                : (item.author_name || handle || '');
+            const finalName = typeof authorName === 'object' && authorName !== null ? (authorName.name || 'Unknown') : (authorName || 'Unknown');
             newPostData.author = {
-                name: item.author_name || item.author_username,
-                handle: item.author_username,
-                url: handle ? `https://www.threads.net/@${handle.replace(/^@/, '')}` : undefined,
+                name: String(finalName || 'Unknown'),
+                handle: handle,
+                url: handle ? `https://www.threads.net/@${String(handle).replace(/^@/, '')}` : (typeof rawAuthor === 'object' ? rawAuthor?.url : undefined),
             };
         }
 
