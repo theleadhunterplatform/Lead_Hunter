@@ -3,6 +3,7 @@ import config from '../config';
 import * as settingService from './setting.service';
 import { resolveActiveScraperKey, markScraperKeyExhausted } from './scraper-key.service';
 import { NormalizedScrapedItem } from './scrapedog-scraper.service';
+import { extractTimestampFromUrlOrSnippet } from '../utils/scraped-item.utils';
 
 export class CrawlbaseScraperService {
     public static async getToken(): Promise<{ key: string; id?: string } | null> {
@@ -171,7 +172,8 @@ export class CrawlbaseScraperService {
         query: string,
         platform: string
     ): Promise<NormalizedScrapedItem[]> {
-        const targetGoogleUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}&num=20&hl=en`;
+        // Enforce Google's "past 24 hours" filter (&tbs=qdr:d) to strictly prevent returning historical posts
+        const targetGoogleUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}&num=20&hl=en&tbs=qdr:d`;
         const apiUrl = `https://api.crawlbase.com/scraper?token=${token}&url=${encodeURIComponent(targetGoogleUrl)}`;
 
         const response = await axios.get(apiUrl, { timeout: 35000 });
@@ -189,6 +191,7 @@ export class CrawlbaseScraperService {
 
             const id = this.extractIdFromUrl(url, platform) || `crawlbase-${Buffer.from(url).toString('base64').slice(0, 16)}`;
             const author = this.extractAuthorFromUrl(url, res.title, platform);
+            const timing = extractTimestampFromUrlOrSnippet(url, platform, res.snippet || res.description);
 
             items.push({
                 id,
@@ -196,10 +199,10 @@ export class CrawlbaseScraperService {
                 content,
                 platform,
                 author,
-                postedAt: {
-                    date: new Date().toISOString(),
-                    timestamp: Date.now(),
-                },
+                postedAt: timing.timestamp ? {
+                    date: timing.date,
+                    timestamp: timing.timestamp,
+                } : undefined,
                 engagement: {
                     likes: 0,
                     comments: 0,

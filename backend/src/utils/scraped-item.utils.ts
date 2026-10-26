@@ -62,8 +62,118 @@ export function extractScrapedUrl(item: any, platform: string): string {
     }
 }
 
-export function extractScrapedPostedAt(item: any, _platform?: string): Record<string, any> {
+/**
+ * Decodes precise publication timestamps from social platform snowflake IDs and snippet prefixes.
+ * LinkedIn activity IDs and Twitter status IDs embed millisecond-accurate timestamps in their IDs.
+ */
+export function extractTimestampFromUrlOrSnippet(url?: string, platform?: string, snippet?: string): { timestamp?: number; date?: string; postedAgoText?: string } {
+    const rawUrl = (url || '').toString();
+
+    // 1. LinkedIn Activity Snowflake ID (e.g. activity-7378326367752511488)
+    const activityMatch = rawUrl.match(/activity-([0-9]{18,20})/) || rawUrl.match(/-([0-9]{18,20})(?:[/?#]|$)/);
+    if (activityMatch) {
+        try {
+            const activityId = BigInt(activityMatch[1]);
+            const ms = Number(activityId >> 22n);
+            // Sanity check: between 2015 and now + 1 day
+            if (ms > 1420070400000 && ms <= Date.now() + 86400000) {
+                return {
+                    timestamp: ms,
+                    date: new Date(ms).toISOString(),
+                };
+            }
+        } catch {
+            // ignore BigInt error
+        }
+    }
+
+    // 2. Twitter / X Snowflake ID (e.g. status/1234567890123456789)
+    const tweetMatch = rawUrl.match(/status\/([0-9]{15,22})/);
+    if (tweetMatch) {
+        try {
+            const tweetId = BigInt(tweetMatch[1]);
+            const ms = Number((tweetId >> 22n) + 1288834974657n);
+            if (ms > 1288834974657 && ms <= Date.now() + 86400000) {
+                return {
+                    timestamp: ms,
+                    date: new Date(ms).toISOString(),
+                };
+            }
+        } catch {
+            // ignore
+        }
+    }
+
+    // 3. Snippet date extraction (e.g. "Sep 29, 2025 — ", "2 days ago — ", "15 hours ago — ", "3 weeks ago — ")
+    if (snippet && typeof snippet === 'string') {
+        const relativeMatch = snippet.match(/^(\d+)\s+(minute|hour|day|week|month|year)s?\s+ago/i);
+        if (relativeMatch) {
+            const count = parseInt(relativeMatch[1], 10);
+            const unit = relativeMatch[2].toLowerCase();
+            const multipliers: Record<string, number> = {
+                minute: 60 * 1000,
+                hour: 3600 * 1000,
+                day: 86400 * 1000,
+                week: 7 * 86400 * 1000,
+                month: 30 * 86400 * 1000,
+                year: 365 * 86400 * 1000,
+            };
+            const diff = count * (multipliers[unit] || 86400 * 1000);
+            const ms = Date.now() - diff;
+            return {
+                timestamp: ms,
+                date: new Date(ms).toISOString(),
+                postedAgoText: `${count} ${unit}${count > 1 ? 's' : ''} ago`,
+            };
+        }
+
+        const datePrefixMatch = snippet.match(/^([A-Za-z]{3,9}\s+\d{1,2},?\s+\d{4}|\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4})\s*[-—]/);
+        if (datePrefixMatch) {
+            const parsed = new Date(datePrefixMatch[1]).getTime();
+            if (!isNaN(parsed) && parsed > 0) {
+                return {
+                    timestamp: parsed,
+                    date: new Date(parsed).toISOString(),
+                };
+            }
+        }
+    }
+
+    return {};
+}
+
+export function extractScrapedPostedAt(item: any, platform?: string): Record<string, any> {
     if (!item) return {};
+
+    const url = item.url || item.permalink || item.link || item.postUrl || item.linkedinUrl || item.tweetUrl || '';
+    const content = item.content || item.snippet || item.text || '';
+    const snowflake = extractTimestampFromUrlOrSnippet(url, platform, content);
+
+    // If snowflake timestamp was decoded directly from platform URL, it is authoritative
+    if (snowflake.timestamp) {
+        const diffHours = Math.max(0, (Date.now() - snowflake.timestamp) / (1000 * 60 * 60));
+        let postedAgoShort: string;
+        let postedAgoText: string;
+        if (diffHours < 1) {
+            const mins = Math.max(1, Math.floor(diffHours * 60));
+            postedAgoShort = `${mins}m`;
+            postedAgoText = `${mins} minutes ago`;
+        } else if (diffHours < 24) {
+            const hours = Math.floor(diffHours);
+            postedAgoShort = `${hours}h`;
+            postedAgoText = `${hours} hours ago`;
+        } else {
+            const days = Math.floor(diffHours / 24);
+            postedAgoShort = `${days}d`;
+            postedAgoText = `${days} days ago`;
+        }
+        return {
+            date: snowflake.date,
+            timestamp: snowflake.timestamp,
+            postedAgoShort,
+            postedAgoText,
+        };
+    }
 
     if (item.postedAt && typeof item.postedAt === 'object' && Object.keys(item.postedAt).length > 0) {
         return item.postedAt;
@@ -117,8 +227,19 @@ export function extractScrapedPostedAt(item: any, _platform?: string): Record<st
  * Checks if a scraped post is older than maxDays (default: 2 days / 48 hours).
  * Returns true if the post is strictly older than maxDays.
  */
-export function isPostOlderThanDays(item: any, _platform?: string, maxDays = 2): boolean {
+export function isPostOlderThanDays(item: any, platform?: string, maxDays = 2): boolean {
     if (!item) return false;
+
+    // 0. High-accuracy Snowflake verification from URL
+    const url = item.url || item.permalink || item.link || item.postUrl || item.linkedinUrl || item.tweetUrl || '';
+    const content = item.content || item.snippet || item.text || '';
+    const snowflake = extractTimestampFromUrlOrSnippet(url, platform, content);
+    if (snowflake.timestamp) {
+        const hoursAgo = (Date.now() - snowflake.timestamp) / (1000 * 60 * 60);
+        if (hoursAgo > maxDays * 24) {
+            return true;
+        }
+    }
 
     const postedAt = item.postedAt && typeof item.postedAt === 'object' ? item.postedAt : item;
 

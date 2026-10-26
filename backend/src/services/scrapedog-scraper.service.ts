@@ -2,6 +2,7 @@ import axios from 'axios';
 import config from '../config';
 import * as settingService from './setting.service';
 import { resolveActiveScraperKey, markScraperKeyExhausted } from './scraper-key.service';
+import { extractTimestampFromUrlOrSnippet } from '../utils/scraped-item.utils';
 
 export interface NormalizedScrapedItem {
     id: string;
@@ -185,7 +186,8 @@ export class ScrapedogScraperService {
         query: string,
         platform: string
     ): Promise<NormalizedScrapedItem[]> {
-        const searchApiUrl = `https://api.scrapingdog.com/google?api_key=${apiKey}&query=${encodeURIComponent(query)}&results=20&country=us`;
+        // Enforce Google's "past 24 hours" filter (&tbs=qdr:d) to strictly prevent returning historical posts
+        const searchApiUrl = `https://api.scrapingdog.com/google?api_key=${apiKey}&query=${encodeURIComponent(query)}&results=20&country=us&tbs=qdr:d`;
 
         const response = await axios.get(searchApiUrl, { timeout: 30000 });
         const data = response.data;
@@ -202,6 +204,7 @@ export class ScrapedogScraperService {
 
             const id = this.extractIdFromUrl(url, platform) || `scrapedog-${Buffer.from(url).toString('base64').slice(0, 16)}`;
             const author = this.extractAuthorFromUrl(url, res.title, platform);
+            const timing = extractTimestampFromUrlOrSnippet(url, platform, res.snippet || res.description);
 
             items.push({
                 id,
@@ -209,10 +212,10 @@ export class ScrapedogScraperService {
                 content,
                 platform,
                 author,
-                postedAt: {
-                    date: new Date().toISOString(),
-                    timestamp: Date.now(),
-                },
+                postedAt: timing.timestamp ? {
+                    date: timing.date,
+                    timestamp: timing.timestamp,
+                } : undefined,
                 engagement: {
                     likes: 0,
                     comments: 0,
