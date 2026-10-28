@@ -367,6 +367,14 @@ RAZORPAY_KEY_SECRET=...
    - Always refer to user balance as **"Credits"** (not "tokens" or "coins") across all frontend UI components and user communications.
 8. **NEVER Stage or Commit ANY `.env` or `.env.example` Files:**
    - **Strict, Non-Negotiable Rule:** Never stage, add (`git add`), or commit any `.env` or `.env.example` (or `.env.local`, `.env.*`) files under any circumstances. Keep all environment and template files uncommitted.
+9. **Short Answers & Zero Fluff:**
+   - Responses must be short, punchy, and direct. No long paragraphs or filler text.
+10. **20-Second Response Turnaround:**
+    - All answers must be provided in under 20 seconds.
+11. **1-Minute Code Execution Cap:**
+    - All code modifications and fixes must be completed in under 1 minute.
+12. **Permanent Enforcement:**
+    - Rules 9–11 are permanently active across every prompt and session.
 
 ---
 

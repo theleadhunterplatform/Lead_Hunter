@@ -133,7 +133,7 @@ async function callOpenRouter(prompt: string, apiKey: string): Promise<string> {
             lastErr = err;
             // Only retry if model not found or forbidden
             const status = err.response?.status;
-            if (status !== 404 && status !== 400 && status !== 403) throw err;
+            if (status !== 404 && status !== 400 && status !== 402 && status !== 403) throw err;
         }
     }
     throw lastErr || new Error('No content returned from OpenRouter');
@@ -142,7 +142,7 @@ async function callOpenRouter(prompt: string, apiKey: string): Promise<string> {
 async function callGroq(prompt: string, apiKey: string): Promise<string> {
     const rawModel = config.groq.intelModel || 'llama-3.1-8b-instant';
     const modelsToTry = [rawModel];
-    for (const m of ['llama-3.1-8b-instant', 'llama-3.3-70b-versatile', 'mixtral-8x7b-32768']) {
+    for (const m of ['llama-3.1-8b-instant', 'llama-3.3-70b-versatile']) {
         if (!modelsToTry.includes(m)) modelsToTry.push(m);
     }
 
@@ -173,16 +173,16 @@ async function callGroq(prompt: string, apiKey: string): Promise<string> {
         } catch (err: any) {
             lastErr = err;
             const status = err.response?.status;
-            if (status !== 404 && status !== 400 && status !== 403) throw err;
+            if (status !== 404 && status !== 400 && status !== 402 && status !== 403) throw err;
         }
     }
     throw lastErr || new Error('No content returned from Groq');
 }
 
 async function callGemini(prompt: string, apiKey: string): Promise<string> {
-    const rawModel = (config.gemini.intelModel || 'gemini-2.0-flash').replace(/^models\//, '');
+    const rawModel = (config.gemini.intelModel || 'gemini-flash-lite-latest').replace(/^models\//, '');
     const modelsToTry = [rawModel];
-    for (const m of ['gemini-2.0-flash', 'gemini-1.5-flash-latest', 'gemini-1.5-flash']) {
+    for (const m of ['gemini-flash-lite-latest', 'gemini-flash-latest', 'gemini-2.5-pro']) {
         if (!modelsToTry.includes(m)) modelsToTry.push(m);
     }
 
@@ -214,7 +214,7 @@ async function callGemini(prompt: string, apiKey: string): Promise<string> {
         } catch (err: any) {
             lastErr = err;
             const status = err.response?.status;
-            if (status !== 404 && status !== 400) throw err;
+            if (status !== 404 && status !== 400 && status !== 503 && status !== 429) throw err;
         }
     }
     throw lastErr || new Error('No content returned from Gemini');
@@ -230,7 +230,21 @@ interface ProviderResult {
 async function generateWithFallback(prompt: string): Promise<ProviderResult> {
     const errors: string[] = [];
 
-    // 1. OpenRouter (primary)
+    // 1. Gemini direct (fastest)
+    if (config.gemini.apiKey?.trim()) {
+        try {
+            const content = await callGemini(prompt, config.gemini.apiKey);
+            return { content, provider: 'gemini' };
+        } catch (err: any) {
+            const msg = err.response?.data?.error?.message || err.message || 'Unknown error';
+            console.warn(`[Intelligence] Gemini failed: ${msg}`);
+            errors.push(`Gemini: ${msg}`);
+        }
+    } else {
+        errors.push('Gemini: API key not configured');
+    }
+
+    // 2. OpenRouter (fallback)
     const dbKey = await getSetting('openrouter_api_key').catch(() => null);
     const openRouterKey = (dbKey as string) || config.openRouter.apiKey;
     if (openRouterKey?.trim()) {
@@ -246,7 +260,7 @@ async function generateWithFallback(prompt: string): Promise<ProviderResult> {
         errors.push('OpenRouter: API key not configured');
     }
 
-    // 2. Groq (first fallback)
+    // 3. Groq (second fallback)
     if (config.groq.apiKey?.trim()) {
         try {
             const content = await callGroq(prompt, config.groq.apiKey);
@@ -260,7 +274,7 @@ async function generateWithFallback(prompt: string): Promise<ProviderResult> {
         errors.push('Groq: API key not configured');
     }
 
-    // 3. Gemini direct (second fallback)
+
     if (config.gemini.apiKey?.trim()) {
         try {
             const content = await callGemini(prompt, config.gemini.apiKey);
@@ -380,7 +394,7 @@ export const generateLeadIntelligence = async (post: any) => {
 
     // Store in LeadIntelligence table
     const intelligence = await LeadIntelligence.findOneAndUpdate(
-        { post_id: post._id },
+        { post_id: post.id || post._id },
         { content: intelligenceContent },
         { upsert: true, new: true },
     );

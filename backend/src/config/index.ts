@@ -109,7 +109,7 @@ const config = {
     },
     gemini: {
         apiKey: process.env.GEMINI_API_KEY || '',
-        intelModel: process.env.GEMINI_INTEL_MODEL || 'gemini-2.0-flash',
+        intelModel: process.env.GEMINI_INTEL_MODEL || 'gemini-flash-lite-latest',
     },
     redis: {
         url: resolveRedisUrl(),
