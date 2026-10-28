@@ -1060,6 +1060,14 @@ export const createManualPost = async (data: {
 
     if (post?._id) {
         await enqueueLeadQualification(post._id.toString());
+        if (hasContact) {
+            requestLeadIntelligence(post._id.toString()).catch((err) =>
+                console.warn(`[ManualLead] Intel enqueue failed for ${post._id}:`, err?.message || err)
+            );
+            enqueueLeadTitling(post._id.toString()).catch((err) =>
+                console.warn(`[ManualLead] Titling enqueue failed for ${post._id}:`, err?.message || err)
+            );
+        }
     }
 
     return post;
