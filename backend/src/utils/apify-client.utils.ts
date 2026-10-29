@@ -52,6 +52,10 @@ export async function recordApifyCommentUsage(activeKey: ApifyKeyRecord | null, 
 }
 
 export function isApifyLimitError(error: any): boolean {
+    const msgCheck = String(error?.message || error?.data?.message || '').toLowerCase();
+    if (msgCheck.includes('concurrent') || msgCheck.includes('rate limit') || msgCheck.includes('too many requests')) {
+        return false;
+    }
     const status = error?.statusCode ?? error?.status;
     const message = String(error?.message || error?.data?.message || '').toLowerCase();
 

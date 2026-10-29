@@ -28,7 +28,7 @@ export const scraperWorker = new Worker(
             throw error;
         }
     },
-    createWorkerOptions({ concurrency: 5 })
+    createWorkerOptions({ concurrency: 2 })
 );
 
 scraperWorker.on('failed', (job, err) => {
