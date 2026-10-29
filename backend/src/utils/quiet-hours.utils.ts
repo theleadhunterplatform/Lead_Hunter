@@ -18,7 +18,7 @@ export interface QuietHoursStatus {
 export async function checkAutomationQuietHours(): Promise<QuietHoursStatus> {
     const tz = (await getSetting('automation_timezone')) as string || config.automation?.timezone || 'Asia/Kolkata';
     const enabledSetting = await getSetting('automation_quiet_hours_enabled');
-    const isEnabled = enabledSetting !== undefined 
+    const isEnabled = enabledSetting != null 
         ? (enabledSetting === true || enabledSetting === 'true') 
         : (config.automation?.quietHoursEnabled ?? true);
 
