@@ -22,13 +22,13 @@ export const scraperWorker = new Worker(
         try {
             if (type === 'target' || targetId) {
                 console.log(`👷 [WatchlistScrape] Job ${job.id}: LinkedIn target ${targetId}`);
-                await TargetScraperService.scrapeTargetProfile(targetId);
+                await TargetScraperService.scrapeTargetProfile(targetId, { force: isManual });
             } else {
                 const label = keywordText ? `"${keywordText}"` : keywordId;
                 console.log(
                     `👷 [KeywordScrape] Job ${job.id}: platform=${platform} keyword=${label} (${keywordId})`
                 );
-                await ScraperService.scrapeKeyword(keywordId, platform);
+                await ScraperService.scrapeKeyword(keywordId, platform, { force: isManual });
             }
             console.log(`✅ [ScraperWorker] Job ${job.id} completed (platform=${platform || 'watchlist'}).`);
         } catch (error: any) {

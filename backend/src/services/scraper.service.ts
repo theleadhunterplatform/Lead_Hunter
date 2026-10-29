@@ -23,13 +23,22 @@ import { ZenRowsScraperService } from './zenrows-scraper.service';
 import { ZyteScraperService } from './zyte-scraper.service';
 import * as settingService from './setting.service';
 import { recordScrapeExecution, getLatestScrapeMetrics } from '../utils/scraper-tool.utils';
+import { checkAutomationQuietHours } from '../utils/quiet-hours.utils';
 
 export class ScraperService {
     static async getLastScrapeMetrics() {
         return getLatestScrapeMetrics();
     }
 
-    static async scrapeKeyword(keywordId: string, platform: string) {
+    static async scrapeKeyword(keywordId: string, platform: string, options?: { force?: boolean }) {
+        if (!options?.force) {
+            const quietHours = await checkAutomationQuietHours();
+            if (quietHours.isSuspended) {
+                console.log(`🌙 [ScraperService] Quiet hours active — skipping keyword "${keywordId}" on ${platform}`);
+                return;
+            }
+        }
+
         const kw = await Keyword.findById(keywordId);
         if (!kw) throw new Error(`Keyword ${keywordId} not found`);
 

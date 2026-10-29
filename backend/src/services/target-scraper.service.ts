@@ -13,6 +13,7 @@ import { CrawlbaseScraperService } from './crawlbase-scraper.service';
 import { ScrapingBeeScraperService } from './scrapingbee-scraper.service';
 import { ZenRowsScraperService } from './zenrows-scraper.service';
 import { ZyteScraperService } from './zyte-scraper.service';
+import { checkAutomationQuietHours } from '../utils/quiet-hours.utils';
 
 type ProfileCommentItem = {
     id?: string;
@@ -48,7 +49,15 @@ type ProfileCommentItem = {
 };
 
 export class TargetScraperService {
-    static async scrapeTargetProfile(targetId: string) {
+    static async scrapeTargetProfile(targetId: string, options?: { force?: boolean }) {
+        if (!options?.force) {
+            const quietHours = await checkAutomationQuietHours();
+            if (quietHours.isSuspended) {
+                console.log(`🌙 [TargetScraper] Quiet hours active — skipping target "${targetId}"`);
+                return { saved: 0, skipped: 0 };
+            }
+        }
+
         const target = await prisma.sourceProfile.findUnique({ where: { id: targetId } });
         if (!target) {
             throw new Error(`Target profile ${targetId} not found`);
