@@ -61,7 +61,7 @@ async function callOpenRouter(prompt: string, apiKey: string): Promise<string> {
 async function callGroq(prompt: string, apiKey: string): Promise<string> {
     const rawModel = config.groq.intelModel || 'llama-3.1-8b-instant';
     const modelsToTry = [rawModel];
-    for (const m of ['llama-3.1-8b-instant', 'llama-3.3-70b-versatile', 'mixtral-8x7b-32768']) {
+    for (const m of ['llama-3.1-8b-instant', 'llama-3.3-70b-versatile']) {
         if (!modelsToTry.includes(m)) modelsToTry.push(m);
     }
 
@@ -145,7 +145,8 @@ export async function generateLeadTitle(post: any): Promise<string> {
 
     // 1. OpenRouter
     const dbKey = await getSetting('openrouter_api_key').catch(() => null);
-    const openRouterKey = (dbKey as string) || config.openRouter.apiKey;
+    const validDbKey = typeof dbKey === 'string' && !dbKey.includes('...') && dbKey.trim().length > 20 ? dbKey.trim() : null;
+    const openRouterKey = validDbKey || config.openRouter.apiKey;
     if (openRouterKey?.trim()) {
         try {
             const raw = await callOpenRouter(prompt, openRouterKey);

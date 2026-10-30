@@ -68,6 +68,10 @@ export const updateHunterKey = asyncHandler(async (req: Request, res: Response, 
         return res.status(400).json({ success: false, message: 'API key is required' });
     }
 
+    if (typeof api_key === 'string' && api_key.includes('...')) {
+        return res.status(400).json({ success: false, message: 'Cannot save masked key placeholder' });
+    }
+
     await settingService.updateSetting('hunter_api_key', api_key, 'Hunter.io Email Verifier API Key');
 
     return res.status(200).json({
@@ -138,6 +142,10 @@ export const updateApolloKey = asyncHandler(async (req: Request, res: Response, 
         return res.status(400).json({ success: false, message: 'API key is required' });
     }
 
+    if (typeof api_key === 'string' && api_key.includes('...')) {
+        return res.status(400).json({ success: false, message: 'Cannot save masked key placeholder' });
+    }
+
     await settingService.updateSetting('apollo_api_key', api_key, 'Apollo.io API Key');
 
     return res.status(200).json({
@@ -173,6 +181,10 @@ export const updateOpenRouterKey = asyncHandler(async (req: Request, res: Respon
         return res.status(400).json({ success: false, message: 'API key is required' });
     }
 
+    if (typeof api_key === 'string' && api_key.includes('...')) {
+        return res.status(400).json({ success: false, message: 'Cannot save masked key placeholder' });
+    }
+
     await settingService.updateSetting('openrouter_api_key', api_key, 'OpenRouter API Key for lead intelligence and outreach');
 
     return res.status(200).json({
@@ -206,6 +218,10 @@ export const updateScrapedogKey = asyncHandler(async (req: Request, res: Respons
     const { api_key } = req.body;
     if (!api_key) {
         return res.status(400).json({ success: false, message: 'API key is required' });
+    }
+
+    if (typeof api_key === 'string' && api_key.includes('...')) {
+        return res.status(400).json({ success: false, message: 'Cannot save masked key placeholder' });
     }
     await settingService.updateSetting('scrapedog_api_key', api_key, 'Scrapedog API Key for keyword post scraping');
     return res.status(200).json({

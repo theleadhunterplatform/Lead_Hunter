@@ -182,7 +182,7 @@ async function callGroq(prompt: string, apiKey: string): Promise<string> {
 async function callGemini(prompt: string, apiKey: string): Promise<string> {
     const rawModel = (config.gemini.intelModel || 'gemini-flash-lite-latest').replace(/^models\//, '');
     const modelsToTry = [rawModel];
-    for (const m of ['gemini-flash-lite-latest', 'gemini-flash-latest', 'gemini-2.5-pro']) {
+    for (const m of ['gemini-flash-lite-latest', 'gemini-flash-latest', 'gemini-1.5-flash']) {
         if (!modelsToTry.includes(m)) modelsToTry.push(m);
     }
 
@@ -246,7 +246,8 @@ async function generateWithFallback(prompt: string): Promise<ProviderResult> {
 
     // 2. OpenRouter (fallback)
     const dbKey = await getSetting('openrouter_api_key').catch(() => null);
-    const openRouterKey = (dbKey as string) || config.openRouter.apiKey;
+    const validDbKey = typeof dbKey === 'string' && !dbKey.includes('...') && dbKey.trim().length > 20 ? dbKey.trim() : null;
+    const openRouterKey = validDbKey || config.openRouter.apiKey;
     if (openRouterKey?.trim()) {
         try {
             const content = await callOpenRouter(prompt, openRouterKey);
