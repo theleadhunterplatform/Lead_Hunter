@@ -177,32 +177,22 @@ export async function markApifyKeyExhausted(keyId: string, workerId: string = ge
 
 export async function resolveApifyKeyForWorker(workerId: string = getWorkerId()): Promise<ApifyKeyRecord | null> {
     const month = currentUsageMonth();
-    const existingLeaseKeyId = await readRedisWorkerLease(workerId);
-
-    if (existingLeaseKeyId) {
-        const leased = await loadLeasedKey(existingLeaseKeyId, month);
-        if (leased) {
-            await tryClaimRedisKey(workerId, existingLeaseKeyId);
-            return leased;
-        }
-        await releaseWorkerApifyLease(workerId);
-    }
-
     const availableKeys = await listPoolKeys();
-    for (const candidate of availableKeys) {
+    if (availableKeys.length === 0) return null;
+
+    // Distribute calls across available keys using randomized round-robin offset
+    // so concurrent scrape/enrichment jobs do not pile onto the same token and trigger the 5-actor limit
+    const offset = Math.floor(Math.random() * availableKeys.length);
+    for (let i = 0; i < availableKeys.length; i++) {
+        const candidate = availableKeys[(offset + i) % availableKeys.length];
         const keyId = candidate._id || candidate.id;
         if (!keyId) continue;
 
-        const claimed = await tryClaimRedisKey(workerId, keyId);
-        if (!claimed) continue;
-
         const leased = await loadLeasedKey(keyId, month);
         if (leased) return leased;
-
-        await releaseWorkerApifyLease(workerId);
     }
 
-    return null;
+    return availableKeys[0] || null;
 }
 
 export async function getApifyLeaseStatus(): Promise<

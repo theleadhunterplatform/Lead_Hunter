@@ -52,39 +52,55 @@ export async function recordApifyCommentUsage(activeKey: ApifyKeyRecord | null, 
 }
 
 export function isApifyLimitError(error: any): boolean {
-    const msgCheck = String(error?.message || error?.data?.message || '').toLowerCase();
-    if (msgCheck.includes('concurrent') || msgCheck.includes('rate limit') || msgCheck.includes('too many requests')) {
+    const rawMsg = [
+        error?.message,
+        error?.type,
+        error?.name,
+        error?.data?.message,
+        error?.data?.error?.message,
+        error?.response?.data?.error?.message,
+        error?.response?.data?.message,
+        typeof error?.data === 'string' ? error.data : '',
+    ].filter(Boolean).join(' ').toLowerCase();
+
+    // Concurrency, temporary rate limits, or server busy errors are NEVER permanent key limits
+    if (
+        rawMsg.includes('concurrent') ||
+        rawMsg.includes('rate limit') ||
+        rawMsg.includes('too many requests') ||
+        rawMsg.includes('exceed your limit of') ||
+        rawMsg.includes('actor runs') ||
+        rawMsg.includes('actor-max-concurrent-runs-exceeded') ||
+        rawMsg.includes('429')
+    ) {
         return false;
     }
-    const status = error?.statusCode ?? error?.status;
-    const message = String(error?.message || error?.data?.message || '').toLowerCase();
+
+    const status = error?.statusCode ?? error?.status ?? error?.response?.status;
 
     // Auth error: invalid, expired, revoked token or deleted account
     if (status === 401) return true;
     if (
-        message.includes('not valid') ||
-        message.includes('authentication token') ||
-        message.includes('invalid token') ||
-        message.includes('user was not found')
+        rawMsg.includes('not valid') ||
+        rawMsg.includes('authentication token') ||
+        rawMsg.includes('invalid token') ||
+        rawMsg.includes('user was not found')
     ) {
         return true;
     }
 
-    // Quota and billing limits
+    // Quota and billing limits (only when balance/credits are genuinely spent)
     if (status === 402) return true;
     if (
-        message.includes('usage limit') ||
-        message.includes('monthly usage') ||
-        message.includes('limit exceeded') ||
-        message.includes('payment required') ||
-        message.includes('insufficient credits') ||
-        message.includes('platform-feature-disabled')
+        rawMsg.includes('usage limit') ||
+        rawMsg.includes('monthly usage') ||
+        rawMsg.includes('insufficient credits') ||
+        rawMsg.includes('payment required') ||
+        rawMsg.includes('free monthly credits are fully spent')
     ) {
         return true;
     }
-    if (status === 403 && (message.includes('limit') || message.includes('quota') || message.includes('usage') || message.includes('disabled'))) {
-        return true;
-    }
+
     return false;
 }
 
