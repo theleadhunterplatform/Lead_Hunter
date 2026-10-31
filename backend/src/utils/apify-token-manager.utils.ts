@@ -103,36 +103,6 @@ async function readRedisWorkerLease(workerId: string): Promise<string | null> {
     }
 }
 
-async function _tryClaimRedisKey(workerId: string, keyId: string): Promise<boolean> {
-    try {
-        const redis = getRedisClient();
-        if (redis.status !== 'ready') {
-            await redis.connect();
-        }
-
-        const keyLeaseKey = `${KEY_LEASE_PREFIX}${keyId}`;
-        const claimed = await redis.set(keyLeaseKey, workerId, 'EX', LEASE_TTL_SECONDS, 'NX');
-        if (claimed === 'OK') {
-            await refreshRedisLease(workerId, keyId);
-            return true;
-        }
-
-        const owner = await redis.get(keyLeaseKey);
-        if (owner === workerId) {
-            await refreshRedisLease(workerId, keyId);
-            return true;
-        }
-
-        return false;
-    } catch {
-        const owner = localKeyToWorker.get(keyId);
-        if (!owner || owner === workerId) {
-            refreshLocalLease(workerId, keyId);
-            return true;
-        }
-        return false;
-    }
-}
 
 async function loadLeasedKey(keyId: string, month: string): Promise<ApifyKeyRecord | null> {
     const record = await ApifyKey.findOne({ _id: keyId, is_deleted: false });
