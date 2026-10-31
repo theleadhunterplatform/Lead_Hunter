@@ -76,20 +76,6 @@ async function listPoolKeys(): Promise<ApifyKeyRecord[]> {
     return usable;
 }
 
-async function refreshRedisLease(workerId: string, keyId: string): Promise<void> {
-    const redis = getRedisClient();
-    await redis.set(`${WORKER_LEASE_PREFIX}${workerId}`, keyId, 'EX', LEASE_TTL_SECONDS);
-    await redis.set(`${KEY_LEASE_PREFIX}${keyId}`, workerId, 'EX', LEASE_TTL_SECONDS);
-}
-
-function refreshLocalLease(workerId: string, keyId: string): void {
-    const previousKey = localWorkerToKey.get(workerId);
-    if (previousKey && previousKey !== keyId) {
-        localKeyToWorker.delete(previousKey);
-    }
-    localWorkerToKey.set(workerId, keyId);
-    localKeyToWorker.set(keyId, workerId);
-}
 
 async function readRedisWorkerLease(workerId: string): Promise<string | null> {
     try {
