@@ -9,7 +9,6 @@ type ApifyKeyRecord = Awaited<ReturnType<typeof ApifyKey.find>>[number];
 
 const WORKER_LEASE_PREFIX = 'apify:worker-lease:';
 const KEY_LEASE_PREFIX = 'apify:key-lease:';
-const LEASE_TTL_SECONDS = 180;
 
 let redisClient: Redis | null = null;
 
