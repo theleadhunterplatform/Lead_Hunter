@@ -103,7 +103,7 @@ async function readRedisWorkerLease(workerId: string): Promise<string | null> {
     }
 }
 
-async function tryClaimRedisKey(workerId: string, keyId: string): Promise<boolean> {
+async function _tryClaimRedisKey(workerId: string, keyId: string): Promise<boolean> {
     try {
         const redis = getRedisClient();
         if (redis.status !== 'ready') {
@@ -175,7 +175,7 @@ export async function markApifyKeyExhausted(keyId: string, workerId: string = ge
     await releaseWorkerApifyLease(workerId);
 }
 
-export async function resolveApifyKeyForWorker(workerId: string = getWorkerId()): Promise<ApifyKeyRecord | null> {
+export async function resolveApifyKeyForWorker(_workerId: string = getWorkerId()): Promise<ApifyKeyRecord | null> {
     const month = currentUsageMonth();
     const availableKeys = await listPoolKeys();
     if (availableKeys.length === 0) return null;
