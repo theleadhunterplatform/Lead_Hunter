@@ -32,8 +32,7 @@ export async function checkAutomationQuietHours(): Promise<QuietHoursStatus> {
     const parts = formatter.formatToParts(now);
     const hourPart = parts.find((p) => p.type === 'hour');
     const minutePart = parts.find((p) => p.type === 'minute');
-    const hourVal = parseInt(hourPart?.value || '0', 10);
-    const currentHour = hourVal === 24 ? 0 : hourVal;
+    const currentHour = parseInt(hourPart?.value || '0', 10);
     const currentMinute = parseInt(minutePart?.value || '0', 10);
 
     const startHour = Number(await getSetting('automation_quiet_hours_start')) || config.automation?.quietHoursStart || 19; // 7 PM

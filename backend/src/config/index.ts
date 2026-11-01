@@ -77,6 +77,11 @@ const config = {
     zyte: {
         apiKey: process.env.ZYTE_API_KEY || '',
     },
+    hunterCrawler: {
+        proxyUrl: process.env.HUNTER_CRAWLER_PROXY_URL || '',
+        linkedinCookie: process.env.LINKEDIN_LI_AT || '',
+        maxItems: parseInt(process.env.HUNTER_CRAWLER_MAX_ITEMS || '20', 10),
+    },
     automation: {
         quietHoursEnabled: process.env.AUTOMATION_QUIET_HOURS_ENABLED !== 'false',
         quietHoursStart: parseInt(process.env.AUTOMATION_QUIET_HOURS_START || '19', 10), // 7 PM

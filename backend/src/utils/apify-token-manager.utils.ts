@@ -9,6 +9,7 @@ type ApifyKeyRecord = Awaited<ReturnType<typeof ApifyKey.find>>[number];
 
 const WORKER_LEASE_PREFIX = 'apify:worker-lease:';
 const KEY_LEASE_PREFIX = 'apify:key-lease:';
+const LEASE_TTL_SECONDS = 180;
 
 let redisClient: Redis | null = null;
 
@@ -75,6 +76,20 @@ async function listPoolKeys(): Promise<ApifyKeyRecord[]> {
     return usable;
 }
 
+async function refreshRedisLease(workerId: string, keyId: string): Promise<void> {
+    const redis = getRedisClient();
+    await redis.set(`${WORKER_LEASE_PREFIX}${workerId}`, keyId, 'EX', LEASE_TTL_SECONDS);
+    await redis.set(`${KEY_LEASE_PREFIX}${keyId}`, workerId, 'EX', LEASE_TTL_SECONDS);
+}
+
+function refreshLocalLease(workerId: string, keyId: string): void {
+    const previousKey = localWorkerToKey.get(workerId);
+    if (previousKey && previousKey !== keyId) {
+        localKeyToWorker.delete(previousKey);
+    }
+    localWorkerToKey.set(workerId, keyId);
+    localKeyToWorker.set(keyId, workerId);
+}
 
 async function readRedisWorkerLease(workerId: string): Promise<string | null> {
     try {
@@ -88,6 +103,36 @@ async function readRedisWorkerLease(workerId: string): Promise<string | null> {
     }
 }
 
+export async function tryClaimRedisKey(workerId: string, keyId: string): Promise<boolean> {
+    try {
+        const redis = getRedisClient();
+        if (redis.status !== 'ready') {
+            await redis.connect();
+        }
+
+        const keyLeaseKey = `${KEY_LEASE_PREFIX}${keyId}`;
+        const claimed = await redis.set(keyLeaseKey, workerId, 'EX', LEASE_TTL_SECONDS, 'NX');
+        if (claimed === 'OK') {
+            await refreshRedisLease(workerId, keyId);
+            return true;
+        }
+
+        const owner = await redis.get(keyLeaseKey);
+        if (owner === workerId) {
+            await refreshRedisLease(workerId, keyId);
+            return true;
+        }
+
+        return false;
+    } catch {
+        const owner = localKeyToWorker.get(keyId);
+        if (!owner || owner === workerId) {
+            refreshLocalLease(workerId, keyId);
+            return true;
+        }
+        return false;
+    }
+}
 
 async function loadLeasedKey(keyId: string, month: string): Promise<ApifyKeyRecord | null> {
     const record = await ApifyKey.findOne({ _id: keyId, is_deleted: false });

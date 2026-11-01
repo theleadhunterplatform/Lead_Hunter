@@ -14,7 +14,7 @@ export interface ScraperKeyItem {
     last_used_at?: string | null;
 }
 
-export type ScraperEngine = 'scrapedog' | 'crawlbase' | 'scrapingbee' | 'zenrows' | 'zyte';
+export type ScraperEngine = 'scrapedog' | 'crawlbase' | 'scrapingbee' | 'zenrows' | 'zyte' | 'hunter_crawler';
 
 export function normalizeEngine(engine: string): ScraperEngine {
     const lower = (engine || '').trim().toLowerCase();
@@ -23,7 +23,8 @@ export function normalizeEngine(engine: string): ScraperEngine {
     if (lower === 'scrapingbee' || lower === 'scraping_bee') return 'scrapingbee';
     if (lower === 'zenrows' || lower === 'zen_rows') return 'zenrows';
     if (lower === 'zyte' || lower === 'zyte_api') return 'zyte';
-    throw new Error(`Unsupported scraper engine: ${engine}. Supported engines: scrapedog, crawlbase, scrapingbee, zenrows, zyte`);
+    if (lower === 'hunter_crawler' || lower === 'huntercrawler' || lower === 'hunter') return 'hunter_crawler';
+    throw new Error(`Unsupported scraper engine: ${engine}. Supported engines: scrapedog, crawlbase, scrapingbee, zenrows, zyte, hunter_crawler`);
 }
 
 function getSettingKey(engine: ScraperEngine): string {
@@ -33,6 +34,7 @@ function getSettingKey(engine: ScraperEngine): string {
         case 'scrapingbee': return 'scrapingbee_keys';
         case 'zenrows': return 'zenrows_keys';
         case 'zyte': return 'zyte_keys';
+        case 'hunter_crawler': return 'hunter_crawler_keys';
     }
 }
 
@@ -43,6 +45,7 @@ function getLegacySingleKey(engine: ScraperEngine): string | null {
         case 'scrapingbee': return config.scrapingbee.apiKey || null;
         case 'zenrows': return config.zenrows.apiKey || null;
         case 'zyte': return config.zyte.apiKey || null;
+        case 'hunter_crawler': return config.hunterCrawler?.proxyUrl || null;
     }
 }
 

@@ -21,6 +21,7 @@ import { CrawlbaseScraperService } from './crawlbase-scraper.service';
 import { ScrapingBeeScraperService } from './scrapingbee-scraper.service';
 import { ZenRowsScraperService } from './zenrows-scraper.service';
 import { ZyteScraperService } from './zyte-scraper.service';
+import { HunterCrawlerService } from './hunter-crawler.service';
 import * as settingService from './setting.service';
 import { recordScrapeExecution, getLatestScrapeMetrics } from '../utils/scraper-tool.utils';
 import { checkAutomationQuietHours } from '../utils/quiet-hours.utils';
@@ -202,6 +203,10 @@ export class ScraperService {
                     console.log(`[ScraperService] Attempting Zyte for "${phrase}" on ${platform}...`);
                     items = await ZyteScraperService.scrapeKeyword(platform, phrase);
                     successEngine = 'zyte';
+                } else if (engine === 'hunter_crawler' || engine === 'huntercrawler' || engine === 'hunter') {
+                    console.log(`[ScraperService] Attempting HunterCrawler for "${phrase}" on ${platform}...`);
+                    items = await HunterCrawlerService.scrapeKeyword(platform, phrase);
+                    successEngine = 'hunter_crawler';
                 }
 
                 if (items && items.length >= 0) {

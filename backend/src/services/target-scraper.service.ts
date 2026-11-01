@@ -13,6 +13,7 @@ import { CrawlbaseScraperService } from './crawlbase-scraper.service';
 import { ScrapingBeeScraperService } from './scrapingbee-scraper.service';
 import { ZenRowsScraperService } from './zenrows-scraper.service';
 import { ZyteScraperService } from './zyte-scraper.service';
+import { HunterCrawlerService } from './hunter-crawler.service';
 import { checkAutomationQuietHours } from '../utils/quiet-hours.utils';
 
 type ProfileCommentItem = {
@@ -174,6 +175,17 @@ export class TargetScraperService {
                     }
                     itemsFound = items.length;
                     successEngine = 'zyte';
+                    break;
+                } else if (engine === 'hunter_crawler' || engine === 'huntercrawler' || engine === 'hunter') {
+                    console.log(`[TargetScraper] Scraping "${target.name}" via HunterCrawler...`);
+                    const items = await HunterCrawlerService.scrapeTargetProfile(target);
+                    for (const item of items) {
+                        const wasSaved = await this.processNormalizedTargetItem(item, target, 'hunter_crawler');
+                        if (wasSaved) saved++;
+                        else skipped++;
+                    }
+                    itemsFound = items.length;
+                    successEngine = 'hunter_crawler';
                     break;
                 }
             } catch (err: any) {

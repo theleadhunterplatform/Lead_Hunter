@@ -20,8 +20,7 @@ export const initCron = async () => {
         const quietHours = await checkAutomationQuietHours();
         if (quietHours.isSuspended) {
             await scraperQueue.pause();
-            await scraperQueue.drain();
-            console.log('🌙 [AUTOMATION SUSPENDED] Server initialized during quiet hours (7:00 PM - 10:00 AM IST). Queue is PAUSED & DRAINED.');
+            console.log('🌙 [AUTOMATION SUSPENDED] Server initialized during quiet hours (7:00 PM - 10:00 AM IST). Queue is PAUSED.');
         } else {
             await scraperQueue.resume();
             console.log('☀️ [AUTOMATION ACTIVE] Server initialized during operational window (10:00 AM - 7:00 PM IST). Queue is ACTIVE.');
