@@ -5,7 +5,7 @@ import { redisConnection } from './connection';
 export const scraperQueue = new Queue('scraper-queue', {
     connection: redisConnection,
     defaultJobOptions: {
-        attempts: 3,
+        attempts: 1,
         backoff: {
             type: 'exponential',
             delay: 1000,
@@ -55,7 +55,7 @@ export const aiTrainQueue = new Queue('ai-train-queue', {
 export const enrichmentQueue = new Queue('enrichment-queue', {
     connection: redisConnection,
     defaultJobOptions: {
-        attempts: 3,
+        attempts: 1,
         backoff: {
             type: 'exponential',
             delay: 2000,
@@ -71,7 +71,7 @@ console.log('✔ BullMQ Queues Initialized');
 export const titleQueue = new Queue('title-queue', {
     connection: redisConnection,
     defaultJobOptions: {
-        attempts: 3,
+        attempts: 1,
         backoff: {
             type: 'exponential',
             delay: 2000,

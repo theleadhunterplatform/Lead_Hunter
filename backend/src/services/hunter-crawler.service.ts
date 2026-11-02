@@ -115,13 +115,24 @@ export class HunterCrawlerService {
                         const url = route.request().url().toLowerCase();
 
                         if (
-                            ['image', 'media', 'font', 'stylesheet'].includes(resourceType) ||
+                            ['image', 'media', 'font', 'stylesheet', 'websocket'].includes(resourceType) ||
                             /\.(png|jpe?g|gif|webp|svg|ico|woff2?|ttf|eot|css)(\?.*)?$/i.test(url) ||
+                            url.includes('/li/track') ||
+                            url.includes('/realtime') ||
+                            url.includes('/telemetry') ||
+                            url.includes('/litms/') ||
+                            url.includes('sentry.io') ||
+                            url.includes('bat.bing.com') ||
                             url.includes('google-analytics') ||
                             url.includes('doubleclick') ||
                             url.includes('googletagmanager') ||
                             url.includes('clarity.ms') ||
-                            url.includes('scorecardresearch')
+                            url.includes('scorecardresearch') ||
+                            url.includes('quantummetric') ||
+                            url.includes('adnxs.com') ||
+                            url.includes('facebook.net') ||
+                            url.includes('branch.io') ||
+                            url.includes('segment.io')
                         ) {
                             return route.abort();
                         }
