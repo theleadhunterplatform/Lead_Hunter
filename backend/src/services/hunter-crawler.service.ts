@@ -41,6 +41,19 @@ export class HunterCrawlerService {
         return (process.env.LINKEDIN_LI_AT || config.hunterCrawler?.linkedinCookie || '').trim() || null;
     }
 
+    /**
+     * Resolves an optional LinkedIn JSESSIONID for CSRF security validation.
+     */
+    public static async getLinkedInJsessionId(): Promise<string | null> {
+        try {
+            const dbVal = await settingService.getSetting('linkedin_jsessionid');
+            if (typeof dbVal === 'string' && dbVal.trim()) return dbVal.trim();
+        } catch {
+            // fallback
+        }
+        return (process.env.LINKEDIN_JSESSIONID || 'ajax:6156860770297274292').trim() || null;
+    }
+
     public static async isConfigured(): Promise<boolean> {
         return true;
     }
@@ -245,21 +258,35 @@ export class HunterCrawlerService {
                     {
                         name: 'li_at',
                         value: liAt,
-                        domain: '.www.linkedin.com',
-                        path: '/',
-                    },
-                    {
-                        name: 'li_at',
-                        value: liAt,
                         domain: '.linkedin.com',
                         path: '/',
+                        secure: true,
+                    },
+                    {
+                        name: 'JSESSIONID',
+                        value: '"ajax:6156860770297274292"',
+                        domain: '.linkedin.com',
+                        path: '/',
+                        secure: true,
                     },
                 ],
             }
         );
 
-        await crawler.run([searchUrl]);
-        console.log(`🎯 [HunterCrawler] Extracted ${items.length} authenticated LinkedIn items.`);
+        try {
+            await crawler.run([searchUrl]);
+            console.log(`🎯 [HunterCrawler] Extracted ${items.length} authenticated LinkedIn items.`);
+        } catch (crawlErr: any) {
+            console.warn(`🎯 [HunterCrawler] Direct LinkedIn search failed (${crawlErr.message}). Falling back to Google SERP.`);
+            const fallbackQuery = `site:linkedin.com "${phrase}"`;
+            return await this.scrapeGoogleSerp(fallbackQuery, 'linkedin', proxyUrl);
+        }
+
+        if (items.length === 0) {
+            const fallbackQuery = `site:linkedin.com "${phrase}"`;
+            return await this.scrapeGoogleSerp(fallbackQuery, 'linkedin', proxyUrl);
+        }
+
         return items;
     }
 
@@ -520,7 +547,16 @@ export class HunterCrawlerService {
                 const crawler = this.createCrawler(
                     proxyUrl,
                     async ({ page }) => {
-                        await page.goto(targetActivityUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+                        try {
+                            await page.goto(targetActivityUrl, { waitUntil: 'domcontentloaded', timeout: 25000 });
+                        } catch (navErr: any) {
+                            if (navErr.message?.includes('ERR_TOO_MANY_REDIRECTS') || navErr.message?.includes('Timeout')) {
+                                console.warn(`🎯 [HunterCrawler] Activity feed redirected or timed out for ${target.name}. Trying profile base.`);
+                                await page.goto(target.url, { waitUntil: 'domcontentloaded', timeout: 20000 }).catch(() => null);
+                            } else {
+                                throw navErr;
+                            }
+                        }
                         const currentUrl = page.url();
                         const pageTitle = await page.title();
                         console.log(`🎯 [HunterCrawler] Reached page: "${pageTitle}" (${currentUrl})`);
@@ -593,9 +629,9 @@ export class HunterCrawlerService {
                                 secure: true,
                             },
                             {
-                                name: 'li_at',
-                                value: liAt,
-                                domain: '.www.linkedin.com',
+                                name: 'JSESSIONID',
+                                value: '"ajax:6156860770297274292"',
+                                domain: '.linkedin.com',
                                 path: '/',
                                 secure: true,
                             },
