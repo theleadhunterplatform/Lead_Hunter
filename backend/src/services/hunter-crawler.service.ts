@@ -52,7 +52,7 @@ export class HunterCrawlerService {
         proxyUrl: string | null,
         requestHandler: (context: any) => Promise<void>,
         options?: {
-            cookies?: Array<{ name: string; value: string; domain: string; path?: string }>;
+            cookies?: Array<{ name: string; value: string; domain: string; path?: string; secure?: boolean }>;
             maxRequests?: number;
         }
     ): PlaywrightCrawler {
@@ -87,10 +87,13 @@ export class HunterCrawlerService {
                 useFingerprints: true,
             },
             preNavigationHooks: [
-                async ({ page, context }: any) => {
+                async ({ page }: any) => {
                     // Inject cookies if available
                     if (options?.cookies && options.cookies.length > 0) {
-                        await context.addCookies(options.cookies);
+                        const browserContext = page.context ? page.context() : page;
+                        if (browserContext.addCookies) {
+                            await browserContext.addCookies(options.cookies);
+                        }
                     }
 
                     // Strict resource abort: images, fonts, styles, media, telemetry
@@ -519,37 +522,64 @@ export class HunterCrawlerService {
                     async ({ page }) => {
                         await page.goto(targetActivityUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
                         const currentUrl = page.url();
-                        if (currentUrl.includes('/checkpoint/') || currentUrl.includes('/login')) {
+                        const pageTitle = await page.title();
+                        console.log(`🎯 [HunterCrawler] Reached page: "${pageTitle}" (${currentUrl})`);
+                        if (currentUrl.includes('/checkpoint/') || currentUrl.includes('/login') || currentUrl.includes('/authwall')) {
+                            console.warn(`🎯 [HunterCrawler] LinkedIn redirected to login/checkpoint: ${currentUrl}`);
                             throw new Error('LinkedIn session expired during profile crawl');
                         }
 
-                        const postElements = await page.$$('.feed-shared-update-v2, div[data-urn]');
-                        for (const el of postElements.slice(0, 10)) {
-                            const content = (await el.$eval('.feed-shared-update-v2__description, .break-words, span.break-words', (node: any) => node.innerText).catch(() => '')) || '';
-                            if (!content || content.trim().length < 15) continue;
+                        // Allow dynamic feed items to load
+                        await page.evaluate(() => window.scrollBy(0, 800));
+                        await page.waitForTimeout?.(2500) || new Promise((r) => setTimeout(r, 2500));
 
-                            const postUrl = (await el.$eval('a[href*="/feed/update/urn:li:activity:"]', (node: any) => node.href).catch(() => '')) || '';
-                            const urn = (await el.getAttribute('data-urn').catch(() => '')) || '';
+                        // Extract activity updates directly from the rendered feed
+                        const extracted = await page.evaluate((tInfo: any) => {
+                            const list: Array<{ content: string; url: string; authorName?: string; authorUrl?: string }> = [];
+                            const elements = document.querySelectorAll('main div, .feed-shared-update-v2, div[data-urn]');
+                            for (const el of Array.from(elements)) {
+                                const text = ((el as HTMLElement).innerText || '').trim();
+                                if (
+                                    text.length >= 35 &&
+                                    text.length < 2500 &&
+                                    !text.startsWith('Followers') &&
+                                    !text.startsWith('Connect\nMessage') &&
+                                    !text.includes('Only connections can comment')
+                                ) {
+                                    const a = el.querySelector('a[href*="/feed/update/urn:li:activity:"], a[href*="/in/"]') as HTMLAnchorElement | null;
+                                    const href = a ? a.href : '';
+                                    const aName = a ? (a.innerText || '').trim() : '';
+                                    if (!list.some((x) => x.content.slice(0, 30) === text.slice(0, 30))) {
+                                        list.push({
+                                            content: text,
+                                            url: href || tInfo.url,
+                                            authorName: aName || tInfo.name,
+                                            authorUrl: href || tInfo.url,
+                                        });
+                                    }
+                                }
+                            }
+                            return list.slice(0, 10);
+                        }, { name: target.name, url: target.url });
 
+                        console.log(`🎯 [HunterCrawler] Extracted ${extracted.length} items from profile activity.`);
+
+                        for (const item of extracted) {
                             items.push({
-                                id: urn || postUrl || `target_${Buffer.from(content.slice(0, 30)).toString('hex')}`,
-                                url: postUrl || target.url,
-                                content: content.trim(),
+                                id: `target_${Buffer.from(item.content.slice(0, 30) + item.url).toString('hex')}`,
+                                url: item.url,
+                                content: item.content,
                                 platform: 'linkedin',
                                 author: {
-                                    name: target.name,
-                                    url: target.url,
+                                    name: item.authorName || target.name,
+                                    url: item.authorUrl || target.url,
                                 },
                                 postedAt: {
                                     date: new Date().toISOString(),
                                     timestamp: Date.now(),
                                 },
-                                engagement: {
-                                    likes: 0,
-                                    comments: 0,
-                                    shares: 0,
-                                },
-                                raw_result: { content, postUrl, urn },
+                                engagement: { likes: 0, comments: 0, shares: 0 },
+                                raw_result: item,
                             });
                         }
                     },
@@ -560,6 +590,14 @@ export class HunterCrawlerService {
                                 value: liAt,
                                 domain: '.linkedin.com',
                                 path: '/',
+                                secure: true,
+                            },
+                            {
+                                name: 'li_at',
+                                value: liAt,
+                                domain: '.www.linkedin.com',
+                                path: '/',
+                                secure: true,
                             },
                         ],
                     }
