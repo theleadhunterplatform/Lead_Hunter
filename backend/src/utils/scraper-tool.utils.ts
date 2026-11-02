@@ -31,12 +31,13 @@ export interface LastScrapeMetrics {
  * Checks explicit fields first, then falls back based on metadata/source.
  */
 export function resolveScraperEngine(post: any): string {
-    if (!post) return 'apify';
+    if (!post) return 'hunter_crawler';
     if (post.scraper_engine) return post.scraper_engine.toLowerCase().trim();
     if (post.contact_info?.scraper_engine) return String(post.contact_info.scraper_engine).toLowerCase().trim();
     if (post.raw_result?._scraper_engine) return String(post.raw_result._scraper_engine).toLowerCase().trim();
     if (post.raw_result?.scraper_engine) return String(post.raw_result.scraper_engine).toLowerCase().trim();
-    if (post.source_type === 'watchlist' || post.source_profile) return 'apify';
+    if (post.raw_result?.source === 'hunter_crawler' || post.raw_result?.engine === 'hunter_crawler') return 'hunter_crawler';
+    if (post.source_type === 'watchlist' || post.source_profile) return 'hunter_crawler';
     if (post.raw_result?.source === 'scrapedog' || post.raw_result?.engine === 'scrapedog') return 'scrapedog';
     if (post.raw_result?.source === 'crawlbase' || post.raw_result?.engine === 'crawlbase') return 'crawlbase';
     if (post.raw_result?.source === 'scrapingbee' || post.raw_result?.engine === 'scrapingbee') return 'scrapingbee';
@@ -44,7 +45,7 @@ export function resolveScraperEngine(post: any): string {
     if (post.raw_result?.source === 'zyte' || post.raw_result?.engine === 'zyte') return 'zyte';
     if (post.source === 'manual') return 'manual';
     if (post.source === 'seed') return 'mock';
-    return 'apify';
+    return 'hunter_crawler';
 }
 
 /**
@@ -95,6 +96,8 @@ export async function recordScrapeExecution(
             engineMap.zenrows = updatedMetric;
         } else if (normalizedEngine === 'zyte') {
             engineMap.zyte = updatedMetric;
+        } else if (normalizedEngine === 'hunter_crawler' || normalizedEngine === 'huntercrawler' || normalizedEngine === 'hunter') {
+            engineMap.hunter_crawler = updatedMetric;
         } else {
             engineMap.apify = updatedMetric;
         }
@@ -184,15 +187,19 @@ export async function getLatestScrapeMetrics(): Promise<LastScrapeMetrics> {
                     defaultMetrics.engines.scrapedog.last_scraped_at = newIso;
                 } else if (detectedEngine === 'crawlbase' && !defaultMetrics.engines.crawlbase.last_scraped_at) {
                     defaultMetrics.engines.crawlbase.last_scraped_at = newIso;
+                } else if (detectedEngine === 'hunter_crawler' && !defaultMetrics.engines.hunter_crawler?.last_scraped_at) {
+                    if (!defaultMetrics.engines.hunter_crawler) defaultMetrics.engines.hunter_crawler = { last_scraped_at: null };
+                    defaultMetrics.engines.hunter_crawler.last_scraped_at = newIso;
                 } else if (!defaultMetrics.engines.apify.last_scraped_at) {
                     defaultMetrics.engines.apify.last_scraped_at = newIso;
                 }
             } else if (latestProfile) {
+                const detectedEngine = (await settingService.getSetting('primary_scraper_engine')) || 'hunter_crawler';
                 defaultMetrics.last_scraped_at = newIso;
-                defaultMetrics.last_engine = 'apify';
+                defaultMetrics.last_engine = String(detectedEngine).toLowerCase();
                 defaultMetrics.last_platform = latestProfile.platform || 'linkedin';
                 defaultMetrics.last_target_or_keyword = `watchlist:${latestProfile.name}`;
-                if (!defaultMetrics.engines.apify.last_scraped_at) {
+                if (!defaultMetrics.engines.apify.last_scraped_at && detectedEngine === 'apify') {
                     defaultMetrics.engines.apify.last_scraped_at = newIso;
                 }
             }
