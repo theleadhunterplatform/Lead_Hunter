@@ -120,7 +120,7 @@ if (config.env !== 'production' || process.env.SWAGGER_ENABLED === 'true') {
 }
 
 // Health Check
-app.get('/health', (_req: Request, res: Response) => {
+app.get(['/health', '/api/health', '/api', '/'], (_req: Request, res: Response) => {
     res.status(200).json({ status: 'OK', timestamp: new Date() });
 });
 
