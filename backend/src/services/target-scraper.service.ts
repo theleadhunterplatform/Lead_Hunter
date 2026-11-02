@@ -76,7 +76,7 @@ export class TargetScraperService {
         console.log(`🚀 [TargetScraper] Scraping comments for watchlist target: "${target.name}" (${target.url})`);
 
         const minHours = config.targetScraper.minHoursBetweenScrapes;
-        if (target.last_scraped_at && minHours > 0) {
+        if (!options?.force && target.last_scraped_at && minHours > 0) {
             const hoursSince =
                 (Date.now() - new Date(target.last_scraped_at).getTime()) / (1000 * 60 * 60);
             if (hoursSince < minHours) {
