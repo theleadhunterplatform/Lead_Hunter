@@ -74,6 +74,15 @@ export class HunterCrawlerService {
             requestHandlerTimeoutSecs: 60,
             maxRequestRetries: 1,
             headless: true,
+            launchContext: {
+                launchOptions: {
+                    args: [
+                        '--disable-blink-features=AutomationControlled',
+                        '--no-sandbox',
+                        '--disable-setuid-sandbox',
+                    ],
+                },
+            },
             browserPoolOptions: {
                 useFingerprints: true,
             },
@@ -372,6 +381,122 @@ export class HunterCrawlerService {
 
         await crawler.run([searchUrl]);
         console.log(`🎯 [HunterCrawler] Extracted ${items.length} ${platform} items from Google SERP.`);
+
+        if (items.length === 0) {
+            return await this.scrapeBingSerp(query, platform, proxyUrl);
+        }
+
+        return items;
+    }
+
+    /**
+     * Decodes Bing click-tracking redirects to real target URLs.
+     */
+    private static decodeBingUrl(url: string): string {
+        if (url.includes('/ck/a?!')) {
+            const match = url.match(/[?&]u=a1([^&]+)/);
+            if (match) {
+                try {
+                    return Buffer.from(match[1], 'base64').toString('utf8');
+                } catch {
+                    // fallback
+                }
+            }
+        }
+        return url;
+    }
+
+    /**
+     * Bing SERP Search: High-resilience fallback when Google presents challenge pages.
+     */
+    private static async scrapeBingSerp(
+        query: string,
+        platform: string,
+        proxyUrl: string | null
+    ): Promise<NormalizedScrapedItem[]> {
+        const items: NormalizedScrapedItem[] = [];
+        const searchUrl = `https://www.bing.com/search?q=${encodeURIComponent(query)}&filters=ex1%3a%22ez1%22`;
+
+        console.log(`🎯 [HunterCrawler] Querying Bing SERP for fresh ${platform} items...`);
+
+        const crawler = this.createCrawler(proxyUrl, async ({ page }: any) => {
+            await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+
+            const results = await page.evaluate(() => {
+                const list: Array<{ title: string; url: string; snippet: string }> = [];
+                const cards = document.querySelectorAll('li.b_algo');
+                for (const card of Array.from(cards)) {
+                    const a = card.querySelector('h2 a') as HTMLAnchorElement | null;
+                    const p = card.querySelector('.b_caption p, .b_algoSlug, p') as HTMLElement | null;
+                    if (a && a.href) {
+                        list.push({
+                            title: a.innerText || '',
+                            url: a.href,
+                            snippet: p ? p.innerText : '',
+                        });
+                    }
+                }
+                return list;
+            });
+
+            for (const r of results) {
+                const url = this.decodeBingUrl(r.url);
+                if (!url) continue;
+
+                if (platform === 'linkedin' && !url.includes('linkedin.com')) continue;
+                if (platform === 'reddit' && !url.includes('reddit.com')) continue;
+                if (platform === 'twitter' && !url.includes('x.com') && !url.includes('twitter.com')) continue;
+                if (platform === 'threads' && !url.includes('threads.net')) continue;
+
+                const fullContent = [r.title, r.snippet].filter(Boolean).join('\n\n').trim();
+                if (fullContent.length < 15) continue;
+
+                const postedAt = extractTimestampFromUrlOrSnippet(url, fullContent);
+
+                let authorName: string | undefined;
+                let handle: string | undefined;
+                let publicIdentifier: string | undefined;
+
+                if (platform === 'linkedin') {
+                    const match = r.title.match(/^([^:|•\-]+)\s+(?:on LinkedIn|posts)/i);
+                    if (match) authorName = match[1].trim();
+                    const inMatch = url.match(/\/in\/([^/?]+)/);
+                    if (inMatch) publicIdentifier = inMatch[1];
+                } else if (platform === 'reddit') {
+                    const match = url.match(/\/r\/([^/]+)\/comments\/([^/]+)/);
+                    if (match) handle = `r/${match[1]}`;
+                } else if (platform === 'twitter') {
+                    const match = url.match(/(?:x|twitter)\.com\/([^/?]+)/);
+                    if (match && !['home', 'explore', 'search'].includes(match[1])) {
+                        handle = `@${match[1]}`;
+                        authorName = match[1];
+                    }
+                }
+
+                items.push({
+                    id: url,
+                    url,
+                    content: fullContent,
+                    platform,
+                    author: {
+                        name: authorName,
+                        handle,
+                        url: publicIdentifier ? `https://www.linkedin.com/in/${publicIdentifier}` : undefined,
+                        publicIdentifier,
+                    },
+                    postedAt,
+                    engagement: {
+                        likes: 0,
+                        comments: 0,
+                        shares: 0,
+                    },
+                    raw_result: r,
+                });
+            }
+        });
+
+        await crawler.run([searchUrl]);
+        console.log(`🎯 [HunterCrawler] Extracted ${items.length} ${platform} items from Bing SERP.`);
         return items;
     }
 
