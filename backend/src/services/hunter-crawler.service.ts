@@ -578,23 +578,32 @@ export class HunterCrawlerService {
                             throw new Error('LinkedIn session expired during profile crawl');
                         }
 
+                        // Dismiss GDPR / cookie consent banner if present
+                        const gdprBtn = await page.$('button:has-text("Accept"), button:has-text("Reject"), button[action-type="ACCEPT"]');
+                        if (gdprBtn) {
+                            await gdprBtn.click().catch(() => null);
+                            await (page.waitForTimeout?.(1500) || new Promise((r) => setTimeout(r, 1500)));
+                        }
+
                         // Allow dynamic feed items to load
-                        await page.evaluate(() => window.scrollBy(0, 800));
-                        await page.waitForTimeout?.(2500) || new Promise((r) => setTimeout(r, 2500));
+                        await page.evaluate(() => window.scrollBy(0, 1000));
+                        await (page.waitForTimeout?.(2500) || new Promise((r) => setTimeout(r, 2500)));
 
                         // Extract activity updates directly from the rendered feed
                         const extracted = await page.evaluate((tInfo: any) => {
                             const list: Array<{ content: string; url: string; authorName?: string; authorUrl?: string }> = [];
-                            const elements = document.querySelectorAll('.feed-shared-update-v2, div[data-urn*="activity"], div.artdeco-card:has(a[href*="/feed/update/"]), .update-components-text');
+                            const elements = document.querySelectorAll('[role="listitem"], .feed-shared-update-v2, div[data-urn*="activity"]');
                             for (const el of Array.from(elements)) {
                                 const text = ((el as HTMLElement).innerText || '').trim();
                                 if (
-                                    text.length >= 35 &&
-                                    text.length < 2500 &&
+                                    text.length >= 45 &&
+                                    text.length < 3500 &&
                                     !text.includes('Talent Solutions') &&
                                     !text.includes('Community Guidelines') &&
                                     !text.includes('Help Center') &&
                                     !text.includes('Privacy & Terms') &&
+                                    !text.includes('Manage your account') &&
+                                    !text.includes('Recommendation transparency') &&
                                     !text.startsWith('Followers') &&
                                     !text.startsWith('Connect\nMessage') &&
                                     !text.includes('Only connections can comment')
@@ -602,7 +611,7 @@ export class HunterCrawlerService {
                                     const a = el.querySelector('a[href*="/feed/update/urn:li:activity:"], a[href*="/in/"]') as HTMLAnchorElement | null;
                                     const href = a ? a.href : '';
                                     const aName = a ? (a.innerText || '').trim() : '';
-                                    if (!list.some((x) => x.content.slice(0, 30) === text.slice(0, 30))) {
+                                    if (!list.some((x) => x.content.slice(0, 40) === text.slice(0, 40))) {
                                         list.push({
                                             content: text,
                                             url: href || tInfo.url,
