@@ -611,7 +611,7 @@ export class HunterCrawlerService {
                                     const a = el.querySelector('a[href*="/feed/update/urn:li:activity:"], a[href*="/in/"]') as HTMLAnchorElement | null;
                                     const href = a ? a.href : '';
                                     const aName = a ? (a.innerText || '').trim() : '';
-                                    if (!list.some((x) => x.content.slice(0, 40) === text.slice(0, 40))) {
+                                    if (!list.some((x) => x.content === text || (href && href !== tInfo.url && x.url === href))) {
                                         list.push({
                                             content: text,
                                             url: href || tInfo.url,
