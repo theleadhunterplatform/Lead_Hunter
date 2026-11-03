@@ -51,7 +51,7 @@ export class HunterCrawlerService {
         } catch {
             // fallback
         }
-        return (process.env.LINKEDIN_JSESSIONID || 'ajax:6156860770297274292').trim() || null;
+        return (process.env.LINKEDIN_JSESSIONID || '').trim() || null;
     }
 
     public static async isConfigured(): Promise<boolean> {
@@ -201,6 +201,7 @@ export class HunterCrawlerService {
         liAt: string,
         proxyUrl: string | null
     ): Promise<NormalizedScrapedItem[]> {
+        const jsessionId = await this.getLinkedInJsessionId();
         const items: NormalizedScrapedItem[] = [];
         const searchUrl = `https://www.linkedin.com/search/results/content/?keywords=${encodeURIComponent(phrase)}&sortBy=%22date_posted%22`;
 
@@ -273,13 +274,13 @@ export class HunterCrawlerService {
                         path: '/',
                         secure: true,
                     },
-                    {
+                    ...(jsessionId ? [{
                         name: 'JSESSIONID',
-                        value: '"ajax:6156860770297274292"',
+                        value: jsessionId.startsWith('"') ? jsessionId : `"${jsessionId}"`,
                         domain: '.linkedin.com',
                         path: '/',
                         secure: true,
-                    },
+                    }] : []),
                 ],
             }
         );
@@ -547,6 +548,7 @@ export class HunterCrawlerService {
     public static async scrapeTargetProfile(target: any): Promise<NormalizedScrapedItem[]> {
         const proxyUrl = await this.getProxyUrl();
         const liAt = await this.getLinkedInCookie();
+        const jsessionId = await this.getLinkedInJsessionId();
 
         console.log(`🎯 [HunterCrawler] Scraping target watchlist profile: "${target.name}" (${target.url})...`);
 
@@ -583,12 +585,16 @@ export class HunterCrawlerService {
                         // Extract activity updates directly from the rendered feed
                         const extracted = await page.evaluate((tInfo: any) => {
                             const list: Array<{ content: string; url: string; authorName?: string; authorUrl?: string }> = [];
-                            const elements = document.querySelectorAll('main div, .feed-shared-update-v2, div[data-urn]');
+                            const elements = document.querySelectorAll('.feed-shared-update-v2, div[data-urn*="activity"], div.artdeco-card:has(a[href*="/feed/update/"]), .update-components-text');
                             for (const el of Array.from(elements)) {
                                 const text = ((el as HTMLElement).innerText || '').trim();
                                 if (
                                     text.length >= 35 &&
                                     text.length < 2500 &&
+                                    !text.includes('Talent Solutions') &&
+                                    !text.includes('Community Guidelines') &&
+                                    !text.includes('Help Center') &&
+                                    !text.includes('Privacy & Terms') &&
                                     !text.startsWith('Followers') &&
                                     !text.startsWith('Connect\nMessage') &&
                                     !text.includes('Only connections can comment')
@@ -639,13 +645,13 @@ export class HunterCrawlerService {
                                 path: '/',
                                 secure: true,
                             },
-                            {
+                            ...(jsessionId ? [{
                                 name: 'JSESSIONID',
-                                value: '"ajax:6156860770297274292"',
+                                value: jsessionId.startsWith('"') ? jsessionId : `"${jsessionId}"`,
                                 domain: '.linkedin.com',
                                 path: '/',
                                 secure: true,
-                            },
+                            }] : []),
                         ],
                     }
                 );
