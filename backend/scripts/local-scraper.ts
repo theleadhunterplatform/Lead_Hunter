@@ -276,19 +276,30 @@ async function main() {
                             }
                         }
 
-                        // Check C: Search outerHTML for urn:li:(share|activity|ugcPost):[0-9]+
+                        // Check C: Search outerHTML for activity/share/ugcPost URNs
                         if (!postUrl) {
                             const html = (node as HTMLElement).outerHTML || '';
-                            const match = html.match(/(?:urn%3Ali%3A|urn:li:)(activity|share|ugcPost)(?:%3A|:)+([0-9]{15,})/i);
+                            const match = html.match(/(?:activity|share|ugcPost)[%3A:_]+([0-9]{15,})/i);
                             if (match) {
-                                const type = match[1];
-                                const numId = match[2];
+                                const numId = match[1];
                                 postId = numId;
-                                postUrl = `https://www.linkedin.com/feed/update/urn:li:${type}:${numId}/`;
+                                postUrl = `https://www.linkedin.com/feed/update/urn:li:activity:${numId}/`;
                             }
                         }
 
-                        // Check D: Time description link
+                        // Check D: Any link inside the card pointing to feed/update, activity, or posts
+                        if (!postUrl) {
+                            const postAnchor = Array.from(node.querySelectorAll('a')).find(a => {
+                                const h = a.getAttribute('href') || '';
+                                return (h.includes('/feed/update/') || h.includes('/posts/') || h.includes('activity')) && !h.includes('/in/');
+                            });
+                            if (postAnchor) {
+                                const rawHref = postAnchor.getAttribute('href') || '';
+                                postUrl = rawHref.startsWith('http') ? rawHref.split('?')[0] : `https://www.linkedin.com${rawHref.split('?')[0]}`;
+                            }
+                        }
+
+                        // Check E: Time description link
                         if (!postUrl) {
                             const timeLink = node.querySelector('.update-components-actor__sub-description a, .feed-shared-actor__sub-description a, a.app-aware-link[href*="update"]') as HTMLAnchorElement | null;
                             if (timeLink && timeLink.href) {
@@ -307,7 +318,7 @@ async function main() {
 
                         // If this is a comment pitch ("Hi Harsh Jain, ..."), extract the prospective client name
                         let prospectName = authorName;
-                        const greetMatch = cleanContent.match(/^(?:Hi|Hey|Hello|Dear)\s+([A-Za-z0-9_\s.()]{2,30}?)(?:,|\s+we\b|\s+I\b|\s+at\b|\s*!)/i);
+                        const greetMatch = cleanContent.match(/\b(?:Hi|Hey|Hello|Dear)\s+([A-Za-z0-9_\s.()]{2,30}?)(?:,|\s+we\b|\s+I\b|\s+at\b|\s*!)/i);
                         if (greetMatch && greetMatch[1]) {
                             const candidate = greetMatch[1].trim();
                             if (candidate.length >= 3 && !/there|everyone|all|team/i.test(candidate)) {
@@ -317,7 +328,7 @@ async function main() {
 
                         results.push({
                             id: postId,
-                            url: postUrl || targetInfo.url,
+                            url: postUrl || (postId && /^[0-9]{15,}$/.test(postId) ? `https://www.linkedin.com/feed/update/urn:li:activity:${postId}/` : ''),
                             content: cleanContent,
                             timeStr: timeStr.trim(),
                             author: {

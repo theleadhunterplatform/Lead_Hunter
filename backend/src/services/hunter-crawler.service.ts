@@ -677,19 +677,40 @@ export class HunterCrawlerService {
 
                                     if (!postUrl) {
                                         const html = (el as HTMLElement).outerHTML || '';
-                                        const match = html.match(/(?:urn%3Ali%3A|urn:li:)(activity|share|ugcPost)(?:%3A|:)+([0-9]{15,})/i);
+                                        const match = html.match(/(?:activity|share|ugcPost)[%3A:_]+([0-9]{15,})/i);
                                         if (match) {
-                                            postUrl = `https://www.linkedin.com/feed/update/urn:li:${match[1]}:${match[2]}/`;
+                                            postUrl = `https://www.linkedin.com/feed/update/urn:li:activity:${match[1]}/`;
+                                        }
+                                    }
+
+                                    // Check any post update link inside card
+                                    if (!postUrl) {
+                                        const postAnchor = Array.from(el.querySelectorAll('a')).find(a => {
+                                            const h = a.getAttribute('href') || '';
+                                            return (h.includes('/feed/update/') || h.includes('/posts/') || h.includes('activity')) && !h.includes('/in/');
+                                        });
+                                        if (postAnchor) {
+                                            const rawHref = postAnchor.getAttribute('href') || '';
+                                            postUrl = rawHref.startsWith('http') ? rawHref.split('?')[0] : `https://www.linkedin.com${rawHref.split('?')[0]}`;
                                         }
                                     }
 
                                     const authorA = el.querySelector('a[href*="/in/"]') as HTMLAnchorElement | null;
-                                    const aName = authorA ? (authorA.innerText || '').trim() : '';
+                                    let aName = authorA ? (authorA.innerText || '').trim() : '';
+
+                                    // Extract prospective client name if agency pitched them with greeting
+                                    const greetMatch = text.match(/\b(?:Hi|Hey|Hello|Dear)\s+([A-Za-z0-9_\s.()]{2,30}?)(?:,|\s+we\b|\s+I\b|\s+at\b|\s*!)/i);
+                                    if (greetMatch && greetMatch[1]) {
+                                        const candidate = greetMatch[1].trim();
+                                        if (candidate.length >= 3 && !/there|everyone|all|team/i.test(candidate)) {
+                                            aName = candidate;
+                                        }
+                                    }
 
                                     if (!list.some((x) => x.content.slice(0, 30) === text.slice(0, 30))) {
                                         list.push({
                                             content: text,
-                                            url: postUrl || tInfo.url,
+                                            url: postUrl || '',
                                             authorName: aName || tInfo.name,
                                             authorUrl: tInfo.url,
                                         });
