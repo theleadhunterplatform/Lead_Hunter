@@ -7,6 +7,8 @@ import { resolveActiveScraperKey } from './scraper-key.service';
 import { NormalizedScrapedItem } from './scrapedog-scraper.service';
 import { extractTimestampFromUrlOrSnippet } from '../utils/scraped-item.utils';
 
+import { LinkedInVoyagerService } from './linkedin-voyager.service';
+
 export class HunterCrawlerService {
     /**
      * Resolves the proxy URL from the scraper key pool, database setting, or env config.
@@ -590,6 +592,19 @@ export class HunterCrawlerService {
         const jsessionId = await this.getLinkedInJsessionId();
 
         console.log(`🎯 [HunterCrawler] Scraping target watchlist profile: "${target.name}" (${target.url})...`);
+
+        if (target.platform === 'linkedin') {
+            try {
+                // 1. Direct Voyager API (Apify mechanism: instant structured JSON, <20KB, parent post included)
+                const voyagerLeads = await LinkedInVoyagerService.scrapeTargetProfileComments(target, proxyUrl);
+                if (voyagerLeads && voyagerLeads.length > 0) {
+                    console.log(`⚡ [HunterCrawler] Voyager API direct return: ${voyagerLeads.length} leads for "${target.name}".`);
+                    return voyagerLeads;
+                }
+            } catch (voyagerErr: any) {
+                console.warn(`⚡ [HunterCrawler] Direct Voyager attempt failed for "${target.name}": ${voyagerErr.message}. Falling back to browser crawler.`);
+            }
+        }
 
         if (target.platform === 'linkedin' && liAt) {
             try {

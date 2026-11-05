@@ -1,6 +1,9 @@
 import path from 'path';
 import fs from 'fs';
 import { chromium } from 'playwright';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 function getBraveExecutable(): string | undefined {
     const candidates = [
@@ -71,6 +74,27 @@ async function main() {
             console.log('🎉 [LocalLogin] Genuine login detected! URL:', rawUrl);
             console.log(`💾 Saving ${cookies.length} persistent cookies to: ${cookiesFile}`);
             fs.writeFileSync(cookiesFile, JSON.stringify(cookies, null, 2), 'utf8');
+
+            const liAtCookie = cookies.find((c) => c.name === 'li_at')?.value;
+            const jsessionCookie = cookies.find((c) => c.name === 'JSESSIONID')?.value;
+            if (liAtCookie && jsessionCookie) {
+                try {
+                    await prisma.setting.upsert({
+                        where: { key: 'linkedin_session_cookie' },
+                        create: { key: 'linkedin_session_cookie', value: liAtCookie },
+                        update: { value: liAtCookie },
+                    });
+                    await prisma.setting.upsert({
+                        where: { key: 'linkedin_jsessionid' },
+                        create: { key: 'linkedin_jsessionid', value: jsessionCookie },
+                        update: { value: jsessionCookie },
+                    });
+                    console.log('☁️ [LocalLogin] Successfully synced live session cookies to Database Settings for Voyager API!');
+                } catch (dbErr: any) {
+                    console.warn('⚠️ [LocalLogin] Could not sync to DB:', dbErr.message);
+                }
+            }
+
             await page.waitForTimeout(3000);
             loggedIn = true;
             break;
