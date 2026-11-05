@@ -4,6 +4,7 @@ import { chromium } from 'playwright';
 import { PrismaClient } from '@prisma/client';
 import LeadPost from '../src/models/lead-post.model';
 import { LinkedInVoyagerService } from '../src/services/linkedin-voyager.service';
+import { findExistingLeadPost } from '../src/utils/lead-dedup.utils';
 
 const prisma = new PrismaClient();
 
@@ -126,7 +127,9 @@ async function main() {
     const page = context.pages().length > 0 ? context.pages()[0] : await context.newPage();
 
     let totalProcessed = 0;
-    let totalSaved = 0;
+    let totalNew = 0;
+    let totalUpdated = 0;
+    let totalDupes = 0;
 
     for (let i = 0; i < targets.length; i++) {
         const target = targets[i];
@@ -344,7 +347,10 @@ async function main() {
 
             console.log(`📥 [LocalScraper] Found ${extractedItems.length} candidate post(s) for "${target.name}"`);
 
-            let savedForTarget = 0;
+            let newForTarget = 0;
+            let updatedForTarget = 0;
+            let dupesForTarget = 0;
+
             for (const item of extractedItems) {
                 // Strict 48-Hour Age Gate
                 if (!isWithin48Hours(item.timeStr)) {
@@ -357,35 +363,68 @@ async function main() {
                 const phone = extractPhoneFromText(rawContent);
 
                 try {
-                    const saved = await LeadPost.create({
+                    // Check if lead already exists in DB
+                    const existing = await findExistingLeadPost({
                         post_id: item.id,
-                        url: item.url || '',
-                        content: rawContent,
                         platform: 'linkedin',
-                        keyword: target.name,
-                        source_type: 'watchlist',
-                        source_profile: target.name,
-                        author: item.author,
-                        posted_at: {
-                            date: new Date().toISOString(),
-                            timestamp: Date.now(),
-                            relative: item.timeStr,
-                        },
-                        engagement: { likes: 0, comments: 0, shares: 0 },
+                        url: item.url,
+                        content: rawContent,
                         email: email || undefined,
                         phone: phone || undefined,
-                        status: 'pending',
-                        review_status: 'awaiting_review',
                     });
 
-                    if (saved) {
-                        console.log(`   💾 [Fresh Lead <48h] Post URL: ${item.url}`);
+                    if (existing) {
+                        const existingUrl = existing.url || '';
+                        const needsUrlUpdate = Boolean(item.url && item.url.startsWith('http') && (!existingUrl || existingUrl.includes('/in/')));
+                        const existingAuthorName = (existing.author as any)?.name || '';
+                        const needsAuthorUpdate = Boolean(item.author?.name && item.author.name !== existingAuthorName && item.author.name !== target.name);
+
+                        if (needsUrlUpdate || needsAuthorUpdate) {
+                            await prisma.leadPost.update({
+                                where: { id: existing.id },
+                                data: {
+                                    ...(needsUrlUpdate ? { url: item.url } : {}),
+                                    ...(needsAuthorUpdate ? { author: item.author } : {}),
+                                },
+                            });
+                            console.log(`   🔄 [Updated Lead ${existing.id.slice(0, 8)}] Post URL: ${item.url || existingUrl} | Author: ${item.author?.name || existingAuthorName}`);
+                            updatedForTarget++;
+                        } else {
+                            console.log(`   ℹ️ [Duplicate Skipped] Post ${item.id} already exists & up-to-date.`);
+                            dupesForTarget++;
+                        }
+                    } else {
+                        await prisma.leadPost.create({
+                            data: {
+                                post_id: item.id,
+                                url: item.url || '',
+                                content: rawContent,
+                                platform: 'linkedin',
+                                keyword: target.name,
+                                source_type: 'watchlist',
+                                source_profile: target.name,
+                                author: item.author,
+                                posted_at: {
+                                    date: new Date().toISOString(),
+                                    timestamp: Date.now(),
+                                    relative: item.timeStr,
+                                },
+                                engagement: { likes: 0, comments: 0, shares: 0 },
+                                email: email || undefined,
+                                phone: phone || undefined,
+                                status: 'pending',
+                                review_status: 'awaiting_review',
+                            },
+                        });
+
+                        console.log(`   ✨ [New Lead Saved] Post URL: ${item.url}`);
                         console.log(`      "${rawContent.slice(0, 70).replace(/\n/g, ' ')}..."`);
-                        savedForTarget++;
+                        newForTarget++;
                     }
                 } catch (saveErr: any) {
                     if (saveErr.code === 'P2002' || saveErr.message?.includes('Unique constraint')) {
-                        console.log(`   ℹ️ [Dedup] Post ${item.id} already exists in database.`);
+                        console.log(`   ℹ️ [Dedup] Post ${item.id} unique constraint match.`);
+                        dupesForTarget++;
                     } else {
                         console.warn(`   ⚠️ [Save Error] Post ${item.id}:`, saveErr.message);
                     }
@@ -397,13 +436,15 @@ async function main() {
                 where: { id: target.id },
                 data: {
                     last_scraped_at: new Date(),
-                    last_comments_found: savedForTarget,
+                    last_comments_found: newForTarget + updatedForTarget,
                 },
             });
 
-            console.log(`✅ [LocalScraper] Finished "${target.name}": saved ${savedForTarget} fresh lead(s).`);
+            console.log(`✅ [LocalScraper] Finished "${target.name}": ${newForTarget} new, ${updatedForTarget} updated, ${dupesForTarget} dupes.`);
             totalProcessed++;
-            totalSaved += savedForTarget;
+            totalNew += newForTarget;
+            totalUpdated += updatedForTarget;
+            totalDupes += dupesForTarget;
 
             // Polite delay between profiles (5-9s jitter)
             const pauseMs = 5000 + Math.floor(Math.random() * 4000);
@@ -419,7 +460,10 @@ async function main() {
     await prisma.$disconnect();
 
     console.log(`\n============================================================`);
-    console.log(`🎉 [LocalScraper Complete] Processed: ${totalProcessed} profiles | Fresh Leads Saved: ${totalSaved}`);
+    console.log(`🎉 [LocalScraper Complete] Processed: ${totalProcessed} profiles`);
+    console.log(`   ✨ Brand New Leads Saved:   ${totalNew}`);
+    console.log(`   🔄 Existing Leads Updated:  ${totalUpdated}`);
+    console.log(`   ⏭️  Duplicates Filtered Out: ${totalDupes}`);
     console.log(`============================================================\n`);
 }
 
