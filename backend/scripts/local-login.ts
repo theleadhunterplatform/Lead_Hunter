@@ -27,11 +27,11 @@ async function main() {
     }
     console.log(`📁 Session directory: ${sessionDir}`);
 
-    const proxyUrl = process.env.HUNTER_CRAWLER_PROXY_URL;
+    const useProxy = process.env.LOGIN_WITH_PROXY === 'true';
     let proxyOption: any = undefined;
-    if (proxyUrl) {
+    if (useProxy && process.env.HUNTER_CRAWLER_PROXY_URL) {
         try {
-            const parsed = new URL(proxyUrl);
+            const parsed = new URL(process.env.HUNTER_CRAWLER_PROXY_URL);
             proxyOption = {
                 server: `${parsed.protocol}//${parsed.host}`,
                 username: decodeURIComponent(parsed.username),
@@ -39,8 +39,10 @@ async function main() {
             };
             console.log(`🔒 Proxy: Routing login through Webshare (${parsed.host})`);
         } catch {
-            console.warn(`⚠️ Invalid proxy URL: ${proxyUrl}. Running direct.`);
+            console.warn(`⚠️ Invalid proxy URL. Running direct.`);
         }
+    } else {
+        console.log('⚡ Direct Connection (Fast, zero proxy lag for instant login)');
     }
 
     const context = await chromium.launchPersistentContext(sessionDir, {
