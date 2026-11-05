@@ -60,7 +60,6 @@ async function main() {
     }
 
     console.log('🚀 [LocalScraper] Starting local persistent scraper worker (Clean Post Pattern)...');
-    console.log('🔒 Network: Direct residential connection (0 MB proxy cost, no proxy used)');
     console.log(`📁 Using persistent browser profile: ${sessionDir}`);
 
     const targets = await prisma.sourceProfile.findMany({
@@ -91,9 +90,28 @@ async function main() {
         console.log('🖥️ Running in visual Brave mode (bypasses Cloudflare anti-bot redirects). Set HEADLESS=true to run headless.');
     }
 
+    const proxyUrl = process.env.HUNTER_CRAWLER_PROXY_URL;
+    let proxyOption: any = undefined;
+    if (proxyUrl) {
+        try {
+            const parsed = new URL(proxyUrl);
+            proxyOption = {
+                server: `${parsed.protocol}//${parsed.host}`,
+                username: decodeURIComponent(parsed.username),
+                password: decodeURIComponent(parsed.password),
+            };
+            console.log(`🔒 Proxy: Routing scraper through Webshare (${parsed.host})`);
+        } catch {
+            console.warn(`⚠️ Invalid proxy URL: ${proxyUrl}. Running direct.`);
+        }
+    } else {
+        console.log('🔒 Network: Direct residential connection (0 MB proxy cost, no proxy used)');
+    }
+
     const context = await chromium.launchPersistentContext(sessionDir, {
         executablePath: bravePath,
         headless: isHeadless,
+        proxy: proxyOption,
         viewport: { width: 1280, height: 800 },
         ignoreDefaultArgs: ['--enable-automation'],
         args: [

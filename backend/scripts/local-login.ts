@@ -27,9 +27,26 @@ async function main() {
     }
     console.log(`📁 Session directory: ${sessionDir}`);
 
+    const proxyUrl = process.env.HUNTER_CRAWLER_PROXY_URL;
+    let proxyOption: any = undefined;
+    if (proxyUrl) {
+        try {
+            const parsed = new URL(proxyUrl);
+            proxyOption = {
+                server: `${parsed.protocol}//${parsed.host}`,
+                username: decodeURIComponent(parsed.username),
+                password: decodeURIComponent(parsed.password),
+            };
+            console.log(`🔒 Proxy: Routing login through Webshare (${parsed.host})`);
+        } catch {
+            console.warn(`⚠️ Invalid proxy URL: ${proxyUrl}. Running direct.`);
+        }
+    }
+
     const context = await chromium.launchPersistentContext(sessionDir, {
         executablePath: bravePath,
         headless: false,
+        proxy: proxyOption,
         viewport: { width: 1280, height: 850 },
         ignoreDefaultArgs: ['--enable-automation'],
         args: [
