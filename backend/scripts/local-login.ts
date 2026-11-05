@@ -59,7 +59,7 @@ async function main() {
     const page = context.pages().length > 0 ? context.pages()[0] : await context.newPage();
 
     if (proxyOption?.username && proxyOption?.password) {
-        await page.authenticate({
+        await context.setHTTPCredentials({
             username: proxyOption.username,
             password: proxyOption.password,
         });
