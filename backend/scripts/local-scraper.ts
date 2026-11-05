@@ -85,9 +85,14 @@ async function main() {
         console.log(`🦁 Engine: Brave Browser (${bravePath})`);
     }
 
+    const isHeadless = process.env.HEADLESS === 'true';
+    if (!isHeadless) {
+        console.log('🖥️ Running in visual Brave mode (bypasses Cloudflare anti-bot redirects). Set HEADLESS=true to run headless.');
+    }
+
     const context = await chromium.launchPersistentContext(sessionDir, {
         executablePath: bravePath,
-        headless: true,
+        headless: isHeadless,
         viewport: { width: 1280, height: 800 },
         ignoreDefaultArgs: ['--enable-automation'],
         args: [
@@ -138,21 +143,25 @@ async function main() {
         console.log(`[${i + 1}/${targets.length}] Scraping: "${target.name}" (${target.url})`);
         console.log(`============================================================`);
 
-        const targetActivityUrl = `${target.url.replace(/\/$/, '')}/recent-activity/all/`;
+        const targetCommentsUrl = `${target.url.replace(/\/$/, '')}/recent-activity/comments/`;
+        const targetAllUrl = `${target.url.replace(/\/$/, '')}/recent-activity/all/`;
 
         try {
             try {
-                await page.goto(targetActivityUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
+                console.log(`   🎯 Scraping Comments activity: ${targetCommentsUrl}`);
+                await page.goto(targetCommentsUrl, { waitUntil: 'domcontentloaded', timeout: 25000 });
             } catch (navErr: any) {
-                if (navErr.message?.includes('ERR_TOO_MANY_REDIRECTS') || navErr.message?.includes('Timeout')) {
-                    console.log(`   ℹ️ Activity URL redirected for "${target.name}". Falling back to profile base.`);
+                console.log(`   ℹ️ Comments URL failed for "${target.name}". Falling back to /recent-activity/all/`);
+                try {
+                    await page.goto(targetAllUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
+                } catch {
                     await page.goto(target.url, { waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => null);
-                } else {
-                    throw navErr;
                 }
             }
 
             await page.waitForTimeout(3000);
+            await page.evaluate(() => window.scrollBy(0, 600)).catch(() => null);
+            await page.waitForTimeout(1500);
 
             // Handle GDPR cookie consent overlay if present
             await page.evaluate(() => {
@@ -269,13 +278,23 @@ async function main() {
                             postId = `li_${cleanContent.slice(0, 30).replace(/[^a-zA-Z0-9]/g, '')}`;
                         }
 
+                        // If this is a comment pitch ("Hi Harsh Jain, ..."), extract the prospective client name
+                        let prospectName = authorName;
+                        const greetMatch = cleanContent.match(/^(?:Hi|Hey|Hello|Dear)\s+([A-Za-z0-9_\s.()]{2,30}?)(?:,|\s+we\b|\s+I\b|\s+at\b|\s*!)/i);
+                        if (greetMatch && greetMatch[1]) {
+                            const candidate = greetMatch[1].trim();
+                            if (candidate.length >= 3 && !/there|everyone|all|team/i.test(candidate)) {
+                                prospectName = candidate;
+                            }
+                        }
+
                         results.push({
                             id: postId,
                             url: postUrl || targetInfo.url,
                             content: cleanContent,
                             timeStr: timeStr.trim(),
                             author: {
-                                name: authorName,
+                                name: prospectName,
                                 url: targetInfo.url,
                             }
                         });

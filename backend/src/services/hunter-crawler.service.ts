@@ -593,20 +593,25 @@ export class HunterCrawlerService {
 
         if (target.platform === 'linkedin' && liAt) {
             try {
-                const targetActivityUrl = `${target.url.replace(/\/$/, '')}/recent-activity/all/`;
+                // Prioritize comments stream where competitor agencies pitch prospective clients
+                const targetCommentsUrl = `${target.url.replace(/\/$/, '')}/recent-activity/comments/`;
+                const targetAllUrl = `${target.url.replace(/\/$/, '')}/recent-activity/all/`;
                 const items: NormalizedScrapedItem[] = [];
 
                 const crawler = this.createCrawler(
                     proxyUrl,
                     async ({ page }) => {
+                        let reachedComments = false;
                         try {
-                            await page.goto(targetActivityUrl, { waitUntil: 'domcontentloaded', timeout: 25000 });
+                            console.log(`🎯 [HunterCrawler] Trying target comments activity: ${targetCommentsUrl}`);
+                            await page.goto(targetCommentsUrl, { waitUntil: 'domcontentloaded', timeout: 25000 });
+                            reachedComments = true;
                         } catch (navErr: any) {
-                            if (navErr.message?.includes('ERR_TOO_MANY_REDIRECTS') || navErr.message?.includes('Timeout')) {
-                                console.warn(`🎯 [HunterCrawler] Activity feed redirected or timed out for ${target.name}. Trying profile base.`);
-                                await page.goto(target.url, { waitUntil: 'domcontentloaded', timeout: 20000 }).catch(() => null);
-                            } else {
-                                throw navErr;
+                            console.warn(`🎯 [HunterCrawler] Comments URL failed (${navErr.message}). Falling back to all activity.`);
+                            try {
+                                await page.goto(targetAllUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
+                            } catch {
+                                await page.goto(target.url, { waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => null);
                             }
                         }
                         const currentUrl = page.url();
@@ -722,7 +727,7 @@ export class HunterCrawlerService {
                     }
                 );
 
-                await crawler.run([targetActivityUrl]);
+                await crawler.run([targetCommentsUrl]);
                 if (items.length > 0) return items;
             } catch (err: any) {
                 console.warn(`🎯 [HunterCrawler] Direct target profile scrape failed: ${err.message}. Falling back to Google.`);
