@@ -601,11 +601,9 @@ export class HunterCrawlerService {
                 const crawler = this.createCrawler(
                     proxyUrl,
                     async ({ page }) => {
-                        let reachedComments = false;
                         try {
                             console.log(`🎯 [HunterCrawler] Trying target comments activity: ${targetCommentsUrl}`);
                             await page.goto(targetCommentsUrl, { waitUntil: 'domcontentloaded', timeout: 25000 });
-                            reachedComments = true;
                         } catch (navErr: any) {
                             console.warn(`🎯 [HunterCrawler] Comments URL failed (${navErr.message}). Falling back to all activity.`);
                             try {
