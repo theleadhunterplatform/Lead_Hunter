@@ -1,3 +1,5 @@
+import path from 'path';
+import fs from 'fs';
 import { PlaywrightCrawler, ProxyConfiguration } from 'crawlee';
 import config from '../config';
 import * as settingService from './setting.service';
@@ -33,6 +35,16 @@ export class HunterCrawlerService {
      */
     public static async getLinkedInCookie(): Promise<string | null> {
         try {
+            const cookiesFile = path.resolve(__dirname, '../../.linkedin-session/cookies.json');
+            if (fs.existsSync(cookiesFile)) {
+                const cookies = JSON.parse(fs.readFileSync(cookiesFile, 'utf8'));
+                const li = cookies.find((c: any) => c.name === 'li_at' && c.value);
+                if (li?.value) return li.value.trim();
+            }
+        } catch {
+            // fallback
+        }
+        try {
             const dbCookie = await settingService.getSetting('linkedin_session_cookie');
             if (typeof dbCookie === 'string' && dbCookie.trim()) return dbCookie.trim();
         } catch {
@@ -45,6 +57,16 @@ export class HunterCrawlerService {
      * Resolves an optional LinkedIn JSESSIONID for CSRF security validation.
      */
     public static async getLinkedInJsessionId(): Promise<string | null> {
+        try {
+            const cookiesFile = path.resolve(__dirname, '../../.linkedin-session/cookies.json');
+            if (fs.existsSync(cookiesFile)) {
+                const cookies = JSON.parse(fs.readFileSync(cookiesFile, 'utf8'));
+                const js = cookies.find((c: any) => c.name === 'JSESSIONID' && c.value);
+                if (js?.value) return js.value.trim();
+            }
+        } catch {
+            // fallback
+        }
         try {
             const dbVal = await settingService.getSetting('linkedin_jsessionid');
             if (typeof dbVal === 'string' && dbVal.trim()) return dbVal.trim();
@@ -80,7 +102,16 @@ export class HunterCrawlerService {
             }
         }
 
-        return new PlaywrightCrawler({
+        const cacheDir = path.resolve(__dirname, '../../data/.crawler-cache');
+        if (!fs.existsSync(cacheDir)) {
+            try {
+                fs.mkdirSync(cacheDir, { recursive: true });
+            } catch {
+                // directory may already exist
+            }
+        }
+
+        const crawler = new PlaywrightCrawler({
             proxyConfiguration,
             maxRequestsPerCrawl: options?.maxRequests || 1,
             navigationTimeoutSecs: 30,
@@ -88,16 +119,18 @@ export class HunterCrawlerService {
             maxRequestRetries: 1,
             headless: true,
             launchContext: {
+                userDataDir: cacheDir,
                 launchOptions: {
                     args: [
                         '--disable-blink-features=AutomationControlled',
                         '--no-sandbox',
                         '--disable-setuid-sandbox',
+                        '--disk-cache-size=104857600',
                     ],
                 },
             },
             browserPoolOptions: {
-                useFingerprints: true,
+                useFingerprints: false,
             },
             preNavigationHooks: [
                 async ({ page }: any) => {
@@ -145,6 +178,12 @@ export class HunterCrawlerService {
                 console.warn(`🎯 [HunterCrawler] Request failed for ${request.url}:`, (error as Error)?.message || String(error));
             },
         });
+
+        (crawler as any)._navigationHandler = async (crawlingContext: any) => {
+            return crawlingContext.page.goto(crawlingContext.request.url, { waitUntil: 'domcontentloaded', timeout: 25000 });
+        };
+
+        return crawler;
     }
 
     /**
@@ -578,45 +617,63 @@ export class HunterCrawlerService {
                             throw new Error('LinkedIn session expired during profile crawl');
                         }
 
-                        // Dismiss GDPR / cookie consent banner if present
-                        const gdprBtn = await page.$('button:has-text("Accept"), button:has-text("Reject"), button[action-type="ACCEPT"]');
-                        if (gdprBtn) {
-                            await gdprBtn.click().catch(() => null);
-                            await (page.waitForTimeout?.(1500) || new Promise((r) => setTimeout(r, 1500)));
-                        }
-
                         // Allow dynamic feed items to load
-                        await page.evaluate(() => window.scrollBy(0, 1000));
-                        await (page.waitForTimeout?.(2500) || new Promise((r) => setTimeout(r, 2500)));
+                        await page.evaluate(() => window.scrollBy(0, 800));
+                        await page.waitForTimeout?.(2500) || new Promise((r) => setTimeout(r, 2500));
 
                         // Extract activity updates directly from the rendered feed
                         const extracted = await page.evaluate((tInfo: any) => {
                             const list: Array<{ content: string; url: string; authorName?: string; authorUrl?: string }> = [];
-                            const elements = document.querySelectorAll('[role="listitem"], .feed-shared-update-v2, div[data-urn*="activity"]');
+                            const elements = document.querySelectorAll('.feed-shared-update-v2, div[data-urn*="activity"], div.artdeco-card:has(a[href*="/feed/update/"]), .update-components-text');
                             for (const el of Array.from(elements)) {
                                 const text = ((el as HTMLElement).innerText || '').trim();
                                 if (
-                                    text.length >= 45 &&
-                                    text.length < 3500 &&
+                                    text.length >= 35 &&
+                                    text.length < 2500 &&
                                     !text.includes('Talent Solutions') &&
                                     !text.includes('Community Guidelines') &&
                                     !text.includes('Help Center') &&
                                     !text.includes('Privacy & Terms') &&
-                                    !text.includes('Manage your account') &&
-                                    !text.includes('Recommendation transparency') &&
                                     !text.startsWith('Followers') &&
                                     !text.startsWith('Connect\nMessage') &&
                                     !text.includes('Only connections can comment')
                                 ) {
-                                    const a = el.querySelector('a[href*="/feed/update/urn:li:activity:"], a[href*="/in/"]') as HTMLAnchorElement | null;
-                                    const href = a ? a.href : '';
-                                    const aName = a ? (a.innerText || '').trim() : '';
-                                    if (!list.some((x) => x.content === text || (href && href !== tInfo.url && x.url === href))) {
+                                    // Extract exact post permalink
+                                    let postUrl = '';
+                                    const links = Array.from(el.querySelectorAll('a'));
+                                    for (const l of links) {
+                                        const h = l.getAttribute('href') || '';
+                                        if (h.includes('targetUrn=')) {
+                                            const m = h.match(/targetUrn=([^&]+)/);
+                                            if (m) { postUrl = `https://www.linkedin.com/feed/update/${decodeURIComponent(m[1])}/`; break; }
+                                        }
+                                        if (h.includes('/feed/update/urn:li:')) {
+                                            postUrl = h.startsWith('http') ? h.split('?')[0] : `https://www.linkedin.com${h.split('?')[0]}`;
+                                            break;
+                                        }
+                                        if (h.includes('/posts/')) {
+                                            postUrl = h.startsWith('http') ? h.split('?')[0] : `https://www.linkedin.com${h.split('?')[0]}`;
+                                            break;
+                                        }
+                                    }
+
+                                    if (!postUrl) {
+                                        const html = (el as HTMLElement).outerHTML || '';
+                                        const match = html.match(/(?:urn%3Ali%3A|urn:li:)(activity|share|ugcPost)(?:%3A|:)+([0-9]{15,})/i);
+                                        if (match) {
+                                            postUrl = `https://www.linkedin.com/feed/update/urn:li:${match[1]}:${match[2]}/`;
+                                        }
+                                    }
+
+                                    const authorA = el.querySelector('a[href*="/in/"]') as HTMLAnchorElement | null;
+                                    const aName = authorA ? (authorA.innerText || '').trim() : '';
+
+                                    if (!list.some((x) => x.content.slice(0, 30) === text.slice(0, 30))) {
                                         list.push({
                                             content: text,
-                                            url: href || tInfo.url,
+                                            url: postUrl || tInfo.url,
                                             authorName: aName || tInfo.name,
-                                            authorUrl: href || tInfo.url,
+                                            authorUrl: tInfo.url,
                                         });
                                     }
                                 }

@@ -31,3 +31,5 @@ npm-debug.log*
 
 # Independent Frontend Repo
 frontend/
+
+.linkedin-session/
