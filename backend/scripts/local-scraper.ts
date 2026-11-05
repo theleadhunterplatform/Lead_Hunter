@@ -3,7 +3,6 @@ import fs from 'fs';
 import { chromium } from 'playwright';
 import { PrismaClient } from '@prisma/client';
 import LeadPost from '../src/models/lead-post.model';
-import { LinkedInVoyagerService } from '../src/services/linkedin-voyager.service';
 import { findExistingLeadPost } from '../src/utils/lead-dedup.utils';
 
 const prisma = new PrismaClient();
@@ -136,42 +135,6 @@ async function main() {
         console.log(`\n============================================================`);
         console.log(`[${i + 1}/${targets.length}] Scraping: "${target.name}" (${target.url})`);
         console.log(`============================================================`);
-
-        // 1. Try Direct Voyager API first (instant structured JSON, <20KB)
-        try {
-            console.log(`   ⚡ Trying Direct Voyager API for "${target.name}"...`);
-            const voyagerItems = await LinkedInVoyagerService.scrapeTargetProfileComments(target);
-            if (voyagerItems && voyagerItems.length > 0) {
-                console.log(`   ✨ Voyager API returned ${voyagerItems.length} comment lead(s)!`);
-                let savedCount = 0;
-                for (const vItem of voyagerItems) {
-                    try {
-                        const saved = await LeadPost.create({
-                            post_id: vItem.id,
-                            url: vItem.url,
-                            content: vItem.content,
-                            platform: 'linkedin',
-                            keyword: target.name,
-                            source_type: 'watchlist',
-                            source_profile: target.name,
-                            author: vItem.author,
-                            posted_at: vItem.postedAt,
-                            engagement: { likes: 0, comments: 0, shares: 0 },
-                            status: 'pending',
-                        }, { throwOnDuplicate: false });
-                        if (saved) savedCount++;
-                    } catch (e: any) {
-                        // ignore duplicate
-                    }
-                }
-                console.log(`   ✅ [Voyager] Saved ${savedCount} fresh leads for "${target.name}".`);
-                totalSaved += savedCount;
-                totalProcessed++;
-                continue; // Skip browser rendering for this target!
-            }
-        } catch (vErr: any) {
-            console.log(`   ℹ️ Voyager API skipped for "${target.name}": ${vErr.message}. Falling back to browser.`);
-        }
 
         const targetCommentsUrl = `${target.url.replace(/\/$/, '')}/recent-activity/comments/`;
         const targetAllUrl = `${target.url.replace(/\/$/, '')}/recent-activity/all/`;
