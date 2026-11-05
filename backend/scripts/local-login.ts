@@ -58,8 +58,20 @@ async function main() {
 
     const page = context.pages().length > 0 ? context.pages()[0] : await context.newPage();
 
-    console.log('🌐 Opening LinkedIn feed...');
-    await page.goto('https://www.linkedin.com/feed', { waitUntil: 'domcontentloaded' });
+    if (proxyOption?.username && proxyOption?.password) {
+        await page.authenticate({
+            username: proxyOption.username,
+            password: proxyOption.password,
+        });
+    }
+
+    console.log('🌐 Opening LinkedIn login page...');
+    try {
+        await page.goto('https://www.linkedin.com/login', { waitUntil: 'commit', timeout: 45000 });
+    } catch {
+        console.log('⏳ Retrying navigation to LinkedIn...');
+        await page.goto('https://www.linkedin.com/login', { waitUntil: 'domcontentloaded', timeout: 45000 }).catch(() => null);
+    }
 
     console.log('\n============================================================');
     console.log('👉 PLEASE LOG IN TO LINKEDIN IN BRAVE NOW.');
