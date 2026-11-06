@@ -90,9 +90,10 @@ async function main() {
         console.log('🖥️ Running in visual Brave mode (bypasses Cloudflare anti-bot redirects). Set HEADLESS=true to run headless.');
     }
 
+    const useProxy = process.argv.includes('--proxy') || process.env.SCRAPER_WITH_PROXY === 'true';
     const proxyUrl = process.env.HUNTER_CRAWLER_PROXY_URL;
     let proxyOption: any = undefined;
-    if (proxyUrl) {
+    if (useProxy && proxyUrl) {
         try {
             const parsed = new URL(proxyUrl);
             let username = decodeURIComponent(parsed.username);
@@ -112,7 +113,7 @@ async function main() {
             console.warn(`⚠️ Invalid proxy URL: ${proxyUrl}. Running direct.`);
         }
     } else {
-        console.log('🔒 Network: Direct residential connection (0 MB proxy cost, no proxy used)');
+        console.log('⚡ Direct Connection (Fast, matches authenticated burner session). Pass --proxy to route via Webshare.');
     }
 
     const context = await chromium.launchPersistentContext(sessionDir, {
@@ -195,20 +196,15 @@ async function main() {
         console.log(`[${i + 1}/${targets.length}] Scraping: "${target.name}" (${target.url})`);
         console.log(`============================================================`);
 
-        const targetCommentsUrl = `${target.url.replace(/\/$/, '')}/recent-activity/comments/`;
-        const targetAllUrl = `${target.url.replace(/\/$/, '')}/recent-activity/all/`;
+        const targetUrl = `${target.url.replace(/\/$/, '')}/recent-activity/all/`;
 
         try {
+            console.log(`   🎯 Scraping Activity: ${targetUrl}`);
             try {
-                console.log(`   🎯 Scraping Comments activity: ${targetCommentsUrl}`);
-                await page.goto(targetCommentsUrl, { waitUntil: 'domcontentloaded', timeout: 25000 });
+                await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 25000 });
             } catch (navErr: any) {
-                console.log(`   ℹ️ Comments URL failed for "${target.name}": ${navErr?.message}. Falling back to /recent-activity/all/`);
-                try {
-                    await page.goto(targetAllUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
-                } catch {
-                    await page.goto(target.url, { waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => null);
-                }
+                console.log(`   ℹ️ Direct activity failed for "${target.name}": ${navErr?.message}. Retrying via profile...`);
+                await page.goto(target.url, { waitUntil: 'domcontentloaded', timeout: 20000 }).catch(() => null);
             }
 
             await page.waitForTimeout(3000);
