@@ -196,15 +196,18 @@ async function main() {
         console.log(`[${i + 1}/${targets.length}] Scraping: "${target.name}" (${target.url})`);
         console.log(`============================================================`);
 
-        const targetUrl = `${target.url.replace(/\/$/, '')}/recent-activity/all/`;
+        const cleanBaseUrl = target.url.replace(/\/$/, '');
+        const targetSlug = cleanBaseUrl.split('/in/')[1]?.split('/')[0] || '';
+        const targetCommentsUrl = `${cleanBaseUrl}/recent-activity/comments/`;
+        const targetAllUrl = `${cleanBaseUrl}/recent-activity/all/`;
 
         try {
-            console.log(`   🎯 Scraping Activity: ${targetUrl}`);
+            console.log(`   🎯 Scraping Comments Activity: ${targetCommentsUrl}`);
             try {
-                await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 25000 });
+                await page.goto(targetCommentsUrl, { waitUntil: 'domcontentloaded', timeout: 25000 });
             } catch (navErr: any) {
-                console.log(`   ℹ️ Direct activity failed for "${target.name}": ${navErr?.message}. Retrying via profile...`);
-                await page.goto(target.url, { waitUntil: 'domcontentloaded', timeout: 20000 }).catch(() => null);
+                console.log(`   ℹ️ Comments activity failed for "${target.name}": ${navErr?.message}. Falling back to /recent-activity/all/...`);
+                await page.goto(targetAllUrl, { waitUntil: 'domcontentloaded', timeout: 20000 }).catch(() => null);
             }
 
             await page.waitForTimeout(3000);
@@ -224,111 +227,66 @@ async function main() {
                 (nodes, targetInfo) => {
                     const results: any[] = [];
                     for (const node of nodes) {
-                        // 1. Skip system/footer noise
                         const fullText = (node as HTMLElement).innerText || '';
                         if (/visit our help center|manage your account and privacy|recommendation transparency|help us improve linkedin/i.test(fullText)) {
                             continue;
                         }
 
-                        // 2. Extract timestamp string from card (e.g. "1mo", "1yr", "2d", "4h")
-                        const timeEl = node.querySelector('.update-components-actor__sub-description, time, .feed-shared-actor__sub-description');
-                        let timeStr = timeEl ? (timeEl as HTMLElement).innerText : '';
-                        if (!timeStr) {
-                            const timeMatch = fullText.match(/\b(\d+\s*(?:m|h|d|w|mo|yr))\b/);
-                            timeStr = timeMatch ? timeMatch[1] : '';
+                        // Must be a post card or comment card
+                        if (!fullText.includes('Feed post') && !node.classList.contains('feed-shared-update-v2')) {
+                            continue;
                         }
 
-                        // 3. Extract purely the clean post commentary
-                        const commentaryEl = node.querySelector(
-                            '.feed-shared-update-v2__description, .update-components-text, .feed-shared-inline-show-more-text, [data-ad-preview="message"]'
-                        );
+                        const isComment = fullText.toLowerCase().includes('commented') || fullText.toLowerCase().includes('replied');
 
-                        let cleanContent = commentaryEl ? (commentaryEl as HTMLElement).innerText.trim() : '';
+                        // 1. Extract the actual prospect (author of the original post being commented on)
+                        const allProfileLinks = Array.from(node.querySelectorAll('a[href*="/in/"]')) as HTMLAnchorElement[];
+                        const prospectAnchor = allProfileLinks.find(a => {
+                            const href = a.getAttribute('href') || '';
+                            return !href.includes(targetInfo.slug) && (a.innerText || '').trim().length > 2;
+                        });
+                        const prospectUrl = prospectAnchor ? prospectAnchor.href.split('?')[0] : '';
+                        let prospectName = prospectAnchor ? (prospectAnchor.innerText || '').split('\n')[0].replace(/•.*$/, '').trim() : '';
 
-                        // Strip the "Feed post Author • Headline [Time] [Follow]" header pattern
-                        if (!cleanContent || cleanContent.length < 20) {
-                            cleanContent = fullText;
+                        // 2. Extract timestamp string from card (e.g. "12h", "1d", "2d", "1w")
+                        const timeMatch = fullText.match(/\b(\d+\s*(?:m|h|d|w|mo|yr))\b/);
+                        const timeStr = timeMatch ? timeMatch[1] : '';
+
+                        // 3. Extract purely the buyer's original post content
+                        let cleanContent = fullText;
+                        if (isComment) {
+                            cleanContent = cleanContent.replace(/^Feed\s+post\s+[\s\S]*?commented\s*/i, '');
+                        } else {
+                            cleanContent = cleanContent.replace(/^Feed\s+post\s+/i, '');
                         }
-                        cleanContent = cleanContent.replace(/^Feed\s+post\s+[\s\S]*?\b\d+\s*(?:m|h|d|w|mo|yr)\b\s*(?:Follow|Connect|Join|Following)?\s*/i, '').trim();
+                        cleanContent = cleanContent.replace(/^[\s\S]*?\b\d+\s*(?:m|h|d|w|mo|yr)\b\s*(?:Follow|Connect|Join|Following)?\s*/i, '');
+                        cleanContent = cleanContent.replace(/\b\d+\s*(?:reactions?|comments?|reposts?)\b[\s\S]*$/gi, '').trim();
 
-                        // Clean trailing noise like "… more", reaction counts
-                        cleanContent = cleanContent
-                            .replace(/…\s*more/gi, '')
-                            .replace(/\b\d+\s*(?:reactions?|comments?|reposts?)\b/gi, '')
-                            .trim();
+                        if (!cleanContent || cleanContent.length < 25) continue;
 
-                        if (!cleanContent || cleanContent.length < 30) continue;
-
-                        const authorEl = node.querySelector('.update-components-actor__name, .app-aware-link span[aria-hidden="true"]');
-                        const authorName = (authorEl ? (authorEl as HTMLElement).innerText : targetInfo.name || '').trim();
-
-                        // 4. Resolve the EXACT direct post URL and post ID
+                        // 4. Resolve direct post URL and post ID
                         let postUrl = '';
                         let postId = '';
 
-                        // Check A: Links with update, activity, share, or targetUrn
-                        const links = Array.from(node.querySelectorAll('a'));
-                        for (const link of links) {
-                            const href = link.getAttribute('href') || '';
-                            if (href.includes('targetUrn=')) {
-                                const m = href.match(/targetUrn=([^&]+)/);
-                                if (m) {
-                                    const decoded = decodeURIComponent(m[1]);
-                                    postUrl = `https://www.linkedin.com/feed/update/${decoded}/`;
-                                    break;
-                                }
-                            }
-                            if (href.includes('/feed/update/urn:li:')) {
-                                postUrl = href.startsWith('http') ? href.split('?')[0] : `https://www.linkedin.com${href.split('?')[0]}`;
-                                break;
-                            }
-                            if (href.includes('/posts/')) {
-                                postUrl = href.startsWith('http') ? href.split('?')[0] : `https://www.linkedin.com${href.split('?')[0]}`;
-                                break;
+                        // Check A: Look for post permalink in anchors
+                        const postAnchor = Array.from(node.querySelectorAll('a')).find(a => {
+                            const href = a.getAttribute('href') || '';
+                            return (href.includes('/feed/update/') || href.includes('/posts/')) && !href.includes('/in/');
+                        });
+                        if (postAnchor) {
+                            postUrl = postAnchor.href.split('?')[0];
+                        }
+
+                        // Check B: Look for URNs in HTML
+                        const html = (node as HTMLElement).outerHTML || '';
+                        const urnMatch = html.match(/(?:activity|share|ugcPost)[%3A:_]+([0-9]{15,})/i);
+                        if (urnMatch) {
+                            postId = urnMatch[1];
+                            if (!postUrl) {
+                                postUrl = `https://www.linkedin.com/feed/update/urn:li:activity:${postId}/`;
                             }
                         }
 
-                        // Check B: Look for data-urn or data-id attributes on the card or descendants
-                        if (!postUrl) {
-                            const urnEl = (node.matches('[data-urn], [data-id]') ? node : node.querySelector('[data-urn], [data-id]')) as HTMLElement | null;
-                            const urn = urnEl?.getAttribute('data-urn') || urnEl?.getAttribute('data-id') || '';
-                            if (urn && urn.startsWith('urn:li:')) {
-                                postUrl = `https://www.linkedin.com/feed/update/${urn}/`;
-                            }
-                        }
-
-                        // Check C: Search outerHTML for activity/share/ugcPost URNs
-                        if (!postUrl) {
-                            const html = (node as HTMLElement).outerHTML || '';
-                            const match = html.match(/(?:activity|share|ugcPost)[%3A:_]+([0-9]{15,})/i);
-                            if (match) {
-                                const numId = match[1];
-                                postId = numId;
-                                postUrl = `https://www.linkedin.com/feed/update/urn:li:activity:${numId}/`;
-                            }
-                        }
-
-                        // Check D: Any link inside the card pointing to feed/update, activity, or posts
-                        if (!postUrl) {
-                            const postAnchor = Array.from(node.querySelectorAll('a')).find(a => {
-                                const h = a.getAttribute('href') || '';
-                                return (h.includes('/feed/update/') || h.includes('/posts/') || h.includes('activity')) && !h.includes('/in/');
-                            });
-                            if (postAnchor) {
-                                const rawHref = postAnchor.getAttribute('href') || '';
-                                postUrl = rawHref.startsWith('http') ? rawHref.split('?')[0] : `https://www.linkedin.com${rawHref.split('?')[0]}`;
-                            }
-                        }
-
-                        // Check E: Time description link
-                        if (!postUrl) {
-                            const timeLink = node.querySelector('.update-components-actor__sub-description a, .feed-shared-actor__sub-description a, a.app-aware-link[href*="update"]') as HTMLAnchorElement | null;
-                            if (timeLink && timeLink.href) {
-                                postUrl = timeLink.href.split('?')[0];
-                            }
-                        }
-
-                        // Extract post ID
                         if (!postId && postUrl) {
                             const m = postUrl.match(/(?:activity|share|ugcPost)?:?([0-9]{15,})/);
                             if (m) postId = m[1];
@@ -337,30 +295,25 @@ async function main() {
                             postId = `li_${cleanContent.slice(0, 30).replace(/[^a-zA-Z0-9]/g, '')}`;
                         }
 
-                        // If this is a comment pitch ("Hi Harsh Jain, ..."), extract the prospective client name
-                        let prospectName = authorName;
-                        const greetMatch = cleanContent.match(/\b(?:Hi|Hey|Hello|Dear)\s+([A-Za-z0-9_\s.()]{2,30}?)(?:,|\s+we\b|\s+I\b|\s+at\b|\s*!)/i);
-                        if (greetMatch && greetMatch[1]) {
-                            const candidate = greetMatch[1].trim();
-                            if (candidate.length >= 3 && !/there|everyone|all|team/i.test(candidate)) {
-                                prospectName = candidate;
-                            }
+                        // Fallback author if prospect not detected
+                        if (!prospectName) {
+                            prospectName = targetInfo.name;
                         }
 
                         results.push({
                             id: postId,
-                            url: postUrl || (postId && /^[0-9]{15,}$/.test(postId) ? `https://www.linkedin.com/feed/update/urn:li:activity:${postId}/` : ''),
+                            url: postUrl || prospectUrl || targetInfo.url,
                             content: cleanContent,
                             timeStr: timeStr.trim(),
                             author: {
                                 name: prospectName,
-                                url: targetInfo.url,
-                            }
+                                url: prospectUrl || targetInfo.url,
+                            },
                         });
                     }
                     return results;
                 },
-                { name: target.name, url: target.url }
+                { name: target.name, url: target.url, slug: targetSlug }
             );
 
             console.log(`📥 [LocalScraper] Found ${extractedItems.length} candidate post(s) for "${target.name}"`);
