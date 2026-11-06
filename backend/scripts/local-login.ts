@@ -19,6 +19,13 @@ async function main() {
     const cookiesFile = path.join(sessionDir, 'cookies.json');
     const bravePath = getBraveExecutable();
 
+    if (process.argv.includes('--clean')) {
+        if (fs.existsSync(sessionDir)) {
+            console.log('🧹 [LocalLogin] Wiping old .linkedin-session directory for clean burner login...');
+            fs.rmSync(sessionDir, { recursive: true, force: true });
+        }
+    }
+
     console.log('🚀 [LocalLogin] Launching Brave Browser for persistent LinkedIn authentication...');
     if (bravePath) {
         console.log(`🦁 Browser: Brave Browser (${bravePath})`);
@@ -27,22 +34,29 @@ async function main() {
     }
     console.log(`📁 Session directory: ${sessionDir}`);
 
-    const useProxy = process.env.LOGIN_WITH_PROXY === 'true';
+    const useProxy = process.argv.includes('--proxy') || process.env.LOGIN_WITH_PROXY === 'true';
     let proxyOption: any = undefined;
     if (useProxy && process.env.HUNTER_CRAWLER_PROXY_URL) {
         try {
             const parsed = new URL(process.env.HUNTER_CRAWLER_PROXY_URL);
+            let username = decodeURIComponent(parsed.username);
+            // Convert to sticky residential session
+            if (username.includes('-rotate')) {
+                username = username.replace('-rotate', '-session-burner01');
+            } else if (!username.includes('-session-')) {
+                username = `${username}-session-burner01`;
+            }
             proxyOption = {
                 server: `${parsed.protocol}//${parsed.host}`,
-                username: decodeURIComponent(parsed.username),
+                username,
                 password: decodeURIComponent(parsed.password),
             };
-            console.log(`🔒 Proxy: Routing login through Webshare (${parsed.host})`);
+            console.log(`🔒 Proxy: Sticky Residential Session active via Webshare (${parsed.host}) [session: burner01]`);
         } catch {
             console.warn(`⚠️ Invalid proxy URL. Running direct.`);
         }
     } else {
-        console.log('⚡ Direct Connection (Fast, zero proxy lag for instant login)');
+        console.log('⚡ Direct Connection (Fast, zero proxy lag for instant login). Pass --proxy to route through Webshare.');
     }
 
     const context = await chromium.launchPersistentContext(sessionDir, {
@@ -55,7 +69,34 @@ async function main() {
             '--disable-blink-features=AutomationControlled',
             '--no-sandbox',
             '--disable-setuid-sandbox',
+            '--disable-infobars',
+            '--disable-dev-shm-usage',
         ],
+    });
+
+    // Anti-bot stealth evasions: Strip navigator.webdriver and automation indicators
+    await context.addInitScript(() => {
+        Object.defineProperty(navigator, 'webdriver', {
+            get: () => undefined,
+        });
+        Object.defineProperty(navigator, 'languages', {
+            get: () => ['en-US', 'en'],
+        });
+        Object.defineProperty(navigator, 'plugins', {
+            get: () => [1, 2, 3, 4, 5],
+        });
+        (window as any).chrome = {
+            runtime: {},
+            loadTimes: function() {},
+            csi: function() {},
+            app: {},
+        };
+        const originalQuery = window.navigator.permissions.query;
+        window.navigator.permissions.query = (parameters: any) => (
+            parameters.name === 'notifications' ?
+                Promise.resolve({ state: Notification.permission } as any) :
+                originalQuery(parameters)
+        );
     });
 
     const page = context.pages().length > 0 ? context.pages()[0] : await context.newPage();

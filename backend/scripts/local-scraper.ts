@@ -95,12 +95,19 @@ async function main() {
     if (proxyUrl) {
         try {
             const parsed = new URL(proxyUrl);
+            let username = decodeURIComponent(parsed.username);
+            // Convert to sticky residential session so IP doesn't jump per request
+            if (username.includes('-rotate')) {
+                username = username.replace('-rotate', '-session-burner01');
+            } else if (!username.includes('-session-')) {
+                username = `${username}-session-burner01`;
+            }
             proxyOption = {
                 server: `${parsed.protocol}//${parsed.host}`,
-                username: decodeURIComponent(parsed.username),
+                username,
                 password: decodeURIComponent(parsed.password),
             };
-            console.log(`🔒 Proxy: Routing scraper through Webshare (${parsed.host})`);
+            console.log(`🔒 Proxy: Sticky Residential Session active via Webshare (${parsed.host}) [session: burner01]`);
         } catch {
             console.warn(`⚠️ Invalid proxy URL: ${proxyUrl}. Running direct.`);
         }
@@ -118,7 +125,41 @@ async function main() {
             '--disable-blink-features=AutomationControlled',
             '--no-sandbox',
             '--disable-setuid-sandbox',
+            '--disable-infobars',
+            '--disable-dev-shm-usage',
         ],
+    });
+
+    if (proxyOption?.username && proxyOption?.password) {
+        await context.setHTTPCredentials({
+            username: proxyOption.username,
+            password: proxyOption.password,
+        });
+    }
+
+    // Anti-bot stealth evasions: Strip navigator.webdriver and automation indicators
+    await context.addInitScript(() => {
+        Object.defineProperty(navigator, 'webdriver', {
+            get: () => undefined,
+        });
+        Object.defineProperty(navigator, 'languages', {
+            get: () => ['en-US', 'en'],
+        });
+        Object.defineProperty(navigator, 'plugins', {
+            get: () => [1, 2, 3, 4, 5],
+        });
+        (window as any).chrome = {
+            runtime: {},
+            loadTimes: function() {},
+            csi: function() {},
+            app: {},
+        };
+        const originalQuery = window.navigator.permissions.query;
+        window.navigator.permissions.query = (parameters: any) => (
+            parameters.name === 'notifications' ?
+                Promise.resolve({ state: Notification.permission } as any) :
+                originalQuery(parameters)
+        );
     });
 
     // Note: Persistent context already preserves cookies in sessionDir.
@@ -427,8 +468,8 @@ async function main() {
             totalUpdated += updatedForTarget;
             totalDupes += dupesForTarget;
 
-            // Polite delay between profiles (5-9s jitter)
-            const pauseMs = 5000 + Math.floor(Math.random() * 4000);
+            // Humanized delay between profiles (8-15s jitter to avoid velocity flags)
+            const pauseMs = 8000 + Math.floor(Math.random() * 7000);
             console.log(`⏳ Pausing ${Math.round(pauseMs / 1000)}s before next profile...`);
             await page.waitForTimeout(pauseMs);
 

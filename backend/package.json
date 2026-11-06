@@ -18,6 +18,7 @@
     "db:generate:supabase": "cross-env DB_MODE=supabase node scripts/prisma-generate.js",
     "scrape:login": "ts-node --transpile-only scripts/local-login.ts",
     "login:local": "ts-node --transpile-only scripts/local-login.ts",
+    "login:clean": "ts-node --transpile-only scripts/local-login.ts --clean",
     "scrape:local": "ts-node --transpile-only scripts/local-scraper.ts",
     "seed": "ts-node src/scripts/seed.ts",
     "seed:claimable": "ts-node src/scripts/seed-claimable-leads.ts",
