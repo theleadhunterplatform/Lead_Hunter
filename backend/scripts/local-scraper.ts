@@ -26,22 +26,22 @@ function extractPhoneFromText(text: string): string | null {
     return match ? match[0] : null;
 }
 
-function isWithin48Hours(timeStr: string): boolean {
+function isWithinDays(timeStr: string, maxDays = 4): boolean {
     if (!timeStr) return true; // optimistic default
     const clean = timeStr.toLowerCase().trim();
 
-    // Past 48 hours indicators
+    // Past months / years indicators
     if (/\b\d+\s*(?:mo|month|months|yr|year|years)\b/.test(clean)) return false;
     if (/\b\d+\s*(?:w|week|weeks)\b/.test(clean)) return false;
 
-    // Check days: > 2d is > 48 hours
+    // Check days: <= maxDays (default 4 days)
     const dayMatch = clean.match(/(\d+)\s*(?:d|day|days)/);
     if (dayMatch) {
         const days = parseInt(dayMatch[1], 10);
-        return days <= 2;
+        return days <= maxDays;
     }
 
-    // Minutes and hours are always < 48 hours
+    // Minutes and hours are always < 4 days
     if (/\b\d+\s*(?:m|min|minute|minutes|h|hr|hour|hours)\b/.test(clean)) return true;
     if (/just now|now|today|yesterday/i.test(clean)) return true;
 
@@ -370,9 +370,9 @@ async function main() {
             let dupesForTarget = 0;
 
             for (const item of extractedItems) {
-                // Strict 48-Hour Age Gate
-                if (!isWithin48Hours(item.timeStr)) {
-                    console.log(`   ⏭️ [Age Gate] Skipping post ${item.id} (${item.timeStr || 'unknown age'} > 48h)`);
+                // 4-Day Age Gate
+                if (!isWithinDays(item.timeStr, 4)) {
+                    console.log(`   ⏭️ [Age Gate] Skipping post ${item.id} (${item.timeStr || 'unknown age'} > 4d)`);
                     continue;
                 }
 
