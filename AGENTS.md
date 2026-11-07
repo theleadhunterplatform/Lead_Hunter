@@ -375,6 +375,8 @@ RAZORPAY_KEY_SECRET=...
     - All code modifications and fixes must be completed in under 1 minute.
 12. **Permanent Enforcement:**
     - Rules 9–11 are permanently active across every prompt and session.
+13. **PROJECT_INDEX.md Lookup First Rule:**
+    - Before grepping or scanning directories for any task, bug fix, or question, ALWAYS consult [`PROJECT_INDEX.md`](./PROJECT_INDEX.md) (specifically Section 8: Fast-Lookup Feature & Bug Routing Matrix) to target the exact 2–3 responsible files immediately without searching blind.
 
 ---
 

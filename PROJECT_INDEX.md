@@ -300,7 +300,29 @@ ai/
 
 ---
 
-## 7. Developer Quick Reference Commands
+## 8. Fast-Lookup Feature & Bug Routing Matrix
+
+Use this index table to immediately locate the exact files responsible for any feature, bug, or question without scanning the codebase:
+
+| System / Feature Area | Symptoms or Task | Exact Primary Files to Check | Downstream / Related Files |
+| :--- | :--- | :--- | :--- |
+| **HunterCrawler & Local Scraper** | Comments crawl, buyer extraction, Playwright sessions, proxies | `backend/scripts/local-scraper.ts`<br>`backend/src/services/hunter-crawler.service.ts` | `backend/scripts/local-login.ts`<br>`backend/src/services/scraper.service.ts` |
+| **Scraper Engines & Failover** | Apify, Scrapedog, Crawlbase rotation, quota exhausted | `backend/src/services/scraper-key.service.ts`<br>`frontend/apps/web/src/app/admin/tokens/page.tsx` | `backend/src/workers/scraperWorker.ts`<br>`backend/src/services/apify.service.ts` |
+| **Automation Crons & Quiet Hours** | Scrapers firing when unwanted, 10 AM - 7 PM IST window | `backend/src/cron/leadScraper.ts`<br>`backend/src/utils/quiet-hours.utils.ts` | `backend/src/services/scraper-producer.service.ts`<br>`backend/src/controllers/automation.controller.ts` |
+| **Credits & Dynamic Unlocks** | Cost incorrect (15/12/10/5), balance deduction, rollover expiry | `frontend/apps/web/src/lib/coins.ts`<br>`frontend/apps/web/src/lib/services/rollover.ts` | `frontend/apps/web/src/components/leads/LeadDrawer.tsx`<br>`backend/src/controllers/contact.controller.ts` |
+| **Lead Feed & Filters** | Leads not showing, filter by niche, search, pagination | `frontend/apps/web/src/app/leads/page.tsx`<br>`backend/src/controllers/post.controller.ts` | `frontend/apps/web/src/components/leads/LeadCard.tsx`<br>`backend/src/models/lead-post.model.ts` |
+| **Lead Qualification & Relevancy** | Post marked irrelevant, job vs freelance rule, ML confidence | `backend/src/services/qualification.service.ts`<br>`ai/classifier.py` | `backend/src/workers/ocrWorker.ts`<br>`ai/server.py` |
+| **Contact Enrichment Waterfall** | Missing emails/phones, Apollo/Hunter/ContactCompass failover | `backend/src/services/enrichment.service.ts`<br>`backend/src/workers/enrichmentWorker.ts` | `backend/scripts/diagnose-enrichment.ts` |
+| **AI Titling & LLM Intelligence** | Headlines, buyer budget signals, Gemini/Groq prompt output | `backend/src/services/intelligence.service.ts`<br>`backend/src/services/punchy-title.service.ts` | `backend/src/workers/intelligenceWorker.ts`<br>`backend/src/workers/titlingWorker.ts` |
+| **Admin Lead Review & Approvals** | Leads stuck in review, Approve/Reject not updating feed | `frontend/apps/web/src/app/admin/review/page.tsx`<br>`backend/src/controllers/post.controller.ts` | `backend/src/models/lead-post.model.ts` |
+| **User Signups & Onboarding Gate** | User stuck in pending, questionnaire not saving, access denied | `frontend/apps/web/src/app/(public)/onboarding/page.tsx`<br>`backend/src/controllers/user-approval.controller.ts` | `frontend/apps/web/src/app/(public)/pending-approval/page.tsx`<br>`backend/src/middleware/auth.ts` |
+| **Payments & Razorpay Plans** | Top-up credits not received, webhook failure, pricing plan | `backend/src/services/payment.service.ts`<br>`frontend/apps/web/src/app/api/payments/route.ts` | `backend/src/controllers/payment.controller.ts`<br>`frontend/apps/web/src/app/(public)/pricing/page.tsx` |
+| **WhatsApp Community Drops** | Alerts not sending to group, QR code / session disconnect | `backend/src/services/whatsapp.service.ts`<br>`backend/src/controllers/whatsapp.controller.ts` | `backend/src/services/post.service.ts` |
+| **Database & Dual ORM Schema** | Schema migration, missing columns in Postgres vs SQLite | `backend/prisma/schema.prisma`<br>`frontend/apps/web/prisma/schema.prisma` | `backend/prisma/schema.sqlite.prisma`<br>`backend/src/lib/prisma.ts` |
+
+---
+
+## 9. Developer Quick Reference Commands
 
 ```bash
 # Start all 4 services concurrently (Redis, Backend, Frontend, AI):
@@ -324,3 +346,4 @@ npm run seed:claimable                 # Seed claimable leads for testing
 ```
 
 > ⚠️ **Non-Negotiable Rule:** NEVER stage, add (`git add`), or commit any `.env` or `.env.example` files under any circumstances.
+
