@@ -7,3 +7,4 @@ data/
 *.db-journal
 storage/
 .linkedin-session/
+.linkedin-sessions/

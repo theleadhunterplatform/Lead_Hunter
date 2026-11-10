@@ -33,3 +33,4 @@ npm-debug.log*
 frontend/
 
 .linkedin-session/
+.linkedin-sessions/

@@ -14,49 +14,82 @@ function getBraveExecutable(): string | undefined {
     return candidates.find((p) => fs.existsSync(p));
 }
 
-async function main() {
-    const sessionDir = path.resolve(__dirname, '../.linkedin-session');
-    const cookiesFile = path.join(sessionDir, 'cookies.json');
-    const bravePath = getBraveExecutable();
+function parseCliArgs() {
+    const args = process.argv.slice(2);
+    let accountNum = 1;
+    let customProxy: string | undefined = undefined;
+    let isClean = false;
 
-    if (process.argv.includes('--clean')) {
-        if (fs.existsSync(sessionDir)) {
-            console.log('🧹 [LocalLogin] Wiping old .linkedin-session directory for clean burner login...');
-            fs.rmSync(sessionDir, { recursive: true, force: true });
+    for (const arg of args) {
+        if (arg.startsWith('--account=')) {
+            const num = parseInt(arg.split('=')[1], 10);
+            if (!isNaN(num) && num >= 1 && num <= 10) {
+                accountNum = num;
+            }
+        } else if (arg.startsWith('--proxy=')) {
+            customProxy = arg.split('=')[1].replace(/^["']|["']$/g, '').trim();
+        } else if (arg === '--clean') {
+            isClean = true;
         }
     }
 
-    console.log('🚀 [LocalLogin] Launching Brave Browser for persistent LinkedIn authentication...');
-    if (bravePath) {
-        console.log(`🦁 Browser: Brave Browser (${bravePath})`);
-    } else {
-        console.log('🌐 Browser: Chromium fallback (Brave not detected)');
-    }
-    console.log(`📁 Session directory: ${sessionDir}`);
+    return { accountNum, customProxy, isClean };
+}
 
-    const useProxy = process.argv.includes('--proxy') || process.env.LOGIN_WITH_PROXY === 'true';
+async function main() {
+    const { accountNum, customProxy, isClean } = parseCliArgs();
+    const wolfId = `wolf_${accountNum}`;
+
+    // Session directory for isolated account profiles
+    const baseSessionsDir = path.resolve(__dirname, '../.linkedin-sessions');
+    const sessionDir = path.join(baseSessionsDir, `account-${accountNum}`);
+    const cookiesFile = path.join(sessionDir, 'cookies.json');
+    const bravePath = getBraveExecutable();
+
+    if (!fs.existsSync(baseSessionsDir)) {
+        fs.mkdirSync(baseSessionsDir, { recursive: true });
+    }
+
+    if (isClean && fs.existsSync(sessionDir)) {
+        console.log(`🧹 [Wolfpack Login] Wiping session directory for Account #${accountNum} (${sessionDir})...`);
+        fs.rmSync(sessionDir, { recursive: true, force: true });
+    }
+
+    console.log(`\n🐺 ============================================================`);
+    console.log(`🐺 WOLFPACK STEALTH LOGIN — ACCOUNT #${accountNum} (${wolfId})`);
+    console.log(`🐺 ============================================================`);
+    if (bravePath) {
+        console.log(`🦁 Engine: Brave Browser (${bravePath})`);
+    } else {
+        console.log('🌐 Engine: Chromium fallback (Brave not detected)');
+    }
+    console.log(`📁 Isolated profile: ${sessionDir}`);
+
+    // Resolve Proxy for this account
+    const rawProxyUrl = customProxy || process.env.HUNTER_CRAWLER_PROXY_URL;
     let proxyOption: any = undefined;
-    if (useProxy && process.env.HUNTER_CRAWLER_PROXY_URL) {
+
+    if (rawProxyUrl) {
         try {
-            const parsed = new URL(process.env.HUNTER_CRAWLER_PROXY_URL);
+            const parsed = new URL(rawProxyUrl);
             let username = decodeURIComponent(parsed.username);
-            // Convert to sticky residential session
+            // Convert to sticky residential session if rotate token is used
             if (username.includes('-rotate')) {
-                username = username.replace('-rotate', '-session-burner01');
-            } else if (!username.includes('-session-')) {
-                username = `${username}-session-burner01`;
+                username = username.replace('-rotate', `-session-wolf${accountNum}`);
+            } else if (!username.includes('-session-') && username.length > 0) {
+                username = `${username}-session-wolf${accountNum}`;
             }
             proxyOption = {
                 server: `${parsed.protocol}//${parsed.host}`,
                 username,
                 password: decodeURIComponent(parsed.password),
             };
-            console.log(`🔒 Proxy: Sticky Residential Session active via Webshare (${parsed.host}) [session: burner01]`);
+            console.log(`🔒 Proxy: Sticky Residential active (${parsed.host}) [session: wolf${accountNum}]`);
         } catch {
-            console.warn(`⚠️ Invalid proxy URL. Running direct.`);
+            console.warn(`⚠️ Invalid proxy URL: ${rawProxyUrl}. Running direct.`);
         }
     } else {
-        console.log('⚡ Direct Connection (Fast, zero proxy lag for instant login). Pass --proxy to route through Webshare.');
+        console.log('⚡ Direct Connection (Fast, zero proxy lag for instant login). Pass --proxy="http://..." for dedicated sticky IP.');
     }
 
     const context = await chromium.launchPersistentContext(sessionDir, {
@@ -108,7 +141,7 @@ async function main() {
         });
     }
 
-    console.log('🌐 Opening LinkedIn login page...');
+    console.log(`\n🌐 Opening LinkedIn login page for Account #${accountNum}...`);
     try {
         await page.goto('https://www.linkedin.com/login', { waitUntil: 'commit', timeout: 45000 });
     } catch {
@@ -117,10 +150,10 @@ async function main() {
     }
 
     console.log('\n============================================================');
-    console.log('👉 PLEASE LOG IN TO LINKEDIN IN BRAVE NOW.');
+    console.log(`👉 PLEASE LOG IN AS BURNER ACCOUNT #${accountNum} IN BRAVE NOW.`);
     console.log('👉 Complete 2FA / OTP if prompted.');
     console.log('👉 The script is waiting for you to see your actual feed.');
-    console.log('👉 Once logged in, this window will save cookies and close!');
+    console.log('👉 Once logged in, this window will save cookies and close automatically!');
     console.log('============================================================\n');
 
     let loggedIn = false;
@@ -143,14 +176,58 @@ async function main() {
 
         // Strictly verify user is ON the feed with li_at cookie
         if (hasLiAt && isFeed) {
-            console.log('🎉 [LocalLogin] Genuine login detected! URL:', rawUrl);
+            console.log(`🎉 [Wolfpack Login] Genuine login detected for Account #${accountNum}! URL:`, rawUrl);
             console.log(`💾 Saving ${cookies.length} persistent cookies to: ${cookiesFile}`);
             fs.writeFileSync(cookiesFile, JSON.stringify(cookies, null, 2), 'utf8');
 
-            const liAtCookie = cookies.find((c) => c.name === 'li_at')?.value;
-            const jsessionCookie = cookies.find((c) => c.name === 'JSESSIONID')?.value;
-            if (liAtCookie && jsessionCookie) {
-                try {
+            const liAtCookie = cookies.find((c) => c.name === 'li_at')?.value || '';
+            const jsessionCookie = cookies.find((c) => c.name === 'JSESSIONID')?.value || '';
+
+            // Update Wolfpack Account Pool in Database Settings
+            try {
+                const existingSetting = await prisma.setting.findUnique({
+                    where: { key: 'wolfpack_accounts' },
+                });
+
+                let pool: any[] = [];
+                if (existingSetting && Array.isArray(existingSetting.value)) {
+                    pool = existingSetting.value as any[];
+                }
+
+                // Upsert this account record
+                const accountRecord = {
+                    id: wolfId,
+                    account_num: accountNum,
+                    status: 'active',
+                    proxy: rawProxyUrl || null,
+                    li_at: liAtCookie,
+                    jsessionid: jsessionCookie,
+                    cookies_count: cookies.length,
+                    cookies_json: JSON.stringify(cookies),
+                    last_login_at: new Date().toISOString(),
+                    requests_today: 0,
+                };
+
+                const existingIndex = pool.findIndex((a: any) => a.account_num === accountNum || a.id === wolfId);
+                if (existingIndex >= 0) {
+                    pool[existingIndex] = { ...pool[existingIndex], ...accountRecord };
+                } else {
+                    pool.push(accountRecord);
+                }
+
+                // Sort by account_num
+                pool.sort((a: any, b: any) => (a.account_num || 0) - (b.account_num || 0));
+
+                await prisma.setting.upsert({
+                    where: { key: 'wolfpack_accounts' },
+                    create: { key: 'wolfpack_accounts', value: pool as any },
+                    update: { value: pool as any },
+                });
+
+                console.log(`☁️ [Wolfpack Login] Account #${accountNum} synced to Supabase database (wolfpack_accounts pool: ${pool.length} active).`);
+
+                // Also maintain legacy single-cookie setting if Account 1
+                if (accountNum === 1 && liAtCookie && jsessionCookie) {
                     await prisma.setting.upsert({
                         where: { key: 'linkedin_session_cookie' },
                         create: { key: 'linkedin_session_cookie', value: liAtCookie },
@@ -161,10 +238,9 @@ async function main() {
                         create: { key: 'linkedin_jsessionid', value: jsessionCookie },
                         update: { value: jsessionCookie },
                     });
-                    console.log('☁️ [LocalLogin] Successfully synced live session cookies to Database Settings for Voyager API!');
-                } catch (dbErr: any) {
-                    console.warn('⚠️ [LocalLogin] Could not sync to DB:', dbErr.message);
                 }
+            } catch (dbErr: any) {
+                console.warn('⚠️ [Wolfpack Login] Could not sync account to DB:', dbErr.message);
             }
 
             await page.waitForTimeout(3000);
@@ -178,10 +254,11 @@ async function main() {
     await context.close();
 
     if (loggedIn) {
-        console.log('✅ [LocalLogin] Session saved successfully! You are ready to run `npm run scrape:local`.');
+        console.log(`\n✅ [Wolfpack Login] Account #${accountNum} successfully initialized!`);
+        console.log(`👉 To log into next account, run: npm run login:wolf -- --account=${accountNum + 1}`);
     } else {
-        console.error('❌ [LocalLogin] Timed out waiting for login. Please try again.');
+        console.error(`\n❌ [Wolfpack Login] Timed out waiting for Account #${accountNum} login. Please try again.`);
     }
 }
 
-main().catch(console.error);
+main().catch(console.error).finally(() => prisma.$disconnect());

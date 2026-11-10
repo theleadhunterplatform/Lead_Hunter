@@ -48,21 +48,47 @@ function isWithinDays(timeStr: string, maxDays = 4): boolean {
     return true;
 }
 
+function parseCliArgs() {
+    const args = process.argv.slice(2);
+    let accountNum = 1;
+    let customProxy: string | undefined = undefined;
+
+    for (const arg of args) {
+        if (arg.startsWith('--account=')) {
+            const num = parseInt(arg.split('=')[1], 10);
+            if (!isNaN(num) && num >= 1 && num <= 10) {
+                accountNum = num;
+            }
+        } else if (arg.startsWith('--proxy=')) {
+            customProxy = arg.split('=')[1].replace(/^["']|["']$/g, '').trim();
+        }
+    }
+
+    return { accountNum, customProxy };
+}
+
 async function main() {
-    const sessionDir = path.resolve(__dirname, '../.linkedin-session');
-    const cookiesFile = path.join(sessionDir, 'cookies.json');
+    const { accountNum, customProxy } = parseCliArgs();
+    const wolfId = `wolf_${accountNum}`;
+
+    // Resolve isolated session profile
+    const multiSessionDir = path.resolve(__dirname, `../.linkedin-sessions/account-${accountNum}`);
+    const legacySessionDir = path.resolve(__dirname, '../.linkedin-session');
+    const sessionDir = fs.existsSync(multiSessionDir) ? multiSessionDir : legacySessionDir;
     const limit = parseInt(process.env.SCRAPE_LIMIT || '35', 10);
 
     if (!fs.existsSync(sessionDir)) {
-        console.error('❌ [LocalScraper] No persistent browser session found at:', sessionDir);
-        console.error('👉 Please run `npm run scrape:login` first to authenticate.');
+        console.error(`❌ [Wolfpack Scraper] No session profile found for Account #${accountNum} at:`, sessionDir);
+        console.error(`👉 Run 'npm run login:wolf -- --account=${accountNum}' first to authenticate.`);
         process.exit(1);
     }
 
-    console.log('🚀 [LocalScraper] Starting local persistent scraper worker (Clean Post Pattern)...');
-    console.log(`📁 Using persistent browser profile: ${sessionDir}`);
+    console.log(`\n🐺 ============================================================`);
+    console.log(`🐺 WOLFPACK CRAWLER ACTIVE — ACCOUNT #${accountNum} (${wolfId})`);
+    console.log(`🐺 ============================================================`);
+    console.log(`📁 Browser profile: ${sessionDir}`);
 
-    const targets = await prisma.sourceProfile.findMany({
+    const allTargets = await prisma.sourceProfile.findMany({
         where: {
             is_active: true,
             platform: 'linkedin',
@@ -73,12 +99,22 @@ async function main() {
         take: limit,
     });
 
-    if (targets.length === 0) {
-        console.log('⚠️ [LocalScraper] No active LinkedIn watchlist targets found.');
+    if (allTargets.length === 0) {
+        console.log('⚠️ [Wolfpack Scraper] No active LinkedIn watchlist targets found.');
         process.exit(0);
     }
 
-    console.log(`📋 [LocalScraper] Processing ${targets.length} target(s)...\n`);
+    // Partition targets: 7 per account (35 total targets / 5 accounts)
+    const batchSize = Math.max(1, Math.ceil(allTargets.length / 5));
+    const startIdx = (accountNum - 1) * batchSize;
+    const endIdx = startIdx + batchSize;
+    const targets = process.argv.some(a => a.startsWith('--account='))
+        ? allTargets.slice(startIdx, endIdx)
+        : allTargets;
+
+    console.log(`📋 [Wolfpack Scraper] Targets assigned to Account #${accountNum}: ${targets.length} of ${allTargets.length} total targets.`);
+    targets.forEach((t, i) => console.log(`   ${i + 1}. ${t.name || t.url}`));
+    console.log('');
 
     const bravePath = getBraveExecutable();
     if (bravePath) {
@@ -87,11 +123,11 @@ async function main() {
 
     const isHeadless = process.env.HEADLESS === 'true';
     if (!isHeadless) {
-        console.log('🖥️ Running in visual Brave mode (bypasses Cloudflare anti-bot redirects). Set HEADLESS=true to run headless.');
+        console.log('🖥️ Running in visual Brave mode. Set HEADLESS=true to run headless.');
     }
 
-    const useProxy = process.argv.includes('--proxy') || process.env.SCRAPER_WITH_PROXY === 'true';
-    const proxyUrl = process.env.HUNTER_CRAWLER_PROXY_URL;
+    const useProxy = process.argv.includes('--proxy') || Boolean(customProxy) || process.env.SCRAPER_WITH_PROXY === 'true';
+    const proxyUrl = customProxy || process.env.HUNTER_CRAWLER_PROXY_URL;
     let proxyOption: any = undefined;
     if (useProxy && proxyUrl) {
         try {
@@ -99,16 +135,16 @@ async function main() {
             let username = decodeURIComponent(parsed.username);
             // Convert to sticky residential session so IP doesn't jump per request
             if (username.includes('-rotate')) {
-                username = username.replace('-rotate', '-session-burner01');
-            } else if (!username.includes('-session-')) {
-                username = `${username}-session-burner01`;
+                username = username.replace('-rotate', `-session-wolf${accountNum}`);
+            } else if (!username.includes('-session-') && username.length > 0) {
+                username = `${username}-session-wolf${accountNum}`;
             }
             proxyOption = {
                 server: `${parsed.protocol}//${parsed.host}`,
                 username,
                 password: decodeURIComponent(parsed.password),
             };
-            console.log(`🔒 Proxy: Sticky Residential Session active via Webshare (${parsed.host}) [session: burner01]`);
+            console.log(`🔒 Proxy: Sticky Residential active (${parsed.host}) [session: wolf${accountNum}]`);
         } catch {
             console.warn(`⚠️ Invalid proxy URL: ${proxyUrl}. Running direct.`);
         }
@@ -166,17 +202,22 @@ async function main() {
     // Note: Persistent context already preserves cookies in sessionDir.
     // Injecting stale __cf_bm cookies causes Cloudflare ERR_TOO_MANY_REDIRECTS loop.
 
-    // Resource blocking: abort media, fonts, websocket, telemetry
+    // High-Efficiency Asset Blocking: abort images, media, fonts, tracking, video ads to cap bandwidth < 300KB/page
     await context.route('**/*', (route) => {
         const type = route.request().resourceType();
         const url = route.request().url().toLowerCase();
         if (
             ['image', 'media', 'font', 'websocket'].includes(type) ||
-            /\.(png|jpe?g|gif|webp|svg|ico|woff2?|ttf|eot)(\?.*)?$/i.test(url) ||
+            /\.(png|jpe?g|gif|webp|svg|ico|woff2?|ttf|eot|mp4|webm|avi)(\?.*)?$/i.test(url) ||
             url.includes('/li/track') ||
             url.includes('/telemetry') ||
+            url.includes('/realtime/') ||
             url.includes('sentry.io') ||
-            url.includes('doubleclick')
+            url.includes('doubleclick') ||
+            url.includes('google-analytics') ||
+            url.includes('adservice') ||
+            url.includes('quantserve') ||
+            url.includes('scorecardresearch')
         ) {
             return route.abort();
         }
