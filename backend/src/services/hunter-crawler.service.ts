@@ -37,6 +37,15 @@ export class HunterCrawlerService {
      */
     public static async getLinkedInCookie(): Promise<string | null> {
         try {
+            const rawWolf = await settingService.getSetting('wolfpack_accounts');
+            if (Array.isArray(rawWolf) && rawWolf.length > 0) {
+                const active = rawWolf.find((w: any) => w.status === 'active' && w.li_at);
+                if (active?.li_at) return active.li_at.trim();
+            }
+        } catch {
+            // fallback
+        }
+        try {
             const cookiesFile = path.resolve(__dirname, '../../.linkedin-session/cookies.json');
             if (fs.existsSync(cookiesFile)) {
                 const cookies = JSON.parse(fs.readFileSync(cookiesFile, 'utf8'));
@@ -59,6 +68,15 @@ export class HunterCrawlerService {
      * Resolves an optional LinkedIn JSESSIONID for CSRF security validation.
      */
     public static async getLinkedInJsessionId(): Promise<string | null> {
+        try {
+            const rawWolf = await settingService.getSetting('wolfpack_accounts');
+            if (Array.isArray(rawWolf) && rawWolf.length > 0) {
+                const active = rawWolf.find((w: any) => w.status === 'active' && w.jsessionid);
+                if (active?.jsessionid) return active.jsessionid.trim();
+            }
+        } catch {
+            // fallback
+        }
         try {
             const cookiesFile = path.resolve(__dirname, '../../.linkedin-session/cookies.json');
             if (fs.existsSync(cookiesFile)) {
