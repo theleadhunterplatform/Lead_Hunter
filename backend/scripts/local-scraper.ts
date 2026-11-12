@@ -143,11 +143,9 @@ async function main() {
         try {
             const parsed = new URL(proxyUrl);
             let username = decodeURIComponent(parsed.username);
-            // Convert to sticky residential session so IP doesn't jump per request
+            // Only convert to sticky session if rotating token syntax is present
             if (username.includes('-rotate')) {
                 username = username.replace('-rotate', `-session-wolf${accountNum}`);
-            } else if (!username.includes('-session-') && username.length > 0) {
-                username = `${username}-session-wolf${accountNum}`;
             }
             proxyOption = {
                 server: `${parsed.protocol}//${parsed.host}`,
