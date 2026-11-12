@@ -1,6 +1,6 @@
 import path from 'path';
 import fs from 'fs';
-import { chromium } from 'playwright';
+import { chromium, Browser, BrowserContext } from 'playwright';
 import { PrismaClient } from '@prisma/client';
 import LeadPost from '../src/models/lead-post.model';
 import { findExistingLeadPost } from '../src/utils/lead-dedup.utils';
@@ -52,6 +52,7 @@ function parseCliArgs() {
     const args = process.argv.slice(2);
     let accountNum = 1;
     let customProxy: string | undefined = undefined;
+    let brightdataWs: string | undefined = undefined;
 
     for (const arg of args) {
         if (arg.startsWith('--account=')) {
@@ -61,15 +62,24 @@ function parseCliArgs() {
             }
         } else if (arg.startsWith('--proxy=')) {
             customProxy = arg.split('=')[1].replace(/^["']|["']$/g, '').trim();
+        } else if (arg.startsWith('--brightdata=')) {
+            brightdataWs = arg.split('=')[1].replace(/^["']|["']$/g, '').trim();
+        } else if (arg === '--brightdata') {
+            brightdataWs = process.env.BRIGHTDATA_BROWSER_WS || process.env.BRIGHTDATA_URL || '';
         }
     }
 
-    return { accountNum, customProxy };
+    if (!brightdataWs && (process.env.BRIGHTDATA_BROWSER_WS || process.env.BRIGHTDATA_URL)) {
+        brightdataWs = (process.env.BRIGHTDATA_BROWSER_WS || process.env.BRIGHTDATA_URL || '').trim();
+    }
+
+    return { accountNum, customProxy, brightdataWs };
 }
 
 async function main() {
-    const { accountNum, customProxy } = parseCliArgs();
+    const { accountNum, customProxy, brightdataWs } = parseCliArgs();
     const wolfId = `wolf_${accountNum}`;
+    const isBrightData = Boolean(brightdataWs);
 
     // Resolve isolated session profile
     const multiSessionDir = path.resolve(__dirname, `../.linkedin-sessions/account-${accountNum}`);
@@ -77,7 +87,7 @@ async function main() {
     const sessionDir = fs.existsSync(multiSessionDir) ? multiSessionDir : legacySessionDir;
     const limit = parseInt(process.env.SCRAPE_LIMIT || '35', 10);
 
-    if (!fs.existsSync(sessionDir)) {
+    if (!isBrightData && !fs.existsSync(sessionDir)) {
         console.error(`❌ [Wolfpack Scraper] No session profile found for Account #${accountNum} at:`, sessionDir);
         console.error(`👉 Run 'npm run login:wolf -- --account=${accountNum}' first to authenticate.`);
         process.exit(1);
@@ -152,26 +162,84 @@ async function main() {
         console.log('⚡ Direct Connection (Fast, matches authenticated burner session). Pass --proxy to route via Webshare.');
     }
 
-    const context = await chromium.launchPersistentContext(sessionDir, {
-        executablePath: bravePath,
-        headless: isHeadless,
-        proxy: proxyOption,
-        viewport: { width: 1280, height: 800 },
-        ignoreDefaultArgs: ['--enable-automation'],
-        args: [
-            '--disable-blink-features=AutomationControlled',
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-infobars',
-            '--disable-dev-shm-usage',
-        ],
-    });
+    let browser: Browser | null = null;
+    let context: BrowserContext;
 
-    if (proxyOption?.username && proxyOption?.password) {
-        await context.setHTTPCredentials({
-            username: proxyOption.username,
-            password: proxyOption.password,
+    if (isBrightData) {
+        const maskedWs = (brightdataWs || '').replace(/:[^:@]+@/, ':****@');
+        console.log(`🌐 [Bright Data Scraping Browser] Connecting via CDP: ${maskedWs}`);
+        browser = await chromium.connectOverCDP(brightdataWs!);
+        context = browser.contexts()[0] || await browser.newContext({
+            viewport: { width: 1280, height: 800 },
         });
+
+        // Resolve and inject session cookies into Bright Data browser
+        const cookiesToInject: any[] = [];
+        const cookiesFile = path.join(sessionDir, 'cookies.json');
+        if (fs.existsSync(cookiesFile)) {
+            try {
+                const diskCookies = JSON.parse(fs.readFileSync(cookiesFile, 'utf8'));
+                if (Array.isArray(diskCookies)) cookiesToInject.push(...diskCookies);
+            } catch {}
+        }
+
+        if (cookiesToInject.length === 0) {
+            try {
+                const wolfSetting = await prisma.setting.findUnique({ where: { key: 'wolfpack_accounts' } });
+                if (wolfSetting && Array.isArray(wolfSetting.value)) {
+                    const acc = (wolfSetting.value as any[]).find((w: any) => w.account_num === accountNum && w.li_at);
+                    if (acc?.li_at) {
+                        cookiesToInject.push(
+                            { name: 'li_at', value: acc.li_at, domain: '.linkedin.com', path: '/', secure: true, httpOnly: true },
+                            { name: 'JSESSIONID', value: acc.jsessionid || 'ajax:fake', domain: '.linkedin.com', path: '/', secure: true }
+                        );
+                    }
+                }
+            } catch {}
+        }
+
+        if (cookiesToInject.length === 0) {
+            const envLiAt = (process.env.LINKEDIN_LI_AT || process.env.LINKEDIN_COOKIE || '').trim();
+            if (envLiAt) {
+                cookiesToInject.push({
+                    name: 'li_at',
+                    value: envLiAt,
+                    domain: '.linkedin.com',
+                    path: '/',
+                    secure: true,
+                    httpOnly: true,
+                });
+            }
+        }
+
+        if (cookiesToInject.length > 0) {
+            await context.addCookies(cookiesToInject);
+            console.log(`🍪 [Bright Data] Injected ${cookiesToInject.length} session cookies.`);
+        } else {
+            console.warn(`⚠️ [Bright Data] No li_at cookie found! Make sure you are logged in or set LINKEDIN_COOKIE.`);
+        }
+    } else {
+        context = await chromium.launchPersistentContext(sessionDir, {
+            executablePath: bravePath,
+            headless: isHeadless,
+            proxy: proxyOption,
+            viewport: { width: 1280, height: 800 },
+            ignoreDefaultArgs: ['--enable-automation'],
+            args: [
+                '--disable-blink-features=AutomationControlled',
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-infobars',
+                '--disable-dev-shm-usage',
+            ],
+        });
+
+        if (proxyOption?.username && proxyOption?.password) {
+            await context.setHTTPCredentials({
+                username: proxyOption.username,
+                password: proxyOption.password,
+            });
+        }
     }
 
     // Anti-bot stealth evasions: Strip navigator.webdriver and automation indicators
@@ -468,7 +536,10 @@ async function main() {
         }
     }
 
-    await context.close();
+    await context.close().catch(() => null);
+    if (browser) {
+        await browser.close().catch(() => null);
+    }
     await prisma.$disconnect();
 
     console.log(`\n============================================================`);

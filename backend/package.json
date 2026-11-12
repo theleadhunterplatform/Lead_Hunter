@@ -22,6 +22,7 @@
     "login:clean": "ts-node --transpile-only scripts/local-login.ts --clean",
     "scrape:local": "ts-node --transpile-only scripts/local-scraper.ts",
     "scrape:wolf": "ts-node --transpile-only scripts/local-scraper.ts",
+    "scrape:brightdata": "ts-node --transpile-only scripts/local-scraper.ts --brightdata",
     "seed": "ts-node src/scripts/seed.ts",
     "seed:claimable": "ts-node src/scripts/seed-claimable-leads.ts",
     "db:dedupe-leads": "ts-node src/scripts/remove-duplicate-leads.ts",
