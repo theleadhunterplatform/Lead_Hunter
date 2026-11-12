@@ -1,9 +1,9 @@
 import path from 'path';
 import fs from 'fs';
 import { chromium } from 'playwright';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../src/lib/prisma';
 
-const prisma = new PrismaClient();
+// Singleton prisma imported from src/lib/prisma
 
 function getBraveExecutable(): string | undefined {
     const candidates = [

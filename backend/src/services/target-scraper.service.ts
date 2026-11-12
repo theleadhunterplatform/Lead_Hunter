@@ -1,19 +1,14 @@
 import prisma from '../lib/prisma';
 import LeadPost from '../models/lead-post.model';
 import config from '../config';
-import { getSetting } from './setting.service';
 import { recordScrapeExecution } from '../utils/scraper-tool.utils';
 import { getApifyClient, handleApifyLimitError, recordApifyCommentUsage } from '../utils/apify-client.utils';
 import { enqueueLeadQualification } from '../utils/qualification-queue.utils';
 import { findExistingLeadPost, isDuplicateKeyError } from '../utils/lead-dedup.utils';
 import { isPostOlderThanDays } from '../utils/scraped-item.utils';
 import { extractEmailFromText, extractPhoneFromText } from '../utils/lead-enrichment.utils';
-import { ScrapedogScraperService, NormalizedScrapedItem } from './scrapedog-scraper.service';
-import { CrawlbaseScraperService } from './crawlbase-scraper.service';
-import { ScrapingBeeScraperService } from './scrapingbee-scraper.service';
-import { ZenRowsScraperService } from './zenrows-scraper.service';
-import { ZyteScraperService } from './zyte-scraper.service';
-import { HunterCrawlerService } from './hunter-crawler.service';
+import { NormalizedScrapedItem } from './scrapedog-scraper.service';
+import { SCRAPER_ENGINE_REGISTRY, resolveScraperEnginePlan } from './scraper-engine-registry.service';
 import { checkAutomationQuietHours } from '../utils/quiet-hours.utils';
 
 type ProfileCommentItem = {
@@ -89,7 +84,7 @@ export class TargetScraperService {
             }
         }
 
-        const engines = await this.resolveEnginePlan();
+        const engines = await resolveScraperEnginePlan();
         if (engines.length === 0) {
             console.log(`⏸️ [TargetScraper] All scraper engines are paused, skipping watchlist target: ${target.name}`);
             return { saved: 0, skipped: 0, paused: true };
@@ -111,83 +106,24 @@ export class TargetScraperService {
                     itemsFound = apifyRes.itemsFound;
                     successEngine = 'apify';
                     break;
-                } else if (engine === 'scrapedog') {
-                    const isConfigured = await ScrapedogScraperService.isConfigured();
-                    if (!isConfigured) continue;
-                    console.log(`[TargetScraper] Scraping "${target.name}" via Scrapedog...`);
-                    const items = await ScrapedogScraperService.scrapeTargetProfile(target);
-                    for (const item of items) {
-                        const wasSaved = await this.processNormalizedTargetItem(item, target, 'scrapedog');
-                        if (wasSaved) saved++;
-                        else skipped++;
-                    }
-                    itemsFound = items.length;
-                    successEngine = 'scrapedog';
-                    break;
-                } else if (engine === 'crawlbase') {
-                    const isConfigured = await CrawlbaseScraperService.isConfigured();
-                    if (!isConfigured) continue;
-                    console.log(`[TargetScraper] Scraping "${target.name}" via Crawlbase...`);
-                    const items = await CrawlbaseScraperService.scrapeTargetProfile(target);
-                    for (const item of items) {
-                        const wasSaved = await this.processNormalizedTargetItem(item, target, 'crawlbase');
-                        if (wasSaved) saved++;
-                        else skipped++;
-                    }
-                    itemsFound = items.length;
-                    successEngine = 'crawlbase';
-                    break;
-                } else if (engine === 'scrapingbee') {
-                    const isConfigured = await ScrapingBeeScraperService.isConfigured();
-                    if (!isConfigured) continue;
-                    console.log(`[TargetScraper] Scraping "${target.name}" via ScrapingBee...`);
-                    const items = await ScrapingBeeScraperService.scrapeTargetProfile(target);
-                    for (const item of items) {
-                        const wasSaved = await this.processNormalizedTargetItem(item, target, 'scrapingbee');
-                        if (wasSaved) saved++;
-                        else skipped++;
-                    }
-                    itemsFound = items.length;
-                    successEngine = 'scrapingbee';
-                    break;
-                } else if (engine === 'zenrows') {
-                    const isConfigured = await ZenRowsScraperService.isConfigured();
-                    if (!isConfigured) continue;
-                    console.log(`[TargetScraper] Scraping "${target.name}" via ZenRows...`);
-                    const items = await ZenRowsScraperService.scrapeTargetProfile(target);
-                    for (const item of items) {
-                        const wasSaved = await this.processNormalizedTargetItem(item, target, 'zenrows');
-                        if (wasSaved) saved++;
-                        else skipped++;
-                    }
-                    itemsFound = items.length;
-                    successEngine = 'zenrows';
-                    break;
-                } else if (engine === 'zyte') {
-                    const isConfigured = await ZyteScraperService.isConfigured();
-                    if (!isConfigured) continue;
-                    console.log(`[TargetScraper] Scraping "${target.name}" via Zyte...`);
-                    const items = await ZyteScraperService.scrapeTargetProfile(target);
-                    for (const item of items) {
-                        const wasSaved = await this.processNormalizedTargetItem(item, target, 'zyte');
-                        if (wasSaved) saved++;
-                        else skipped++;
-                    }
-                    itemsFound = items.length;
-                    successEngine = 'zyte';
-                    break;
-                } else if (engine === 'hunter_crawler' || engine === 'huntercrawler' || engine === 'hunter') {
-                    console.log(`[TargetScraper] Scraping "${target.name}" via HunterCrawler...`);
-                    const items = await HunterCrawlerService.scrapeTargetProfile(target);
-                    for (const item of items) {
-                        const wasSaved = await this.processNormalizedTargetItem(item, target, 'hunter_crawler');
-                        if (wasSaved) saved++;
-                        else skipped++;
-                    }
-                    itemsFound = items.length;
-                    successEngine = 'hunter_crawler';
-                    break;
                 }
+
+                const adapter = SCRAPER_ENGINE_REGISTRY[engine];
+                if (!adapter) continue;
+
+                const isConfigured = await adapter.isConfigured();
+                if (!isConfigured) continue;
+
+                console.log(`[TargetScraper] Scraping "${target.name}" via ${engine}...`);
+                const items = await adapter.scrapeTargetProfile(target);
+                for (const item of items) {
+                    const wasSaved = await this.processNormalizedTargetItem(item, target, engine);
+                    if (wasSaved) saved++;
+                    else skipped++;
+                }
+                itemsFound = items.length;
+                successEngine = engine;
+                break;
             } catch (err: any) {
                 console.warn(`[TargetScraper] Engine "${engine}" failed for "${target.name}":`, err.message);
                 errors.push(`${engine}: ${err.message}`);
@@ -219,32 +155,7 @@ export class TargetScraperService {
         return { saved, skipped, engine: successEngine };
     }
 
-    private static async resolveEnginePlan(): Promise<string[]> {
-        let primary = config.scraper?.primaryEngine || 'apify';
-        let fallbacks = config.scraper?.fallbackEngines ? [...config.scraper.fallbackEngines] : ['scrapedog', 'crawlbase'];
-        let paused: string[] = [];
-
-        try {
-            const dbPrimary = await getSetting('primary_scraper_engine');
-            if (dbPrimary && typeof dbPrimary === 'string' && dbPrimary.trim()) {
-                primary = dbPrimary.trim().toLowerCase();
-            }
-            const dbFallbacks = await getSetting('fallback_scraper_engines');
-            if (Array.isArray(dbFallbacks) && dbFallbacks.length > 0) {
-                fallbacks = dbFallbacks.map((f: any) => String(f).trim().toLowerCase()).filter(Boolean);
-            }
-            const dbPaused = await getSetting('paused_scraper_engines');
-            if (Array.isArray(dbPaused)) {
-                paused = dbPaused.map((p: any) => String(p).trim().toLowerCase()).filter(Boolean);
-            }
-        } catch {
-            // keep config defaults
-        }
-
-        const plan = [primary, ...fallbacks.filter((f) => f !== primary)];
-        const uniquePlan = Array.from(new Set(plan));
-        return uniquePlan.filter((engine) => !paused.includes(engine));
-    }
+    
 
     private static async scrapeWithApify(
         target: { id: string; name: string; url: string; usage_month?: string | null }

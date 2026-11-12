@@ -40,7 +40,7 @@ async function checkApify(token: string) {
 
 async function checkScrapedog(key: string) {
     try {
-        const res = await axios.get(`https://api.scrapedog.com/scrape?api_key=${key}&url=https://httpbin.org/ip`, {
+        await axios.get(`https://api.scrapedog.com/scrape?api_key=${key}&url=https://httpbin.org/ip`, {
             timeout: 10000
         });
         return { valid: true, status: 'ACTIVE' };
@@ -54,7 +54,7 @@ async function checkScrapedog(key: string) {
 
 async function checkCrawlbase(token: string) {
     try {
-        const res = await axios.get(`https://api.crawlbase.com/?token=${token}&url=https://httpbin.org/ip`, {
+        await axios.get(`https://api.crawlbase.com/?token=${token}&url=https://httpbin.org/ip`, {
             timeout: 10000
         });
         return { valid: true, status: 'ACTIVE' };
@@ -131,16 +131,6 @@ async function main() {
         console.log('  ⚠️ Not configured (No token in DB or .env)');
     }
 
-    // 4. Scraper Keys table (if any fallback keys are registered)
-    try {
-        const poolKeys = await prisma.scraperKey.findMany();
-        if (poolKeys.length > 0) {
-            console.log(`\n📌 SCRAPER KEYS TABLE (${poolKeys.length} total):`);
-            for (const pk of poolKeys) {
-                console.log(`  - [${pk.service.toUpperCase()}] ${pk.key.slice(0, 8)}... | Status: ${pk.status} | Failure: ${pk.failure_reason || 'None'}`);
-            }
-        }
-    } catch {}
 
     console.log('\n============================================================\n');
 }

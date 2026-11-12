@@ -16,13 +16,7 @@ import {
 } from '../utils/scraped-item.utils';
 import { extractEmailFromText, extractPhoneFromText } from '../utils/lead-enrichment.utils';
 
-import { ScrapedogScraperService } from './scrapedog-scraper.service';
-import { CrawlbaseScraperService } from './crawlbase-scraper.service';
-import { ScrapingBeeScraperService } from './scrapingbee-scraper.service';
-import { ZenRowsScraperService } from './zenrows-scraper.service';
-import { ZyteScraperService } from './zyte-scraper.service';
-import { HunterCrawlerService } from './hunter-crawler.service';
-import * as settingService from './setting.service';
+import { SCRAPER_ENGINE_REGISTRY, resolveScraperEnginePlan } from './scraper-engine-registry.service';
 import { recordScrapeExecution, getLatestScrapeMetrics } from '../utils/scraper-tool.utils';
 import { checkAutomationQuietHours } from '../utils/quiet-hours.utils';
 
@@ -60,38 +54,7 @@ export class ScraperService {
         }
     }
 
-    private static async resolveEnginePlan(): Promise<string[]> {
-        let primary = config.scraper?.primaryEngine || 'apify';
-        let fallbacks = config.scraper?.fallbackEngines ? [...config.scraper.fallbackEngines] : ['scrapedog', 'crawlbase'];
-        let paused: string[] = [];
-
-        try {
-            const dbPrimary = await settingService.getSetting('primary_scraper_engine');
-            if (dbPrimary && typeof dbPrimary === 'string' && dbPrimary.trim()) {
-                primary = dbPrimary.trim().toLowerCase();
-            }
-            const dbFallbacks = await settingService.getSetting('fallback_scraper_engines');
-            if (Array.isArray(dbFallbacks) && dbFallbacks.length > 0) {
-                fallbacks = dbFallbacks.map((f: any) => String(f).trim().toLowerCase()).filter(Boolean);
-            }
-            const dbPaused = await settingService.getSetting('paused_scraper_engines');
-            if (Array.isArray(dbPaused)) {
-                paused = dbPaused.map((p: any) => String(p).trim().toLowerCase()).filter(Boolean);
-            }
-        } catch {
-            // keep config defaults
-        }
-
-        const plan = [primary, ...fallbacks.filter((f) => f !== primary)];
-        const uniquePlan = Array.from(new Set(plan));
-        const activePlan = uniquePlan.filter((engine) => !paused.includes(engine));
-
-        if (activePlan.length === 0 && paused.length > 0) {
-            console.warn(`⚠️ [ScraperService] All configured scraping engines are currently paused: [${paused.join(', ')}]`);
-        }
-
-        return activePlan;
-    }
+    
 
     private static async scrapeWithApify(platform: string, phrase: string): Promise<any[]> {
         const { client, activeKey } = await getApifyClient();
@@ -147,7 +110,7 @@ export class ScraperService {
     private static async scrapePhrase(platform: string, phrase: string, kw: any) {
         console.log(`🚀 [ScraperService] Processing ${platform} for keyword: "${phrase}"`);
 
-        const engines = await this.resolveEnginePlan();
+        const engines = await resolveScraperEnginePlan();
         let items: any[] = [];
         let successEngine = '';
         const errors: string[] = [];
@@ -158,55 +121,18 @@ export class ScraperService {
                     console.log(`[ScraperService] Attempting Apify for "${phrase}" on ${platform}...`);
                     items = await this.scrapeWithApify(platform, phrase);
                     successEngine = 'apify';
-                } else if (engine === 'scrapedog') {
-                    const isConfigured = await ScrapedogScraperService.isConfigured();
+                } else {
+                    const adapter = SCRAPER_ENGINE_REGISTRY[engine];
+                    if (!adapter) continue;
+
+                    const isConfigured = await adapter.isConfigured();
                     if (!isConfigured) {
-                        console.log(`[ScraperService] Scrapedog not configured, skipping.`);
+                        console.log(`[ScraperService] ${engine} not configured, skipping.`);
                         continue;
                     }
-                    console.log(`[ScraperService] Attempting Scrapedog for "${phrase}" on ${platform}...`);
-                    items = await ScrapedogScraperService.scrapeKeyword(platform, phrase);
-                    successEngine = 'scrapedog';
-                } else if (engine === 'crawlbase') {
-                    const isConfigured = await CrawlbaseScraperService.isConfigured();
-                    if (!isConfigured) {
-                        console.log(`[ScraperService] Crawlbase not configured, skipping.`);
-                        continue;
-                    }
-                    console.log(`[ScraperService] Attempting Crawlbase for "${phrase}" on ${platform}...`);
-                    items = await CrawlbaseScraperService.scrapeKeyword(platform, phrase);
-                    successEngine = 'crawlbase';
-                } else if (engine === 'scrapingbee') {
-                    const isConfigured = await ScrapingBeeScraperService.isConfigured();
-                    if (!isConfigured) {
-                        console.log(`[ScraperService] ScrapingBee not configured, skipping.`);
-                        continue;
-                    }
-                    console.log(`[ScraperService] Attempting ScrapingBee for "${phrase}" on ${platform}...`);
-                    items = await ScrapingBeeScraperService.scrapeKeyword(platform, phrase);
-                    successEngine = 'scrapingbee';
-                } else if (engine === 'zenrows') {
-                    const isConfigured = await ZenRowsScraperService.isConfigured();
-                    if (!isConfigured) {
-                        console.log(`[ScraperService] ZenRows not configured, skipping.`);
-                        continue;
-                    }
-                    console.log(`[ScraperService] Attempting ZenRows for "${phrase}" on ${platform}...`);
-                    items = await ZenRowsScraperService.scrapeKeyword(platform, phrase);
-                    successEngine = 'zenrows';
-                } else if (engine === 'zyte') {
-                    const isConfigured = await ZyteScraperService.isConfigured();
-                    if (!isConfigured) {
-                        console.log(`[ScraperService] Zyte not configured, skipping.`);
-                        continue;
-                    }
-                    console.log(`[ScraperService] Attempting Zyte for "${phrase}" on ${platform}...`);
-                    items = await ZyteScraperService.scrapeKeyword(platform, phrase);
-                    successEngine = 'zyte';
-                } else if (engine === 'hunter_crawler' || engine === 'huntercrawler' || engine === 'hunter') {
-                    console.log(`[ScraperService] Attempting HunterCrawler for "${phrase}" on ${platform}...`);
-                    items = await HunterCrawlerService.scrapeKeyword(platform, phrase);
-                    successEngine = 'hunter_crawler';
+                    console.log(`[ScraperService] Attempting ${engine} for "${phrase}" on ${platform}...`);
+                    items = await adapter.scrapeKeyword(platform, phrase);
+                    successEngine = engine;
                 }
 
                 if (items && items.length >= 0) {

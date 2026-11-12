@@ -1,11 +1,12 @@
+import { extractEmailFromText, extractPhoneFromText } from '../src/utils/lead-enrichment.utils';
 import path from 'path';
 import fs from 'fs';
 import { chromium, Browser, BrowserContext } from 'playwright';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../src/lib/prisma';
 import LeadPost from '../src/models/lead-post.model';
 import { findExistingLeadPost } from '../src/utils/lead-dedup.utils';
 
-const prisma = new PrismaClient();
+// Singleton prisma imported from src/lib/prisma
 
 function getBraveExecutable(): string | undefined {
     const candidates = [
@@ -16,15 +17,7 @@ function getBraveExecutable(): string | undefined {
     return candidates.find((p) => fs.existsSync(p));
 }
 
-function extractEmailFromText(text: string): string | null {
-    const match = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-    return match ? match[0] : null;
-}
 
-function extractPhoneFromText(text: string): string | null {
-    const match = text.match(/(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/);
-    return match ? match[0] : null;
-}
 
 function isWithinDays(timeStr: string, maxDays = 4): boolean {
     if (!timeStr) return true; // optimistic default
