@@ -50,7 +50,9 @@ async function isKeyUsable(record: ApifyKeyRecord, month: string): Promise<boole
     if (typeof record.key === 'string' && record.key.startsWith('apify_api_')) {
         try {
             const platformUsage = await getApifyPlatformUsage(record.key);
-            if (platformUsage?.exhausted) {
+            // Only deactivate if monthly budget is genuinely spent (<= $0.05 remaining).
+            // NEVER deactivate on temporary rate limit or concurrent job limits.
+            if (platformUsage?.remaining != null && platformUsage.remaining <= 0.05) {
                 const keyId = record._id || record.id;
                 if (keyId) {
                     await markApifyKeyExhausted(keyId);
