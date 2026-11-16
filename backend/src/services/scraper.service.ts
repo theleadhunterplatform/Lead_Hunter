@@ -57,54 +57,68 @@ export class ScraperService {
     
 
     private static async scrapeWithApify(platform: string, phrase: string): Promise<any[]> {
-        const { client, activeKey } = await getApifyClient();
-        try {
-            let items: any[] = [];
-            if (platform === 'linkedin') {
-                const run = await client.actor(config.apify.linkedinActor).call({
-                    maxPosts: 20,
-                    postedLimit: '24h',
-                    searchQueries: [phrase],
-                    sortBy: 'date',
-                });
-                const result = await client.dataset(run.defaultDatasetId).listItems();
-                items = result.items || [];
-            } else if (platform === 'twitter') {
-                const run = await client.actor('watcher.data/search-x-by-keywords').call({
-                    keywords: [phrase],
-                    maxItemsPerKeyword: 20,
-                    searchType: 'tweets',
-                    sortBy: 'latest',
-                });
-                const result = await client.dataset(run.defaultDatasetId).listItems();
-                items = result.items || [];
-            } else if (platform === 'reddit') {
-                const run = await client.actor('practicaltools/apify-reddit-api').call({
-                    maxItems: 20,
-                    searches: [phrase],
-                    sort: 'new',
-                    time: 'day',
-                });
-                const result = await client.dataset(run.defaultDatasetId).listItems();
-                items = result.items || [];
-            } else if (platform === 'threads') {
-                const run = await client.actor('watcher.data/search-threads-by-keywords').call({
-                    keywords: [phrase],
-                    maxItemsPerKeyword: 20,
-                    sortBy: 'latest',
-                });
-                const result = await client.dataset(run.defaultDatasetId).listItems();
-                items = result.items || [];
-            }
+        const executeScrape = async (isRetry = false): Promise<any[]> => {
+            const { client, activeKey } = await getApifyClient();
+            try {
+                let items: any[] = [];
+                if (platform === 'linkedin') {
+                    const run = await client.actor(config.apify.linkedinActor).call({
+                        maxPosts: 20,
+                        postedLimit: '24h',
+                        searchQueries: [phrase],
+                        sortBy: 'date',
+                    });
+                    const result = await client.dataset(run.defaultDatasetId).listItems();
+                    items = result.items || [];
+                } else if (platform === 'twitter') {
+                    const run = await client.actor('watcher.data/search-x-by-keywords').call({
+                        keywords: [phrase],
+                        maxItemsPerKeyword: 20,
+                        searchType: 'tweets',
+                        sortBy: 'latest',
+                    });
+                    const result = await client.dataset(run.defaultDatasetId).listItems();
+                    items = result.items || [];
+                } else if (platform === 'reddit') {
+                    const run = await client.actor('practicaltools/apify-reddit-api').call({
+                        maxItems: 20,
+                        searches: [phrase],
+                        sort: 'new',
+                        time: 'day',
+                    });
+                    const result = await client.dataset(run.defaultDatasetId).listItems();
+                    items = result.items || [];
+                } else if (platform === 'threads') {
+                    const run = await client.actor('watcher.data/search-threads-by-keywords').call({
+                        keywords: [phrase],
+                        maxItemsPerKeyword: 20,
+                        sortBy: 'latest',
+                    });
+                    const result = await client.dataset(run.defaultDatasetId).listItems();
+                    items = result.items || [];
+                }
 
-            if (items.length > 0 && activeKey) {
-                await recordApifyCommentUsage(activeKey, items.length);
+                if (items.length > 0 && activeKey) {
+                    await recordApifyCommentUsage(activeKey, items.length);
+                }
+                return items;
+            } catch (error: any) {
+                await handleApifyLimitError(error, activeKey);
+
+                const rawMsg = String(error?.message || error?.data?.message || '').toLowerCase();
+                const isTransient = rawMsg.includes('concurrent') || rawMsg.includes('rate limit') || rawMsg.includes('429');
+
+                if (!isRetry && isTransient) {
+                    console.warn(`⏳ [ScraperService] Apify concurrency ceiling hit for "${phrase}" (${platform}). Backing off 12s and retrying on next token...`);
+                    await new Promise((r) => setTimeout(r, 12000));
+                    return executeScrape(true);
+                }
+
+                throw error;
             }
-            return items;
-        } catch (error: any) {
-            await handleApifyLimitError(error, activeKey);
-            throw error;
-        }
+        };
+
+        return executeScrape(false);
     }
 
     private static async scrapePhrase(platform: string, phrase: string, kw: any) {

@@ -160,32 +160,46 @@ export class TargetScraperService {
     private static async scrapeWithApify(
         target: { id: string; name: string; url: string; usage_month?: string | null }
     ): Promise<{ saved: number; skipped: number; itemsFound: number }> {
-        const { client, activeKey } = await getApifyClient();
-        let saved = 0;
-        let skipped = 0;
+        const executeScrape = async (isRetry = false): Promise<{ saved: number; skipped: number; itemsFound: number }> => {
+            const { client, activeKey } = await getApifyClient();
+            let saved = 0;
+            let skipped = 0;
 
-        try {
-            const run = await client.actor(config.apify.linkedinProfileCommentsActor).call({
-                profiles: [target.url],
-                maxItems: config.targetScraper.maxItems,
-                postedLimit: config.targetScraper.postedLimit,
-            });
+            try {
+                const run = await client.actor(config.apify.linkedinProfileCommentsActor).call({
+                    profiles: [target.url],
+                    maxItems: config.targetScraper.maxItems,
+                    postedLimit: config.targetScraper.postedLimit,
+                });
 
-            const result = await client.dataset(run.defaultDatasetId).listItems();
-            const items = result.items as ProfileCommentItem[];
+                const result = await client.dataset(run.defaultDatasetId).listItems();
+                const items = result.items as ProfileCommentItem[];
 
-            for (const item of items) {
-                const wasSaved = await this.processCommentItem(item, target);
-                if (wasSaved) saved++;
-                else skipped++;
+                for (const item of items) {
+                    const wasSaved = await this.processCommentItem(item, target);
+                    if (wasSaved) saved++;
+                    else skipped++;
+                }
+
+                await recordApifyCommentUsage(activeKey, items.length);
+                return { saved, skipped, itemsFound: items.length };
+            } catch (error: any) {
+                await handleApifyLimitError(error, activeKey);
+
+                const rawMsg = String(error?.message || error?.data?.message || '').toLowerCase();
+                const isTransient = rawMsg.includes('concurrent') || rawMsg.includes('rate limit') || rawMsg.includes('429');
+
+                if (!isRetry && isTransient) {
+                    console.warn(`⏳ [TargetScraper] Apify concurrency ceiling hit for "${target.name}". Backing off 12s and retrying on next token...`);
+                    await new Promise((r) => setTimeout(r, 12000));
+                    return executeScrape(true);
+                }
+
+                throw error;
             }
+        };
 
-            await recordApifyCommentUsage(activeKey, items.length);
-            return { saved, skipped, itemsFound: items.length };
-        } catch (error: any) {
-            await handleApifyLimitError(error, activeKey);
-            throw error;
-        }
+        return executeScrape(false);
     }
 
     private static async processNormalizedTargetItem(
