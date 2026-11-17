@@ -40,9 +40,13 @@ export function getWorkerId(): string {
 }
 
 function keyHasRemainingQuota(record: ApifyKeyRecord, month: string): boolean {
-    const limit = record.comments_limit ?? config.apify.monthlyCommentLimit;
-    const used = record.usage_month === month ? record.comments_used ?? 0 : 0;
-    return used < limit;
+    // Apify API tokens are billed by USD compute usage via Apify platform limits, not arbitrary comment counts.
+    // Only enforce comment limit if explicitly specified on the record itself (> 0).
+    if (record.comments_limit != null && record.comments_limit > 0) {
+        const used = record.usage_month === month ? record.comments_used ?? 0 : 0;
+        return used < record.comments_limit;
+    }
+    return true;
 }
 
 async function isKeyUsable(record: ApifyKeyRecord, month: string): Promise<boolean> {
@@ -50,9 +54,9 @@ async function isKeyUsable(record: ApifyKeyRecord, month: string): Promise<boole
     if (typeof record.key === 'string' && record.key.startsWith('apify_api_')) {
         try {
             const platformUsage = await getApifyPlatformUsage(record.key);
-            // Only deactivate if monthly budget is genuinely spent (<= $0.05 remaining).
+            // Only deactivate if monthly budget is genuinely spent (<= $0.05 remaining on a positive limit).
             // NEVER deactivate on temporary rate limit or concurrent job limits.
-            if (platformUsage?.remaining != null && platformUsage.remaining <= 0.05) {
+            if (platformUsage?.limit != null && platformUsage.limit > 0 && platformUsage?.remaining != null && platformUsage.remaining <= 0.05) {
                 const keyId = record._id || record.id;
                 if (keyId) {
                     await markApifyKeyExhausted(keyId);

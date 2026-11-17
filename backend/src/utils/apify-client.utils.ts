@@ -5,6 +5,7 @@ import config from '../config';
 import {
     getWorkerId,
     markApifyKeyExhausted,
+    releaseWorkerApifyLease,
     resolveApifyKeyForWorker,
 } from './apify-token-manager.utils';
 
@@ -36,7 +37,7 @@ export async function recordApifyCommentUsage(activeKey: ApifyKeyRecord | null, 
     if (!existing) return;
 
     const resetUsage = existing.usage_month !== month;
-    const updated = await prisma.apifyKey.update({
+    await prisma.apifyKey.update({
         where: { id: keyId },
         data: {
             usage_month: month,
@@ -44,11 +45,7 @@ export async function recordApifyCommentUsage(activeKey: ApifyKeyRecord | null, 
         },
     });
 
-    const limit = updated.comments_limit ?? config.apify.monthlyCommentLimit;
-    if ((updated.comments_used ?? 0) >= limit) {
-        console.warn(`⚠️ Comment quota reached for ${activeKey.label || 'current key'}. Rotating...`);
-        await markApifyKeyExhausted(keyId);
-    }
+    // Comments used are recorded for analytics. We never artificially deactivate tokens based on comment count.
 }
 
 export function isApifyLimitError(error: any): boolean {
@@ -105,13 +102,31 @@ export function isApifyLimitError(error: any): boolean {
 }
 
 export async function handleApifyLimitError(error: any, activeKey: ApifyKeyRecord | null): Promise<void> {
-    if (!isApifyLimitError(error) || !activeKey) return;
+    if (!activeKey) return;
 
-    const keyId = activeKey._id || activeKey.id;
-    if (!keyId) return;
+    // Release worker lease so next request uses another token immediately
+    await releaseWorkerApifyLease(getWorkerId());
 
-    console.warn(`⚠️ Apify error for ${activeKey.label || 'current key'} (${error?.message || 'limit/invalid'}). Marking inactive and rotating...`);
-    await markApifyKeyExhausted(keyId);
+    // ONLY mark permanently inactive if Apify confirms the token is invalid/revoked (401)
+    const status = error?.statusCode ?? error?.status ?? error?.response?.status;
+    const rawMsg = [
+        error?.message,
+        error?.data?.message,
+        error?.data?.error?.message,
+    ].filter(Boolean).join(' ').toLowerCase();
+
+    if (
+        status === 401 ||
+        rawMsg.includes('invalid token') ||
+        rawMsg.includes('user was not found') ||
+        rawMsg.includes('authentication token is not valid')
+    ) {
+        const keyId = activeKey._id || activeKey.id;
+        if (keyId) {
+            console.warn(`🔒 Apify token ${activeKey.label || 'current key'} is invalid/revoked (401). Marking inactive in DB.`);
+            await markApifyKeyExhausted(keyId);
+        }
+    }
 }
 
 export { getWorkerId, getApifyLeaseStatus, releaseWorkerApifyLease } from './apify-token-manager.utils';
