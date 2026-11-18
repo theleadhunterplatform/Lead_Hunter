@@ -2,7 +2,6 @@ import os from 'os';
 import Redis from 'ioredis';
 import config from '../config';
 import ApifyKey from '../models/apify-key.model';
-import prisma from '../lib/prisma';
 import { getApifyPlatformUsage } from './apify-usage.utils';
 
 type ApifyKeyRecord = Awaited<ReturnType<typeof ApifyKey.find>>[number];
@@ -167,11 +166,9 @@ export async function releaseWorkerApifyLease(workerId: string = getWorkerId()):
     }
 }
 
-export async function markApifyKeyExhausted(keyId: string, workerId: string = getWorkerId()): Promise<void> {
-    await prisma.apifyKey.update({
-        where: { id: keyId },
-        data: { is_active: false },
-    });
+export async function markApifyKeyExhausted(_keyId: string, workerId: string = getWorkerId()): Promise<void> {
+    // Release worker lease so another key is rotated to.
+    // We intentionally DO NOT update is_active: false in the database to prevent false lockouts.
     await releaseWorkerApifyLease(workerId);
 }
 
