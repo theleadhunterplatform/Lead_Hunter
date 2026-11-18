@@ -39,13 +39,9 @@ export function getWorkerId(): string {
     return `${os.hostname()}:${process.pid}`;
 }
 
-function keyHasRemainingQuota(record: ApifyKeyRecord, month: string): boolean {
-    // Apify API tokens are billed by USD compute usage via Apify platform limits, not arbitrary comment counts.
-    // Only enforce comment limit if explicitly specified on the record itself (> 0).
-    if (record.comments_limit != null && record.comments_limit > 0) {
-        const used = record.usage_month === month ? record.comments_used ?? 0 : 0;
-        return used < record.comments_limit;
-    }
+function keyHasRemainingQuota(_record: ApifyKeyRecord, _month: string): boolean {
+    // Apify API tokens are strictly governed by their USD dollar balance on Apify platform,
+    // not arbitrary comment counts. Comment counts are recorded for telemetry only.
     return true;
 }
 
