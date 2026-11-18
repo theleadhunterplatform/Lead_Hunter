@@ -4,7 +4,6 @@ import prisma from '../lib/prisma';
 import config from '../config';
 import {
     getWorkerId,
-    markApifyKeyExhausted,
     releaseWorkerApifyLease,
     resolveApifyKeyForWorker,
 } from './apify-token-manager.utils';
@@ -101,32 +100,12 @@ export function isApifyLimitError(error: any): boolean {
     return false;
 }
 
-export async function handleApifyLimitError(error: any, activeKey: ApifyKeyRecord | null): Promise<void> {
+export async function handleApifyLimitError(_error: any, activeKey: ApifyKeyRecord | null): Promise<void> {
     if (!activeKey) return;
 
-    // Release worker lease so next request uses another token immediately
+    // Release worker lease so next request uses another token immediately.
+    // We NEVER permanently deactivate keys in PostgreSQL from runtime scraping errors.
     await releaseWorkerApifyLease(getWorkerId());
-
-    // ONLY mark permanently inactive if Apify confirms the token is invalid/revoked (401)
-    const status = error?.statusCode ?? error?.status ?? error?.response?.status;
-    const rawMsg = [
-        error?.message,
-        error?.data?.message,
-        error?.data?.error?.message,
-    ].filter(Boolean).join(' ').toLowerCase();
-
-    if (
-        status === 401 ||
-        rawMsg.includes('invalid token') ||
-        rawMsg.includes('user was not found') ||
-        rawMsg.includes('authentication token is not valid')
-    ) {
-        const keyId = activeKey._id || activeKey.id;
-        if (keyId) {
-            console.warn(`🔒 Apify token ${activeKey.label || 'current key'} is invalid/revoked (401). Marking inactive in DB.`);
-            await markApifyKeyExhausted(keyId);
-        }
-    }
 }
 
 export { getWorkerId, getApifyLeaseStatus, releaseWorkerApifyLease } from './apify-token-manager.utils';

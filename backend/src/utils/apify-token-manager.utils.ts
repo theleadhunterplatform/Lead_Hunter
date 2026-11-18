@@ -53,10 +53,8 @@ async function isKeyUsable(record: ApifyKeyRecord, month: string): Promise<boole
             // Only deactivate if monthly budget is genuinely spent (<= $0.05 remaining on a positive limit).
             // NEVER deactivate on temporary rate limit or concurrent job limits.
             if (platformUsage?.limit != null && platformUsage.limit > 0 && platformUsage?.remaining != null && platformUsage.remaining <= 0.05) {
-                const keyId = record._id || record.id;
-                if (keyId) {
-                    await markApifyKeyExhausted(keyId);
-                }
+                // Key has <= $0.05 remaining in Apify for this month; skip it in memory for current requests.
+                // We do NOT modify is_active in the DB so temporary glitches/limits never permanently kill keys.
                 return false;
             }
         } catch {
