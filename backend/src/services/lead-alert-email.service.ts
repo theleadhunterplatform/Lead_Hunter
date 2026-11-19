@@ -67,7 +67,9 @@ export async function dispatchLeadAlertEmails(leads: LeadAlertEmailItem[]): Prom
         );
 
         const appUrl = (process.env.FRONTEND_URL || 'https://www.theleadhunterclub.com').replace(/\/+$/, '');
-        const batchSize = 5;
+        // Send 1 at a time with 1s delay to stay under ZeptoMail's burst rate limit
+        const batchSize = 1;
+        const batchDelayMs = 1000;
         let sent = 0;
         let failed = 0;
 
@@ -122,7 +124,7 @@ export async function dispatchLeadAlertEmails(leads: LeadAlertEmailItem[]): Prom
             }
 
             if (i + batchSize < validUsers.length) {
-                await sleep(150);
+                await sleep(batchDelayMs);
             }
         }
 
