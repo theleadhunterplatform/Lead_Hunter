@@ -196,24 +196,27 @@ export function buildLeadDropAlertEmail(
             const leadUrl = `${appUrl}/leads?lead=${encodeURIComponent(lead.id)}`;
 
             return `
-            <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-bottom: 18px; background-color: #171a21; border: 1px solid #2b313d; border-radius: 8px; overflow: hidden;">
+            <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-bottom: 20px; background-color: #141414; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; overflow: hidden;">
               <tr>
-                <td style="padding: 18px 20px;">
-                  <div style="margin-bottom: 8px;">
-                    <span style="display: inline-block; background-color: rgba(255, 87, 34, 0.15); color: #ff5722; border: 1px solid rgba(255, 87, 34, 0.35); font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 4px; text-transform: uppercase; margin-right: 6px;">
-                      ${escapeHtml(lead.niche || lead.keyword || 'Lead')}
-                    </span>
-                    <span style="display: inline-block; background-color: #232832; color: #9ca3af; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 4px; text-transform: uppercase;">
-                      ${escapeHtml(lead.platform || 'LinkedIn')}
+                <td style="padding: 20px 22px;">
+                  <div style="margin-bottom: 10px;">
+                    <span style="display: inline-block; background-color: rgba(255, 184, 0, 0.12); color: #FFB800; border: 1px solid rgba(255, 184, 0, 0.28); font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.5px;">
+                      ${escapeHtml(lead.niche || lead.keyword || 'Strategic Lead')}
                     </span>
                   </div>
-                  <h3 style="color: #ffffff; font-size: 16px; font-weight: 700; margin: 0 0 8px 0; line-height: 1.4;">
+                  <h3 style="color: #ffffff; font-size: 16px; font-weight: 700; margin: 0 0 10px 0; line-height: 1.4;">
                     ${escapeHtml(displayTitle)}
                   </h3>
-                  ${snippet ? `<p style="color: #9ca3af; font-size: 13px; line-height: 1.55; margin: 0 0 14px 0;">${snippet}</p>` : ''}
-                  <a href="${leadUrl}" style="display: inline-block; background-color: #ff5722; color: #ffffff; text-decoration: none; font-size: 12px; font-weight: 800; padding: 9px 18px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.5px;">
-                    View &amp; Claim Lead &rarr;
-                  </a>
+                  ${snippet ? `<p style="color: #cccccc; font-size: 13px; line-height: 1.6; margin: 0 0 16px 0;">${snippet}</p>` : ''}
+                  <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                    <tr>
+                      <td align="center" style="border-radius: 10px; background-color: #FFB800;">
+                        <a href="${leadUrl}" style="display: inline-block; background-color: #FFB800; color: #0a0a0a; text-decoration: none; font-size: 13px; font-weight: 700; padding: 10px 22px; border-radius: 10px;">
+                          View &amp; Claim Lead
+                        </a>
+                      </td>
+                    </tr>
+                  </table>
                 </td>
               </tr>
             </table>`;
@@ -228,44 +231,44 @@ export function buildLeadDropAlertEmail(
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${escapeHtml(subject)}</title>
 </head>
-<body style="margin: 0; padding: 0; background-color: #0b0d10; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
-  <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #0b0d10; padding: 28px 12px;">
+<body style="margin: 0; padding: 0; background-color: #0a0a0a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #0a0a0a; padding: 36px 16px;">
     <tr>
       <td align="center">
-        <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 600px; background-color: #11141a; border: 1px solid #232834; border-radius: 12px; overflow: hidden;">
-          <!-- Header -->
+        <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 540px; background-color: #141414; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 16px; overflow: hidden;">
+          <!-- Content Area -->
           <tr>
-            <td style="background-color: #0d0f14; padding: 22px 28px; border-bottom: 2px solid #ff5722;">
-              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
-                <tr>
-                  <td>
-                    <span style="color: #ff5722; font-size: 18px; font-weight: 900; letter-spacing: 1.5px; text-transform: uppercase;">⚡ LEAD HUNTER</span>
-                  </td>
-                  <td align="right">
-                    <span style="background-color: #ff5722; color: #ffffff; font-size: 10px; font-weight: 800; padding: 4px 10px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.8px;">VERIFIED DROP</span>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-          <!-- Body -->
-          <tr>
-            <td style="padding: 28px;">
-              <h1 style="color: #ffffff; font-size: 21px; font-weight: 800; margin: 0 0 10px 0; line-height: 1.3;">
-                ${isSingle ? 'New Verified Lead Approved' : `${leads.length} New Verified Leads Approved`}
+            <td style="padding: 36px 32px 28px 32px;">
+              <h1 style="margin: 0 0 18px 0; font-size: 24px; font-weight: 700; color: #ffffff; letter-spacing: -0.02em;">
+                Lead Hunter Club
               </h1>
-              <p style="color: #9ca3af; font-size: 14px; line-height: 1.6; margin: 0 0 22px 0;">
-                Hi ${escapeHtml(userName || 'Hunter')}, new client opportunities matching active market demand have just been reviewed and approved on Lead Hunter. Claim before competitors reach out.
+              
+              <p style="color: #cccccc; font-size: 15px; line-height: 1.6; margin: 0 0 12px 0;">
+                Hi ${escapeHtml(userName || 'Hunter')},
+              </p>
+              
+              <p style="color: #cccccc; font-size: 15px; line-height: 1.6; margin: 0 0 24px 0;">
+                <strong style="color: #ffffff;">${isSingle ? 'A new client requirement' : `${leads.length} new client requirements`}</strong> matching active market demand have just been reviewed and approved on Lead Hunter. Claim before competitors reach out.
               </p>
 
               <!-- Lead Cards -->
               ${leadCardsHtml}
 
-              <!-- Bottom CTA -->
-              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-top: 24px; border-top: 1px solid #232834; padding-top: 22px;">
+              <!-- Bottom Feed Link & Sign-off -->
+              <p style="margin: 24px 0 6px 0; font-size: 14px; color: #cccccc; line-height: 1.6;">
+                Explore All Strategic Leads on Platform:<br>
+                <a href="${appUrl}/leads" style="color: #FFB800; font-weight: 600; text-decoration: underline;" target="_blank">${appUrl}/leads</a>
+              </p>
+
+              <p style="margin: 20px 0 0 0; font-size: 14px; color: #cccccc; line-height: 1.6;">
+                Happy Hunting,<br>
+                <strong style="color: #ffffff;">The Lead Hunter Team</strong>
+              </p>
+
+              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-top: 26px;">
                 <tr>
                   <td align="center">
-                    <a href="${appUrl}/leads" style="display: inline-block; background-color: #ffffff; color: #0b0d10; text-decoration: none; font-size: 14px; font-weight: 800; padding: 13px 30px; border-radius: 7px; text-transform: uppercase; letter-spacing: 0.5px;">
+                    <a href="${appUrl}/leads" style="display: inline-block; background-color: #ffffff; color: #0a0a0a; text-decoration: none; font-size: 13px; font-weight: 800; padding: 12px 28px; border-radius: 10px; text-transform: uppercase; letter-spacing: 0.5px;">
                       Open Lead Hunter Feed &rarr;
                     </a>
                   </td>
@@ -275,12 +278,10 @@ export function buildLeadDropAlertEmail(
           </tr>
           <!-- Footer -->
           <tr>
-            <td style="background-color: #0d0f14; padding: 18px 28px; border-top: 1px solid #1c212b; text-align: center;">
-              <p style="color: #6b7280; font-size: 12px; margin: 0 0 4px 0;">
-                You are receiving this real-time notification because your Lead Hunter account is active.
-              </p>
-              <p style="color: #4b5563; font-size: 11px; margin: 0;">
-                &copy; ${new Date().getFullYear()} Lead Hunter. All rights reserved.
+            <td style="padding: 20px 32px 28px 32px; border-top: 1px solid rgba(255, 255, 255, 0.06); text-align: left;">
+              <p style="margin: 0; font-size: 12px; color: #888888; line-height: 1.5;">
+                Lead Hunter Club &mdash; Find &amp; close your ideal clients<br>
+                <a href="${appUrl}" style="color: #FFB800; font-weight: 600; text-decoration: none;">Visit dashboard</a>
               </p>
             </td>
           </tr>
