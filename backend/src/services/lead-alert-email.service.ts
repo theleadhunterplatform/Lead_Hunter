@@ -43,18 +43,25 @@ export async function dispatchLeadAlertEmails(leads: LeadAlertEmailItem[]): Prom
             return { sent: 0, failed: 0, totalUsers: 0 };
         }
 
-        const users = await prisma.user.findMany({
-            where: {
-                status: 'active',
-                is_active: true,
-                is_deleted: false,
-            },
-            select: {
-                id: true,
-                email: true,
-                name: true,
-            },
-        });
+        let users: { id: string; email: string; name?: string | null }[] = [];
+        try {
+            users = await prisma.$queryRawUnsafe<any[]>(
+                `SELECT id, email, name FROM "User" WHERE status = 'ACTIVE' AND email IS NOT NULL AND email != '';`
+            );
+        } catch {
+            users = await prisma.user.findMany({
+                where: {
+                    status: 'active',
+                    is_active: true,
+                    is_deleted: false,
+                },
+                select: {
+                    id: true,
+                    email: true,
+                    name: true,
+                },
+            });
+        }
 
         const validUsers = users.filter((u) => u.email && u.email.trim().includes('@'));
         if (validUsers.length === 0) {
