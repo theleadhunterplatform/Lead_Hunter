@@ -164,7 +164,15 @@ export function queueLeadDropEmailAlert(
         emailBatchTimer = null;
 
         if (toSend.length > 0) {
-            await dispatchLeadAlertEmails(toSend);
+            // Bundle into packs of up to 3 leads per email
+            const chunkSize = 3;
+            for (let i = 0; i < toSend.length; i += chunkSize) {
+                const chunk = toSend.slice(i, i + chunkSize);
+                await dispatchLeadAlertEmails(chunk);
+                if (i + chunkSize < toSend.length) {
+                    await sleep(2000);
+                }
+            }
         }
     }, delayMs);
 }
