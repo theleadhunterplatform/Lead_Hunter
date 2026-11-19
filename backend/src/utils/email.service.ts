@@ -175,8 +175,10 @@ function formatSnippet(content?: string | null, maxLen: number = 160): string {
 export function buildLeadDropAlertEmail(
     userName: string,
     leads: LeadAlertEmailItem[],
-    appUrl: string = (process.env.FRONTEND_URL || 'https://www.theleadhunterclub.com').replace(/\/+$/, '')
+    appUrlInput?: string
 ) {
+    const rawUrl = appUrlInput || process.env.FRONTEND_URL || 'https://www.theleadhunterclub.com';
+    const appUrl = (rawUrl.includes('vercel.app') ? 'https://www.theleadhunterclub.com' : rawUrl).replace(/\/+$/, '');
     const isSingle = leads.length === 1;
     const firstLead = leads[0];
     const firstLeadTitle =
