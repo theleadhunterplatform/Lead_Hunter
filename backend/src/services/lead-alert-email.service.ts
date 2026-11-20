@@ -149,6 +149,9 @@ export async function dispatchLeadAlertEmails(leads: LeadAlertEmailItem[]): Prom
 /**
  * Batches newly approved leads so multiple rapid approvals consolidate into a single email
  * rather than spamming users with multiple emails within seconds.
+ * 
+ * STRICT RULE: Only dispatches emails when at least 3 approved leads have accumulated.
+ * Takes full multiples of 3 so every email sent contains exactly 3 leads.
  */
 export function queueLeadDropEmailAlert(
     items: LeadAlertEmailItem | LeadAlertEmailItem[],
@@ -161,24 +164,41 @@ export function queueLeadDropEmailAlert(
         }
     }
 
+    // If fewer than 3 leads accumulated, hold in queue and do NOT start dispatch timer
+    if (pendingEmailLeads.length < 3) {
+        console.log(
+            `ℹ️ [LeadAlertEmail] Holding ${pendingEmailLeads.length}/3 approved lead(s) in queue. Will dispatch once 3+ leads accumulate.`
+        );
+        if (emailBatchTimer) {
+            clearTimeout(emailBatchTimer);
+            emailBatchTimer = null;
+        }
+        return;
+    }
+
     if (emailBatchTimer) {
         clearTimeout(emailBatchTimer);
     }
 
     emailBatchTimer = setTimeout(async () => {
-        const toSend = [...pendingEmailLeads];
-        pendingEmailLeads = [];
         emailBatchTimer = null;
 
-        if (toSend.length > 0) {
-            // Bundle into packs of up to 3 leads per email
-            const chunkSize = 3;
-            for (let i = 0; i < toSend.length; i += chunkSize) {
-                const chunk = toSend.slice(i, i + chunkSize);
-                await dispatchLeadAlertEmails(chunk);
-                if (i + chunkSize < toSend.length) {
-                    await sleep(2000);
-                }
+        // Re-verify minimum threshold
+        if (pendingEmailLeads.length < 3) {
+            return;
+        }
+
+        // Only take full multiples of 3 so every email sent contains exactly 3 leads
+        const fullBundlesCount = Math.floor(pendingEmailLeads.length / 3);
+        const countToSend = fullBundlesCount * 3;
+        const toSend = pendingEmailLeads.splice(0, countToSend);
+
+        const chunkSize = 3;
+        for (let i = 0; i < toSend.length; i += chunkSize) {
+            const chunk = toSend.slice(i, i + chunkSize);
+            await dispatchLeadAlertEmails(chunk);
+            if (i + chunkSize < toSend.length) {
+                await sleep(2000);
             }
         }
     }, delayMs);
