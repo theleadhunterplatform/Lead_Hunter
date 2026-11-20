@@ -23,6 +23,7 @@ import {
 import { assertCanClaimLead } from './plan.service';
 import { queueLeadDropNotification } from './whatsapp.service';
 import { queueLeadDropEmailAlert } from './lead-alert-email.service';
+import { broadcastTelegramLeadAlert } from './telegram.service';
 import { currentPlanMonth } from '../utils/plan.utils';
 import Organization from '../models/organization.model';
 import { Prisma } from '@prisma/client';
@@ -295,7 +296,7 @@ export const approveLeadReview = async (
         },
     });
 
-    // Trigger automated WhatsApp and Email lead drop alerts
+    // Trigger automated WhatsApp, Email, and Telegram lead drop alerts
     const nicheOrKeyword = (post as any).niche || (post as any).keyword;
     queueLeadDropNotification(1, nicheOrKeyword);
     queueLeadDropEmailAlert({
@@ -306,6 +307,13 @@ export const approveLeadReview = async (
         content: post.content,
         keyword: post.keyword,
     });
+    broadcastTelegramLeadAlert([{
+        id: (post as any).id || (post as any)._id?.toString?.() || String((post as any)._id),
+        title: (post as any).title,
+        niche: nicheOrKeyword,
+        platform: post.platform,
+        content: post.content,
+    }]).catch((err) => console.error('[TelegramService] Alert dispatch failed:', err.message));
 
     return updated;
 };
@@ -448,6 +456,15 @@ export const bulkApproveLeadReviews = async (
                 keyword: (p as any).keyword,
             }))
         );
+        broadcastTelegramLeadAlert(
+            withContact.map((p) => ({
+                id: (p as any).id || (p as any)._id?.toString?.() || String((p as any)._id),
+                title: (p as any).title,
+                niche: (p as any).niche || (p as any).keyword,
+                platform: (p as any).platform || 'linkedin',
+                content: (p as any).content || '',
+            }))
+        ).catch((err) => console.error('[TelegramService] Bulk alert dispatch failed:', err.message));
     }
 
     const skipNote = skipped > 0 ? ` ${skipped} skipped (no contact details).` : '';
@@ -534,6 +551,15 @@ export const bulkApproveLeadReviewsByIds = async (
                 keyword: (p as any).keyword,
             }))
         );
+        broadcastTelegramLeadAlert(
+            withContact.map((p) => ({
+                id: (p as any).id || (p as any)._id?.toString?.() || String((p as any)._id),
+                title: (p as any).title,
+                niche: (p as any).niche || (p as any).keyword,
+                platform: (p as any).platform || 'linkedin',
+                content: (p as any).content || '',
+            }))
+        ).catch((err) => console.error('[TelegramService] Bulk alert dispatch failed:', err.message));
     }
 
     const skipNote = skipped > 0 ? ` ${skipped} skipped (not awaiting approval or missing contact).` : '';
