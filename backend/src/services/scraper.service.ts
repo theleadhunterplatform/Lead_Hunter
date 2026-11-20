@@ -57,7 +57,7 @@ export class ScraperService {
     
 
     private static async scrapeWithApify(platform: string, phrase: string): Promise<any[]> {
-        const executeScrape = async (isRetry = false): Promise<any[]> => {
+        const executeScrape = async (retryCount = 0): Promise<any[]> => {
             const { client, activeKey } = await getApifyClient();
             try {
                 let items: any[] = [];
@@ -106,19 +106,19 @@ export class ScraperService {
                 await handleApifyLimitError(error, activeKey);
 
                 const rawMsg = String(error?.message || error?.data?.message || '').toLowerCase();
-                const isTransient = rawMsg.includes('concurrent') || rawMsg.includes('rate limit') || rawMsg.includes('429');
+                const isTransient = rawMsg.includes('concurrent') || rawMsg.includes('rate limit') || rawMsg.includes('429') || rawMsg.includes('exceed your limit');
 
-                if (!isRetry && isTransient) {
-                    console.warn(`⏳ [ScraperService] Apify concurrency ceiling hit for "${phrase}" (${platform}). Backing off 12s and retrying on next token...`);
-                    await new Promise((r) => setTimeout(r, 12000));
-                    return executeScrape(true);
+                if (retryCount < 2 && isTransient) {
+                    console.warn(`⏳ [ScraperService] Apify concurrency ceiling hit for "${phrase}" (${platform}) (attempt ${retryCount + 1}/2). Backing off 10s and retrying...`);
+                    await new Promise((r) => setTimeout(r, 10000));
+                    return executeScrape(retryCount + 1);
                 }
 
                 throw error;
             }
         };
 
-        return executeScrape(false);
+        return executeScrape(0);
     }
 
     private static async scrapePhrase(platform: string, phrase: string, kw: any) {
