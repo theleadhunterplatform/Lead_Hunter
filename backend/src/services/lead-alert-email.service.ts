@@ -28,7 +28,9 @@ export async function dispatchLeadAlertEmails(leads: LeadAlertEmailItem[]): Prom
         return { sent: 0, failed: 0, totalUsers: 0 };
     }
 
-    if (!leads || leads.length === 0) {
+    // Hard gate: strictly refuse to send any lead alert email unless there are at least 3 leads
+    if (!leads || leads.length < 3) {
+        console.log(`ℹ️ [LeadAlertEmail] Hard gate: refusing to send email for ${leads?.length || 0} leads (minimum 3 required).`);
         return { sent: 0, failed: 0, totalUsers: 0 };
     }
 
