@@ -117,6 +117,7 @@ export async function broadcastTelegramLeadAlert(
 
 ${snippet ? `<i>"${escapeTgHtml(snippet)}"</i>\n` : ''}
 ⚡ <b>Platform:</b> ${escapeTgHtml(lead.platform || 'LinkedIn')}
+🆔 <b>Lead ID:</b> <code>${lead.id}</code>
 👉 <i>Claim before competitors reach out!</i>`;
 
         const keyboard = [
