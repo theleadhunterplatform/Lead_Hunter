@@ -84,7 +84,7 @@ export async function broadcastTelegramLeadAlert(
     // Fetch active users with a connected Telegram chat ID
     const users = await prisma.user.findMany({
         where: {
-            status: 'ACTIVE',
+            status: { in: ['active', 'ACTIVE'] },
             is_active: true,
             is_deleted: false,
             telegram_chat_id: { not: null },
