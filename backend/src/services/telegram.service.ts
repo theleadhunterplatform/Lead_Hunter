@@ -120,8 +120,7 @@ ${snippet ? `<i>"${escapeTgHtml(snippet)}"</i>\n` : ''}
 
         const keyboard = [
             [
-                { text: '⚡ Claim Lead (In-Chat)', callback_data: `claim:${lead.id}` },
-                { text: '🌐 View on Platform', url: leadUrl },
+                { text: '🚀 View & Claim on Dashboard ↗', url: leadUrl },
             ],
         ];
 
