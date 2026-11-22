@@ -23,7 +23,7 @@ import {
 import { assertCanClaimLead } from './plan.service';
 import { queueLeadDropNotification } from './whatsapp.service';
 import { queueLeadDropEmailAlert } from './lead-alert-email.service';
-import { broadcastTelegramLeadAlert } from './telegram.service';
+import { broadcastTelegramLeadAlert, queueTelegramCommunityDropNotification } from './telegram.service';
 import { currentPlanMonth } from '../utils/plan.utils';
 import Organization from '../models/organization.model';
 import { Prisma } from '@prisma/client';
@@ -299,6 +299,7 @@ export const approveLeadReview = async (
     // Trigger automated WhatsApp, Email, and Telegram lead drop alerts
     const nicheOrKeyword = (post as any).niche || (post as any).keyword;
     queueLeadDropNotification(1, nicheOrKeyword);
+    queueTelegramCommunityDropNotification(1, nicheOrKeyword);
     queueLeadDropEmailAlert({
         id: (post as any).id || (post as any)._id?.toString?.() || String((post as any)._id),
         title: (post as any).title,
@@ -446,6 +447,7 @@ export const bulkApproveLeadReviews = async (
             .map((p) => (p as any).niche || (p as any).keyword)
             .filter(Boolean);
         queueLeadDropNotification(approved, niches);
+        queueTelegramCommunityDropNotification(approved, niches);
         queueLeadDropEmailAlert(
             withContact.map((p) => ({
                 id: (p as any).id || (p as any)._id?.toString?.() || String((p as any)._id),
@@ -541,6 +543,7 @@ export const bulkApproveLeadReviewsByIds = async (
             .map((p) => (p as any).niche || (p as any).keyword)
             .filter(Boolean);
         queueLeadDropNotification(withContact.length, niches);
+        queueTelegramCommunityDropNotification(withContact.length, niches);
         queueLeadDropEmailAlert(
             withContact.map((p) => ({
                 id: (p as any).id || (p as any)._id?.toString?.() || String((p as any)._id),

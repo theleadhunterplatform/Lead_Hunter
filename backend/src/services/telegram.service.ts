@@ -137,3 +137,81 @@ ${snippet ? `<i>"${escapeTgHtml(snippet)}"</i>\n` : ''}
     console.log(`[TelegramService] Broadcast complete: ${sent} sent, ${failed} failed across ${users.length} users.`);
     return { sent, failed };
 }
+
+export const DEFAULT_TELEGRAM_COMMUNITY_TEMPLATE = `🚀 <b>Fresh Leads Dropped — Lead Hunter Club</b>
+
+🔥 <b>{count} new verified client opportunit{count_suffix}</b> {have_has} just been approved and added to the platform!
+
+📌 <b>Niches:</b> {niches}
+
+👉 <b>Review & unlock them now on the Dashboard:</b>
+{link}`;
+
+export async function dispatchTelegramCommunityDrop(
+    count: number,
+    niches: string[]
+): Promise<boolean> {
+    const channelSetting = await prisma.setting.findUnique({
+        where: { key: 'telegram_community_channel' },
+    });
+    const val = (channelSetting?.value as Record<string, any>) || {};
+    const channelId = val.channel_id;
+    if (!channelId) {
+        console.log('[TelegramService] No community channel configured — skipping community drop');
+        return false;
+    }
+
+    const tplSetting = await prisma.setting.findUnique({
+        where: { key: 'telegram_alert_template' },
+    });
+    const rawTemplate = (tplSetting?.value as Record<string, any>)?.template || DEFAULT_TELEGRAM_COMMUNITY_TEMPLATE;
+
+    const appUrl = process.env.FRONTEND_URL || 'https://www.theleadhunterclub.com';
+    const message = rawTemplate
+        .replace(/{count}/g, String(count))
+        .replace(/{count_suffix}/g, count === 1 ? 'y' : 'ies')
+        .replace(/{have_has}/g, count === 1 ? 'has' : 'have')
+        .replace(/{niches}/g, niches.length > 0 ? niches.slice(0, 4).join(', ') : 'High-Intent Niches')
+        .replace(/{link}/g, `${appUrl}/leads`);
+
+    console.log(`📢 [TelegramService] Posting community lead drop to channel ${channelId}`);
+    return sendTelegramMessage(channelId, message, {
+        inline_keyboard: [
+            [{ text: '🚀 Review & Claim on Dashboard ↗', url: `${appUrl}/leads` }],
+        ],
+    });
+}
+
+let pendingTgDropCount = 0;
+const pendingTgNiches = new Set<string>();
+let tgBatchTimer: NodeJS.Timeout | null = null;
+
+export function queueTelegramCommunityDropNotification(
+    leadsCount: number = 1,
+    category?: string | string[],
+    delayMs: number = 60_000
+): void {
+    pendingTgDropCount += leadsCount;
+    if (Array.isArray(category)) {
+        category.forEach((c) => {
+            if (c && typeof c === 'string' && c.trim()) pendingTgNiches.add(c.trim());
+        });
+    } else if (category && typeof category === 'string' && category.trim()) {
+        pendingTgNiches.add(category.trim());
+    }
+
+    if (tgBatchTimer) clearTimeout(tgBatchTimer);
+
+    tgBatchTimer = setTimeout(async () => {
+        const count = pendingTgDropCount;
+        const niches = Array.from(pendingTgNiches);
+        pendingTgDropCount = 0;
+        pendingTgNiches.clear();
+        tgBatchTimer = null;
+
+        if (count > 0) {
+            console.log(`🔔 [Telegram] Firing batched community lead drop alert for ${count} approved leads...`);
+            await dispatchTelegramCommunityDrop(count, niches);
+        }
+    }, delayMs);
+}
