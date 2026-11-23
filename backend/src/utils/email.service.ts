@@ -175,10 +175,14 @@ function formatSnippet(content?: string | null, maxLen: number = 160): string {
 export function buildLeadDropAlertEmail(
     userName: string,
     leads: LeadAlertEmailItem[],
-    appUrlInput?: string
+    appUrlInput?: string,
+    userEmail?: string
 ) {
     const rawUrl = appUrlInput || process.env.FRONTEND_URL || 'https://www.theleadhunterclub.com';
     const appUrl = (rawUrl.includes('vercel.app') ? 'https://www.theleadhunterclub.com' : rawUrl).replace(/\/+$/, '');
+    const unsubUrl = userEmail
+        ? `${appUrl}/alerts/unsubscribe?email=${encodeURIComponent(userEmail.trim())}`
+        : `${appUrl}/settings`;
     const isSingle = leads.length === 1;
     const firstLead = leads[0];
     const firstLeadTitle =
@@ -284,6 +288,11 @@ export function buildLeadDropAlertEmail(
               <p style="margin: 0; font-size: 12px; color: #888888; line-height: 1.5;">
                 Lead Hunter Club &mdash; Find &amp; close your ideal clients<br>
                 <a href="${appUrl}" style="color: #FFB800; font-weight: 600; text-decoration: none;">Visit dashboard</a>
+              </p>
+              <p style="margin: 12px 0 0 0; font-size: 11px; color: #666666; line-height: 1.5;">
+                Don&apos;t want these lead drop emails?
+                <a href="${unsubUrl}" style="color: #888888; text-decoration: underline;" target="_blank">Unsubscribe from lead alerts</a>
+                or manage your preferences in <a href="${appUrl}/settings" style="color: #888888; text-decoration: underline;" target="_blank">Settings</a>.
               </p>
             </td>
           </tr>

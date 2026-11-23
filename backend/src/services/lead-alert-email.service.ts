@@ -106,7 +106,8 @@ export async function dispatchLeadAlertEmails(leads: LeadAlertEmailItem[]): Prom
                     const { subject, html } = buildLeadDropAlertEmail(
                         user.name || 'there',
                         leads,
-                        appUrl
+                        appUrl,
+                        user.email.trim()
                     );
                     try {
                         await sendEmail({
