@@ -98,7 +98,7 @@ export class ScraperService {
                     items = result.items || [];
                 }
 
-                if (items.length > 0 && activeKey) {
+                if (activeKey) {
                     await recordApifyCommentUsage(activeKey, items.length);
                 }
                 return items;

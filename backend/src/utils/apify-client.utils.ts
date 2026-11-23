@@ -1,4 +1,5 @@
 import { ApifyClient } from 'apify-client';
+import axios from 'axios';
 import ApifyKey from '../models/apify-key.model';
 import prisma from '../lib/prisma';
 import config from '../config';
@@ -25,8 +26,52 @@ export async function getApifyClient(): Promise<{ client: ApifyClient; activeKey
     return { client: new ApifyClient({ token: apiToken }), activeKey };
 }
 
+export async function updateApifyKeyBalance(activeKey: ApifyKeyRecord | null): Promise<void> {
+    if (!activeKey?.key) return;
+    const keyId = activeKey._id || activeKey.id;
+    if (!keyId) return;
+
+    try {
+        const response = await axios.get('https://api.apify.com/v2/users/me/limits', {
+            headers: { Authorization: `Bearer ${activeKey.key}` },
+            timeout: 10000,
+        });
+        const current = response.data?.data?.current;
+        const limits = response.data?.data?.limits;
+        const usedUsd = current?.monthlyUsageUsd;
+        const maxUsd = limits?.maxMonthlyUsageUsd ?? 5.0;
+
+        if (typeof usedUsd === 'number') {
+            const remainingUsd = Math.max(0, maxUsd - usedUsd);
+            const isExhausted = remainingUsd === 0 || usedUsd >= maxUsd;
+            await prisma.apifyKey.update({
+                where: { id: keyId },
+                data: {
+                    is_active: !isExhausted,
+                    error_message: isExhausted
+                        ? `Apify spend exhausted ($${usedUsd.toFixed(2)} / $${maxUsd.toFixed(2)})`
+                        : null,
+                },
+            });
+            console.log(
+                `💳 [ApifyBalance] Token ${activeKey.label || keyId}: Used $${usedUsd.toFixed(2)} / $${maxUsd.toFixed(2)} | Remaining $${remainingUsd.toFixed(2)}`
+            );
+        }
+    } catch (err: any) {
+        if (err?.response?.status === 401 && keyId) {
+            await prisma.apifyKey.update({
+                where: { id: keyId },
+                data: {
+                    is_active: false,
+                    error_message: '401 Unauthorized / Invalid Token',
+                },
+            });
+        }
+    }
+}
+
 export async function recordApifyCommentUsage(activeKey: ApifyKeyRecord | null, commentCount: number): Promise<void> {
-    if (!activeKey || commentCount <= 0) return;
+    if (!activeKey) return;
 
     const keyId = activeKey._id || activeKey.id;
     if (!keyId) return;
@@ -40,11 +85,14 @@ export async function recordApifyCommentUsage(activeKey: ApifyKeyRecord | null, 
         where: { id: keyId },
         data: {
             usage_month: month,
-            comments_used: resetUsage ? commentCount : { increment: commentCount },
+            comments_used: commentCount > 0 ? (resetUsage ? commentCount : { increment: commentCount }) : undefined,
         },
     });
 
-    // Comments used are recorded for analytics. We never artificially deactivate tokens based on comment count.
+    // After scrape cycle, query Apify live limits to update real balance amount & auto-exhaust if limit reached
+    await updateApifyKeyBalance(activeKey).catch((e) =>
+        console.warn(`[ApifyBalance] Failed to update balance for ${activeKey.label || keyId}:`, e.message)
+    );
 }
 
 export function isApifyLimitError(error: any): boolean {
