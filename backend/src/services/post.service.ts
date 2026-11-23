@@ -1149,12 +1149,22 @@ export const claimPost = async (postId: string, userId: string) => {
         throw new ErrorResponse('You have already claimed this lead.', 400);
     }
 
-    // 2. Check claim limit
+    // 2. Check claim limit and 48-hour age
     const limitSetting = await getSetting('max_claims_per_lead');
     const maxClaims = limitSetting ? Number(limitSetting) : 25;
 
-    if (post.claimed_count >= maxClaims) {
-        throw new ErrorResponse(`This lead has reached its maximum claim limit (${maxClaims} users).`, 400);
+    const approvedOrLiveDate = (post as any).reviewed_at || (post as any).approved_at || (post as any).updated_at || post.created_at;
+    const isExpired48h = approvedOrLiveDate
+        ? Date.now() - new Date(approvedOrLiveDate).getTime() >= 48 * 60 * 60 * 1000
+        : false;
+
+    if (post.claimed_count >= maxClaims || isExpired48h) {
+        throw new ErrorResponse(
+            isExpired48h
+                ? 'This lead has expired (older than 48 hours).'
+                : `This lead has reached its maximum claim limit (${maxClaims} users).`,
+            400
+        );
     }
 
     // 3. Check user roles and tokens (plan-aware)
