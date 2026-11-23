@@ -173,6 +173,8 @@ model LeadPost {
   @@index([platform])
   @@index([is_deleted])
   @@index([review_status])
+  @@index([review_status, is_deleted, reviewed_at(sort: Desc)])
+  @@index([review_status, is_deleted, created_at(sort: Desc)])
   @@map("lead_posts")
 }
 
