@@ -48,7 +48,7 @@ export async function dispatchLeadAlertEmails(leads: LeadAlertEmailItem[]): Prom
         let users: { id: string; email: string; name?: string | null }[] = [];
         try {
             users = await prisma.$queryRawUnsafe<any[]>(
-                `SELECT id, email, name FROM "User" WHERE status = 'ACTIVE' AND email IS NOT NULL AND email != '';`
+                `SELECT id, email, name FROM "User" WHERE status = 'ACTIVE' AND email IS NOT NULL AND email != '' AND NOT ('no_email_alerts' = ANY(COALESCE(tags, ARRAY[]::text[])));`
             );
         } catch {
             users = await prisma.user.findMany({
@@ -65,7 +65,24 @@ export async function dispatchLeadAlertEmails(leads: LeadAlertEmailItem[]): Prom
             });
         }
 
-        const validUsers = users.filter((u) => u.email && u.email.trim().includes('@'));
+        // Check global unsubscribed blacklist in settings
+        let unsubscribedEmails = new Set<string>();
+        try {
+            const unsubSetting = await prisma.setting.findUnique({
+                where: { key: 'unsubscribed_alert_emails' },
+            });
+            const list = (unsubSetting?.value as any)?.emails || [];
+            list.forEach((e: string) => unsubscribedEmails.add(e.toLowerCase().trim()));
+        } catch {
+            // ignore
+        }
+
+        const validUsers = users.filter((u) => {
+            const email = u.email?.toLowerCase().trim();
+            if (!email || !email.includes('@')) return false;
+            if (unsubscribedEmails.has(email)) return false;
+            return true;
+        });
         if (validUsers.length === 0) {
             console.log('ℹ️  [LeadAlertEmail] No active users with email found to notify.');
             return { sent: 0, failed: 0, totalUsers: 0 };
