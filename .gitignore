@@ -16,6 +16,8 @@
 !.env.local.example
 
 # OS
+*.ogg
+*.opus
 .DS_Store
 Thumbs.db
 
