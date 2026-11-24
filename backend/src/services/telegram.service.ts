@@ -35,11 +35,19 @@ export async function sendTelegramMessage(
     chatId: string | number,
     text: string,
     options?: {
+        parse_mode?: 'HTML' | 'MarkdownV2' | 'Markdown';
         inline_keyboard?: Array<Array<{ text: string; url?: string; callback_data?: string }>>;
+        reply_markup?: {
+            inline_keyboard?: Array<Array<{ text: string; url?: string; callback_data?: string }>>;
+        };
     }
 ): Promise<boolean> {
     const { botToken, enabled } = await getBotConfig();
     if (!enabled || !botToken) return false;
+
+    const replyMarkup =
+        options?.reply_markup ||
+        (options?.inline_keyboard ? { inline_keyboard: options.inline_keyboard } : undefined);
 
     try {
         const res = await axios.post(
@@ -47,10 +55,8 @@ export async function sendTelegramMessage(
             {
                 chat_id: chatId,
                 text,
-                parse_mode: 'HTML',
-                reply_markup: options?.inline_keyboard
-                    ? { inline_keyboard: options.inline_keyboard }
-                    : undefined,
+                parse_mode: options?.parse_mode || 'HTML',
+                reply_markup: replyMarkup,
             },
             { timeout: 8000 }
         );
@@ -61,6 +67,48 @@ export async function sendTelegramMessage(
     }
 }
 
+export function formatTelegramLeadCard(
+    lead: {
+        id: string;
+        title?: string | null;
+        niche?: string | null;
+        platform?: string | null;
+        content?: string | null;
+        snippet?: string | null;
+        keyword?: string | null;
+    },
+    appUrl: string
+): { text: string; keyboard: Array<Array<{ text: string; url: string }>> } {
+    const displayTitle =
+        lead.title?.trim() ||
+        (lead.niche ? `${lead.niche} Opportunity` : lead.keyword || 'Strategic Client Opportunity');
+    const niche = (lead.niche || lead.keyword || 'Strategic Lead').trim().toUpperCase();
+
+    let snippet = lead.snippet || '';
+    if (!snippet && lead.content) {
+        const clean = lead.content.replace(/\s+/g, ' ').trim();
+        snippet = clean.length > 200 ? clean.slice(0, 200) + '...' : clean;
+    }
+
+    const cleanAppUrl = appUrl.replace(/\/+$/, '');
+    const leadUrl = `${cleanAppUrl}/leads?lead=${encodeURIComponent(lead.id)}`;
+
+    const text = `💼 <b>Lead Hunter Club</b>
+
+🏷️ <b>[${escapeTgHtml(niche)}]</b>
+<b>${escapeTgHtml(displayTitle)}</b>
+
+${snippet ? `${escapeTgHtml(snippet)}\n\n` : ''}👉 <i>Claim before competitors reach out!</i>`;
+
+    const keyboard = [
+        [
+            { text: '⚡ View & Claim Lead ↗', url: leadUrl },
+        ],
+    ];
+
+    return { text, keyboard };
+}
+
 export async function broadcastTelegramLeadAlert(
     leads: Array<{
         id: string;
@@ -69,6 +117,7 @@ export async function broadcastTelegramLeadAlert(
         platform?: string | null;
         content?: string | null;
         snippet?: string | null;
+        keyword?: string | null;
     }>
 ): Promise<{ sent: number; failed: number }> {
     if (!leads || leads.length === 0) return { sent: 0, failed: 0 };
@@ -79,7 +128,7 @@ export async function broadcastTelegramLeadAlert(
         return { sent: 0, failed: 0 };
     }
 
-    const appUrl = process.env.FRONTEND_URL || 'https://www.theleadhunterclub.com';
+    const appUrl = (process.env.FRONTEND_URL || 'https://www.theleadhunterclub.com').replace(/\/+$/, '');
 
     // Fetch active users with a connected Telegram chat ID
     const users = await prisma.user.findMany({
@@ -104,25 +153,9 @@ export async function broadcastTelegramLeadAlert(
     let sent = 0;
     let failed = 0;
 
+    // Dispatches each lead as an INDIVIDUAL Telegram message (not bundled in 3s)
     for (const lead of leads) {
-        const title = lead.title?.trim() || 'New High-Intent Client Requirement';
-        const niche = lead.niche || 'High-Intent Demand';
-        const cleanContent = lead.content ? lead.content.replace(/\s+/g, ' ').trim() : '';
-        const snippet = lead.snippet || (cleanContent ? cleanContent.slice(0, 180) + '...' : '');
-        const leadUrl = `${appUrl}/leads?lead=${encodeURIComponent(lead.id)}`;
-
-        const messageText = `🔥 <b>New Lead Alert | ${escapeTgHtml(niche)}</b>
-
-<b>${escapeTgHtml(title)}</b>
-
-${snippet ? `<i>"${escapeTgHtml(snippet)}"</i>\n` : ''}
-👉 <i>Claim before competitors reach out!</i>`;
-
-        const keyboard = [
-            [
-                { text: '🚀 View & Claim on Dashboard ↗', url: leadUrl },
-            ],
-        ];
+        const { text: messageText, keyboard } = formatTelegramLeadCard(lead, appUrl);
 
         for (const user of users) {
             if (!user.telegram_chat_id) continue;
@@ -134,7 +167,7 @@ ${snippet ? `<i>"${escapeTgHtml(snippet)}"</i>\n` : ''}
         }
     }
 
-    console.log(`[TelegramService] Broadcast complete: ${sent} sent, ${failed} failed across ${users.length} users.`);
+    console.log(`[TelegramService] Broadcast complete: ${sent} individual lead messages sent, ${failed} failed across ${users.length} users.`);
     return { sent, failed };
 }
 
