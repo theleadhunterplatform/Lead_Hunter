@@ -130,7 +130,14 @@ export async function broadcastTelegramLeadAlert(
 
     const appUrl = (process.env.FRONTEND_URL || 'https://www.theleadhunterclub.com').replace(/\/+$/, '');
 
-    // Fetch active users with a connected Telegram chat ID
+    // 1. Check if a community channel/group is configured
+    const channelSetting = await prisma.setting.findUnique({
+        where: { key: 'telegram_community_channel' },
+    });
+    const channelVal = (channelSetting?.value as Record<string, any>) || {};
+    const channelId = channelVal.channel_id;
+
+    // 2. Fetch active users with a connected Telegram chat ID
     const users = await prisma.user.findMany({
         where: {
             status: { in: ['active', 'ACTIVE'] },
@@ -145,18 +152,28 @@ export async function broadcastTelegramLeadAlert(
         },
     });
 
-    if (users.length === 0) {
-        console.log('[TelegramService] No active users with connected Telegram accounts found.');
+    if (!channelId && users.length === 0) {
+        console.log('[TelegramService] No community channel or connected users found — skipping Telegram lead alert');
         return { sent: 0, failed: 0 };
     }
 
     let sent = 0;
     let failed = 0;
 
-    // Dispatches each lead as an INDIVIDUAL Telegram message (not bundled in 3s)
+    // Dispatches each lead directly as an INDIVIDUAL Telegram message card
     for (const lead of leads) {
         const { text: messageText, keyboard } = formatTelegramLeadCard(lead, appUrl);
 
+        // Send directly to the Telegram Community Channel
+        if (channelId) {
+            const channelOk = await sendTelegramMessage(channelId, messageText, {
+                inline_keyboard: keyboard,
+            });
+            if (channelOk) sent++;
+            else failed++;
+        }
+
+        // Send directly to individual hunters with connected Telegram
         for (const user of users) {
             if (!user.telegram_chat_id) continue;
             const ok = await sendTelegramMessage(user.telegram_chat_id, messageText, {
