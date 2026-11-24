@@ -80,6 +80,10 @@ export class ScrapedogScraperService {
                         return await this.scrapeTwitter(activeKey.key, phrase);
                     case 'threads':
                         return await this.scrapeThreads(activeKey.key, phrase);
+                    case 'github':
+                        return await this.scrapeGitHub(activeKey.key, phrase);
+                    case 'youtube':
+                        return await this.scrapeYouTube(activeKey.key, phrase);
                     default:
                         throw new Error(`Platform "${platform}" not supported by Scrapedog scraper.`);
                 }
@@ -179,6 +183,22 @@ export class ScrapedogScraperService {
     }
 
     /**
+     * GitHub: Queries Google SERP via Scrapedog for hiring/contractor issues & discussions.
+     */
+    private static async scrapeGitHub(apiKey: string, phrase: string): Promise<NormalizedScrapedItem[]> {
+        const query = `site:github.com (inurl:issues OR inurl:discussions) ("hiring" OR "looking for" OR "help wanted" OR "freelance" OR "bounty") "${phrase}"`;
+        return this.scrapeGoogleSerp(apiKey, query, 'github');
+    }
+
+    /**
+     * YouTube: Queries Google SERP via Scrapedog for fresh video descriptions & community posts.
+     */
+    private static async scrapeYouTube(apiKey: string, phrase: string): Promise<NormalizedScrapedItem[]> {
+        const query = `site:youtube.com ("looking for a" OR "hire" OR "freelance" OR "recommendations") "${phrase}"`;
+        return this.scrapeGoogleSerp(apiKey, query, 'youtube');
+    }
+
+    /**
      * Generic Google Search scraper using Scrapedog Google Search API.
      */
     private static async scrapeGoogleSerp(
@@ -243,6 +263,12 @@ export class ScrapedogScraperService {
             } else if (platform === 'threads') {
                 const match = url.match(/post\/([a-zA-Z0-9_-]+)/);
                 if (match) return match[1];
+            } else if (platform === 'github') {
+                const match = url.match(/github\.com\/([^/]+)\/([^/]+)\/(?:issues|discussions)\/([0-9]+)/);
+                if (match) return `gh-${match[1]}-${match[2]}-${match[3]}`;
+            } else if (platform === 'youtube') {
+                const match = url.match(/(?:watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+                if (match) return `yt-${match[1]}`;
             }
         } catch {
             return null;
@@ -276,6 +302,22 @@ export class ScrapedogScraperService {
                     name: handle,
                     handle,
                     url: handle ? `https://www.threads.net/@${handle}` : url,
+                };
+            } else if (platform === 'github') {
+                const match = url.match(/github\.com\/([^/?#]+)/);
+                const handle = match ? match[1] : undefined;
+                return {
+                    name: handle,
+                    handle,
+                    url: handle ? `https://github.com/${handle}` : url,
+                };
+            } else if (platform === 'youtube') {
+                const match = url.match(/youtube\.com\/@([^/?#]+)/);
+                const handle = match ? match[1] : undefined;
+                return {
+                    name: handle || title?.split('-')[0]?.trim(),
+                    handle,
+                    url: handle ? `https://www.youtube.com/@${handle}` : url,
                 };
             }
         } catch {

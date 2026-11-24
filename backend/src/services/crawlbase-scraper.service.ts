@@ -58,6 +58,10 @@ export class CrawlbaseScraperService {
                         return await this.scrapeTwitter(active.key, phrase);
                     case 'threads':
                         return await this.scrapeThreads(active.key, phrase);
+                    case 'github':
+                        return await this.scrapeGitHub(active.key, phrase);
+                    case 'youtube':
+                        return await this.scrapeYouTube(active.key, phrase);
                     default:
                         throw new Error(`Platform "${platform}" not supported by Crawlbase scraper.`);
                 }
@@ -165,6 +169,22 @@ export class CrawlbaseScraperService {
     }
 
     /**
+     * GitHub: Queries Google SERP via Crawlbase for hiring/contractor issues & discussions.
+     */
+    private static async scrapeGitHub(token: string, phrase: string): Promise<NormalizedScrapedItem[]> {
+        const query = `site:github.com (inurl:issues OR inurl:discussions) ("hiring" OR "looking for" OR "help wanted" OR "freelance" OR "bounty") "${phrase}"`;
+        return this.scrapeGoogleSerp(token, query, 'github');
+    }
+
+    /**
+     * YouTube: Queries Google SERP via Crawlbase for hiring & recommendation asks.
+     */
+    private static async scrapeYouTube(token: string, phrase: string): Promise<NormalizedScrapedItem[]> {
+        const query = `site:youtube.com ("looking for a" OR "hire" OR "freelance" OR "recommendations") "${phrase}"`;
+        return this.scrapeGoogleSerp(token, query, 'youtube');
+    }
+
+    /**
      * Generic Google Search Scraper via Crawlbase Scraper API.
      */
     private static async scrapeGoogleSerp(
@@ -230,6 +250,12 @@ export class CrawlbaseScraperService {
             } else if (platform === 'threads') {
                 const match = url.match(/post\/([a-zA-Z0-9_-]+)/);
                 if (match) return match[1];
+            } else if (platform === 'github') {
+                const match = url.match(/github\.com\/([^/]+)\/([^/]+)\/(?:issues|discussions)\/([0-9]+)/);
+                if (match) return `gh-${match[1]}-${match[2]}-${match[3]}`;
+            } else if (platform === 'youtube') {
+                const match = url.match(/(?:watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+                if (match) return `yt-${match[1]}`;
             }
         } catch {
             return null;
@@ -263,6 +289,22 @@ export class CrawlbaseScraperService {
                     name: handle,
                     handle,
                     url: handle ? `https://www.threads.net/@${handle}` : url,
+                };
+            } else if (platform === 'github') {
+                const match = url.match(/github\.com\/([^/?#]+)/);
+                const handle = match ? match[1] : undefined;
+                return {
+                    name: handle,
+                    handle,
+                    url: handle ? `https://github.com/${handle}` : url,
+                };
+            } else if (platform === 'youtube') {
+                const match = url.match(/youtube\.com\/@([^/?#]+)/);
+                const handle = match ? match[1] : undefined;
+                return {
+                    name: handle || title?.split('-')[0]?.trim(),
+                    handle,
+                    url: handle ? `https://www.youtube.com/@${handle}` : url,
                 };
             }
         } catch {

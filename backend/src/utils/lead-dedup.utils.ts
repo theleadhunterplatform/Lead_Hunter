@@ -135,6 +135,17 @@ export async function findExistingLeadPost(options: {
             });
             if (byReddit) return byReddit;
         }
+    } else if (platform === 'github' || platform === 'youtube') {
+        const byPlatformId = await prisma.leadPost.findFirst({
+            where: {
+                ...base,
+                OR: [
+                    { post_id },
+                    { url: { contains: post_id } },
+                ],
+            },
+        });
+        if (byPlatformId) return byPlatformId;
     }
 
     const normalizedUrl = url?.trim();
