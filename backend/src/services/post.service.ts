@@ -1020,13 +1020,10 @@ export const createManualPost = async (data: {
     const existing = await findExistingLeadPost({
         platform,
         crossPlatform: true,
-        url: data.authorUrl,
         content: data.content,
-        email: data.email,
-        phone: data.phone,
     });
     if (existing) {
-        const error = new Error(`Duplicate lead detected. This lead already exists on ${existing.platform || 'platform'}.`);
+        const error = new Error(`Duplicate requirement detected. An identical lead already exists on ${existing.platform || 'platform'}.`);
         (error as any).statusCode = 409;
         (error as any).existingId = (existing as any)._id?.toString() || (existing as any).id;
         throw error;
