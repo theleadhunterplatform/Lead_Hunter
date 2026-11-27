@@ -58,14 +58,18 @@ export function getLeadDedupKey(lead: {
 
 export async function findExistingLeadPost(options: {
     post_id?: string;
-    platform: string;
+    platform?: string;
+    crossPlatform?: boolean;
     url?: string | null;
     content?: string | null;
     email?: string | null;
     phone?: string | null;
 }) {
-    const { post_id, platform, url, content, email, phone } = options;
-    const base = { platform, is_deleted: false };
+    const { post_id, platform, crossPlatform, url, content, email, phone } = options;
+    const base: Record<string, any> = { is_deleted: false };
+    if (platform && !crossPlatform && platform !== 'manual') {
+        base.platform = platform;
+    }
 
     if (post_id) {
         const byId = await LeadPost.findOne({ ...base, post_id });

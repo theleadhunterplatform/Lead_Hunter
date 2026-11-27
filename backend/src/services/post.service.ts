@@ -1019,11 +1019,17 @@ export const createManualPost = async (data: {
 
     const existing = await findExistingLeadPost({
         platform,
-        url: null,
+        crossPlatform: true,
+        url: data.authorUrl,
         content: data.content,
+        email: data.email,
+        phone: data.phone,
     });
     if (existing) {
-        return existing;
+        const error = new Error(`Duplicate lead detected. This lead already exists on ${existing.platform || 'platform'}.`);
+        (error as any).statusCode = 409;
+        (error as any).existingId = (existing as any)._id?.toString() || (existing as any).id;
+        throw error;
     }
 
     // Generate a unique ID for manual posts
