@@ -38,12 +38,17 @@ export async function updateApifyKeyBalance(activeKey: ApifyKeyRecord | null): P
         });
         const current = response.data?.data?.current;
         const limits = response.data?.data?.limits;
+        const cycle = response.data?.data?.monthlyUsageCycle;
         const usedUsd = current?.monthlyUsageUsd;
         const maxUsd = limits?.maxMonthlyUsageUsd ?? 5.0;
+        const resetDate = cycle?.endAt ?? null;
 
         if (typeof usedUsd === 'number') {
             const remainingUsd = Math.max(0, maxUsd - usedUsd);
-            const isExhausted = remainingUsd === 0 || usedUsd >= maxUsd;
+            // STRICT RULE: Marked inactive ONLY and ONLY when the token runs out of balance (remaining <= $0.01).
+            // Under NO other conditions should a token be marked inactive.
+            const isExhausted = remainingUsd <= 0.01 || usedUsd >= maxUsd;
+
             await prisma.apifyKey.update({
                 where: { id: keyId },
                 data: {
@@ -54,10 +59,11 @@ export async function updateApifyKeyBalance(activeKey: ApifyKeyRecord | null): P
                 },
             });
             console.log(
-                `💳 [ApifyBalance] Token ${activeKey.label || keyId}: Used $${usedUsd.toFixed(2)} / $${maxUsd.toFixed(2)} | Remaining $${remainingUsd.toFixed(2)}`
+                `💳 [ApifyBalance] Token ${activeKey.label || keyId}: Used $${usedUsd.toFixed(2)} / $${maxUsd.toFixed(2)} | Remaining $${remainingUsd.toFixed(2)}${resetDate ? ` | Renews: ${new Date(resetDate).toLocaleDateString()}` : ''}`
             );
         }
     } catch (err: any) {
+        // Only mark inactive if Apify explicitly returns 401 (token revoked or account deleted)
         if (err?.response?.status === 401 && keyId) {
             await prisma.apifyKey.update({
                 where: { id: keyId },
@@ -67,7 +73,78 @@ export async function updateApifyKeyBalance(activeKey: ApifyKeyRecord | null): P
                 },
             });
         }
+        // Under ALL other conditions (timeouts, network drops, 429 rate limits, concurrency), DO NOT mark inactive!
     }
+}
+
+/**
+ * Checks balance and renewal dates for all Apify tokens in the database.
+ * Automatically reactivates tokens whose billing cycle has renewed (remaining > $0.05)
+ * and marks inactive strictly when remaining balance reaches $0.
+ */
+export async function syncAllApifyKeyBalances(): Promise<{
+    active: number;
+    exhausted: number;
+    reactivated: number;
+}> {
+    const keys = await prisma.apifyKey.findMany({ where: { is_deleted: false } });
+    let active = 0;
+    let exhausted = 0;
+    let reactivated = 0;
+
+    for (const key of keys) {
+        try {
+            const response = await axios.get('https://api.apify.com/v2/users/me/limits', {
+                headers: { Authorization: `Bearer ${key.key.trim()}` },
+                timeout: 8000,
+            });
+            const current = response.data?.data?.current;
+            const limits = response.data?.data?.limits;
+            const cycle = response.data?.data?.monthlyUsageCycle;
+            const usedUsd = current?.monthlyUsageUsd;
+            const maxUsd = limits?.maxMonthlyUsageUsd ?? 5.0;
+            const resetDate = cycle?.endAt ?? null;
+
+            if (typeof usedUsd === 'number') {
+                const remainingUsd = Math.max(0, maxUsd - usedUsd);
+                const isExhausted = remainingUsd <= 0.01 || usedUsd >= maxUsd;
+
+                if (!isExhausted && !key.is_active) {
+                    // Token has balance now (cycle renewed!) -> auto-reactivate
+                    await prisma.apifyKey.update({
+                        where: { id: key.id },
+                        data: { is_active: true, error_message: null },
+                    });
+                    reactivated++;
+                    active++;
+                    console.log(`✨ [ApifySync] Key ${key.label || key.id} renewed! Reactivated with $${remainingUsd.toFixed(2)} balance (Next renewal: ${resetDate}).`);
+                } else if (isExhausted && key.is_active) {
+                    // Strictly exhausted -> deactivate
+                    await prisma.apifyKey.update({
+                        where: { id: key.id },
+                        data: {
+                            is_active: false,
+                            error_message: `Apify spend exhausted ($${usedUsd.toFixed(2)} / $${maxUsd.toFixed(2)})`,
+                        },
+                    });
+                    exhausted++;
+                } else if (key.is_active) {
+                    active++;
+                } else {
+                    exhausted++;
+                }
+            }
+        } catch (err: any) {
+            if (err?.response?.status === 401) {
+                await prisma.apifyKey.update({
+                    where: { id: key.id },
+                    data: { is_active: false, error_message: '401 Unauthorized / Invalid Token' },
+                });
+            }
+            // Under any other error, NEVER deactivate
+        }
+    }
+    return { active, exhausted, reactivated };
 }
 
 export async function recordApifyCommentUsage(activeKey: ApifyKeyRecord | null, commentCount: number): Promise<void> {

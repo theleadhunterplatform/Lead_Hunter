@@ -3,6 +3,7 @@ import { runScraperProducerJob } from '../services/scraper-producer.service';
 import { isAutoScrapeEnabled } from '../utils/automation-settings.utils';
 import { checkAutomationQuietHours } from '../utils/quiet-hours.utils';
 import { scraperQueue } from '../queues';
+import { syncAllApifyKeyBalances } from '../utils/apify-client.utils';
 
 const TIMEZONE = 'Asia/Kolkata';
 
@@ -75,6 +76,19 @@ export const initCron = async () => {
             console.error('❌ [CRON] Scraper Producer Job Failed:', error.message);
         }
     }, { timezone: TIMEZONE });
+
+    // 5. Apify Token Balance & Auto-Renewal Sync: Runs hourly to auto-reactivate renewed tokens
+    cron.schedule('0 * * * *', async () => {
+        try {
+            const result = await syncAllApifyKeyBalances();
+            console.log(`✔ [ApifySync] Hourly sync complete: ${result.active} active, ${result.exhausted} exhausted, ${result.reactivated} reactivated`);
+        } catch (err: any) {
+            console.error('❌ [CRON] Failed to sync Apify key balances:', err.message);
+        }
+    });
+
+    // Initial check on server startup (non-blocking)
+    syncAllApifyKeyBalances().catch((e) => console.warn('[ApifySync] Startup check warning:', e.message));
 
     console.log(`✔ Scraper Automation Hard Scheduled: 10:00 AM to 7:00 PM ${TIMEZONE} (Queue auto-pauses at 7 PM, resumes at 10 AM)`);
 };

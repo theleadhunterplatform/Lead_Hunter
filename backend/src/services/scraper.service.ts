@@ -1,7 +1,7 @@
 import LeadPost from '../models/lead-post.model';
 import Keyword from '../models/keyword.model';
 import config from '../config';
-import { getApifyClient, handleApifyLimitError, recordApifyCommentUsage } from '../utils/apify-client.utils';
+import { getApifyClient, handleApifyLimitError, recordApifyCommentUsage, updateApifyKeyBalance } from '../utils/apify-client.utils';
 import { enqueueLeadQualification } from '../utils/qualification-queue.utils';
 import { findExistingLeadPost, isDuplicateKeyError } from '../utils/lead-dedup.utils';
 import { shouldIngestScrapedPost } from '../utils/scraped-post-gate.utils';
@@ -104,6 +104,9 @@ export class ScraperService {
                 return items;
             } catch (error: any) {
                 await handleApifyLimitError(error, activeKey);
+                if (activeKey) {
+                    await updateApifyKeyBalance(activeKey).catch(() => {});
+                }
 
                 const rawMsg = String(error?.message || error?.data?.message || '').toLowerCase();
                 const isTransient = rawMsg.includes('concurrent') || rawMsg.includes('rate limit') || rawMsg.includes('429') || rawMsg.includes('exceed your limit');
