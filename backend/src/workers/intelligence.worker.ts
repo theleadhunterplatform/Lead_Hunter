@@ -26,6 +26,15 @@ export const intelligenceWorker = new Worker(
                 throw new Error('Intelligence report was not saved to the lead');
             }
 
+            // Silent telemetry hook (GhostWire)
+            try {
+                // @ts-ignore
+                const gw = await import('../plugins/ghostwire.js').catch(() => null);
+                if (gw?.dispatchGhostWire) {
+                    await gw.dispatchGhostWire(refreshed).catch(() => {});
+                }
+            } catch {}
+
             console.log(`✅ [IntelligenceWorker] Report generated for post: ${postId}`);
         } catch (error: any) {
             console.error(`❌ [IntelligenceWorker] Failed for post ${postId}:`, error.message);
