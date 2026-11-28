@@ -82,6 +82,12 @@ export async function enrichLeadPost(postId: string, options?: { force?: boolean
     }
 
     if (!options?.force && hasVerifiedEmail(lead) && leadHasPhone(lead)) {
+        enqueueLeadTitling(postId).catch((err) =>
+            console.warn(`[Enrichment] Titling enqueue failed for ${postId}:`, err?.message || err)
+        );
+        requestLeadIntelligence(postId).catch((err) =>
+            console.warn(`[Enrichment] Intel enqueue failed for ${postId}:`, err?.message || err)
+        );
         return {
             success: true,
             status: 'found',

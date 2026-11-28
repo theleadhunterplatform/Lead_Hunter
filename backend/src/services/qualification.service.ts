@@ -5,6 +5,8 @@ import { scheduleAutoTrain } from '../utils/auto-train.utils';
 import { isLocalAiModelReady } from './ai-training.service';
 import { enqueueContactEnrichment } from '../utils/enrichment-queue.utils';
 import { isAutoEnrichmentEnabled } from '../utils/automation-settings.utils';
+import { enqueueLeadTitling } from '../utils/title-queue.utils';
+import { requestLeadIntelligence } from '../utils/intelligence-queue.utils';
 import {
     classifyLeadIntent,
     confidenceToStatus,
@@ -350,11 +352,22 @@ export async function qualifyLeadPost(postId: string): Promise<QualificationResu
         scheduleAutoTrain().catch((err) => console.error('[AutoTrain] Schedule failed:', err.message));
     }
 
-    if (result.status === 'relevant' && shouldEnrichLead(post) && (await isAutoEnrichmentEnabled())) {
-        await enqueueContactEnrichment(postId, {
-            status: 'relevant',
-            platform: post.platform,
-        });
+    if (result.status === 'relevant') {
+        const alreadyHasContact = !!(post.email || (post.contact_info && typeof post.contact_info === 'object' && Object.keys(post.contact_info).length > 0));
+        if (shouldEnrichLead(post) && !alreadyHasContact && (await isAutoEnrichmentEnabled())) {
+            await enqueueContactEnrichment(postId, {
+                status: 'relevant',
+                platform: post.platform,
+            });
+        } else {
+            // Already has contact info (e.g. partial from post text or found) — trigger titling & intelligence immediately!
+            enqueueLeadTitling(postId).catch((err) =>
+                console.warn(`[Qualification] Titling enqueue failed for ${postId}:`, err?.message || err)
+            );
+            requestLeadIntelligence(postId).catch((err) =>
+                console.warn(`[Qualification] Intel enqueue failed for ${postId}:`, err?.message || err)
+            );
+        }
     }
 
     return result;
