@@ -72,6 +72,10 @@ export const addApifyKey = async (data: { key: string; label?: string }) => {
         errorMessage = err.message || 'User was not found or authentication token is not valid';
     }
 
+    if (!isValid) {
+        throw new ErrorResponse(`Apify Auth Error: ${errorMessage || 'User was not found or authentication token is not valid'}`, 400);
+    }
+
     const existing = await ApifyKey.findOne({ key: trimmedKey });
     if (existing) {
         if (existing.is_deleted) {
